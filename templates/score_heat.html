@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Score {{ heat_name }} - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Enter Scores for: {{ heat_name }}</h2>
+    
+    <div class="alert alert-info">
+        <strong>Scoring Instructions:</strong> Enter ranks for each competitor (1 = best, {{ num_competitors }} = worst). 
+        Lower numbers indicate better performance.
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="num_judges">Number of Judges</label>
+            <input type="number" id="num_judges" name="num_judges" value="3" min="1" max="10" required>
+        </div>
+        
+        <div id="scoring-container">
+            <!-- Judges scoring will be generated dynamically -->
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <button type="submit" class="btn btn-success">Submit Scores</button>
+            <a href="{{ url_for('view_heat', heat_name=heat_name) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    const competitors = {{ competitors | tojson }};
+    const numCompetitors = {{ num_competitors }};
+    
+    function generateScoringForm() {
+        const numJudges = parseInt(document.getElementById('num_judges').value) || 3;
+        const container = document.getElementById('scoring-container');
+        container.innerHTML = '';
+        
+        for (let judge = 1; judge <= numJudges; judge++) {
+            const judgeCard = document.createElement('div');
+            judgeCard.className = 'card';
+            judgeCard.style.background = '#f8f9fa';
+            judgeCard.style.marginTop = '20px';
+            
+            const judgeTitle = document.createElement('h3');
+            judgeTitle.textContent = `Judge ${judge}`;
+            judgeTitle.style.color = '#667eea';
+            judgeCard.appendChild(judgeTitle);
+            
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Bib #</th>
+                    <th>Name</th>
+                    <th>Rank (1-${numCompetitors})</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            competitors.forEach(competitor => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${competitor.Bib}</strong></td>
+                    <td>${competitor.Name}</td>
+                    <td>
+                        <input type="number" 
+                               name="judge_${judge}_bib_${competitor.Bib}" 
+                               min="1" 
+                               max="${numCompetitors}" 
+                               required
+                               style="width: 100px;">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            judgeCard.appendChild(table);
+            container.appendChild(judgeCard);
+        }
+    }
+    
+    // Generate initial form
+    generateScoringForm();
+    
+    // Regenerate when number of judges changes
+    document.getElementById('num_judges').addEventListener('change', generateScoringForm);
+</script>
+{% endblock %}

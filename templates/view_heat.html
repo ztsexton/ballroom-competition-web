@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ heat_name }} - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Heat: {{ heat_name }}</h2>
+    
+    <h3>Competitors in this Heat</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Bib #</th>
+                <th>Name</th>
+                <th>Level</th>
+                <th>Style</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for competitor in competitors %}
+            <tr>
+                <td><strong>{{ competitor.Bib }}</strong></td>
+                <td>{{ competitor.Name }}</td>
+                <td>{{ competitor.Level }}</td>
+                <td>{{ competitor.Style }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('score_heat', heat_name=heat_name) }}" class="btn btn-success">Enter Scores</a>
+        {% if has_scores %}
+            <a href="{{ url_for('results', heat_name=heat_name) }}" class="btn">View Results</a>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+{% endblock %}

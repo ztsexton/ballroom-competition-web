@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Results - {{ heat_name }} - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Results for: {{ heat_name }}</h2>
+    
+    <div class="alert alert-success">
+        <strong>Final Rankings</strong> - Based on cumulative scoring from all judges
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Place</th>
+                <th>Bib #</th>
+                <th>Name</th>
+                <th>Judge Scores</th>
+                <th>Total Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+            <tr>
+                <td>
+                    {% if loop.index == 1 %}
+                        🥇 <strong>1st</strong>
+                    {% elif loop.index == 2 %}
+                        🥈 <strong>2nd</strong>
+                    {% elif loop.index == 3 %}
+                        🥉 <strong>3rd</strong>
+                    {% else %}
+                        <strong>{{ loop.index }}th</strong>
+                    {% endif %}
+                </td>
+                <td><strong>{{ result.Bib }}</strong></td>
+                <td>{{ result.Name }}</td>
+                <td>
+                    {% if result.scores %}
+                        {{ result.scores | join(', ') }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td><strong>{{ result['Total Rank'] }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button onclick="exportResults('{{ heat_name }}')" class="btn btn-success">📥 Export Results</button>
+        <a href="{{ url_for('download_csv', heat_name=heat_name) }}" class="btn">Download CSV</a>
+        <a href="{{ url_for('download_pdf', heat_name=heat_name) }}" class="btn">Download PDF</a>
+        <a href="{{ url_for('score_heat', heat_name=heat_name) }}" class="btn btn-secondary">Re-score</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+
+<script>
+    function exportResults(heatName) {
+        fetch(`/heat/${heatName}/export`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error exporting results: ' + error);
+            });
+    }
+</script>
+{% endblock %}
