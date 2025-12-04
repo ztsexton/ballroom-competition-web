@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Create Couple - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>➕ Create New Couple</h2>
+    
+    {% if not leaders or not followers %}
+        <div class="alert" style="background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; margin-bottom: 20px;">
+            <strong>Notice:</strong> You need to add both leaders and followers before creating couples.
+            <br><br>
+            <a href="{{ url_for('manage_people') }}" class="btn btn-secondary">Go to People Management</a>
+        </div>
+    {% else %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="leader_id">Leader (🤵)</label>
+                <select id="leader_id" name="leader_id" required>
+                    <option value="">-- Select Leader --</option>
+                    {% for leader in leaders %}
+                        <option value="{{ leader.id }}">{{ leader.name }}</option>
+                    {% endfor %}
+                </select>
+                <small style="color: #6c757d; display: block; margin-top: 5px;">
+                    The leader will receive a bib number for this couple
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="follower_id">Follower (👗)</label>
+                <select id="follower_id" name="follower_id" required>
+                    <option value="">-- Select Follower --</option>
+                    {% for follower in followers %}
+                        <option value="{{ follower.id }}">{{ follower.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>Note:</strong> A new bib number will be automatically assigned to this couple.
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn">💾 Create Couple</button>
+                <a href="{{ url_for('manage_couples') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

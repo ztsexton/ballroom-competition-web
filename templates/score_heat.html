@@ -29,7 +29,7 @@
 </div>
 
 <script>
-    const competitors = {{ competitors | tojson }};
+    const couples = {{ couples | tojson }};
     const numCompetitors = {{ num_competitors }};
     
     function generateScoringForm() {
@@ -53,21 +53,23 @@
             thead.innerHTML = `
                 <tr>
                     <th>Bib #</th>
-                    <th>Name</th>
+                    <th>Leader</th>
+                    <th>Follower</th>
                     <th>Rank (1-${numCompetitors})</th>
                 </tr>
             `;
             table.appendChild(thead);
             
             const tbody = document.createElement('tbody');
-            competitors.forEach(competitor => {
+            couples.forEach(couple => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><strong>${competitor.Bib}</strong></td>
-                    <td>${competitor.Name}</td>
+                    <td><strong>${couple.bib}</strong></td>
+                    <td>🤵 ${couple.leader_name}</td>
+                    <td>👗 ${couple.follower_name}</td>
                     <td>
                         <input type="number" 
-                               name="judge_${judge}_bib_${competitor.Bib}" 
+                               name="judge_${judge}_bib_${couple.bib}" 
                                min="1" 
                                max="${numCompetitors}" 
                                required

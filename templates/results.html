@@ -15,7 +15,8 @@
             <tr>
                 <th>Place</th>
                 <th>Bib #</th>
-                <th>Name</th>
+                <th>Leader</th>
+                <th>Follower</th>
                 <th>Judge Scores</th>
                 <th>Total Score</th>
             </tr>
@@ -35,7 +36,8 @@
                     {% endif %}
                 </td>
                 <td><strong>{{ result.Bib }}</strong></td>
-                <td>{{ result.Name }}</td>
+                <td>🤵 {{ result.leader_name if result.leader_name else result.Name }}</td>
+                <td>👗 {{ result.follower_name if result.follower_name else 'N/A' }}</td>
                 <td>
                     {% if result.scores %}
                         {{ result.scores | join(', ') }}

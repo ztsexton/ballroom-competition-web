@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Couples - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>👫 Manage Couples</h2>
+        <a href="{{ url_for('add_couple') }}" class="btn">➕ Create Couple</a>
+    </div>
+    <p>Couples compete in heats. The leader's bib number identifies the couple.</p>
+</div>
+
+{% if couples %}
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Bib #</th>
+                    <th>Leader</th>
+                    <th>Follower</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for couple in couples %}
+                <tr>
+                    <td><strong style="font-size: 18px; color: #667eea;">{{ couple.bib }}</strong></td>
+                    <td>🤵 {{ couple.leader_name }}</td>
+                    <td>👗 {{ couple.follower_name }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('delete_couple', bib=couple.bib) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this couple?');" 
+                              style="margin: 0;">
+                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="empty-state">
+        <h3>No couples created yet</h3>
+        <p>Create couples by pairing leaders and followers. Make sure you've added people first!</p>
+        <br>
+        <a href="{{ url_for('add_couple') }}" class="btn">➕ Create First Couple</a>
+        <a href="{{ url_for('manage_people') }}" class="btn btn-secondary">Add People First</a>
+    </div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to Home</a>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Add Person - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>➕ Add New Person</h2>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g., John Doe" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" name="role" required>
+                <option value="">-- Select Role --</option>
+                <option value="leader">🤵 Leader</option>
+                <option value="follower">👗 Follower</option>
+                <option value="both">👫 Both (can dance as either)</option>
+            </select>
+            <small style="color: #6c757d; display: block; margin-top: 5px;">
+                Leaders receive bib numbers when paired. Followers don't have individual bib numbers.
+            </small>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="submit" class="btn">💾 Add Person</button>
+            <a href="{{ url_for('manage_people') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

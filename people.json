@@ -1,0 +1,15 @@
+{
+  "people": [
+    {
+      "id": 1,
+      "name": "Zach Sexton",
+      "role": "leader"
+    },
+    {
+      "id": 2,
+      "name": "Luba McCutchan",
+      "role": "both"
+    }
+  ],
+  "next_id": 3
+}

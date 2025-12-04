@@ -9,27 +9,77 @@ app = Flask(__name__)
 scorer = SimpleBallroomScorer()
 
 DATA_FILE = 'scorer_data.pkl'
+PEOPLE_FILE = 'people.json'
+COUPLES_FILE = 'couples.json'
+
+# Data structures for new model
+people = []  # List of {'id': int, 'name': str, 'role': 'leader'/'follower'/'both'}
+couples = []  # List of {'bib': int, 'leader_id': int, 'follower_id': int, 'leader_name': str, 'follower_name': str}
+next_person_id = 1
+next_bib = 1
 
 def save_data():
     """Save heats and scores to file."""
     data = {
         'heats': scorer.heats,
-        'scores': scorer.scores
+        'scores': scorer.scores,
+        'next_bib': next_bib
     }
     with open(DATA_FILE, 'wb') as f:
         pickle.dump(data, f)
 
 def load_data():
     """Load heats and scores from file."""
+    global next_bib
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'rb') as f:
                 data = pickle.load(f)
                 scorer.heats = data.get('heats', {})
                 scorer.scores = data.get('scores', {})
+                next_bib = data.get('next_bib', 1)
         except:
             scorer.heats = {}
             scorer.scores = {}
+            next_bib = 1
+
+def save_people():
+    """Save people to JSON file."""
+    with open(PEOPLE_FILE, 'w') as f:
+        json.dump({'people': people, 'next_id': next_person_id}, f, indent=2)
+
+def load_people():
+    """Load people from JSON file."""
+    global people, next_person_id
+    if os.path.exists(PEOPLE_FILE):
+        try:
+            with open(PEOPLE_FILE, 'r') as f:
+                data = json.load(f)
+                people = data.get('people', [])
+                next_person_id = data.get('next_id', 1)
+        except:
+            people = []
+            next_person_id = 1
+    else:
+        people = []
+        next_person_id = 1
+
+def save_couples():
+    """Save couples to JSON file."""
+    with open(COUPLES_FILE, 'w') as f:
+        json.dump(couples, f, indent=2)
+
+def load_couples():
+    """Load couples from JSON file."""
+    global couples
+    if os.path.exists(COUPLES_FILE):
+        try:
+            with open(COUPLES_FILE, 'r') as f:
+                couples = json.load(f)
+        except:
+            couples = []
+    else:
+        couples = []
 
 # Initialize on startup
 if not os.path.exists('competitors.csv'):
@@ -39,6 +89,8 @@ else:
 
 # Load saved data
 load_data()
+load_people()
+load_couples()
 
 @app.route('/')
 def index():
@@ -47,11 +99,99 @@ def index():
     heats = list(scorer.heats.keys())
     return render_template('index.html', competitors=competitors, heats=heats, scorer=scorer)
 
+@app.route('/people')
+def manage_people():
+    """Manage people (leaders and followers)."""
+    return render_template('manage_people.html', people=people)
+
+@app.route('/people/add', methods=['GET', 'POST'])
+def add_person():
+    """Add a new person."""
+    global next_person_id
+    if request.method == 'POST':
+        name = request.form.get('name')
+        role = request.form.get('role')  # 'leader', 'follower', or 'both'
+        
+        if name and role:
+            person = {
+                'id': next_person_id,
+                'name': name,
+                'role': role
+            }
+            people.append(person)
+            next_person_id += 1
+            save_people()
+            return redirect(url_for('manage_people'))
+    
+    return render_template('add_person.html')
+
+@app.route('/people/<int:person_id>/delete', methods=['POST'])
+def delete_person(person_id):
+    """Delete a person."""
+    global people
+    # Check if person is in any couple
+    in_couple = any(c['leader_id'] == person_id or c['follower_id'] == person_id for c in couples)
+    if in_couple:
+        return jsonify({'status': 'error', 'message': 'Cannot delete person who is in a couple'}), 400
+    
+    people = [p for p in people if p['id'] != person_id]
+    save_people()
+    return redirect(url_for('manage_people'))
+
+@app.route('/couples')
+def manage_couples():
+    """Manage couples."""
+    return render_template('manage_couples.html', couples=couples)
+
+@app.route('/couples/add', methods=['GET', 'POST'])
+def add_couple():
+    """Add a new couple."""
+    global next_bib
+    if request.method == 'POST':
+        leader_id = int(request.form.get('leader_id'))
+        follower_id = int(request.form.get('follower_id'))
+        
+        # Find leader and follower names
+        leader = next((p for p in people if p['id'] == leader_id), None)
+        follower = next((p for p in people if p['id'] == follower_id), None)
+        
+        if leader and follower:
+            couple = {
+                'bib': next_bib,
+                'leader_id': leader_id,
+                'follower_id': follower_id,
+                'leader_name': leader['name'],
+                'follower_name': follower['name']
+            }
+            couples.append(couple)
+            next_bib += 1
+            save_couples()
+            save_data()  # Save next_bib
+            return redirect(url_for('manage_couples'))
+    
+    # Get leaders and followers
+    leaders = [p for p in people if p['role'] in ['leader', 'both']]
+    followers = [p for p in people if p['role'] in ['follower', 'both']]
+    
+    return render_template('add_couple.html', leaders=leaders, followers=followers)
+
+@app.route('/couples/<int:bib>/delete', methods=['POST'])
+def delete_couple(bib):
+    """Delete a couple."""
+    global couples
+    # Check if couple is in any heat
+    in_heat = any(bib in scorer.heats.get(heat_name, []) for heat_name in scorer.heats)
+    if in_heat:
+        return jsonify({'status': 'error', 'message': 'Cannot delete couple that is in a heat'}), 400
+    
+    couples = [c for c in couples if c['bib'] != bib]
+    save_couples()
+    return redirect(url_for('manage_couples'))
+
 @app.route('/competitors')
 def competitors():
-    """View all competitors."""
-    competitors_list = scorer.competitors.to_dict('records') if not scorer.competitors.empty else []
-    return render_template('competitors.html', competitors=competitors_list)
+    """View all competitors - now redirects to couples."""
+    return redirect(url_for('manage_couples'))
 
 @app.route('/heat/new', methods=['GET', 'POST'])
 def new_heat():
@@ -71,8 +211,7 @@ def new_heat():
         else:
             print(f"DEBUG: Validation failed - heat_name or selected_bibs empty")  # Debug
     
-    competitors_list = scorer.competitors.to_dict('records') if not scorer.competitors.empty else []
-    return render_template('new_heat.html', competitors=competitors_list)
+    return render_template('new_heat.html', couples=couples)
 
 @app.route('/heat/<heat_name>')
 def view_heat(heat_name):
@@ -81,14 +220,14 @@ def view_heat(heat_name):
         return redirect(url_for('index'))
     
     heat_bibs = scorer.heats[heat_name]
-    competitors_in_heat = scorer.competitors[scorer.competitors['Bib'].isin(heat_bibs)].to_dict('records')
+    couples_in_heat = [c for c in couples if c['bib'] in heat_bibs]
     
     # Check if scores exist
     has_scores = any((heat_name, bib) in scorer.scores for bib in heat_bibs)
     
     return render_template('view_heat.html', 
                          heat_name=heat_name, 
-                         competitors=competitors_in_heat,
+                         couples=couples_in_heat,
                          has_scores=has_scores)
 
 @app.route('/heat/<heat_name>/score', methods=['GET', 'POST'])
@@ -124,10 +263,10 @@ def score_heat(heat_name):
         save_data()  # Save after entering scores
         return redirect(url_for('results', heat_name=heat_name))
     
-    competitors_in_heat = scorer.competitors[scorer.competitors['Bib'].isin(heat_bibs)].to_dict('records')
+    couples_in_heat = [c for c in couples if c['bib'] in heat_bibs]
     return render_template('score_heat.html', 
                          heat_name=heat_name, 
-                         competitors=competitors_in_heat,
+                         couples=couples_in_heat,
                          num_competitors=num_competitors)
 
 @app.route('/heat/<heat_name>/results')
@@ -143,13 +282,19 @@ def results(heat_name):
     
     results_list = results_df.to_dict('records')
     
-    # Add detailed scores
+    # Add detailed scores and couple info
     for result in results_list:
         bib = result['Bib']
         if (heat_name, bib) in scorer.scores:
             result['scores'] = scorer.scores[(heat_name, bib)]
         else:
             result['scores'] = []
+        
+        # Add couple info
+        couple = next((c for c in couples if c['bib'] == bib), None)
+        if couple:
+            result['leader_name'] = couple['leader_name']
+            result['follower_name'] = couple['follower_name']
     
     return render_template('results.html', 
                          heat_name=heat_name, 
@@ -184,6 +329,75 @@ def download_pdf(heat_name):
     if os.path.exists(pdf_file):
         return send_file(pdf_file, as_attachment=True)
     return redirect(url_for('results', heat_name=heat_name))
+
+@app.route('/manage-heats')
+def manage_heats():
+    """Manage all heats - view, edit, delete."""
+    heats_data = []
+    for heat_name, bibs in scorer.heats.items():
+        couples_in_heat = [c for c in couples if c['bib'] in bibs]
+        has_scores = any((heat_name, bib) in scorer.scores for bib in bibs)
+        heats_data.append({
+            'name': heat_name,
+            'couples': couples_in_heat,
+            'num_competitors': len(bibs),
+            'has_scores': has_scores
+        })
+    return render_template('manage_heats.html', heats=heats_data)
+
+@app.route('/heat/<heat_name>/delete', methods=['POST'])
+def delete_heat(heat_name):
+    """Delete a heat and its scores."""
+    if heat_name in scorer.heats:
+        # Delete scores associated with this heat
+        bibs = scorer.heats[heat_name]
+        for bib in bibs:
+            if (heat_name, bib) in scorer.scores:
+                del scorer.scores[(heat_name, bib)]
+        
+        # Delete the heat
+        del scorer.heats[heat_name]
+        save_data()
+    
+    return redirect(url_for('manage_heats'))
+
+@app.route('/heat/<heat_name>/edit', methods=['GET', 'POST'])
+def edit_heat(heat_name):
+    """Edit a heat - change name or competitors."""
+    if heat_name not in scorer.heats:
+        return redirect(url_for('manage_heats'))
+    
+    if request.method == 'POST':
+        new_heat_name = request.form.get('heat_name')
+        selected_bibs = request.form.getlist('bibs')
+        selected_bibs = [int(b) for b in selected_bibs if b.isdigit()]
+        
+        if new_heat_name and selected_bibs:
+            # If name changed, update the heat and scores
+            if new_heat_name != heat_name:
+                # Move heat
+                scorer.heats[new_heat_name] = selected_bibs
+                del scorer.heats[heat_name]
+                
+                # Move scores
+                old_bibs = scorer.heats.get(heat_name, [])
+                for bib in old_bibs:
+                    if (heat_name, bib) in scorer.scores:
+                        scorer.scores[(new_heat_name, bib)] = scorer.scores[(heat_name, bib)]
+                        del scorer.scores[(heat_name, bib)]
+            else:
+                # Just update competitors
+                scorer.heats[heat_name] = selected_bibs
+            
+            save_data()
+            return redirect(url_for('manage_heats'))
+    
+    current_bibs = scorer.heats[heat_name]
+    
+    return render_template('edit_heat.html', 
+                         heat_name=heat_name, 
+                         current_bibs=current_bibs,
+                         couples=couples)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

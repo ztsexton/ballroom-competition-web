@@ -6,23 +6,21 @@
 <div class="card">
     <h2>Heat: {{ heat_name }}</h2>
     
-    <h3>Competitors in this Heat</h3>
+    <h3>Couples in this Heat</h3>
     <table>
         <thead>
             <tr>
                 <th>Bib #</th>
-                <th>Name</th>
-                <th>Level</th>
-                <th>Style</th>
+                <th>Leader</th>
+                <th>Follower</th>
             </tr>
         </thead>
         <tbody>
-            {% for competitor in competitors %}
+            {% for couple in couples %}
             <tr>
-                <td><strong>{{ competitor.Bib }}</strong></td>
-                <td>{{ competitor.Name }}</td>
-                <td>{{ competitor.Level }}</td>
-                <td>{{ competitor.Style }}</td>
+                <td><strong>{{ couple.bib }}</strong></td>
+                <td>🤵 {{ couple.leader_name }}</td>
+                <td>👗 {{ couple.follower_name }}</td>
             </tr>
             {% endfor %}
         </tbody>

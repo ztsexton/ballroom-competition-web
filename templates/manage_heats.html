@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Heats - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>⚙️ Manage Heats</h2>
+    <p>View, edit, or delete competition heats</p>
+</div>
+
+{% if heats %}
+    {% for heat in heats %}
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 5px;">{{ heat.name }}</h3>
+                <p style="color: #6c757d; font-size: 0.9em; margin: 0;">
+                    {{ heat.num_competitors }} competitors
+                    {% if heat.has_scores %}
+                        • <span style="color: #28a745;">✓ Scored</span>
+                    {% else %}
+                        • <span style="color: #dc3545;">Not scored</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="{{ url_for('edit_heat', heat_name=heat.name) }}" class="btn" style="padding: 8px 16px; font-size: 14px;">
+                    ✏️ Edit
+                </a>
+                <form method="POST" action="{{ url_for('delete_heat', heat_name=heat.name) }}" 
+                      onsubmit="return confirm('Are you sure you want to delete this heat? This will also delete all associated scores.');" 
+                      style="margin: 0;">
+                    <button type="submit" class="btn btn-danger" style="padding: 8px 16px; font-size: 14px;">
+                        🗑️ Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+            <strong>Couples in this heat:</strong>
+            <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;">
+                {% for couple in heat.couples %}
+                    <span style="background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e9ecef;">
+                        <strong>#{{ couple.bib }}</strong> 🤵 {{ couple.leader_name }} & 👗 {{ couple.follower_name }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{{ url_for('view_heat', heat_name=heat.name) }}" class="btn btn-secondary" style="font-size: 14px;">
+                👁️ View Details
+            </a>
+            <a href="{{ url_for('score_heat', heat_name=heat.name) }}" class="btn btn-success" style="font-size: 14px;">
+                📝 Enter Scores
+            </a>
+            {% if heat.has_scores %}
+                <a href="{{ url_for('results', heat_name=heat.name) }}" class="btn" style="font-size: 14px;">
+                    🏆 View Results
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <h3>No heats created yet</h3>
+        <p>Create your first heat to get started!</p>
+        <br>
+        <a href="{{ url_for('new_heat') }}" class="btn">➕ Create First Heat</a>
+    </div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to Home</a>
+</div>
+{% endblock %}
