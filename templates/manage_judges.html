@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Judges - Ballroom Scorer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>⚖️ Manage Judges</h2>
+        <a href="{{ url_for('add_judge') }}" class="btn">➕ Add Judge</a>
+    </div>
+    <p>Add judges who will score the heats. Each judge needs a unique judge number.</p>
+</div>
+
+{% if judges %}
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Judge Number</th>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for judge in judges %}
+                <tr>
+                    <td><strong style="font-size: 1.2em; color: #667eea;">{{ judge.judge_number }}</strong></td>
+                    <td>{{ judge.name }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('delete_judge', judge_id=judge.id) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this judge?');" 
+                              style="margin: 0;">
+                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="empty-state">
+        <h3>No judges added yet</h3>
+        <p>Start by adding judges who will score the competition heats</p>
+        <br>
+        <a href="{{ url_for('add_judge') }}" class="btn">➕ Add First Judge</a>
+    </div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to Home</a>
+</div>
+{% endblock %}

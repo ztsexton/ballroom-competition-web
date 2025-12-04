@@ -1,0 +1,10 @@
+{
+  "judges": [
+    {
+      "id": 1,
+      "name": "Chris Thompson",
+      "judge_number": 1
+    }
+  ],
+  "next_id": 2
+}

@@ -11,12 +11,15 @@ scorer = SimpleBallroomScorer()
 DATA_FILE = 'scorer_data.pkl'
 PEOPLE_FILE = 'people.json'
 COUPLES_FILE = 'couples.json'
+JUDGES_FILE = 'judges.json'
 
 # Data structures for new model
 people = []  # List of {'id': int, 'name': str, 'role': 'leader'/'follower'/'both'}
 couples = []  # List of {'bib': int, 'leader_id': int, 'follower_id': int, 'leader_name': str, 'follower_name': str}
+judges = []  # List of {'id': int, 'name': str, 'judge_number': int}
 next_person_id = 1
 next_bib = 1
+next_judge_id = 1
 
 def save_data():
     """Save heats and scores to file."""
@@ -81,6 +84,27 @@ def load_couples():
     else:
         couples = []
 
+def save_judges():
+    """Save judges to JSON file."""
+    with open(JUDGES_FILE, 'w') as f:
+        json.dump({'judges': judges, 'next_id': next_judge_id}, f, indent=2)
+
+def load_judges():
+    """Load judges from JSON file."""
+    global judges, next_judge_id
+    if os.path.exists(JUDGES_FILE):
+        try:
+            with open(JUDGES_FILE, 'r') as f:
+                data = json.load(f)
+                judges = data.get('judges', [])
+                next_judge_id = data.get('next_id', 1)
+        except:
+            judges = []
+            next_judge_id = 1
+    else:
+        judges = []
+        next_judge_id = 1
+
 # Initialize on startup
 if not os.path.exists('competitors.csv'):
     scorer.import_competitors('competitors.csv')
@@ -91,6 +115,7 @@ else:
 load_data()
 load_people()
 load_couples()
+load_judges()
 
 @app.route('/')
 def index():
@@ -187,6 +212,48 @@ def delete_couple(bib):
     couples = [c for c in couples if c['bib'] != bib]
     save_couples()
     return redirect(url_for('manage_couples'))
+
+@app.route('/judges')
+def manage_judges():
+    """Manage judges."""
+    return render_template('manage_judges.html', judges=judges)
+
+@app.route('/judges/add', methods=['GET', 'POST'])
+def add_judge():
+    """Add a new judge."""
+    global next_judge_id
+    if request.method == 'POST':
+        name = request.form.get('name')
+        judge_number = request.form.get('judge_number')
+        
+        if name and judge_number:
+            # Check if judge number already exists
+            judge_number = int(judge_number)
+            if any(j['judge_number'] == judge_number for j in judges):
+                return render_template('add_judge.html', 
+                                     error=f'Judge number {judge_number} is already assigned')
+            
+            judge = {
+                'id': next_judge_id,
+                'name': name,
+                'judge_number': judge_number
+            }
+            judges.append(judge)
+            # Sort judges by judge_number
+            judges.sort(key=lambda x: x['judge_number'])
+            next_judge_id += 1
+            save_judges()
+            return redirect(url_for('manage_judges'))
+    
+    return render_template('add_judge.html')
+
+@app.route('/judges/<int:judge_id>/delete', methods=['POST'])
+def delete_judge(judge_id):
+    """Delete a judge."""
+    global judges
+    judges = [j for j in judges if j['id'] != judge_id]
+    save_judges()
+    return redirect(url_for('manage_judges'))
 
 @app.route('/competitors')
 def competitors():
