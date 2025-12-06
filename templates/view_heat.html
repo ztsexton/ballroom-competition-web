@@ -79,6 +79,13 @@
                 <a href="{{ url_for('results_event', event_id=heat_id, round_name=round_name) }}" class="btn">
                     🏆 View Results - {{ round_name|title }}
                 </a>
+                <form method="POST" action="{{ url_for('reset_round_scores', event_id=heat_id, round_name=round_name) }}" 
+                      onsubmit="return confirm('Are you sure you want to reset all scores for {{ round_name }}? This cannot be undone.');" 
+                      style="margin: 0;">
+                    <button type="submit" class="btn btn-danger" style="font-size: 14px;">
+                        🔄 Reset {{ round_name|title }} Scores
+                    </button>
+                </form>
             {% endif %}
         {% else %}
             <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-success">Enter Scores</a>

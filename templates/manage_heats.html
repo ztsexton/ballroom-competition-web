@@ -28,6 +28,13 @@
                 <a href="{{ url_for('edit_event', event_id=heat.id) }}" class="btn" style="padding: 8px 16px; font-size: 14px;">
                     ✏️ Edit
                 </a>
+                <form method="POST" action="{{ url_for('reset_event_scores', event_id=heat.id) }}" 
+                      onsubmit="return confirm('Are you sure you want to reset ALL scores for this event? This will reset scores for all rounds and cannot be undone.');" 
+                      style="margin: 0;">
+                    <button type="submit" class="btn" style="padding: 8px 16px; font-size: 14px; background-color: #ffc107; color: #000;">
+                        🔄 Reset Scores
+                    </button>
+                </form>
                 <form method="POST" action="{{ url_for('delete_event', event_id=heat.id) }}" 
                       onsubmit="return confirm('Are you sure you want to delete this event? This will also delete all associated scores.');" 
                       style="margin: 0;">
@@ -85,6 +92,13 @@
                            class="btn" style="font-size: 14px;">
                             🏆 Results - {{ round.name|title }}
                         </a>
+                        <form method="POST" action="{{ url_for('reset_round_scores', event_id=heat.id, round_name=round.name) }}" 
+                              onsubmit="return confirm('Are you sure you want to reset all scores for {{ round.name }}? This cannot be undone.');" 
+                              style="margin: 0; display: inline;">
+                            <button type="submit" class="btn" style="font-size: 12px; padding: 6px 10px; background-color: #ffc107; color: #000;">
+                                🔄 Reset {{ round.name|title }}
+                            </button>
+                        </form>
                     {% endif %}
                 {% endfor %}
             {% endif %}

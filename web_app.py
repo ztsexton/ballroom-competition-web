@@ -1013,5 +1013,65 @@ def edit_event(event_id):
 def edit_heat(heat_id):
     return edit_event(heat_id)
 
+@app.route('/event/<int:event_id>/round/<round_name>/reset', methods=['POST'])
+def reset_round_scores(event_id, round_name):
+    """Reset scores for a specific round in an event."""
+    event = get_event_by_id(event_id)
+    if not event:
+        return redirect(url_for('manage_events'))
+    
+    # Find the round
+    round_data = None
+    for heat in event.get('heats', []):
+        if heat['round'] == round_name:
+            round_data = heat
+            break
+    
+    if not round_data:
+        return redirect(url_for('manage_events'))
+    
+    # Delete scores for this specific round
+    bibs = round_data.get('bibs', [])
+    deleted_count = 0
+    for bib in bibs:
+        score_key = (event_id, round_name, bib)
+        if score_key in scorer.scores:
+            del scorer.scores[score_key]
+            deleted_count += 1
+    
+    save_data()
+    return redirect(url_for('view_event', event_id=event_id, round_name=round_name))
+
+# Backward compatibility
+@app.route('/heat/<int:heat_id>/round/<round_name>/reset', methods=['POST'])
+def reset_heat_round_scores(heat_id, round_name):
+    return reset_round_scores(heat_id, round_name)
+
+@app.route('/event/<int:event_id>/reset', methods=['POST'])
+def reset_event_scores(event_id):
+    """Reset all scores for all rounds in an event."""
+    event = get_event_by_id(event_id)
+    if not event:
+        return redirect(url_for('manage_events'))
+    
+    # Delete scores for all rounds in this event
+    deleted_count = 0
+    for heat in event.get('heats', []):
+        round_name = heat['round']
+        bibs = heat.get('bibs', [])
+        for bib in bibs:
+            score_key = (event_id, round_name, bib)
+            if score_key in scorer.scores:
+                del scorer.scores[score_key]
+                deleted_count += 1
+    
+    save_data()
+    return redirect(url_for('view_event', event_id=event_id))
+
+# Backward compatibility
+@app.route('/heat/<int:heat_id>/reset', methods=['POST'])
+def reset_heat_scores(heat_id):
+    return reset_event_scores(heat_id)
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
