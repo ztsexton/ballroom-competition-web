@@ -8,10 +8,10 @@ import pickle
 app = Flask(__name__)
 scorer = SimpleBallroomScorer()
 
-DATA_FILE = 'scorer_data.pkl'
-PEOPLE_FILE = 'people.json'
-COUPLES_FILE = 'couples.json'
-JUDGES_FILE = 'judges.json'
+DATA_FILE = 'data/scorer_data.pkl'
+PEOPLE_FILE = 'data/people.json'
+COUPLES_FILE = 'data/couples.json'
+JUDGES_FILE = 'data/judges.json'
 
 # Data structures for new model
 people = []  # List of {'id': int, 'name': str, 'role': 'leader'/'follower'/'both'}
@@ -379,14 +379,14 @@ def add_judge():
     global next_judge_id
     if request.method == 'POST':
         name = request.form.get('name')
-        judge_number = request.form.get('judge_number')
         
-        if name and judge_number:
-            # Check if judge number already exists
-            judge_number = int(judge_number)
-            if any(j['judge_number'] == judge_number for j in judges):
-                return render_template('add_judge.html', 
-                                     error=f'Judge number {judge_number} is already assigned')
+        if name:
+            # Automatically assign the next available judge number
+            existing_numbers = [j['judge_number'] for j in judges]
+            if existing_numbers:
+                judge_number = max(existing_numbers) + 1
+            else:
+                judge_number = 1
             
             judge = {
                 'id': next_judge_id,

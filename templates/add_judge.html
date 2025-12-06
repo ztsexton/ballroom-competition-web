@@ -5,14 +5,8 @@
 {% block content %}
 <div class="card">
     <h2>➕ Add New Judge</h2>
-    <p>Enter the judge's name and assign them a unique judge number.</p>
+    <p>Enter the judge's name. A unique judge number will be automatically assigned.</p>
 </div>
-
-{% if error %}
-<div class="alert" style="background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">
-    <strong>Error:</strong> {{ error }}
-</div>
-{% endif %}
 
 <div class="card">
     <form method="POST">
@@ -20,19 +14,13 @@
             <label for="name">Judge Name:</label>
             <input type="text" id="name" name="name" required 
                    placeholder="Enter judge's full name">
-        </div>
-        
-        <div class="form-group">
-            <label for="judge_number">Judge Number:</label>
-            <input type="number" id="judge_number" name="judge_number" required 
-                   min="1" placeholder="Enter unique judge number (e.g., 1, 2, 3...)">
             <small style="color: #6c757d; display: block; margin-top: 5px;">
-                Each judge must have a unique number that will be used for scoring
+                A unique judge number will be automatically assigned
             </small>
         </div>
         
         <div style="display: flex; gap: 10px;">
-            <button type="submit" class="btn">💾 Save Judge</button>
+            <button type="submit" class="btn">💾 Add Judge</button>
             <a href="{{ url_for('manage_judges') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
