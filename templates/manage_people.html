@@ -32,9 +32,9 @@
             <label for="sortBy" style="font-size: 14px; margin-bottom: 5px;">📊 Sort By</label>
             <select id="sortBy" onchange="sortTable()"
                     style="width: 100%; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;">
-                <option value="id">ID (Default)</option>
-                <option value="firstname">First Name (A-Z)</option>
                 <option value="lastname">Last Name (A-Z)</option>
+                <option value="firstname">First Name (A-Z)</option>
+                <option value="id">ID</option>
                 <option value="firstname-desc">First Name (Z-A)</option>
                 <option value="lastname-desc">Last Name (Z-A)</option>
             </select>
@@ -84,6 +84,7 @@
 <script>
 // Initialize counts on page load
 document.addEventListener('DOMContentLoaded', function() {
+    sortTable(); // Sort by default (last name)
     updateCounts();
 });
 
