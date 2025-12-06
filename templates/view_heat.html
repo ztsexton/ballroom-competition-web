@@ -46,9 +46,9 @@
     {% endif %}
     
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="{{ url_for('score_heat', heat_name=heat_name) }}" class="btn btn-success">Enter Scores</a>
+        <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-success">Enter Scores</a>
         {% if has_scores %}
-            <a href="{{ url_for('results', heat_name=heat_name) }}" class="btn">View Results</a>
+            <a href="{{ url_for('results', heat_id=heat_id) }}" class="btn">View Results</a>
         {% endif %}
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>

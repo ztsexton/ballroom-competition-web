@@ -52,17 +52,17 @@
     </table>
     
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
-        <button onclick="exportResults('{{ heat_name }}')" class="btn btn-success">📥 Export Results</button>
-        <a href="{{ url_for('download_csv', heat_name=heat_name) }}" class="btn">Download CSV</a>
-        <a href="{{ url_for('download_pdf', heat_name=heat_name) }}" class="btn">Download PDF</a>
-        <a href="{{ url_for('score_heat', heat_name=heat_name) }}" class="btn btn-secondary">Re-score</a>
+        <button onclick="exportResults({{ heat_id }})" class="btn btn-success">📥 Export Results</button>
+        <a href="{{ url_for('download_csv', heat_id=heat_id) }}" class="btn">Download CSV</a>
+        <a href="{{ url_for('download_pdf', heat_id=heat_id) }}" class="btn">Download PDF</a>
+        <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-secondary">Re-score</a>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>
 </div>
 
 <script>
-    function exportResults(heatName) {
-        fetch(`/heat/${heatName}/export`)
+    function exportResults(heatId) {
+        fetch(`/heat/${heatId}/export`)
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {

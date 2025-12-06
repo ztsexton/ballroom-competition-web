@@ -15,12 +15,14 @@
         <div class="heat-list">
             {% for heat in heats %}
             <div class="heat-card">
-                <h3>{{ heat }}</h3>
-                <p class="competitors-count">{{ scorer.heats[heat]|length }} competitors</p>
+                <h3>
+                    <span style="background-color: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 8px;">Heat #{{ heat.id }}</span>
+                    {{ heat.name }}
+                </h3>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <a href="{{ url_for('view_heat', heat_name=heat) }}" class="btn" style="flex: 1;">View</a>
-                    <a href="{{ url_for('score_heat', heat_name=heat) }}" class="btn btn-success" style="flex: 1;">Score</a>
-                    <a href="{{ url_for('results', heat_name=heat) }}" class="btn btn-secondary" style="flex: 1;">Results</a>
+                    <a href="{{ url_for('view_heat', heat_id=heat.id) }}" class="btn" style="flex: 1;">View</a>
+                    <a href="{{ url_for('score_heat', heat_id=heat.id) }}" class="btn btn-success" style="flex: 1;">Score</a>
+                    <a href="{{ url_for('results', heat_id=heat.id) }}" class="btn btn-secondary" style="flex: 1;">Results</a>
                 </div>
             </div>
             {% endfor %}
