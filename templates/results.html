@@ -9,6 +9,21 @@
         <h3 style="color: #667eea; text-transform: capitalize;">{{ round_name }}</h3>
     {% endif %}
     
+    {% if all_rounds and all_rounds|length > 1 %}
+    <div style="background: #e8f4f8; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+        <strong style="color: #667eea;">📋 View Results for:</strong>
+        <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+            {% for round in all_rounds %}
+                <a href="{{ url_for('results_event', event_id=heat_id, round_name=round) }}" 
+                   class="btn {% if round == round_name %}btn-success{% else %}btn-secondary{% endif %}" 
+                   style="padding: 6px 12px; font-size: 13px; text-transform: capitalize;">
+                    {{ round }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="alert alert-success">
         <strong>
             {% if is_recall_round %}
@@ -82,6 +97,35 @@
             {% endfor %}
         </tbody>
     </table>
+    
+    {% if is_recall_round and next_round %}
+    <div style="margin-top: 20px; padding: 20px; background: #d4edda; border: 2px solid #28a745; border-radius: 8px;">
+        <h3 style="color: #155724; margin-top: 0;">
+            ✓ Top 6 Couples Advance to {{ next_round|title }}
+        </h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+            {% for result in results[:6] %}
+                <div style="background: white; padding: 10px 15px; border-radius: 6px; border: 2px solid #28a745;">
+                    <strong>#{{ result.Bib }}</strong> - {{ result.leader_name }} & {{ result.follower_name }}
+                </div>
+            {% endfor %}
+        </div>
+        {% if next_round_ready %}
+            <div style="margin-top: 15px;">
+                <a href="{{ url_for('score_event', event_id=heat_id, round_name=next_round) }}" 
+                   class="btn btn-success" 
+                   style="font-size: 16px; padding: 12px 24px;">
+                    📝 Score {{ next_round|title }} →
+                </a>
+                <a href="{{ url_for('view_event', event_id=heat_id, round_name=next_round) }}" 
+                   class="btn" 
+                   style="font-size: 16px; padding: 12px 24px;">
+                    👁️ View {{ next_round|title }}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
     
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
         <button onclick="exportResults({{ heat_id }}, '{{ round_name }}')" class="btn btn-success">📥 Export Results</button>

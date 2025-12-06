@@ -788,6 +788,14 @@ def results_event(event_id, round_name='final'):
     # Get all rounds for navigation
     all_rounds = get_event_rounds(event_id)
     
+    # Determine if there's a next round
+    next_round = None
+    next_round_bibs = []
+    current_round_idx = all_rounds.index(round_name) if round_name in all_rounds else -1
+    if current_round_idx < len(all_rounds) - 1:
+        next_round = all_rounds[current_round_idx + 1]
+        next_round_bibs = get_event_bibs(event_id, next_round)
+    
     return render_template('results.html', 
                          heat=event,
                          heat_id=event_id,
@@ -795,7 +803,9 @@ def results_event(event_id, round_name='final'):
                          results=results_list,
                          round_name=round_name,
                          all_rounds=all_rounds,
-                         is_recall_round=is_recall_round)
+                         is_recall_round=is_recall_round,
+                         next_round=next_round,
+                         next_round_ready=len(next_round_bibs) > 0 if next_round else False)
 
 # Backward compatibility route
 @app.route('/heat/<int:heat_id>/results')

@@ -4,15 +4,37 @@
 
 {% block content %}
 <div class="card">
-    <h2>Heat: {{ heat_name }}</h2>
+    <h2>Event: {{ heat_name }}</h2>
     
-    <h3>Couples in this Heat</h3>
+    {% if all_rounds and all_rounds|length > 1 %}
+    <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+        <strong style="color: #667eea;">📋 Event Rounds:</strong>
+        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+            {% for round in all_rounds %}
+                <a href="{{ url_for('view_event', event_id=heat_id, round_name=round) }}" 
+                   class="btn {% if round == round_name %}btn-success{% else %}btn-secondary{% endif %}" 
+                   style="padding: 8px 16px; font-size: 14px; text-transform: capitalize;">
+                    {{ round }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <h3 style="text-transform: capitalize; color: #667eea;">
+        {% if round_name %}{{ round_name }}{% else %}Event Details{% endif %}
+    </h3>
+    
+    <h3>Couples in this {% if round_name %}{{ round_name }}{% else %}Heat{% endif %}</h3>
     <table>
         <thead>
             <tr>
                 <th>Bib #</th>
                 <th>Leader</th>
                 <th>Follower</th>
+                {% if round_name and round_name != all_rounds[0] %}
+                <th>Status</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -21,13 +43,16 @@
                 <td><strong>{{ couple.bib }}</strong></td>
                 <td>🤵 {{ couple.leader_name }}</td>
                 <td>👗 {{ couple.follower_name }}</td>
+                {% if round_name and round_name != all_rounds[0] %}
+                <td><span style="color: #28a745; font-weight: bold;">✓ Advanced</span></td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
     
     {% if judges %}
-    <h3 style="margin-top: 30px;">Judges for this Heat</h3>
+    <h3 style="margin-top: 30px;">Judges for this {% if round_name %}{{ round_name }}{% else %}Heat{% endif %}</h3>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
         {% for judge in judges %}
         <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 2px solid #667eea;">
@@ -39,17 +64,29 @@
     </div>
     {% else %}
     <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404;">
-        <strong>⚠️ No judges assigned to this heat</strong>
+        <strong>⚠️ No judges assigned to this {% if round_name %}{{ round_name }}{% else %}heat{% endif %}</strong>
         <br>
-        <small>You can add judges by editing this heat</small>
+        <small>You can add judges by editing this event</small>
     </div>
     {% endif %}
     
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-success">Enter Scores</a>
-        {% if has_scores %}
-            <a href="{{ url_for('results', heat_id=heat_id) }}" class="btn">View Results</a>
+        {% if round_name %}
+            <a href="{{ url_for('score_event', event_id=heat_id, round_name=round_name) }}" class="btn btn-success">
+                📝 Score {{ round_name|title }}
+            </a>
+            {% if has_scores %}
+                <a href="{{ url_for('results_event', event_id=heat_id, round_name=round_name) }}" class="btn">
+                    🏆 View Results - {{ round_name|title }}
+                </a>
+            {% endif %}
+        {% else %}
+            <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-success">Enter Scores</a>
+            {% if has_scores %}
+                <a href="{{ url_for('results', heat_id=heat_id) }}" class="btn">View Results</a>
+            {% endif %}
         {% endif %}
+        <a href="{{ url_for('manage_events') }}" class="btn btn-secondary">Back to Events</a>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>
 </div>
