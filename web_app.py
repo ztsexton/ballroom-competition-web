@@ -135,6 +135,70 @@ def load_judges():
         judges = []
         next_judge_id = 1
 
+def import_people_from_csv(csv_file='competitors.csv'):
+    """Import people from competitors CSV file."""
+    global people, next_person_id
+    
+    if not os.path.exists(csv_file):
+        return 0
+    
+    try:
+        df = pd.read_csv(csv_file)
+        imported_count = 0
+        
+        for _, row in df.iterrows():
+            name = row.get('Name', '').strip()
+            if not name:
+                continue
+            
+            # Check if person already exists
+            if any(p['name'].lower() == name.lower() for p in people):
+                continue
+            
+            # Add as 'both' role by default since we don't know from CSV
+            person = {
+                'id': next_person_id,
+                'name': name,
+                'role': 'both'  # Default to both roles
+            }
+            people.append(person)
+            next_person_id += 1
+            imported_count += 1
+        
+        if imported_count > 0:
+            save_people()
+        
+        return imported_count
+    except Exception as e:
+        print(f"Error importing from CSV: {e}")
+        return 0
+
+def reset_all_data():
+    """Reset all application data to defaults."""
+    global people, couples, judges, next_person_id, next_bib, next_judge_id
+    
+    # Clear all data
+    people = []
+    couples = []
+    judges = []
+    next_person_id = 1
+    next_bib = 1
+    next_judge_id = 1
+    scorer.heats = {}
+    scorer.scores = {}
+    
+    # Save empty data
+    save_people()
+    save_couples()
+    save_judges()
+    save_data()
+    
+    # Delete result files
+    if os.path.exists('results'):
+        import shutil
+        shutil.rmtree('results')
+    os.makedirs('results', exist_ok=True)
+
 # Initialize on startup
 if not os.path.exists('competitors.csv'):
     scorer.import_competitors('competitors.csv')
@@ -153,6 +217,21 @@ def index():
     competitors = scorer.competitors.to_dict('records') if not scorer.competitors.empty else []
     heats = list(scorer.heats.keys())
     return render_template('index.html', competitors=competitors, heats=heats, scorer=scorer)
+
+@app.route('/import-csv', methods=['POST'])
+def import_csv():
+    """Import people from competitors.csv."""
+    count = import_people_from_csv()
+    if count > 0:
+        return jsonify({'status': 'success', 'message': f'Imported {count} new people from competitors.csv'})
+    else:
+        return jsonify({'status': 'info', 'message': 'No new people to import (all already exist or CSV not found)'})
+
+@app.route('/reset-data', methods=['POST'])
+def reset_data():
+    """Reset all application data."""
+    reset_all_data()
+    return jsonify({'status': 'success', 'message': 'All data has been reset'})
 
 @app.route('/people')
 def manage_people():
