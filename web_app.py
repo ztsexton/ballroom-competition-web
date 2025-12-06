@@ -41,10 +41,40 @@ def load_data():
                 scorer.heats = data.get('heats', {})
                 scorer.scores = data.get('scores', {})
                 next_bib = data.get('next_bib', 1)
+                
+                # Migrate old heat format to new format
+                for heat_name, heat_data in scorer.heats.items():
+                    if isinstance(heat_data, list):
+                        # Old format: just a list of bibs
+                        scorer.heats[heat_name] = {
+                            'bibs': heat_data,
+                            'judges': []
+                        }
         except:
             scorer.heats = {}
             scorer.scores = {}
             next_bib = 1
+
+def get_heat_bibs(heat_name):
+    """Get the list of bib numbers for a heat."""
+    heat_data = scorer.heats.get(heat_name, {})
+    if isinstance(heat_data, dict):
+        return heat_data.get('bibs', [])
+    return heat_data if isinstance(heat_data, list) else []
+
+def get_heat_judges(heat_name):
+    """Get the list of judge IDs for a heat."""
+    heat_data = scorer.heats.get(heat_name, {})
+    if isinstance(heat_data, dict):
+        return heat_data.get('judges', [])
+    return []
+
+def set_heat_data(heat_name, bibs, judge_ids):
+    """Set heat data with bibs and judges."""
+    scorer.heats[heat_name] = {
+        'bibs': bibs,
+        'judges': judge_ids
+    }
 
 def save_people():
     """Save people to JSON file."""
@@ -205,7 +235,7 @@ def delete_couple(bib):
     """Delete a couple."""
     global couples
     # Check if couple is in any heat
-    in_heat = any(bib in scorer.heats.get(heat_name, []) for heat_name in scorer.heats)
+    in_heat = any(bib in get_heat_bibs(heat_name) for heat_name in scorer.heats)
     if in_heat:
         return jsonify({'status': 'error', 'message': 'Cannot delete couple that is in a heat'}), 400
     
@@ -267,18 +297,23 @@ def new_heat():
         heat_name = request.form.get('heat_name')
         selected_bibs = request.form.getlist('bibs')
         selected_bibs = [int(b) for b in selected_bibs if b.isdigit()]
+        selected_judges = request.form.getlist('judges')
+        selected_judges = [int(j) for j in selected_judges if j.isdigit()]
         
-        print(f"DEBUG: heat_name={heat_name}, selected_bibs={selected_bibs}")  # Debug
+        print(f"DEBUG: heat_name={heat_name}, selected_bibs={selected_bibs}, selected_judges={selected_judges}")  # Debug
         
         if heat_name and selected_bibs:
-            scorer.heats[heat_name] = selected_bibs
+            set_heat_data(heat_name, selected_bibs, selected_judges)
             save_data()  # Save after creating heat
             print(f"DEBUG: Heat created! scorer.heats={scorer.heats}")  # Debug
             return redirect(url_for('view_heat', heat_name=heat_name))
         else:
             print(f"DEBUG: Validation failed - heat_name or selected_bibs empty")  # Debug
     
-    return render_template('new_heat.html', couples=couples)
+    # Default to all judges if 3 or fewer
+    default_judges = [j['id'] for j in judges] if len(judges) <= 3 else []
+    
+    return render_template('new_heat.html', couples=couples, judges=judges, default_judges=default_judges)
 
 @app.route('/heat/<heat_name>')
 def view_heat(heat_name):
@@ -286,8 +321,13 @@ def view_heat(heat_name):
     if heat_name not in scorer.heats:
         return redirect(url_for('index'))
     
-    heat_bibs = scorer.heats[heat_name]
+    heat_bibs = get_heat_bibs(heat_name)
+    heat_judge_ids = get_heat_judges(heat_name)
     couples_in_heat = [c for c in couples if c['bib'] in heat_bibs]
+    
+    # Get judge details
+    judges_in_heat = [j for j in judges if j['id'] in heat_judge_ids]
+    judges_in_heat.sort(key=lambda x: x['judge_number'])
     
     # Check if scores exist
     has_scores = any((heat_name, bib) in scorer.scores for bib in heat_bibs)
@@ -295,6 +335,7 @@ def view_heat(heat_name):
     return render_template('view_heat.html', 
                          heat_name=heat_name, 
                          couples=couples_in_heat,
+                         judges=judges_in_heat,
                          has_scores=has_scores)
 
 @app.route('/heat/<heat_name>/score', methods=['GET', 'POST'])
@@ -303,7 +344,7 @@ def score_heat(heat_name):
     if heat_name not in scorer.heats:
         return redirect(url_for('index'))
     
-    heat_bibs = scorer.heats[heat_name]
+    heat_bibs = get_heat_bibs(heat_name)
     num_competitors = len(heat_bibs)
     
     if request.method == 'POST':
@@ -401,7 +442,8 @@ def download_pdf(heat_name):
 def manage_heats():
     """Manage all heats - view, edit, delete."""
     heats_data = []
-    for heat_name, bibs in scorer.heats.items():
+    for heat_name in scorer.heats.keys():
+        bibs = get_heat_bibs(heat_name)
         couples_in_heat = [c for c in couples if c['bib'] in bibs]
         has_scores = any((heat_name, bib) in scorer.scores for bib in bibs)
         heats_data.append({
@@ -417,7 +459,7 @@ def delete_heat(heat_name):
     """Delete a heat and its scores."""
     if heat_name in scorer.heats:
         # Delete scores associated with this heat
-        bibs = scorer.heats[heat_name]
+        bibs = get_heat_bibs(heat_name)
         for bib in bibs:
             if (heat_name, bib) in scorer.scores:
                 del scorer.scores[(heat_name, bib)]
@@ -438,33 +480,38 @@ def edit_heat(heat_name):
         new_heat_name = request.form.get('heat_name')
         selected_bibs = request.form.getlist('bibs')
         selected_bibs = [int(b) for b in selected_bibs if b.isdigit()]
+        selected_judges = request.form.getlist('judges')
+        selected_judges = [int(j) for j in selected_judges if j.isdigit()]
         
         if new_heat_name and selected_bibs:
             # If name changed, update the heat and scores
             if new_heat_name != heat_name:
                 # Move heat
-                scorer.heats[new_heat_name] = selected_bibs
+                set_heat_data(new_heat_name, selected_bibs, selected_judges)
                 del scorer.heats[heat_name]
                 
                 # Move scores
-                old_bibs = scorer.heats.get(heat_name, [])
+                old_bibs = get_heat_bibs(heat_name)
                 for bib in old_bibs:
                     if (heat_name, bib) in scorer.scores:
                         scorer.scores[(new_heat_name, bib)] = scorer.scores[(heat_name, bib)]
                         del scorer.scores[(heat_name, bib)]
             else:
-                # Just update competitors
-                scorer.heats[heat_name] = selected_bibs
+                # Just update competitors and judges
+                set_heat_data(heat_name, selected_bibs, selected_judges)
             
             save_data()
             return redirect(url_for('manage_heats'))
     
-    current_bibs = scorer.heats[heat_name]
+    current_bibs = get_heat_bibs(heat_name)
+    current_judge_ids = get_heat_judges(heat_name)
     
     return render_template('edit_heat.html', 
                          heat_name=heat_name, 
                          current_bibs=current_bibs,
-                         couples=couples)
+                         current_judge_ids=current_judge_ids,
+                         couples=couples,
+                         judges=judges)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

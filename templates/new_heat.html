@@ -35,6 +35,35 @@
             {% endif %}
         </div>
         
+        <div class="form-group">
+            <label>Select Judges</label>
+            
+            {% if judges %}
+                <div class="checkbox-group">
+                    {% for judge in judges %}
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="judge_{{ judge.id }}" name="judges" value="{{ judge.id }}"
+                               {% if judge.id in default_judges %}checked{% endif %}>
+                        <label for="judge_{{ judge.id }}" style="margin: 0; cursor: pointer;">
+                            <strong>Judge #{{ judge.judge_number }}</strong> - {{ judge.name }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if default_judges %}
+                <small style="color: #6c757d; display: block; margin-top: 5px;">
+                    ℹ️ All judges are selected by default (3 or fewer judges)
+                </small>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    No judges available. You can add judges later or proceed without them.
+                    <br><br>
+                    <a href="{{ url_for('manage_judges') }}" class="btn btn-secondary">Add Judges</a>
+                </div>
+            {% endif %}
+        </div>
+        
         <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn" {% if not couples %}disabled{% endif %}>Create Heat</button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>

@@ -26,6 +26,25 @@
         </tbody>
     </table>
     
+    {% if judges %}
+    <h3 style="margin-top: 30px;">Judges for this Heat</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+        {% for judge in judges %}
+        <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 2px solid #667eea;">
+            <strong style="color: #667eea; font-size: 1.1em;">Judge #{{ judge.judge_number }}</strong>
+            <br>
+            <span>{{ judge.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404;">
+        <strong>⚠️ No judges assigned to this heat</strong>
+        <br>
+        <small>You can add judges by editing this heat</small>
+    </div>
+    {% endif %}
+    
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
         <a href="{{ url_for('score_heat', heat_name=heat_name) }}" class="btn btn-success">Enter Scores</a>
         {% if has_scores %}
