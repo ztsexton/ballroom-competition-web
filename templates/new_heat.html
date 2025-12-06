@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create New Heat - Ballroom Scorer{% endblock %}
+{% block title %}Create New Event - Ballroom Scorer{% endblock %}
 
 {% block content %}
 <style>
@@ -69,9 +69,9 @@
 </style>
 
 <div class="card">
-    <h2>Create New Heat</h2>
+    <h2>Create New Event</h2>
     
-    <form method="POST" action="{{ url_for('new_heat') }}" id="heatForm">
+    <form method="POST" action="{{ url_for('new_event') }}" id="heatForm">
         <input type="hidden" id="designation" name="designation">
         <input type="hidden" id="syllabus_type" name="syllabus_type">
         <input type="hidden" id="level" name="level">

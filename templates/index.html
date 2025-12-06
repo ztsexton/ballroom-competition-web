@@ -5,34 +5,34 @@
 {% block content %}
 <div class="card">
     <h2>Welcome to Ballroom Scorer</h2>
-    <p>Manage your ballroom dance competition heats, scores, and results all in one place.</p>
+    <p>Manage your ballroom dance competition events, scores, and results all in one place.</p>
 </div>
 
 <div class="card">
-    <h2>Competition Heats</h2>
+    <h2>Competition Events</h2>
     
     {% if heats %}
         <div class="heat-list">
             {% for heat in heats %}
             <div class="heat-card">
                 <h3>
-                    <span style="background-color: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 8px;">Heat #{{ heat.id }}</span>
+                    <span style="background-color: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 8px;">Event #{{ heat.id }}</span>
                     {{ heat.name }}
                 </h3>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <a href="{{ url_for('view_heat', heat_id=heat.id) }}" class="btn" style="flex: 1;">View</a>
-                    <a href="{{ url_for('score_heat', heat_id=heat.id) }}" class="btn btn-success" style="flex: 1;">Score</a>
-                    <a href="{{ url_for('results', heat_id=heat.id) }}" class="btn btn-secondary" style="flex: 1;">Results</a>
+                    <a href="{{ url_for('view_event', event_id=heat.id) }}" class="btn" style="flex: 1;">View</a>
+                    <a href="{{ url_for('score_event', event_id=heat.id, round_name='final') }}" class="btn btn-success" style="flex: 1;">Score</a>
+                    <a href="{{ url_for('results_event', event_id=heat.id, round_name='final') }}" class="btn btn-secondary" style="flex: 1;">Results</a>
                 </div>
             </div>
             {% endfor %}
         </div>
     {% else %}
         <div class="empty-state">
-            <h3>No heats created yet</h3>
-            <p>Get started by creating your first heat!</p>
+            <h3>No events created yet</h3>
+            <p>Get started by creating your first event!</p>
             <br>
-            <a href="{{ url_for('new_heat') }}" class="btn">Create First Heat</a>
+            <a href="{{ url_for('new_event') }}" class="btn">Create First Event</a>
         </div>
     {% endif %}
 </div>
@@ -45,7 +45,7 @@
             <td>{{ competitors|length }}</td>
         </tr>
         <tr>
-            <th>Total Heats</th>
+            <th>Total Events</th>
             <td>{{ heats|length }}</td>
         </tr>
     </table>

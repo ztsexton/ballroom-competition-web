@@ -5,9 +5,18 @@
 {% block content %}
 <div class="card">
     <h2>Results for: {{ heat_name }}</h2>
+    {% if round_name %}
+        <h3 style="color: #667eea; text-transform: capitalize;">{{ round_name }}</h3>
+    {% endif %}
     
     <div class="alert alert-success">
-        <strong>Final Rankings</strong> - Based on cumulative scoring from all judges
+        <strong>
+            {% if is_recall_round %}
+                Recall Results - Top 6 couples advance to the next round
+            {% else %}
+                Final Rankings - Based on cumulative scoring from all judges
+            {% endif %}
+        </strong>
     </div>
     
     <table>
@@ -18,12 +27,18 @@
                 <th>Leader</th>
                 <th>Follower</th>
                 <th>Judge Scores</th>
-                <th>Total Score</th>
+                <th>
+                    {% if is_recall_round %}
+                        Total Marks
+                    {% else %}
+                        Total Score
+                    {% endif %}
+                </th>
             </tr>
         </thead>
         <tbody>
             {% for result in results %}
-            <tr>
+            <tr {% if is_recall_round and loop.index <= 6 %}style="background-color: #d4edda;"{% endif %}>
                 <td>
                     {% if loop.index == 1 %}
                         🥇 <strong>1st</strong>
@@ -34,35 +49,52 @@
                     {% else %}
                         <strong>{{ loop.index }}th</strong>
                     {% endif %}
+                    {% if is_recall_round and loop.index <= 6 %}
+                        <span style="color: #28a745;">✓ Advances</span>
+                    {% endif %}
                 </td>
                 <td><strong>{{ result.Bib }}</strong></td>
                 <td>🤵 {{ result.leader_name if result.leader_name else result.Name }}</td>
                 <td>👗 {{ result.follower_name if result.follower_name else 'N/A' }}</td>
                 <td>
                     {% if result.scores %}
-                        {{ result.scores | join(', ') }}
+                        {% if is_recall_round %}
+                            {% for score in result.scores %}
+                                {% if score == 1 %}✓{% else %}✗{% endif %}{{ ', ' if not loop.last else '' }}
+                            {% endfor %}
+                        {% else %}
+                            {{ result.scores | join(', ') }}
+                        {% endif %}
                     {% else %}
                         N/A
                     {% endif %}
                 </td>
-                <td><strong>{{ result['Total Rank'] }}</strong></td>
+                <td>
+                    <strong>
+                        {% if is_recall_round %}
+                            {{ result['Total Marks'] }}
+                        {% else %}
+                            {{ result['Total Rank'] }}
+                        {% endif %}
+                    </strong>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     
     <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
-        <button onclick="exportResults({{ heat_id }})" class="btn btn-success">📥 Export Results</button>
-        <a href="{{ url_for('download_csv', heat_id=heat_id) }}" class="btn">Download CSV</a>
-        <a href="{{ url_for('download_pdf', heat_id=heat_id) }}" class="btn">Download PDF</a>
-        <a href="{{ url_for('score_heat', heat_id=heat_id) }}" class="btn btn-secondary">Re-score</a>
+        <button onclick="exportResults({{ heat_id }}, '{{ round_name }}')" class="btn btn-success">📥 Export Results</button>
+        <a href="{{ url_for('download_csv_event', event_id=heat_id, round_name=round_name) }}" class="btn">Download CSV</a>
+        <a href="{{ url_for('download_pdf_event', event_id=heat_id, round_name=round_name) }}" class="btn">Download PDF</a>
+        <a href="{{ url_for('score_event', event_id=heat_id, round_name=round_name) }}" class="btn btn-secondary">Re-score</a>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>
 </div>
 
 <script>
-    function exportResults(heatId) {
-        fetch(`/heat/${heatId}/export`)
+    function exportResults(eventId, roundName) {
+        fetch(`/event/${eventId}/${roundName}/export`)
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {

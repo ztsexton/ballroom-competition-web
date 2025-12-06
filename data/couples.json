@@ -5,5 +5,47 @@
     "follower_id": 2,
     "leader_name": "Zach Sexton",
     "follower_name": "Luba McCutchan"
+  },
+  {
+    "bib": 2,
+    "leader_id": 2,
+    "follower_id": 6,
+    "leader_name": "Luba McCutchan",
+    "follower_name": "Alice Brown"
+  },
+  {
+    "bib": 3,
+    "leader_id": 1,
+    "follower_id": 6,
+    "leader_name": "Zach Sexton",
+    "follower_name": "Alice Brown"
+  },
+  {
+    "bib": 4,
+    "leader_id": 3,
+    "follower_id": 2,
+    "leader_name": "John Doe",
+    "follower_name": "Luba McCutchan"
+  },
+  {
+    "bib": 5,
+    "leader_id": 5,
+    "follower_id": 6,
+    "leader_name": "Bob Johnson",
+    "follower_name": "Alice Brown"
+  },
+  {
+    "bib": 6,
+    "leader_id": 3,
+    "follower_id": 4,
+    "leader_name": "John Doe",
+    "follower_name": "Jane Smith"
+  },
+  {
+    "bib": 7,
+    "leader_id": 5,
+    "follower_id": 4,
+    "leader_name": "Bob Johnson",
+    "follower_name": "Jane Smith"
   }
 ]
