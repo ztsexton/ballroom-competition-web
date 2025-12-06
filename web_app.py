@@ -272,6 +272,25 @@ def delete_person(person_id):
     save_people()
     return redirect(url_for('manage_people'))
 
+@app.route('/people/<int:person_id>/update-role', methods=['POST'])
+def update_person_role(person_id):
+    """Update a person's role."""
+    data = request.get_json()
+    new_role = data.get('role')
+    
+    if new_role not in ['leader', 'follower', 'both']:
+        return jsonify({'status': 'error', 'message': 'Invalid role'}), 400
+    
+    # Find and update the person
+    person = next((p for p in people if p['id'] == person_id), None)
+    if not person:
+        return jsonify({'status': 'error', 'message': 'Person not found'}), 404
+    
+    person['role'] = new_role
+    save_people()
+    
+    return jsonify({'status': 'success', 'message': 'Role updated'})
+
 @app.route('/couples')
 def manage_couples():
     """Manage couples."""

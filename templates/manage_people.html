@@ -29,6 +29,28 @@
 </div>
 
 <script>
+function updateRole(personId, newRole) {
+    fetch(`/people/${personId}/update-role`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Error updating role: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error updating role');
+        console.error(error);
+    });
+}
+
 function importFromCSV() {
     if (confirm('Import people from competitors.csv? Duplicate names will be skipped.')) {
         fetch('/import-csv', { method: 'POST' })
@@ -79,13 +101,23 @@ function resetAllData() {
                     <td><strong>{{ person.id }}</strong></td>
                     <td>{{ person.name }}</td>
                     <td>
-                        {% if person.role == 'leader' %}
-                            <span style="background: #d1ecf1; color: #0c5460; padding: 4px 8px; border-radius: 4px;">🤵 Leader</span>
-                        {% elif person.role == 'follower' %}
-                            <span style="background: #f8d7da; color: #721c24; padding: 4px 8px; border-radius: 4px;">👗 Follower</span>
-                        {% else %}
-                            <span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px;">👫 Both</span>
-                        {% endif %}
+                        <div class="role-toggle" style="display: flex; gap: 5px;">
+                            <button onclick="updateRole({{ person.id }}, 'leader')" 
+                                    class="role-btn {% if person.role == 'leader' %}active-leader{% endif %}"
+                                    style="padding: 6px 12px; border: 2px solid #0c5460; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.role == 'leader' %}#d1ecf1{% else %}white{% endif %}; color: #0c5460; transition: all 0.2s;">
+                                🤵 Leader
+                            </button>
+                            <button onclick="updateRole({{ person.id }}, 'follower')" 
+                                    class="role-btn {% if person.role == 'follower' %}active-follower{% endif %}"
+                                    style="padding: 6px 12px; border: 2px solid #721c24; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.role == 'follower' %}#f8d7da{% else %}white{% endif %}; color: #721c24; transition: all 0.2s;">
+                                👗 Follower
+                            </button>
+                            <button onclick="updateRole({{ person.id }}, 'both')" 
+                                    class="role-btn {% if person.role == 'both' %}active-both{% endif %}"
+                                    style="padding: 6px 12px; border: 2px solid #155724; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.role == 'both' %}#d4edda{% else %}white{% endif %}; color: #155724; transition: all 0.2s;">
+                                👫 Both
+                            </button>
+                        </div>
                     </td>
                     <td>
                         <form method="POST" action="{{ url_for('delete_person', person_id=person.id) }}" 

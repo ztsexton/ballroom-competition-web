@@ -13,22 +13,22 @@
     {
       "id": 3,
       "name": "John Doe",
-      "role": "both"
+      "role": "leader"
     },
     {
       "id": 4,
       "name": "Jane Smith",
-      "role": "both"
+      "role": "follower"
     },
     {
       "id": 5,
       "name": "Bob Johnson",
-      "role": "both"
+      "role": "leader"
     },
     {
       "id": 6,
       "name": "Alice Brown",
-      "role": "both"
+      "role": "follower"
     },
     {
       "id": 7,
