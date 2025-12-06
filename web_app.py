@@ -383,26 +383,38 @@ def results(heat_name):
     if heat_name not in scorer.heats:
         return redirect(url_for('index'))
     
-    results_df = scorer.tally_results(heat_name)
+    heat_bibs = get_heat_bibs(heat_name)
     
-    if results_df is None or results_df.empty:
+    # Check if we have scores
+    if not any((heat_name, bib) in scorer.scores for bib in heat_bibs):
         return redirect(url_for('view_heat', heat_name=heat_name))
     
-    results_list = results_df.to_dict('records')
-    
-    # Add detailed scores and couple info
-    for result in results_list:
-        bib = result['Bib']
-        if (heat_name, bib) in scorer.scores:
-            result['scores'] = scorer.scores[(heat_name, bib)]
-        else:
-            result['scores'] = []
-        
-        # Add couple info
+    # Calculate results using our couples data
+    results_list = []
+    for bib in heat_bibs:
+        # Get couple info
         couple = next((c for c in couples if c['bib'] == bib), None)
-        if couple:
-            result['leader_name'] = couple['leader_name']
-            result['follower_name'] = couple['follower_name']
+        if not couple:
+            continue
+        
+        # Get scores for this couple
+        scores = scorer.scores.get((heat_name, bib), [])
+        if not scores:
+            continue
+        
+        # Calculate total rank (sum of all judge rankings)
+        total_rank = sum(scores)
+        
+        results_list.append({
+            'Bib': bib,
+            'leader_name': couple['leader_name'],
+            'follower_name': couple['follower_name'],
+            'Total Rank': total_rank,
+            'scores': scores
+        })
+    
+    # Sort by total rank (lower is better)
+    results_list.sort(key=lambda x: x['Total Rank'])
     
     return render_template('results.html', 
                          heat_name=heat_name, 
@@ -414,13 +426,41 @@ def export_results(heat_name):
     if heat_name not in scorer.heats:
         return redirect(url_for('index'))
     
-    results_df = scorer.tally_results(heat_name)
+    heat_bibs = get_heat_bibs(heat_name)
     
-    if results_df is not None:
-        scorer.export_results(heat_name, results_df)
-        return jsonify({'status': 'success', 'message': f'Results exported for {heat_name}'})
+    # Check if we have scores
+    if not any((heat_name, bib) in scorer.scores for bib in heat_bibs):
+        return jsonify({'status': 'error', 'message': 'No results to export'})
     
-    return jsonify({'status': 'error', 'message': 'No results to export'})
+    # Calculate results using our couples data
+    results_list = []
+    for bib in heat_bibs:
+        couple = next((c for c in couples if c['bib'] == bib), None)
+        if not couple:
+            continue
+        
+        scores = scorer.scores.get((heat_name, bib), [])
+        if not scores:
+            continue
+        
+        total_rank = sum(scores)
+        
+        results_list.append({
+            'Bib': bib,
+            'Leader': couple['leader_name'],
+            'Follower': couple['follower_name'],
+            'Total Rank': total_rank
+        })
+    
+    # Sort by total rank
+    results_list.sort(key=lambda x: x['Total Rank'])
+    
+    # Create results dataframe
+    results_df = pd.DataFrame(results_list)
+    
+    # Export using the scorer's export method
+    scorer.export_results(heat_name, results_df)
+    return jsonify({'status': 'success', 'message': f'Results exported for {heat_name}'})
 
 @app.route('/heat/<heat_name>/download/csv')
 def download_csv(heat_name):
