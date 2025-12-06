@@ -16,6 +16,59 @@
     </div>
 </div>
 
+<!-- Search and Filter Controls -->
+<div class="card">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+        <!-- Search -->
+        <div class="form-group" style="margin: 0;">
+            <label for="searchInput" style="font-size: 14px; margin-bottom: 5px;">🔍 Search</label>
+            <input type="text" id="searchInput" placeholder="Search by name..." 
+                   style="width: 100%; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;"
+                   onkeyup="filterTable()">
+        </div>
+        
+        <!-- Sort By -->
+        <div class="form-group" style="margin: 0;">
+            <label for="sortBy" style="font-size: 14px; margin-bottom: 5px;">📊 Sort By</label>
+            <select id="sortBy" onchange="sortTable()"
+                    style="width: 100%; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;">
+                <option value="id">ID (Default)</option>
+                <option value="firstname">First Name (A-Z)</option>
+                <option value="lastname">Last Name (A-Z)</option>
+                <option value="firstname-desc">First Name (Z-A)</option>
+                <option value="lastname-desc">Last Name (Z-A)</option>
+            </select>
+        </div>
+        
+        <!-- Filter by Role -->
+        <div class="form-group" style="margin: 0;">
+            <label for="roleFilter" style="font-size: 14px; margin-bottom: 5px;">💃 Filter by Role</label>
+            <select id="roleFilter" onchange="filterTable()"
+                    style="width: 100%; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;">
+                <option value="all">All Roles</option>
+                <option value="leader">🤵 Leaders Only</option>
+                <option value="follower">👗 Followers Only</option>
+                <option value="both">👫 Both Only</option>
+            </select>
+        </div>
+        
+        <!-- Filter by Status -->
+        <div class="form-group" style="margin: 0;">
+            <label for="statusFilter" style="font-size: 14px; margin-bottom: 5px;">🎯 Filter by Status</label>
+            <select id="statusFilter" onchange="filterTable()"
+                    style="width: 100%; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px;">
+                <option value="all">All Statuses</option>
+                <option value="student">🎓 Students Only</option>
+                <option value="professional">⭐ Professionals Only</option>
+            </select>
+        </div>
+    </div>
+    
+    <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 13px; color: #6c757d;">
+        Showing <strong id="visibleCount">0</strong> of <strong id="totalCount">0</strong> people
+    </div>
+</div>
+
 <div class="card" style="background: #fff3cd; border: 1px solid #ffc107;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
@@ -29,6 +82,11 @@
 </div>
 
 <script>
+// Initialize counts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateCounts();
+});
+
 function updateRole(personId, newRole) {
     fetch(`/people/${personId}/update-role`, {
         method: 'POST',
@@ -49,6 +107,110 @@ function updateRole(personId, newRole) {
         alert('Error updating role');
         console.error(error);
     });
+}
+
+function updateStatus(personId, newStatus) {
+    fetch(`/people/${personId}/update-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Error updating status: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error updating status');
+        console.error(error);
+    });
+}
+
+function filterTable() {
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const rows = document.querySelectorAll('.person-row');
+    
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const role = row.dataset.role;
+        const status = row.dataset.status;
+        
+        let showRow = true;
+        
+        // Search filter
+        if (searchInput && !name.includes(searchInput)) {
+            showRow = false;
+        }
+        
+        // Role filter
+        if (roleFilter !== 'all' && role !== roleFilter) {
+            showRow = false;
+        }
+        
+        // Status filter
+        if (statusFilter !== 'all' && status !== statusFilter) {
+            showRow = false;
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+    
+    updateCounts();
+}
+
+function sortTable() {
+    const sortBy = document.getElementById('sortBy').value;
+    const tbody = document.querySelector('#peopleTable tbody');
+    const rows = Array.from(document.querySelectorAll('.person-row'));
+    
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch(sortBy) {
+            case 'id':
+                aVal = parseInt(a.dataset.id);
+                bVal = parseInt(b.dataset.id);
+                return aVal - bVal;
+            case 'firstname':
+                aVal = a.dataset.firstname;
+                bVal = b.dataset.firstname;
+                return aVal.localeCompare(bVal);
+            case 'lastname':
+                aVal = a.dataset.lastname;
+                bVal = b.dataset.lastname;
+                return aVal.localeCompare(bVal);
+            case 'firstname-desc':
+                aVal = a.dataset.firstname;
+                bVal = b.dataset.firstname;
+                return bVal.localeCompare(aVal);
+            case 'lastname-desc':
+                aVal = a.dataset.lastname;
+                bVal = b.dataset.lastname;
+                return bVal.localeCompare(aVal);
+            default:
+                return 0;
+        }
+    });
+    
+    // Re-append rows in sorted order
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function updateCounts() {
+    const allRows = document.querySelectorAll('.person-row');
+    const visibleRows = document.querySelectorAll('.person-row[style=""], .person-row:not([style])');
+    const totalCount = allRows.length;
+    const visibleCount = Array.from(allRows).filter(row => row.style.display !== 'none').length;
+    
+    document.getElementById('totalCount').textContent = totalCount;
+    document.getElementById('visibleCount').textContent = visibleCount;
 }
 
 function importFromCSV() {
@@ -86,18 +248,25 @@ function resetAllData() {
 
 {% if people %}
     <div class="card">
-        <table>
+        <table id="peopleTable">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Role</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for person in people %}
-                <tr>
+                <tr class="person-row" 
+                    data-id="{{ person.id }}"
+                    data-name="{{ person.name|lower }}"
+                    data-firstname="{{ person.name.split()[0]|lower if person.name.split() else '' }}"
+                    data-lastname="{{ person.name.split()[-1]|lower if person.name.split()|length > 1 else person.name.split()[0]|lower if person.name.split() else '' }}"
+                    data-role="{{ person.role }}"
+                    data-status="{{ person.get('status', 'student') }}">
                     <td><strong>{{ person.id }}</strong></td>
                     <td>{{ person.name }}</td>
                     <td>
@@ -116,6 +285,20 @@ function resetAllData() {
                                     class="role-btn {% if person.role == 'both' %}active-both{% endif %}"
                                     style="padding: 6px 12px; border: 2px solid #155724; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.role == 'both' %}#d4edda{% else %}white{% endif %}; color: #155724; transition: all 0.2s;">
                                 👫 Both
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="status-toggle" style="display: flex; gap: 5px;">
+                            <button onclick="updateStatus({{ person.id }}, 'student')" 
+                                    class="status-btn"
+                                    style="padding: 6px 12px; border: 2px solid #004085; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.get('status', 'student') == 'student' %}#cce5ff{% else %}white{% endif %}; color: #004085; transition: all 0.2s;">
+                                🎓 Student
+                            </button>
+                            <button onclick="updateStatus({{ person.id }}, 'professional')" 
+                                    class="status-btn"
+                                    style="padding: 6px 12px; border: 2px solid #856404; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; background: {% if person.get('status', 'student') == 'professional' %}#fff3cd{% else %}white{% endif %}; color: #856404; transition: all 0.2s;">
+                                ⭐ Pro
                             </button>
                         </div>
                     </td>

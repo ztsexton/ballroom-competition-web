@@ -3,37 +3,44 @@
     {
       "id": 1,
       "name": "Zach Sexton",
-      "role": "leader"
+      "role": "leader",
+      "status": "student"
     },
     {
       "id": 2,
       "name": "Luba McCutchan",
-      "role": "both"
+      "role": "both",
+      "status": "professional"
     },
     {
       "id": 3,
       "name": "John Doe",
-      "role": "leader"
+      "role": "leader",
+      "status": "student"
     },
     {
       "id": 4,
       "name": "Jane Smith",
-      "role": "follower"
+      "role": "follower",
+      "status": "student"
     },
     {
       "id": 5,
       "name": "Bob Johnson",
-      "role": "leader"
+      "role": "leader",
+      "status": "student"
     },
     {
       "id": 6,
       "name": "Alice Brown",
-      "role": "follower"
+      "role": "follower",
+      "status": "student"
     },
     {
       "id": 7,
       "name": "Charlie Wilson",
-      "role": "both"
+      "role": "both",
+      "status": "student"
     }
   ],
   "next_id": 8

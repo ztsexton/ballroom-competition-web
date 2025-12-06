@@ -90,6 +90,11 @@ def load_people():
                 data = json.load(f)
                 people = data.get('people', [])
                 next_person_id = data.get('next_id', 1)
+                
+                # Migrate old data to include status field
+                for person in people:
+                    if 'status' not in person:
+                        person['status'] = 'student'  # Default to student
         except:
             people = []
             next_person_id = 1
@@ -159,7 +164,8 @@ def import_people_from_csv(csv_file='competitors.csv'):
             person = {
                 'id': next_person_id,
                 'name': name,
-                'role': 'both'  # Default to both roles
+                'role': 'both',  # Default to both roles
+                'status': 'student'  # Default to student
             }
             people.append(person)
             next_person_id += 1
@@ -245,12 +251,14 @@ def add_person():
     if request.method == 'POST':
         name = request.form.get('name')
         role = request.form.get('role')  # 'leader', 'follower', or 'both'
+        status = request.form.get('status', 'student')  # 'student' or 'professional'
         
         if name and role:
             person = {
                 'id': next_person_id,
                 'name': name,
-                'role': role
+                'role': role,
+                'status': status
             }
             people.append(person)
             next_person_id += 1
@@ -290,6 +298,25 @@ def update_person_role(person_id):
     save_people()
     
     return jsonify({'status': 'success', 'message': 'Role updated'})
+
+@app.route('/people/<int:person_id>/update-status', methods=['POST'])
+def update_person_status(person_id):
+    """Update a person's status (student/professional)."""
+    data = request.get_json()
+    new_status = data.get('status')
+    
+    if new_status not in ['student', 'professional']:
+        return jsonify({'status': 'error', 'message': 'Invalid status'}), 400
+    
+    # Find and update the person
+    person = next((p for p in people if p['id'] == person_id), None)
+    if not person:
+        return jsonify({'status': 'error', 'message': 'Person not found'}), 404
+    
+    person['status'] = new_status
+    save_people()
+    
+    return jsonify({'status': 'success', 'message': 'Status updated'})
 
 @app.route('/couples')
 def manage_couples():
