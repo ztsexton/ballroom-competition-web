@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# GitHub
+.github/
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+tests/
+test_*
+
+# Data (optional - remove these lines if you want data in the image)
+data/scorer_data.pkl
+results/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
