@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
+from werkzeug.middleware.proxy_fix import ProxyFix
 import pandas as pd
 from simple_ballroom_scorer import SimpleBallroomScorer
 import os
@@ -6,6 +7,17 @@ import json
 import pickle
 
 app = Flask(__name__)
+
+# Configure ProxyFix for deployment behind reverse proxy
+# This allows the app to work with path prefixes like /ballroomcomp
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+    x_prefix=1
+)
+
 scorer = SimpleBallroomScorer()
 
 DATA_FILE = 'data/scorer_data.pkl'

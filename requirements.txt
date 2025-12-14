@@ -1,3 +1,4 @@
 pandas
 reportlab
 flask
+werkzeug
