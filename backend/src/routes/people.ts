@@ -1,0 +1,80 @@
+import { Router, Request, Response } from 'express';
+import { dataService } from '../services/dataService';
+
+const router = Router();
+
+// Get all people
+router.get('/', (_req: Request, res: Response) => {
+  const people = dataService.getPeople();
+  res.json(people);
+});
+
+// Get person by ID
+router.get('/:id', (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  const person = dataService.getPersonById(id);
+  
+  if (!person) {
+    return res.status(404).json({ error: 'Person not found' });
+  }
+  
+  res.json(person);
+});
+
+// Add a new person
+router.post('/', (req: Request, res: Response) => {
+  const { name, role, status } = req.body;
+  
+  if (!name || !role) {
+    return res.status(400).json({ error: 'Name and role are required' });
+  }
+  
+  if (!['leader', 'follower', 'both'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  
+  const newPerson = dataService.addPerson({
+    name,
+    role,
+    status: status || 'student',
+  });
+  
+  res.status(201).json(newPerson);
+});
+
+// Update person
+router.patch('/:id', (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  const updates = req.body;
+  
+  const updatedPerson = dataService.updatePerson(id, updates);
+  
+  if (!updatedPerson) {
+    return res.status(404).json({ error: 'Person not found' });
+  }
+  
+  res.json(updatedPerson);
+});
+
+// Delete person
+router.delete('/:id', (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  
+  // Check if person is in any couple
+  const couples = dataService.getCouples();
+  const inCouple = couples.some(c => c.leaderId === id || c.followerId === id);
+  
+  if (inCouple) {
+    return res.status(400).json({ error: 'Cannot delete person who is in a couple' });
+  }
+  
+  const deleted = dataService.deletePerson(id);
+  
+  if (!deleted) {
+    return res.status(404).json({ error: 'Person not found' });
+  }
+  
+  res.status(204).send();
+});
+
+export default router;

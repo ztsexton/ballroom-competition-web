@@ -1,0 +1,53 @@
+{
+  "people": [
+    {
+      "id": 1,
+      "name": "Zach Sexton",
+      "role": "leader",
+      "status": "student"
+    },
+    {
+      "id": 2,
+      "name": "Luba McCutchan",
+      "role": "both",
+      "status": "professional"
+    },
+    {
+      "id": 3,
+      "name": "John Doe",
+      "role": "leader",
+      "status": "student"
+    },
+    {
+      "id": 4,
+      "name": "Jane Smith",
+      "role": "follower",
+      "status": "student"
+    },
+    {
+      "id": 5,
+      "name": "Bob Johnson",
+      "role": "leader",
+      "status": "student"
+    },
+    {
+      "id": 6,
+      "name": "Alice Brown",
+      "role": "follower",
+      "status": "student"
+    },
+    {
+      "id": 7,
+      "name": "Charlie Wilson",
+      "role": "both",
+      "status": "student"
+    },
+    {
+      "id": 8,
+      "name": "Jim Jordan",
+      "role": "leader",
+      "status": "professional"
+    }
+  ],
+  "next_id": 9
+}
