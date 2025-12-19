@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { judgesApi } from '../api/client';
 import { Judge } from '../types';
 
-const JudgesPage: React.FC = () => {
+const JudgesPage = () => {
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
   const [newJudgeName, setNewJudgeName] = useState('');
@@ -25,7 +26,7 @@ const JudgesPage: React.FC = () => {
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     if (!newJudgeName.trim()) return;
     

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { couplesApi, peopleApi } from '../api/client';
 import { Couple, Person } from '../types';
 
-const CouplesPage: React.FC = () => {
+const CouplesPage = () => {
   const [couples, setCouples] = useState<Couple[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,7 @@ const CouplesPage: React.FC = () => {
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     if (!leaderId || !followerId) return;
     

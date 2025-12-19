@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { peopleApi } from '../api/client';
 import { Person } from '../types';
 
-const PeoplePage: React.FC = () => {
+const PeoplePage = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPerson, setNewPerson] = useState({ name: '', role: 'both' as Person['role'], status: 'student' as Person['status'] });
@@ -23,7 +24,7 @@ const PeoplePage: React.FC = () => {
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     if (!newPerson.name) return;
     

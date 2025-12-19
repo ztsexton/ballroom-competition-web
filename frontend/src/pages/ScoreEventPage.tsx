@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi } from '../api/client';
 import { Event, Couple } from '../types';
 
-const ScoreEventPage: React.FC = () => {
+const ScoreEventPage = () => {
   const { id, round } = useParams<{ id: string; round?: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
@@ -57,7 +58,7 @@ const ScoreEventPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!event) return;

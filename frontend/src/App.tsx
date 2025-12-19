@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
 import Home from './pages/Home';
@@ -11,7 +10,7 @@ import ScoreEventPage from './pages/ScoreEventPage';
 import ResultsPage from './pages/ResultsPage';
 import './App.css';
 
-const App: React.FC = () => {
+const App = () => {
   return (
     <BrowserRouter>
       <Navigation />

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi } from '../api/client';
 import { Event, EventResult } from '../types';
 
-const ResultsPage: React.FC = () => {
+const ResultsPage = () => {
   const { id, round } = useParams<{ id: string; round?: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);

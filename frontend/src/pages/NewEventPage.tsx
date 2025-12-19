@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../api/client';
 import { Couple, Judge } from '../types';
 
-const NewEventPage: React.FC = () => {
+const NewEventPage = () => {
   const navigate = useNavigate();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
@@ -76,7 +77,7 @@ const NewEventPage: React.FC = () => {
     return [];
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!eventName.trim()) {
