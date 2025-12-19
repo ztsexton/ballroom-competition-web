@@ -147,84 +147,188 @@ const NewEventPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
-                <label>Designation</label>
-                <select value={designation} onChange={e => setDesignation(e.target.value)}>
-                  <option value="">Select Designation</option>
-                  <option value="Pro-Am">Pro-Am</option>
-                  <option value="Amateur">Amateur</option>
-                  <option value="Professional">Professional</option>
-                  <option value="Student">Student</option>
-                </select>
+            <div className="form-group">
+              <label>Designation</label>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setDesignation(designation === option ? '' : option)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: designation === option ? '2px solid #667eea' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: designation === option ? '#667eea' : 'white',
+                      color: designation === option ? 'white' : '#2d3748',
+                      cursor: 'pointer',
+                      fontWeight: designation === option ? 'bold' : 'normal',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {option}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>Syllabus Type</label>
-                <select value={syllabusType} onChange={e => setSyllabusType(e.target.value)}>
-                  <option value="">Select Syllabus</option>
-                  <option value="Syllabus">Syllabus</option>
-                  <option value="Open">Open</option>
-                </select>
+            <div className="form-group">
+              <label>Syllabus Type</label>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['Syllabus', 'Open'].map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setSyllabusType(syllabusType === option ? '' : option)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: syllabusType === option ? '2px solid #667eea' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: syllabusType === option ? '#667eea' : 'white',
+                      color: syllabusType === option ? 'white' : '#2d3748',
+                      cursor: 'pointer',
+                      fontWeight: syllabusType === option ? 'bold' : 'normal',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {option}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>Level</label>
-                <select value={level} onChange={e => setLevel(e.target.value)}>
-                  <option value="">Select Level</option>
-                  <option value="Newcomer">Newcomer</option>
-                  <option value="Bronze">Bronze</option>
-                  <option value="Silver">Silver</option>
-                  <option value="Gold">Gold</option>
-                  <option value="Novice">Novice</option>
-                  <option value="Pre-Championship">Pre-Championship</option>
-                  <option value="Championship">Championship</option>
-                </select>
+            <div className="form-group">
+              <label>Level</label>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['Newcomer', 'Bronze', 'Silver', 'Gold', 'Novice', 'Pre-Championship', 'Championship'].map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setLevel(level === option ? '' : option)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: level === option ? '2px solid #667eea' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: level === option ? '#667eea' : 'white',
+                      color: level === option ? 'white' : '#2d3748',
+                      cursor: 'pointer',
+                      fontWeight: level === option ? 'bold' : 'normal',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {option}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>Style</label>
-                <select value={style} onChange={e => {
-                  setStyle(e.target.value);
-                  setSelectedDances([]); // Reset dances when style changes
-                }}>
-                  <option value="">Select Style</option>
-                  <option value="Standard">Standard</option>
-                  <option value="Latin">Latin</option>
-                  <option value="Smooth">Smooth</option>
-                  <option value="Rhythm">Rhythm</option>
-                </select>
+            <div className="form-group">
+              <label>Style</label>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      if (style === option) {
+                        setStyle('');
+                        setSelectedDances([]);
+                      } else {
+                        setStyle(option);
+                        setSelectedDances([]);
+                      }
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: style === option ? '2px solid #667eea' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: style === option ? '#667eea' : 'white',
+                      color: style === option ? 'white' : '#2d3748',
+                      cursor: 'pointer',
+                      fontWeight: style === option ? 'bold' : 'normal',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {option}
+                  </button>
+                ))}
               </div>
             </div>
 
             {style && getDanceOptions().length > 0 && (
               <div className="form-group">
-                <label>Select Dances ({selectedDances.length} selected)</label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: '0.5rem',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '4px',
-                  padding: '0.75rem'
-                }}>
-                  {getDanceOptions().map(dance => (
-                    <label 
-                      key={dance}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        cursor: 'pointer'
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label style={{ margin: 0 }}>
+                    Select Dances {selectedDances.length > 0 && (
+                      <span style={{ 
+                        color: '#667eea', 
+                        fontWeight: 'bold',
+                        marginLeft: '0.5rem'
+                      }}>
+                        ({selectedDances.length} selected)
+                      </span>
+                    )}
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDances(getDanceOptions())}
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid #667eea',
+                        borderRadius: '4px',
+                        background: 'white',
+                        color: '#667eea',
+                        cursor: 'pointer',
+                        fontWeight: '500'
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedDances.includes(dance)}
-                        onChange={() => handleDanceToggle(dance)}
-                        style={{ marginRight: '0.5rem' }}
-                      />
-                      <span>{dance}</span>
-                    </label>
+                      Select All
+                    </button>
+                    {selectedDances.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDances([])}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.875rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          background: 'white',
+                          color: '#718096',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ 
+                  display: 'flex',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap'
+                }}>
+                  {getDanceOptions().map(dance => (
+                    <button
+                      key={dance}
+                      type="button"
+                      onClick={() => handleDanceToggle(dance)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        border: selectedDances.includes(dance) ? '2px solid #667eea' : '1px solid #cbd5e0',
+                        borderRadius: '4px',
+                        background: selectedDances.includes(dance) ? '#667eea' : 'white',
+                        color: selectedDances.includes(dance) ? 'white' : '#2d3748',
+                        cursor: 'pointer',
+                        fontWeight: selectedDances.includes(dance) ? 'bold' : 'normal',
+                        transition: 'all 0.2s',
+                        minWidth: '120px'
+                      }}
+                    >
+                      {dance}
+                    </button>
                   ))}
                 </div>
               </div>

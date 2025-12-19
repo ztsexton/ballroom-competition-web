@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { peopleApi } from '../api/client';
 import { Person } from '../types';
 
@@ -57,7 +56,7 @@ const PeoplePage = () => {
         
         <form onSubmit={handleAdd} style={{ marginTop: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Name</label>
               <input
                 type="text"
@@ -66,7 +65,7 @@ const PeoplePage = () => {
                 required
               />
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Role</label>
               <select value={newPerson.role} onChange={e => setNewPerson({ ...newPerson, role: e.target.value as Person['role'] })}>
                 <option value="leader">Leader</option>
@@ -74,14 +73,14 @@ const PeoplePage = () => {
                 <option value="both">Both</option>
               </select>
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Status</label>
               <select value={newPerson.status} onChange={e => setNewPerson({ ...newPerson, status: e.target.value as Person['status'] })}>
                 <option value="student">Student</option>
                 <option value="professional">Professional</option>
               </select>
             </div>
-            <button type="submit" className="btn">Add</button>
+            <button type="submit" className="btn" style={{ marginBottom: 0 }}>Add</button>
           </div>
         </form>
 
