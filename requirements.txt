@@ -1,4 +1,0 @@
-pandas
-reportlab
-flask
-werkzeug
