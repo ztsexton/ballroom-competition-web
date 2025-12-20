@@ -2,19 +2,28 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { peopleApi } from '../api/client';
 import { Person } from '../types';
+import { useCompetition } from '../context/CompetitionContext';
 
 const PeoplePage = () => {
+  const { activeCompetition } = useCompetition();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPerson, setNewPerson] = useState({ name: '', role: 'both' as Person['role'], status: 'student' as Person['status'] });
 
   useEffect(() => {
-    loadPeople();
-  }, []);
+    if (activeCompetition) {
+      loadPeople();
+    } else {
+      setPeople([]);
+      setLoading(false);
+    }
+  }, [activeCompetition]);
 
   const loadPeople = async () => {
+    if (!activeCompetition) return;
+    
     try {
-      const response = await peopleApi.getAll();
+      const response = await peopleApi.getAll(activeCompetition.id);
       setPeople(response.data);
     } catch (error) {
       console.error('Failed to load people:', error);
@@ -25,10 +34,13 @@ const PeoplePage = () => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newPerson.name) return;
+    if (!newPerson.name || !activeCompetition) return;
     
     try {
-      await peopleApi.create(newPerson);
+      await peopleApi.create({
+        ...newPerson,
+        competitionId: activeCompetition.id,
+      });
       setNewPerson({ name: '', role: 'both', status: 'student' });
       loadPeople();
     } catch (error) {
@@ -49,10 +61,30 @@ const PeoplePage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  if (!activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Manage People</h2>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage people.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="card">
-        <h2>Manage People</h2>
+        <h2>Manage People - {activeCompetition.name}</h2>
         
         <form onSubmit={handleAdd} style={{ marginTop: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>

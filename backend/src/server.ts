@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import competitionsRoutes from './routes/competitions';
+import studiosRoutes from './routes/studios';
 import peopleRoutes from './routes/people';
 import couplesRoutes from './routes/couples';
 import judgesRoutes from './routes/judges';
@@ -15,6 +17,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/api/competitions', competitionsRoutes);
+app.use('/api/studios', studiosRoutes);
 app.use('/api/people', peopleRoutes);
 app.use('/api/couples', couplesRoutes);
 app.use('/api/judges', judgesRoutes);

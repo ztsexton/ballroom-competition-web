@@ -3,9 +3,10 @@ import { dataService } from '../services/dataService';
 
 const router = Router();
 
-// Get all couples
-router.get('/', (_req: Request, res: Response) => {
-  const couples = dataService.getCouples();
+// Get all couples (optionally filtered by competition)
+router.get('/', (req: Request, res: Response) => {
+  const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+  const couples = dataService.getCouples(competitionId);
   res.json(couples);
 });
 
@@ -23,19 +24,20 @@ router.get('/:bib', (req: Request, res: Response) => {
 
 // Add a new couple
 router.post('/', (req: Request, res: Response) => {
-  const { leaderId, followerId } = req.body;
+  const { leaderId, followerId, competitionId } = req.body;
   
-  if (!leaderId || !followerId) {
-    return res.status(400).json({ error: 'Leader and follower IDs are required' });
+  if (!leaderId || !followerId || !competitionId) {
+    return res.status(400).json({ error: 'Leader ID, follower ID, and competition ID are required' });
   }
   
   const newCouple = dataService.addCouple(
     parseInt(leaderId),
-    parseInt(followerId)
+    parseInt(followerId),
+    parseInt(competitionId)
   );
   
   if (!newCouple) {
-    return res.status(400).json({ error: 'Invalid leader or follower ID' });
+    return res.status(400).json({ error: 'Invalid leader or follower ID, or people not in same competition' });
   }
   
   res.status(201).json(newCouple);

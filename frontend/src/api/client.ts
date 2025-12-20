@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,9 +10,31 @@ const api = axios.create({
   },
 });
 
+// Competitions API
+export const competitionsApi = {
+  getAll: () => api.get<Competition[]>('/competitions'),
+  getById: (id: number) => api.get<Competition>(`/competitions/${id}`),
+  create: (competition: Omit<Competition, 'id' | 'createdAt'>) => 
+    api.post<Competition>('/competitions', competition),
+  update: (id: number, updates: Partial<Omit<Competition, 'id' | 'createdAt'>>) =>
+    api.put<Competition>(`/competitions/${id}`, updates),
+  delete: (id: number) => api.delete(`/competitions/${id}`),
+};
+
+// Studios API
+export const studiosApi = {
+  getAll: () => api.get<Studio[]>('/studios'),
+  getById: (id: number) => api.get<Studio>(`/studios/${id}`),
+  create: (studio: Omit<Studio, 'id'>) => api.post<Studio>('/studios', studio),
+  update: (id: number, updates: Partial<Omit<Studio, 'id'>>) =>
+    api.put<Studio>(`/studios/${id}`, updates),
+  delete: (id: number) => api.delete(`/studios/${id}`),
+};
+
 // People API
 export const peopleApi = {
-  getAll: () => api.get<Person[]>('/people'),
+  getAll: (competitionId?: number) => 
+    api.get<Person[]>('/people', { params: { competitionId } }),
   getById: (id: number) => api.get<Person>(`/people/${id}`),
   create: (person: Omit<Person, 'id'>) => api.post<Person>('/people', person),
   update: (id: number, updates: Partial<Omit<Person, 'id'>>) =>
@@ -22,36 +44,41 @@ export const peopleApi = {
 
 // Couples API
 export const couplesApi = {
-  getAll: () => api.get<Couple[]>('/couples'),
+  getAll: (competitionId?: number) => 
+    api.get<Couple[]>('/couples', { params: { competitionId } }),
   getByBib: (bib: number) => api.get<Couple>(`/couples/${bib}`),
-  create: (leaderId: number, followerId: number) =>
-    api.post<Couple>('/couples', { leaderId, followerId }),
+  create: (leaderId: number, followerId: number, competitionId: number) =>
+    api.post<Couple>('/couples', { leaderId, followerId, competitionId }),
   delete: (bib: number) => api.delete(`/couples/${bib}`),
 };
 
 // Judges API
 export const judgesApi = {
-  getAll: () => api.get<Judge[]>('/judges'),
+  getAll: (competitionId?: number) => 
+    api.get<Judge[]>('/judges', { params: { competitionId } }),
   getById: (id: number) => api.get<Judge>(`/judges/${id}`),
-  create: (name: string) => api.post<Judge>('/judges', { name }),
+  create: (name: string, competitionId: number) => 
+    api.post<Judge>('/judges', { name, competitionId }),
   delete: (id: number) => api.delete(`/judges/${id}`),
 };
 
 // Events API
 export const eventsApi = {
-  getAll: () => api.get<Record<number, Event>>('/events'),
+  getAll: (competitionId?: number) => 
+    api.get<Record<number, Event>>('/events', { params: { competitionId } }),
   getById: (id: number) => api.get<Event>(`/events/${id}`),
   create: (
     name: string, 
     bibs: number[], 
-    judgeIds: number[], 
+    judgeIds: number[],
+    competitionId: number,
     designation?: string,
     syllabusType?: string,
     level?: string,
     style?: string,
     dances?: string[]
   ) =>
-    api.post<Event>('/events', { name, bibs, judgeIds, designation, syllabusType, level, style, dances }),
+    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances }),
   update: (id: number, updates: Partial<Omit<Event, 'id'>>) =>
     api.patch<Event>(`/events/${id}`, updates),
   delete: (id: number) => api.delete(`/events/${id}`),

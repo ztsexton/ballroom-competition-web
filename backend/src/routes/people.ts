@@ -3,9 +3,10 @@ import { dataService } from '../services/dataService';
 
 const router = Router();
 
-// Get all people
-router.get('/', (_req: Request, res: Response) => {
-  const people = dataService.getPeople();
+// Get all people (optionally filtered by competition)
+router.get('/', (req: Request, res: Response) => {
+  const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+  const people = dataService.getPeople(competitionId);
   res.json(people);
 });
 
@@ -23,10 +24,10 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Add a new person
 router.post('/', (req: Request, res: Response) => {
-  const { name, role, status } = req.body;
+  const { name, role, status, competitionId, studioId } = req.body;
   
-  if (!name || !role) {
-    return res.status(400).json({ error: 'Name and role are required' });
+  if (!name || !role || !competitionId) {
+    return res.status(400).json({ error: 'Name, role, and competitionId are required' });
   }
   
   if (!['leader', 'follower', 'both'].includes(role)) {
@@ -37,6 +38,8 @@ router.post('/', (req: Request, res: Response) => {
     name,
     role,
     status: status || 'student',
+    competitionId,
+    studioId,
   });
   
   res.status(201).json(newPerson);

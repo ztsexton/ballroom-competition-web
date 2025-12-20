@@ -4,9 +4,10 @@ import { scoringService } from '../services/scoringService';
 
 const router = Router();
 
-// Get all events
-router.get('/', (_req: Request, res: Response) => {
-  const events = dataService.getEvents();
+// Get all events (optionally filtered by competition)
+router.get('/', (req: Request, res: Response) => {
+  const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+  const events = dataService.getEvents(competitionId);
   res.json(events);
 });
 
@@ -24,16 +25,17 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Create a new event
 router.post('/', (req: Request, res: Response) => {
-  const { name, bibs, judgeIds, designation, syllabusType, level, style, dances } = req.body;
+  const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances } = req.body;
   
-  if (!name || !bibs || !Array.isArray(bibs)) {
-    return res.status(400).json({ error: 'Name and bibs array are required' });
+  if (!name || !bibs || !Array.isArray(bibs) || !competitionId) {
+    return res.status(400).json({ error: 'Name, bibs array, and competition ID are required' });
   }
   
   const newEvent = dataService.addEvent(
     name, 
     bibs, 
-    judgeIds || [], 
+    judgeIds || [],
+    parseInt(competitionId),
     designation, 
     syllabusType, 
     level, 

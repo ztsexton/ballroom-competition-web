@@ -1,8 +1,30 @@
+export type CompetitionType = 'NDCA' | 'USA_DANCE' | 'UNAFFILIATED' | 'STUDIO';
+
+export interface Studio {
+  id: number;
+  name: string;
+  location?: string;
+  contactInfo?: string;
+}
+
+export interface Competition {
+  id: number;
+  name: string;
+  type: CompetitionType;
+  date: string;
+  location?: string;
+  studioId?: number;
+  description?: string;
+  createdAt: string;
+}
+
 export interface Person {
   id: number;
   name: string;
   role: 'leader' | 'follower' | 'both';
   status: 'student' | 'professional';
+  competitionId: number;
+  studioId?: number;
 }
 
 export interface Couple {
@@ -11,12 +33,14 @@ export interface Couple {
   followerId: number;
   leaderName: string;
   followerName: string;
+  competitionId: number;
 }
 
 export interface Judge {
   id: number;
   name: string;
   judgeNumber: number;
+  competitionId: number;
 }
 
 export interface Heat {
@@ -34,6 +58,7 @@ export interface Event {
   style?: string;
   dances?: string[];
   heats: Heat[];
+  competitionId: number;
 }
 
 export interface EventResult {

@@ -3,9 +3,11 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../api/client';
 import { Couple, Judge } from '../types';
+import { useCompetition } from '../context/CompetitionContext';
 
 const NewEventPage = () => {
   const navigate = useNavigate();
+  const { activeCompetition } = useCompetition();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,14 +23,18 @@ const NewEventPage = () => {
   const [selectedJudges, setSelectedJudges] = useState<number[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (activeCompetition) {
+      loadData();
+    }
+  }, [activeCompetition]);
 
   const loadData = async () => {
+    if (!activeCompetition) return;
+    
     try {
       const [couplesRes, judgesRes] = await Promise.all([
-        couplesApi.getAll(),
-        judgesApi.getAll(),
+        couplesApi.getAll(activeCompetition.id),
+        judgesApi.getAll(activeCompetition.id),
       ]);
       setCouples(couplesRes.data);
       setJudges(judgesRes.data);
@@ -80,6 +86,11 @@ const NewEventPage = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
+    if (!activeCompetition) {
+      setError('No active competition selected');
+      return;
+    }
+    
     if (!eventName.trim()) {
       setError('Event name is required');
       return;
@@ -95,6 +106,7 @@ const NewEventPage = () => {
         eventName.trim(), 
         selectedBibs, 
         selectedJudges,
+        activeCompetition.id,
         designation || undefined,
         syllabusType || undefined,
         level || undefined,
@@ -109,13 +121,33 @@ const NewEventPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  if (!activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>➕ Create New Event</h2>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to create events.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const hasData = couples.length > 0;
 
   return (
     <div className="container">
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>Create New Event</h2>
+          <h2>➕ Create New Event - {activeCompetition.name}</h2>
           <button onClick={() => navigate('/events')} className="btn btn-secondary">Cancel</button>
         </div>
 

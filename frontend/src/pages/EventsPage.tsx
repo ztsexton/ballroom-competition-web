@@ -2,18 +2,27 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { eventsApi } from '../api/client';
 import { Event } from '../types';
+import { useCompetition } from '../context/CompetitionContext';
 
 const EventsPage = () => {
+  const { activeCompetition } = useCompetition();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadEvents();
-  }, []);
+    if (activeCompetition) {
+      loadEvents();
+    } else {
+      setEvents([]);
+      setLoading(false);
+    }
+  }, [activeCompetition]);
 
   const loadEvents = async () => {
+    if (!activeCompetition) return;
+    
     try {
-      const response = await eventsApi.getAll();
+      const response = await eventsApi.getAll(activeCompetition.id);
       setEvents(Object.values(response.data));
     } catch (error) {
       console.error('Failed to load events:', error);
@@ -37,11 +46,31 @@ const EventsPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  if (!activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>📋 Manage Events</h2>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage events.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>🏆 Manage Events</h2>
+          <h2>📋 Manage Events - {activeCompetition.name}</h2>
           <Link to="/events/new" className="btn">➕ Create New Event</Link>
         </div>
 

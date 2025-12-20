@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event } from '../types';
+import { AppData, Person, Couple, Judge, Event, Competition, Studio } from '../types';
 
 const DATA_DIR = path.join(__dirname, '../../data');
+const COMPETITIONS_FILE = path.join(DATA_DIR, 'competitions.json');
+const STUDIOS_FILE = path.join(DATA_DIR, 'studios.json');
 const PEOPLE_FILE = path.join(DATA_DIR, 'people.json');
 const COUPLES_FILE = path.join(DATA_DIR, 'couples.json');
 const JUDGES_FILE = path.join(DATA_DIR, 'judges.json');
@@ -22,16 +24,44 @@ class DataService {
 
   private loadAllData(): AppData {
     return {
+      competitions: this.loadCompetitions(),
+      studios: this.loadStudios(),
       people: this.loadPeople(),
       couples: this.loadCouples(),
       judges: this.loadJudges(),
       events: this.loadEvents(),
       scores: this.loadScores(),
+      nextCompetitionId: this.getNextId(this.loadCompetitions()),
+      nextStudioId: this.getNextId(this.loadStudios()),
       nextPersonId: this.getNextId(this.loadPeople()),
       nextBib: this.getNextBib(this.loadCouples()),
       nextJudgeId: this.getNextId(this.loadJudges()),
       nextEventId: this.getNextEventId(this.loadEvents()),
     };
+  }
+
+  private loadCompetitions(): Competition[] {
+    try {
+      if (fs.existsSync(COMPETITIONS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(COMPETITIONS_FILE, 'utf-8'));
+        return data.competitions || [];
+      }
+    } catch (error) {
+      console.error('Error loading competitions:', error);
+    }
+    return [];
+  }
+
+  private loadStudios(): Studio[] {
+    try {
+      if (fs.existsSync(STUDIOS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(STUDIOS_FILE, 'utf-8'));
+        return data.studios || [];
+      }
+    } catch (error) {
+      console.error('Error loading studios:', error);
+    }
+    return [];
   }
 
   private loadPeople(): Person[] {
@@ -109,6 +139,16 @@ class DataService {
     return Math.max(...ids) + 1;
   }
 
+  private saveCompetitions(): void {
+    const data = { competitions: this.data.competitions, next_id: this.data.nextCompetitionId };
+    fs.writeFileSync(COMPETITIONS_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private saveStudios(): void {
+    const data = { studios: this.data.studios, next_id: this.data.nextStudioId };
+    fs.writeFileSync(STUDIOS_FILE, JSON.stringify(data, null, 2));
+  }
+
   private savePeople(): void {
     const data = { people: this.data.people, next_id: this.data.nextPersonId };
     fs.writeFileSync(PEOPLE_FILE, JSON.stringify(data, null, 2));
@@ -133,8 +173,100 @@ class DataService {
     fs.writeFileSync(EVENTS_FILE, JSON.stringify(data, null, 2));
   }
 
+  // Competition methods
+  getCompetitions(): Competition[] {
+    return this.data.competitions;
+  }
+
+  getCompetitionById(id: number): Competition | undefined {
+    return this.data.competitions.find(c => c.id === id);
+  }
+
+  addCompetition(competition: Omit<Competition, 'id' | 'createdAt'>): Competition {
+    const newCompetition: Competition = {
+      ...competition,
+      id: this.data.nextCompetitionId++,
+      createdAt: new Date().toISOString(),
+    };
+    this.data.competitions.push(newCompetition);
+    this.saveCompetitions();
+    return newCompetition;
+  }
+
+  updateCompetition(id: number, updates: Partial<Omit<Competition, 'id' | 'createdAt'>>): Competition | null {
+    const competition = this.data.competitions.find(c => c.id === id);
+    if (!competition) return null;
+    Object.assign(competition, updates);
+    this.saveCompetitions();
+    return competition;
+  }
+
+  deleteCompetition(id: number): boolean {
+    const initialLength = this.data.competitions.length;
+    this.data.competitions = this.data.competitions.filter(c => c.id !== id);
+    if (this.data.competitions.length < initialLength) {
+      // Also delete all related data
+      this.data.people = this.data.people.filter(p => p.competitionId !== id);
+      this.data.couples = this.data.couples.filter(c => c.competitionId !== id);
+      this.data.judges = this.data.judges.filter(j => j.competitionId !== id);
+      Object.keys(this.data.events).forEach(key => {
+        const eventId = Number(key);
+        if (this.data.events[eventId].competitionId === id) {
+          delete this.data.events[eventId];
+        }
+      });
+      this.saveCompetitions();
+      this.savePeople();
+      this.saveCouples();
+      this.saveJudges();
+      this.saveEvents();
+      return true;
+    }
+    return false;
+  }
+
+  // Studio methods
+  getStudios(): Studio[] {
+    return this.data.studios;
+  }
+
+  getStudioById(id: number): Studio | undefined {
+    return this.data.studios.find(s => s.id === id);
+  }
+
+  addStudio(studio: Omit<Studio, 'id'>): Studio {
+    const newStudio: Studio = {
+      ...studio,
+      id: this.data.nextStudioId++,
+    };
+    this.data.studios.push(newStudio);
+    this.saveStudios();
+    return newStudio;
+  }
+
+  updateStudio(id: number, updates: Partial<Omit<Studio, 'id'>>): Studio | null {
+    const studio = this.data.studios.find(s => s.id === id);
+    if (!studio) return null;
+    Object.assign(studio, updates);
+    this.saveStudios();
+    return studio;
+  }
+
+  deleteStudio(id: number): boolean {
+    const initialLength = this.data.studios.length;
+    this.data.studios = this.data.studios.filter(s => s.id !== id);
+    if (this.data.studios.length < initialLength) {
+      this.saveStudios();
+      return true;
+    }
+    return false;
+  }
+
   // People methods
-  getPeople(): Person[] {
+  getPeople(competitionId?: number): Person[] {
+    if (competitionId !== undefined) {
+      return this.data.people.filter(p => p.competitionId === competitionId);
+    }
     return this.data.people;
   }
 
@@ -171,7 +303,10 @@ class DataService {
   }
 
   // Couples methods
-  getCouples(): Couple[] {
+  getCouples(competitionId?: number): Couple[] {
+    if (competitionId !== undefined) {
+      return this.data.couples.filter(c => c.competitionId === competitionId);
+    }
     return this.data.couples;
   }
 
@@ -179,11 +314,12 @@ class DataService {
     return this.data.couples.find(c => c.bib === bib);
   }
 
-  addCouple(leaderId: number, followerId: number): Couple | null {
+  addCouple(leaderId: number, followerId: number, competitionId: number): Couple | null {
     const leader = this.getPersonById(leaderId);
     const follower = this.getPersonById(followerId);
     
     if (!leader || !follower) return null;
+    if (leader.competitionId !== competitionId || follower.competitionId !== competitionId) return null;
 
     const newCouple: Couple = {
       bib: this.data.nextBib++,
@@ -191,6 +327,7 @@ class DataService {
       followerId,
       leaderName: leader.name,
       followerName: follower.name,
+      competitionId,
     };
     this.data.couples.push(newCouple);
     this.saveCouples();
@@ -209,7 +346,10 @@ class DataService {
   }
 
   // Judges methods
-  getJudges(): Judge[] {
+  getJudges(competitionId?: number): Judge[] {
+    if (competitionId !== undefined) {
+      return this.data.judges.filter(j => j.competitionId === competitionId);
+    }
     return this.data.judges;
   }
 
@@ -217,14 +357,16 @@ class DataService {
     return this.data.judges.find(j => j.id === id);
   }
 
-  addJudge(name: string): Judge {
-    const existingNumbers = this.data.judges.map(j => j.judgeNumber);
+  addJudge(name: string, competitionId: number): Judge {
+    const competitionJudges = this.data.judges.filter(j => j.competitionId === competitionId);
+    const existingNumbers = competitionJudges.map(j => j.judgeNumber);
     const judgeNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
 
     const newJudge: Judge = {
       id: this.data.nextJudgeId++,
       name,
       judgeNumber,
+      competitionId,
     };
     this.data.judges.push(newJudge);
     this.data.judges.sort((a, b) => a.judgeNumber - b.judgeNumber);
@@ -243,7 +385,16 @@ class DataService {
   }
 
   // Events methods
-  getEvents(): Record<number, Event> {
+  getEvents(competitionId?: number): Record<number, Event> {
+    if (competitionId !== undefined) {
+      const filtered: Record<number, Event> = {};
+      Object.entries(this.data.events).forEach(([key, event]) => {
+        if (event.competitionId === competitionId) {
+          filtered[Number(key)] = event;
+        }
+      });
+      return filtered;
+    }
     return this.data.events;
   }
 
@@ -255,6 +406,7 @@ class DataService {
     name: string, 
     bibs: number[], 
     judgeIds: number[],
+    competitionId: number,
     designation?: string,
     syllabusType?: string,
     level?: string,
@@ -277,6 +429,7 @@ class DataService {
       style,
       dances,
       heats,
+      competitionId,
     };
     this.data.events[newEvent.id] = newEvent;
     this.saveEvents();
@@ -363,16 +516,22 @@ class DataService {
 
   resetAllData(): void {
     this.data = {
+      competitions: [],
+      studios: [],
       people: [],
       couples: [],
       judges: [],
       events: {},
       scores: {},
+      nextCompetitionId: 1,
+      nextStudioId: 1,
       nextPersonId: 1,
       nextBib: 1,
       nextJudgeId: 1,
       nextEventId: 1,
     };
+    this.saveCompetitions();
+    this.saveStudios();
     this.savePeople();
     this.saveCouples();
     this.saveJudges();

@@ -2,20 +2,29 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { judgesApi } from '../api/client';
 import { Judge } from '../types';
+import { useCompetition } from '../context/CompetitionContext';
 
 const JudgesPage = () => {
+  const { activeCompetition } = useCompetition();
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
   const [newJudgeName, setNewJudgeName] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadJudges();
-  }, []);
+    if (activeCompetition) {
+      loadJudges();
+    } else {
+      setJudges([]);
+      setLoading(false);
+    }
+  }, [activeCompetition]);
 
   const loadJudges = async () => {
+    if (!activeCompetition) return;
+    
     try {
-      const response = await judgesApi.getAll();
+      const response = await judgesApi.getAll(activeCompetition.id);
       setJudges(response.data);
       setError('');
     } catch (error) {
@@ -28,10 +37,10 @@ const JudgesPage = () => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newJudgeName.trim()) return;
+    if (!newJudgeName.trim() || !activeCompetition) return;
     
     try {
-      await judgesApi.create(newJudgeName.trim());
+      await judgesApi.create(newJudgeName.trim(), activeCompetition.id);
       setNewJudgeName('');
       setError('');
       loadJudges();
@@ -55,10 +64,30 @@ const JudgesPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  if (!activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>⚖️ Manage Judges</h2>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage judges.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="card">
-        <h2>⚖️ Manage Judges</h2>
+        <h2>⚖️ Manage Judges - {activeCompetition.name}</h2>
         <p style={{ color: '#718096', marginTop: '0.5rem' }}>
           Add and manage competition judges. Judge numbers are automatically assigned.
         </p>

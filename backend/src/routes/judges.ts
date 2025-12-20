@@ -3,9 +3,10 @@ import { dataService } from '../services/dataService';
 
 const router = Router();
 
-// Get all judges
-router.get('/', (_req: Request, res: Response) => {
-  const judges = dataService.getJudges();
+// Get all judges (optionally filtered by competition)
+router.get('/', (req: Request, res: Response) => {
+  const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+  const judges = dataService.getJudges(competitionId);
   res.json(judges);
 });
 
@@ -23,13 +24,13 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Add a new judge
 router.post('/', (req: Request, res: Response) => {
-  const { name } = req.body;
+  const { name, competitionId } = req.body;
   
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' });
+  if (!name || !competitionId) {
+    return res.status(400).json({ error: 'Name and competition ID are required' });
   }
   
-  const newJudge = dataService.addJudge(name);
+  const newJudge = dataService.addJudge(name, parseInt(competitionId));
   res.status(201).json(newJudge);
 });
 

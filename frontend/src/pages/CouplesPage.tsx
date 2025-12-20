@@ -3,8 +3,10 @@ import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { couplesApi, peopleApi } from '../api/client';
 import { Couple, Person } from '../types';
+import { useCompetition } from '../context/CompetitionContext';
 
 const CouplesPage = () => {
+  const { activeCompetition } = useCompetition();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,14 +15,22 @@ const CouplesPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (activeCompetition) {
+      loadData();
+    } else {
+      setCouples([]);
+      setPeople([]);
+      setLoading(false);
+    }
+  }, [activeCompetition]);
 
   const loadData = async () => {
+    if (!activeCompetition) return;
+    
     try {
       const [couplesRes, peopleRes] = await Promise.all([
-        couplesApi.getAll(),
-        peopleApi.getAll(),
+        couplesApi.getAll(activeCompetition.id),
+        peopleApi.getAll(activeCompetition.id),
       ]);
       setCouples(couplesRes.data);
       setPeople(peopleRes.data);
@@ -35,10 +45,10 @@ const CouplesPage = () => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!leaderId || !followerId) return;
+    if (!leaderId || !followerId || !activeCompetition) return;
     
     try {
-      await couplesApi.create(parseInt(leaderId), parseInt(followerId));
+      await couplesApi.create(parseInt(leaderId), parseInt(followerId), activeCompetition.id);
       setLeaderId('');
       setFollowerId('');
       setError('');
@@ -65,10 +75,30 @@ const CouplesPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  if (!activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>💃🕺 Manage Couples</h2>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage couples.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="card">
-        <h2>💃🕺 Manage Couples</h2>
+        <h2>💃🕺 Manage Couples - {activeCompetition.name}</h2>
         <p style={{ color: '#718096', marginTop: '0.5rem' }}>
           Create couples by pairing leaders and followers. Each couple gets a unique bib number.
         </p>
