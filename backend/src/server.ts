@@ -1,4 +1,7 @@
 import express from 'express';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import competitionsRoutes from './routes/competitions';
@@ -10,6 +13,7 @@ import eventsRoutes from './routes/events';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const USE_HTTPS = process.env.USE_HTTPS === 'true' || true; // Enable HTTPS by default in dev
 
 // Middleware
 app.use(helmet());
@@ -36,8 +40,19 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Backend server running on http://localhost:${PORT}`);
-});
+if (USE_HTTPS) {
+  const httpsOptions = {
+    key: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2-key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2.pem')),
+  };
+  
+  https.createServer(httpsOptions, app).listen(PORT, () => {
+    console.log(`Backend server running on https://localhost:${PORT}`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`Backend server running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
