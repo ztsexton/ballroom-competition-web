@@ -18,10 +18,5 @@ export default defineConfig({
         secure: false, // Allow self-signed certificates in development
       },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.ts',
-  },
+  }
 });
