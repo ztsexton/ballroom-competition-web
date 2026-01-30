@@ -48,6 +48,7 @@ router.get('/competition/:competitionId/active-heat', (req: Request, res: Respon
       couples,
       judges,
       isRecallRound: ['quarter-final', 'semi-final'].includes(currentHeat.round),
+      scoringType: event.scoringType || 'standard',
       style: event.style,
       level: event.level,
       dances: event.dances,

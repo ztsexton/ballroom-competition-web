@@ -84,17 +84,18 @@ export const eventsApi = {
     api.get<Record<number, Event>>('/events', { params: { competitionId } }),
   getById: (id: number) => api.get<Event>(`/events/${id}`),
   create: (
-    name: string, 
-    bibs: number[], 
+    name: string,
+    bibs: number[],
     judgeIds: number[],
     competitionId: number,
     designation?: string,
     syllabusType?: string,
     level?: string,
     style?: string,
-    dances?: string[]
+    dances?: string[],
+    scoringType?: 'standard' | 'proficiency'
   ) =>
-    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances }),
+    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType }),
   update: (id: number, updates: Partial<Omit<Event, 'id'>>) =>
     api.patch<Event>(`/events/${id}`, updates),
   delete: (id: number) => api.delete(`/events/${id}`),

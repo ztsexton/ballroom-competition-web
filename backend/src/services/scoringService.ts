@@ -9,6 +9,7 @@ export class ScoringService {
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return [];
 
+    const scoringType = event.scoringType || 'standard';
     const isRecallRound = ['quarter-final', 'semi-final'].includes(round);
     const results: EventResult[] = [];
 
@@ -19,7 +20,19 @@ export class ScoringService {
       const scores = dataService.getScores(eventId, round, bib);
       if (scores.length === 0) continue;
 
-      if (isRecallRound) {
+      if (scoringType === 'proficiency') {
+        const average = scores.length > 0
+          ? parseFloat((scores.reduce((sum, s) => sum + s, 0) / scores.length).toFixed(1))
+          : 0;
+        results.push({
+          bib,
+          leaderName: couple.leaderName,
+          followerName: couple.followerName,
+          totalScore: average,
+          scores,
+          isRecall: false,
+        });
+      } else if (isRecallRound) {
         results.push({
           bib,
           leaderName: couple.leaderName,
@@ -41,7 +54,9 @@ export class ScoringService {
     }
 
     // Sort results
-    if (isRecallRound) {
+    if (scoringType === 'proficiency') {
+      results.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+    } else if (isRecallRound) {
       results.sort((a, b) => (b.totalMarks || 0) - (a.totalMarks || 0));
     } else {
       results.sort((a, b) => (a.totalRank || 0) - (b.totalRank || 0));
@@ -129,12 +144,14 @@ export class ScoringService {
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return false;
 
+    const scoringType = event.scoringType || 'standard';
     const isRecall = ['quarter-final', 'semi-final'].includes(round);
+    const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : heat.bibs.length;
 
     for (const bib of heat.bibs) {
       const judgeScores = dataService.getJudgeScores(eventId, round, bib);
       const compiled = heat.judges.map(judgeId =>
-        judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : (isRecall ? 0 : heat.bibs.length),
+        judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : defaultScore,
       );
       dataService.setScores(eventId, round, bib, compiled);
     }

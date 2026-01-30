@@ -21,6 +21,7 @@ export interface Competition {
   studioId?: number;
   description?: string;
   judgeSettings?: JudgeSettings;
+  defaultScoringType?: 'standard' | 'proficiency';
   createdAt: string;
 }
 
@@ -67,6 +68,7 @@ export interface Event {
   dances?: string[];
   heats: Heat[];
   competitionId: number;
+  scoringType?: 'standard' | 'proficiency';
 }
 
 export interface EventResult {
@@ -75,6 +77,7 @@ export interface EventResult {
   followerName: string;
   totalRank?: number;
   totalMarks?: number;
+  totalScore?: number;
   scores: number[];
   isRecall: boolean;
 }
@@ -106,6 +109,7 @@ export interface ActiveHeatInfo {
   couples: Array<{ bib: number; leaderName: string; followerName: string }>;
   judges: Array<{ id: number; name: string; judgeNumber: number }>;
   isRecallRound: boolean;
+  scoringType?: 'standard' | 'proficiency';
   style?: string;
   level?: string;
   dances?: string[];

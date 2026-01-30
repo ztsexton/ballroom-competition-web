@@ -21,6 +21,7 @@ const CompetitionsPage = () => {
     location: '',
     studioId: '',
     description: '',
+    defaultScoringType: 'standard' as 'standard' | 'proficiency',
   });
 
   useEffect(() => {
@@ -65,6 +66,7 @@ const CompetitionsPage = () => {
         location: formData.location || undefined,
         studioId: formData.studioId ? parseInt(formData.studioId) : undefined,
         description: formData.description || undefined,
+        defaultScoringType: formData.defaultScoringType,
       });
 
       setFormData({
@@ -74,6 +76,7 @@ const CompetitionsPage = () => {
         location: '',
         studioId: '',
         description: '',
+        defaultScoringType: 'standard',
       });
       setShowForm(false);
       loadData();
@@ -259,6 +262,36 @@ const CompetitionsPage = () => {
                   rows={3}
                   style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e0' }}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Default Scoring Type</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {(['standard', 'proficiency'] as const).map(st => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, defaultScoringType: st })}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        border: formData.defaultScoringType === st ? '2px solid #2563eb' : '1px solid #cbd5e0',
+                        borderRadius: '4px',
+                        background: formData.defaultScoringType === st ? '#2563eb' : 'white',
+                        color: formData.defaultScoringType === st ? 'white' : '#2d3748',
+                        cursor: 'pointer',
+                        fontWeight: formData.defaultScoringType === st ? 'bold' : 'normal',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {st === 'standard' ? 'Standard' : 'Proficiency'}
+                    </button>
+                  ))}
+                </div>
+                <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+                  {formData.defaultScoringType === 'proficiency'
+                    ? 'New events will default to proficiency scoring (0-100, single round).'
+                    : 'New events will default to standard scoring (recalls + ranking).'}
+                </small>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>

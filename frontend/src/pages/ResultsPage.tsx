@@ -73,7 +73,9 @@ const ResultsPage = () => {
                 <th>Bib</th>
                 <th>Leader</th>
                 <th>Follower</th>
-                {results[0].isRecall ? (
+                {results[0].totalScore !== undefined ? (
+                  <th>Avg Score</th>
+                ) : results[0].isRecall ? (
                   <th>Total Marks</th>
                 ) : (
                   <th>Total Rank</th>
@@ -90,7 +92,11 @@ const ResultsPage = () => {
                   <td>{result.followerName}</td>
                   <td>
                     <strong>
-                      {result.isRecall ? result.totalMarks : result.totalRank}
+                      {result.totalScore !== undefined
+                        ? result.totalScore
+                        : result.isRecall
+                          ? result.totalMarks
+                          : result.totalRank}
                     </strong>
                   </td>
                   <td>{result.scores.join(', ')}</td>

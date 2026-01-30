@@ -470,17 +470,20 @@ class DataService {
   }
 
   addEvent(
-    name: string, 
-    bibs: number[], 
+    name: string,
+    bibs: number[],
     judgeIds: number[],
     competitionId: number,
     designation?: string,
     syllabusType?: string,
     level?: string,
     style?: string,
-    dances?: string[]
+    dances?: string[],
+    scoringType?: 'standard' | 'proficiency'
   ): Event {
-    const rounds = this.determineRounds(bibs.length);
+    const rounds = scoringType === 'proficiency'
+      ? ['final']
+      : this.determineRounds(bibs.length);
     const heats = rounds.map((round, index) => ({
       round,
       bibs: index === 0 ? bibs : [],
@@ -497,6 +500,7 @@ class DataService {
       dances,
       heats,
       competitionId,
+      scoringType,
     };
     this.data.events[newEvent.id] = newEvent;
     this.saveEvents();

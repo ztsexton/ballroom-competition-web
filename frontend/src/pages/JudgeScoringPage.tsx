@@ -75,8 +75,9 @@ const JudgeScoringPage = () => {
   useEffect(() => {
     if (pageState === 'scoring' && heatInfo) {
       const initial: Record<number, number> = {};
+      const isProficiency = heatInfo.scoringType === 'proficiency';
       heatInfo.couples.forEach(c => {
-        initial[c.bib] = heatInfo.isRecallRound ? 0 : 1;
+        initial[c.bib] = isProficiency ? 0 : heatInfo.isRecallRound ? 0 : 1;
       });
       setScores(initial);
       setSubmitting(false);
@@ -115,6 +116,11 @@ const JudgeScoringPage = () => {
     if (!isNaN(rank) && rank >= 1) {
       setScores(prev => ({ ...prev, [bib]: rank }));
     }
+  };
+
+  const handleProficiencyChange = (bib: number, value: string) => {
+    const num = parseInt(value) || 0;
+    setScores(prev => ({ ...prev, [bib]: Math.min(100, Math.max(0, num)) }));
   };
 
   const handleSubmit = async () => {
@@ -253,7 +259,47 @@ const JudgeScoringPage = () => {
             {[heatInfo.style, heatInfo.level, heatInfo.dances?.join(', ')].filter(Boolean).join(' | ')}
           </p>
 
-          {heatInfo.isRecallRound ? (
+          {heatInfo.scoringType === 'proficiency' ? (
+            /* Proficiency: 0-100 score */
+            <div>
+              <p style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+                Score each couple (0-100):
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bib</th>
+                    <th>Couple</th>
+                    <th style={{ width: '90px', textAlign: 'center' }}>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatInfo.couples.map(couple => (
+                    <tr key={couple.bib}>
+                      <td><strong>#{couple.bib}</strong></td>
+                      <td>{couple.leaderName} & {couple.followerName}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={scores[couple.bib] ?? ''}
+                          onChange={(e) => handleProficiencyChange(couple.bib, e.target.value)}
+                          style={{
+                            width: '70px',
+                            textAlign: 'center',
+                            padding: '0.25rem',
+                            border: '1px solid #cbd5e0',
+                            borderRadius: '4px',
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : heatInfo.isRecallRound ? (
             /* Recall round: checkboxes */
             <div>
               <p style={{ fontWeight: 600, marginBottom: '0.75rem' }}>

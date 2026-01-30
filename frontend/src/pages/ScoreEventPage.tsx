@@ -55,12 +55,17 @@ const ScoreEventPage = () => {
   };
 
   const isRecallRound = ['quarter-final', 'semi-final'].includes(currentRound);
+  const isProficiency = event?.scoringType === 'proficiency';
 
   const handleScoreChange = (judgeIndex: number, bib: number, value: string) => {
     const key = `${judgeIndex}-${bib}`;
-    if (isRecallRound) {
+    if (isRecallRound && !isProficiency) {
       // For recall: toggle checkbox (0 or 1)
       setScores(prev => ({ ...prev, [key]: prev[key] === 1 ? 0 : 1 }));
+    } else if (isProficiency) {
+      // For proficiency: 0-100
+      const num = parseInt(value) || 0;
+      setScores(prev => ({ ...prev, [key]: Math.min(100, Math.max(0, num)) }));
     } else {
       // For final: set rank
       setScores(prev => ({ ...prev, [key]: parseInt(value) || 0 }));
@@ -78,7 +83,7 @@ const ScoreEventPage = () => {
     for (let judgeIndex = 0; judgeIndex < numJudges; judgeIndex++) {
       for (const couple of couples) {
         const key = `${judgeIndex}-${couple.bib}`;
-        const score = scores[key] || (isRecallRound ? 0 : couples.length);
+        const score = scores[key] || (isProficiency ? 0 : isRecallRound ? 0 : couples.length);
         scoresArray.push({ judgeIndex, bib: couple.bib, score });
       }
     }
@@ -137,20 +142,22 @@ const ScoreEventPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div style={{ 
-              background: isRecallRound ? '#fef3c7' : '#e6f7ff', 
-              border: `1px solid ${isRecallRound ? '#f59e0b' : '#1890ff'}`, 
-              padding: '1rem', 
+            <div style={{
+              background: isProficiency ? '#f0fff4' : isRecallRound ? '#fef3c7' : '#e6f7ff',
+              border: `1px solid ${isProficiency ? '#38a169' : isRecallRound ? '#f59e0b' : '#1890ff'}`,
+              padding: '1rem',
               borderRadius: '4px',
               marginBottom: '1rem'
             }}>
               <strong>
-                {isRecallRound ? '📋 Recall Round' : '🏆 Final Round'}
+                {isProficiency ? 'Proficiency Scoring' : isRecallRound ? '📋 Recall Round' : '🏆 Final Round'}
               </strong>
               <p style={{ margin: '0.5rem 0 0 0' }}>
-                {isRecallRound 
-                  ? 'Check the box for couples you want to recall to the next round.'
-                  : 'Enter rankings for each couple (1 = best).'}
+                {isProficiency
+                  ? 'Enter a score from 0-100 for each couple.'
+                  : isRecallRound
+                    ? 'Check the box for couples you want to recall to the next round.'
+                    : 'Enter rankings for each couple (1 = best).'}
               </p>
             </div>
 
@@ -176,7 +183,16 @@ const ScoreEventPage = () => {
                         const key = `${judgeIndex}-${couple.bib}`;
                         return (
                           <td key={judgeIndex}>
-                            {isRecallRound ? (
+                            {isProficiency ? (
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={scores[key] ?? ''}
+                                onChange={e => handleScoreChange(judgeIndex, couple.bib, e.target.value)}
+                                style={{ width: '70px', textAlign: 'center' }}
+                              />
+                            ) : isRecallRound ? (
                               <input
                                 type="checkbox"
                                 checked={scores[key] === 1}

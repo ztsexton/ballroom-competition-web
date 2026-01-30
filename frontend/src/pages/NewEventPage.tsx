@@ -24,6 +24,9 @@ const NewEventPage = () => {
   const [selectedBibs, setSelectedBibs] = useState<number[]>([]);
   const [selectedJudges, setSelectedJudges] = useState<number[]>([]);
   const [coupleSearch, setCoupleSearch] = useState('');
+  const [scoringType, setScoringType] = useState<'standard' | 'proficiency'>(
+    activeCompetition?.defaultScoringType || 'standard'
+  );
 
   useEffect(() => {
     if (activeCompetition) {
@@ -116,15 +119,16 @@ const NewEventPage = () => {
     
     try {
       const response = await eventsApi.create(
-        eventName.trim(), 
-        selectedBibs, 
+        eventName.trim(),
+        selectedBibs,
         selectedJudges,
         activeCompetition.id,
         designation || undefined,
         syllabusType || undefined,
         level || undefined,
         style || undefined,
-        selectedDances.length > 0 ? selectedDances : undefined
+        selectedDances.length > 0 ? selectedDances : undefined,
+        scoringType
       );
       navigate(`/events/${response.data.id}`);
     } catch (error: any) {
@@ -203,6 +207,31 @@ const NewEventPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Scoring Type</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {(['standard', 'proficiency'] as const).map(st => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setScoringType(st)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: scoringType === st ? '2px solid #667eea' : '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      background: scoringType === st ? '#667eea' : 'white',
+                      color: scoringType === st ? 'white' : '#2d3748',
+                      cursor: 'pointer',
+                      fontWeight: scoringType === st ? 'bold' : 'normal',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {st === 'standard' ? 'Standard' : 'Proficiency'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="form-group">
               <label>Designation</label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -647,20 +676,35 @@ const NewEventPage = () => {
               )}
             </div>
 
-            <div style={{ 
-              background: '#e6f7ff', 
-              border: '1px solid #1890ff', 
-              padding: '1rem', 
-              borderRadius: '4px',
-              marginTop: '1rem'
-            }}>
-              <strong>ℹ️ Automatic Round Generation</strong>
-              <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: 0 }}>
-                <li>1-6 couples: Final only</li>
-                <li>7-14 couples: Semi-final + Final</li>
-                <li>15+ couples: Quarter-final + Semi-final + Final</li>
-              </ul>
-            </div>
+            {scoringType === 'proficiency' ? (
+              <div style={{
+                background: '#f0fff4',
+                border: '1px solid #38a169',
+                padding: '1rem',
+                borderRadius: '4px',
+                marginTop: '1rem'
+              }}>
+                <strong>Proficiency Scoring</strong>
+                <p style={{ margin: '0.5rem 0 0 0' }}>
+                  Each judge scores every couple 0-100. One round only. Results ranked by average score.
+                </p>
+              </div>
+            ) : (
+              <div style={{
+                background: '#e6f7ff',
+                border: '1px solid #1890ff',
+                padding: '1rem',
+                borderRadius: '4px',
+                marginTop: '1rem'
+              }}>
+                <strong>Standard Scoring — Automatic Round Generation</strong>
+                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                  <li>1-6 couples: Final only</li>
+                  <li>7-14 couples: Semi-final + Final</li>
+                  <li>15+ couples: Quarter-final + Semi-final + Final</li>
+                </ul>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
               <button type="submit" className="btn" disabled={selectedBibs.length === 0}>
