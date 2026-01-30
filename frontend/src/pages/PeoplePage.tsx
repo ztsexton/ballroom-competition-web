@@ -3,9 +3,11 @@ import type { FormEvent } from 'react';
 import { peopleApi, studiosApi } from '../api/client';
 import { Person, Studio } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const PeoplePage = () => {
   const { activeCompetition } = useCompetition();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,18 @@ const PeoplePage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage people.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeCompetition) {
     return (

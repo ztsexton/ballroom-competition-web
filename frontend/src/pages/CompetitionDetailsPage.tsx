@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { competitionsApi, studiosApi } from '../api/client';
 import { Competition, Studio } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const CompetitionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,9 +36,20 @@ const CompetitionDetailsPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
   if (error) return <div className="container"><div className="card">{error}</div></div>;
   if (!competition) return <div className="container"><div className="card">Competition not found</div></div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to view competition details.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container">

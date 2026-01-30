@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { eventsApi } from '../api/client';
 import { Event } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const EventsPage = () => {
   const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -55,7 +57,18 @@ const EventsPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage events.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeCompetition) {
     return (

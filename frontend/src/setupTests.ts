@@ -1,1 +1,28 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+// Mock Firebase modules
+vi.mock('firebase/app', () => ({
+  initializeApp: vi.fn(),
+}));
+
+vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({})),
+  GoogleAuthProvider: vi.fn(),
+  signInWithPopup: vi.fn(() => Promise.resolve({ user: { uid: 'test-uid', email: 'test@example.com' } })),
+  signOut: vi.fn(() => Promise.resolve()),
+  onAuthStateChanged: vi.fn((auth, callback) => {
+    // Immediately call callback with mock user
+    callback({ uid: 'test-uid', email: 'test@example.com', displayName: 'Test User' });
+    return vi.fn(); // Return unsubscribe function
+  }),
+}));
+
+// Mock react-firebase-hooks/auth
+vi.mock('react-firebase-hooks/auth', () => ({
+  useAuthState: vi.fn(() => [
+    { uid: 'test-uid', email: 'test@example.com', displayName: 'Test User' }, // user
+    false, // loading
+    null, // error
+  ]),
+}));

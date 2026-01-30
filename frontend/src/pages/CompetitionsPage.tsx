@@ -3,9 +3,11 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { competitionsApi, studiosApi } from '../api/client';
 import { Competition, CompetitionType, Studio } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const CompetitionsPage = () => {
   const navigate = useNavigate();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +123,18 @@ const CompetitionsPage = () => {
     return colors[type];
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage competitions.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container">

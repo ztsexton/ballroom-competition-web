@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../api/client';
 import { Couple, Judge } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const NewEventPage = () => {
   const navigate = useNavigate();
   const { activeCompetition } = useCompetition();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +121,18 @@ const NewEventPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to create events.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeCompetition) {
     return (

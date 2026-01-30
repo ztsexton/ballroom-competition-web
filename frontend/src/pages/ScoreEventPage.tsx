@@ -3,10 +3,12 @@ import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi } from '../api/client';
 import { Event, Couple } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const ScoreEventPage = () => {
   const { id, round } = useParams<{ id: string; round?: string }>();
   const navigate = useNavigate();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [couples, setCouples] = useState<Couple[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +84,19 @@ const ScoreEventPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
   if (!event) return <div className="container"><div className="card">Event not found</div></div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to score events.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container">

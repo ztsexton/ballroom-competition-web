@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
   const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
+  const { user, isAdmin, logout } = useAuth();
 
   return (
     <nav style={{
@@ -28,14 +30,19 @@ const Navigation = () => {
           Ballroom Scorer
         </Link>
         <div style={{ display: 'flex', gap: '1.5rem', flex: 1, flexWrap: 'wrap' }}>
-          <Link to="/competitions" style={{ color: 'white' }}>🏆 Competitions</Link>
-          <Link to="/people" style={{ color: 'white' }}>👥 People</Link>
-          <Link to="/couples" style={{ color: 'white' }}>💃🕺 Couples</Link>
-          <Link to="/judges" style={{ color: 'white' }}>⚖️ Judges</Link>
-          <Link to="/events" style={{ color: 'white' }}>📋 Events</Link>
-          <Link to="/studio" style={{ color: 'white' }}>🏢 Studio</Link>
+          {isAdmin && (
+            <>
+              <Link to="/competitions" style={{ color: 'white' }}>🏆 Competitions</Link>
+              <Link to="/people" style={{ color: 'white' }}>👥 People</Link>
+              <Link to="/couples" style={{ color: 'white' }}>💃🕺 Couples</Link>
+              <Link to="/judges" style={{ color: 'white' }}>⚖️ Judges</Link>
+              <Link to="/events" style={{ color: 'white' }}>📋 Events</Link>
+              <Link to="/studios" style={{ color: 'white' }}>🏢 Studios</Link>
+              <Link to="/users" style={{ color: 'white' }}>👤 Users</Link>
+            </>
+          )}
         </div>
-        {competitions.length > 0 && (
+        {isAdmin && competitions.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <label style={{ color: 'white', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
               Active:
@@ -68,6 +75,31 @@ const Navigation = () => {
             </select>
           </div>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {user && (
+            <span style={{ color: 'white', fontSize: '0.875rem' }}>
+              {user.displayName || user.email}
+            </span>
+          )}
+          <button
+            onClick={logout}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              border: 'none',
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </nav>
   );

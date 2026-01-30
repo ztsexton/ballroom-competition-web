@@ -3,9 +3,11 @@ import type { FormEvent } from 'react';
 import { judgesApi } from '../api/client';
 import { Judge } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const JudgesPage = () => {
   const { activeCompetition } = useCompetition();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
   const [newJudgeName, setNewJudgeName] = useState('');
@@ -62,7 +64,18 @@ const JudgesPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage judges.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeCompetition) {
     return (

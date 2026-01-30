@@ -4,9 +4,11 @@ import { Link } from 'react-router-dom';
 import { couplesApi, peopleApi } from '../api/client';
 import { Couple, Person } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { useAuth } from '../context/AuthContext';
 
 const CouplesPage = () => {
   const { activeCompetition } = useCompetition();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +75,18 @@ const CouplesPage = () => {
   const leaders = people.filter(p => p.role === 'leader' || p.role === 'both');
   const followers = people.filter(p => p.role === 'follower' || p.role === 'both');
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage couples.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activeCompetition) {
     return (
@@ -128,7 +141,7 @@ const CouplesPage = () => {
                   <option value="">Select Leader</option>
                   {leaders.map(person => (
                     <option key={person.id} value={person.id}>
-                      {person.name} {person.status === 'professional' ? '(Pro)' : ''}
+                      {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
                     </option>
                   ))}
                 </select>
@@ -139,7 +152,7 @@ const CouplesPage = () => {
                   <option value="">Select Follower</option>
                   {followers.map(person => (
                     <option key={person.id} value={person.id}>
-                      {person.name} {person.status === 'professional' ? '(Pro)' : ''}
+                      {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
                     </option>
                   ))}
                 </select>

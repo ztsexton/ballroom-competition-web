@@ -16,4 +16,6 @@ module.exports = {
       statements: 70,
     },
   },
+  // Set NODE_ENV to test to prevent server from starting
+  setupFiles: ['<rootDir>/jest.setup.js'],
 };

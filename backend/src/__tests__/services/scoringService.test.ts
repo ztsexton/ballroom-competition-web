@@ -10,15 +10,14 @@ describe('ScoringService', () => {
   describe('calculateResults', () => {
     it('should calculate results for a final round correctly', () => {
       // Setup: Create people, couples, judges, and event
-      const leader1 = dataService.addPerson({ name: 'Leader 1', role: 'leader', status: 'student' });
-      const follower1 = dataService.addPerson({ name: 'Follower 1', role: 'follower', status: 'student' });
-      const leader2 = dataService.addPerson({ name: 'Leader 2', role: 'leader', status: 'student' });
-      const follower2 = dataService.addPerson({ name: 'Follower 2', role: 'follower', status: 'student' });
-      
-      const couple1 = dataService.addCouple(leader1.id, follower1.id);
-      const couple2 = dataService.addCouple(leader2.id, follower2.id);
-      
-      const event = dataService.addEvent('Test Waltz', [couple1!.bib, couple2!.bib], []);
+      const competitionId = 1;
+      const leader1 = dataService.addPerson({ firstName: 'Leader', lastName: '1', role: 'leader', status: 'student', competitionId });
+      const follower1 = dataService.addPerson({ firstName: 'Follower', lastName: '1', role: 'follower', status: 'student', competitionId });
+      const leader2 = dataService.addPerson({ firstName: 'Leader', lastName: '2', role: 'leader', status: 'student', competitionId });
+      const follower2 = dataService.addPerson({ firstName: 'Follower', lastName: '2', role: 'follower', status: 'student', competitionId });
+      const couple1 = dataService.addCouple(leader1.id, follower1.id, competitionId);
+      const couple2 = dataService.addCouple(leader2.id, follower2.id, competitionId);
+      const event = dataService.addEvent('Test Waltz', [couple1!.bib, couple2!.bib], [], competitionId);
       
       // Add scores: couple1 gets ranks [1, 2, 1] = 4 total
       //             couple2 gets ranks [2, 1, 2] = 5 total
@@ -39,20 +38,21 @@ describe('ScoringService', () => {
 
     it('should calculate results for a recall round correctly', () => {
       // Setup
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
       
       // Create event with 15 couples to trigger quarter-final
       const allBibs = [couple!.bib];
       for (let i = 0; i < 14; i++) {
-        const l = dataService.addPerson({ name: `Leader ${i}`, role: 'leader', status: 'student' });
-        const f = dataService.addPerson({ name: `Follower ${i}`, role: 'follower', status: 'student' });
-        const c = dataService.addCouple(l.id, f.id);
+        const l = dataService.addPerson({ firstName: `Leader`, lastName: `${i}`, role: 'leader', status: 'student', competitionId });
+        const f = dataService.addPerson({ firstName: `Follower`, lastName: `${i}`, role: 'follower', status: 'student', competitionId });
+        const c = dataService.addCouple(l.id, f.id, competitionId);
         allBibs.push(c!.bib);
       }
       
-      const event = dataService.addEvent('Big Event', allBibs, []);
+      const event = dataService.addEvent('Big Event', allBibs, [], competitionId);
       
       // Add recall marks: couple gets [1, 1, 0] = 2 total marks
       dataService.setScores(event.id, 'quarter-final', couple!.bib, [1, 1, 0]);
@@ -76,15 +76,15 @@ describe('ScoringService', () => {
   describe('getTopCouples', () => {
     it('should return top N couples based on scores', () => {
       // Setup: Create 4 couples with different scores
+      const competitionId = 1;
       const couples = [];
       for (let i = 0; i < 4; i++) {
-        const leader = dataService.addPerson({ name: `Leader ${i}`, role: 'leader', status: 'student' });
-        const follower = dataService.addPerson({ name: `Follower ${i}`, role: 'follower', status: 'student' });
-        const couple = dataService.addCouple(leader.id, follower.id);
+        const leader = dataService.addPerson({ firstName: 'Leader', lastName: `${i}`, role: 'leader', status: 'student', competitionId });
+        const follower = dataService.addPerson({ firstName: 'Follower', lastName: `${i}`, role: 'follower', status: 'student', competitionId });
+        const couple = dataService.addCouple(leader.id, follower.id, competitionId);
         couples.push(couple!);
       }
-      
-      const event = dataService.addEvent('Test', couples.map(c => c.bib), []);
+      const event = dataService.addEvent('Test', couples.map(c => c.bib), [], competitionId);
       
       // Set scores: lower is better
       dataService.setScores(event.id, 'final', couples[0].bib, [1, 1, 1]); // 3
@@ -104,14 +104,14 @@ describe('ScoringService', () => {
     it('should successfully score an event and advance to next round', () => {
       // Setup: Create event with 10 couples (should have semi-final and final)
       const couples = [];
+      const competitionId = 1;
       for (let i = 0; i < 10; i++) {
-        const leader = dataService.addPerson({ name: `Leader ${i}`, role: 'leader', status: 'student' });
-        const follower = dataService.addPerson({ name: `Follower ${i}`, role: 'follower', status: 'student' });
-        const couple = dataService.addCouple(leader.id, follower.id);
+        const leader = dataService.addPerson({ firstName: 'Leader', lastName: `${i}`, role: 'leader', status: 'student', competitionId });
+        const follower = dataService.addPerson({ firstName: 'Follower', lastName: `${i}`, role: 'follower', status: 'student', competitionId });
+        const couple = dataService.addCouple(leader.id, follower.id, competitionId);
         couples.push(couple!);
       }
-      
-      const event = dataService.addEvent('Test', couples.map(c => c.bib), []);
+      const event = dataService.addEvent('Test', couples.map(c => c.bib), [], competitionId);
       
       // Verify rounds were created
       expect(event.heats).toHaveLength(2);

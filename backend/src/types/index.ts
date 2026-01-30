@@ -80,6 +80,29 @@ export interface EventResult {
   isRecall: boolean;
 }
 
+export interface User {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  isAdmin: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+export type EventRunStatus = 'pending' | 'announced' | 'scoring' | 'completed';
+
+export interface CompetitionSchedule {
+  competitionId: number;
+  eventOrder: number[];
+  styleOrder: string[];
+  levelOrder: string[];
+  currentEventIndex: number;
+  eventStatuses: Record<number, EventRunStatus>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   competitions: Competition[];
   studios: Studio[];
@@ -88,6 +111,8 @@ export interface AppData {
   judges: Judge[];
   events: Record<number, Event>;
   scores: Record<string, number[]>;
+  users: User[];
+  schedules: Record<number, CompetitionSchedule>;
   nextCompetitionId: number;
   nextStudioId: number;
   nextPersonId: number;

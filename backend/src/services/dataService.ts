@@ -1,14 +1,19 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Competition, Studio } from '../types';
+import { AppData, Person, Couple, Judge, Event, Competition, Studio, User } from '../types';
 
-const DATA_DIR = path.join(__dirname, '../../data');
+const DATA_DIR = process.env.NODE_ENV === 'test'
+  ? path.join(__dirname, '../../data-test')
+  : path.join(__dirname, '../../data');
 const COMPETITIONS_FILE = path.join(DATA_DIR, 'competitions.json');
 const STUDIOS_FILE = path.join(DATA_DIR, 'studios.json');
 const PEOPLE_FILE = path.join(DATA_DIR, 'people.json');
 const COUPLES_FILE = path.join(DATA_DIR, 'couples.json');
 const JUDGES_FILE = path.join(DATA_DIR, 'judges.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -31,6 +36,7 @@ class DataService {
       judges: this.loadJudges(),
       events: this.loadEvents(),
       scores: this.loadScores(),
+      users: this.loadUsers(),
       nextCompetitionId: this.getNextId(this.loadCompetitions()),
       nextStudioId: this.getNextId(this.loadStudios()),
       nextPersonId: this.getNextId(this.loadPeople()),
@@ -123,6 +129,18 @@ class DataService {
     return {};
   }
 
+  private loadUsers(): User[] {
+    try {
+      if (fs.existsSync(USERS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+        return data.users || [];
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+    return [];
+  }
+
   private getNextId(items: Array<{ id: number }>): number {
     if (items.length === 0) return 1;
     return Math.max(...items.map(item => item.id)) + 1;
@@ -171,6 +189,11 @@ class DataService {
       next_bib: this.data.nextBib,
     };
     fs.writeFileSync(EVENTS_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private saveUsers(): void {
+    const data = { users: this.data.users };
+    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
   }
 
   // Competition methods
@@ -317,16 +340,18 @@ class DataService {
   addCouple(leaderId: number, followerId: number, competitionId: number): Couple | null {
     const leader = this.getPersonById(leaderId);
     const follower = this.getPersonById(followerId);
-    
     if (!leader || !follower) return null;
     if (leader.competitionId !== competitionId || follower.competitionId !== competitionId) return null;
+
+    const leaderName = leader.firstName + (leader.lastName ? ' ' + leader.lastName : '');
+    const followerName = follower.firstName + (follower.lastName ? ' ' + follower.lastName : '');
 
     const newCouple: Couple = {
       bib: this.data.nextBib++,
       leaderId,
       followerId,
-      leaderName: leader.name,
-      followerName: follower.name,
+      leaderName,
+      followerName,
       competitionId,
     };
     this.data.couples.push(newCouple);
@@ -514,6 +539,61 @@ class DataService {
     return true;
   }
 
+  // User methods
+  getUsers(): User[] {
+    return this.data.users;
+  }
+
+  getUserByUid(uid: string): User | undefined {
+    return this.data.users.find(u => u.uid === uid);
+  }
+
+  upsertUser(uid: string, email: string, displayName?: string, photoURL?: string): User {
+    const existingUser = this.getUserByUid(uid);
+    const now = new Date().toISOString();
+    const isAdmin = email === ADMIN_EMAIL;
+
+    if (existingUser) {
+      // Update existing user
+      existingUser.displayName = displayName || existingUser.displayName;
+      existingUser.photoURL = photoURL || existingUser.photoURL;
+      existingUser.lastLoginAt = now;
+      // Always ensure admin email has admin status
+      existingUser.isAdmin = isAdmin;
+      this.saveUsers();
+      return existingUser;
+    }
+
+    // Create new user - check if email is admin email
+    const newUser: User = {
+      uid,
+      email,
+      displayName,
+      photoURL,
+      isAdmin,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    this.data.users.push(newUser);
+    this.saveUsers();
+    return newUser;
+  }
+
+  updateUserAdmin(uid: string, isAdmin: boolean): User | null {
+    const user = this.getUserByUid(uid);
+    if (!user) return null;
+
+    // Don't allow changing admin status of the main admin
+    if (user.email === ADMIN_EMAIL) {
+      return user; // Return user unchanged
+    }
+
+    user.isAdmin = isAdmin;
+    this.saveUsers();
+    return user;
+  }
+
   resetAllData(): void {
     this.data = {
       competitions: [],
@@ -523,6 +603,7 @@ class DataService {
       judges: [],
       events: {},
       scores: {},
+      users: [],
       nextCompetitionId: 1,
       nextStudioId: 1,
       nextPersonId: 1,
@@ -536,6 +617,7 @@ class DataService {
     this.saveCouples();
     this.saveJudges();
     this.saveEvents();
+    this.saveUsers();
   }
 }
 

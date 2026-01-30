@@ -4,12 +4,14 @@ import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
+import { authenticate, requireAdmin } from './middleware/auth';
 import competitionsRoutes from './routes/competitions';
 import studiosRoutes from './routes/studios';
 import peopleRoutes from './routes/people';
 import couplesRoutes from './routes/couples';
 import judgesRoutes from './routes/judges';
 import eventsRoutes from './routes/events';
+import usersRoutes from './routes/users';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,18 +22,24 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/competitions', competitionsRoutes);
-app.use('/api/studios', studiosRoutes);
-app.use('/api/people', peopleRoutes);
-app.use('/api/couples', couplesRoutes);
-app.use('/api/judges', judgesRoutes);
-app.use('/api/events', eventsRoutes);
-
-// Health check
+// Health check (no auth required)
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Apply authentication middleware to all API routes
+app.use('/api', authenticate);
+
+// Protected routes (all users can access)
+app.use('/api/users', usersRoutes);
+
+// Admin-only routes
+app.use('/api/competitions', requireAdmin, competitionsRoutes);
+app.use('/api/studios', requireAdmin, studiosRoutes);
+app.use('/api/people', requireAdmin, peopleRoutes);
+app.use('/api/couples', requireAdmin, couplesRoutes);
+app.use('/api/judges', requireAdmin, judgesRoutes);
+app.use('/api/events', requireAdmin, eventsRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -39,20 +47,22 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server
-if (USE_HTTPS) {
-  const httpsOptions = {
-    key: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2.pem')),
-  };
-  
-  https.createServer(httpsOptions, app).listen(PORT, () => {
-    console.log(`Backend server running on https://localhost:${PORT}`);
-  });
-} else {
-  app.listen(PORT, () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
-  });
+// Only start server if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  if (USE_HTTPS) {
+    const httpsOptions = {
+      key: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2-key.pem')),
+      cert: fs.readFileSync(path.join(__dirname, '../../.cert/localhost+2.pem')),
+    };
+
+    https.createServer(httpsOptions, app).listen(PORT, () => {
+      console.log(`Backend server running on https://localhost:${PORT}`);
+    });
+  } else {
+    app.listen(PORT, () => {
+      console.log(`Backend server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 export default app;

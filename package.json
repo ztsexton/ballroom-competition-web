@@ -1,5 +1,11 @@
 {
-  "devDependencies": {
-    "vitest": "^4.0.16"
+  "name": "ballroom-competition-web-root",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace backend && npm run test --workspace frontend"
   }
 }

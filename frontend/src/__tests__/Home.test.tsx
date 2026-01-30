@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Home from '../pages/Home';
 
@@ -11,6 +11,11 @@ vi.mock('../api/client', () => ({
 }));
 
 describe('Home Page', () => {
+  beforeEach(() => {
+    // Reset mocks between tests for isolation
+    vi.clearAllMocks();
+  });
+
   it('should display welcome message', async () => {
     render(
       <BrowserRouter>
@@ -18,9 +23,8 @@ describe('Home Page', () => {
       </BrowserRouter>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/Welcome to Ballroom Scorer/i)).toBeInTheDocument();
-    });
+    // Use findBy* instead of waitFor + getBy for async elements
+    expect(await screen.findByText(/Welcome to Ballroom Scorer/i)).toBeInTheDocument();
   });
 
   it('should show empty state when no events exist', async () => {
@@ -30,22 +34,22 @@ describe('Home Page', () => {
       </BrowserRouter>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/No events created yet/i)).toBeInTheDocument();
-    });
+    expect(await screen.findByText(/No events created yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/Get started by creating your first event/i)).toBeInTheDocument();
   });
 
-  it('should display create event button', async () => {
+  it('should display create event button with correct link', async () => {
     render(
       <BrowserRouter>
         <Home />
       </BrowserRouter>
     );
 
-    await waitFor(() => {
-      const createButton = screen.getByRole('link', { name: /create event/i });
-      expect(createButton).toBeInTheDocument();
-      expect(createButton).toHaveAttribute('href', '/events/new');
-    });
+    // Wait for the page to load, then check the button
+    await screen.findByText(/Welcome to Ballroom Scorer/i);
+
+    const createButton = screen.getByRole('link', { name: /create event/i });
+    expect(createButton).toBeInTheDocument();
+    expect(createButton).toHaveAttribute('href', '/events/new');
   });
 });

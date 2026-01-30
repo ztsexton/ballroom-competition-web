@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User } from '../types';
+import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -9,6 +10,21 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add Firebase ID token to all requests
+api.interceptors.request.use(
+  async (config) => {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Competitions API
 export const competitionsApi = {
@@ -91,6 +107,14 @@ export const eventsApi = {
   ) => api.post(`/events/${id}/scores/${round}`, { scores }),
   clearScores: (id: number, round: string) =>
     api.delete(`/events/${id}/scores/${round}`),
+};
+
+// Users API
+export const usersApi = {
+  getAll: () => api.get<User[]>('/users'),
+  getMe: () => api.get<User>('/users/me'),
+  updateAdmin: (uid: string, isAdmin: boolean) =>
+    api.patch<User>(`/users/${uid}/admin`, { isAdmin }),
 };
 
 export default api;

@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import { studiosApi } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 const StudioPage: React.FC = () => {
+  const { isAdmin, loading: authLoading } = useAuth();
   const [studioName, setStudioName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     setError(null);
     setSubmitted(false);
     try {
@@ -24,9 +26,24 @@ const StudioPage: React.FC = () => {
     } catch (err: any) {
       setError(err?.response?.data?.error || "Failed to add studio");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Access Denied</h2>
+          <p>You must be an admin to manage studios.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 400, margin: "2rem auto" }}>
@@ -54,8 +71,8 @@ const StudioPage: React.FC = () => {
             style={{ width: "100%", padding: 8, marginTop: 4 }}
           />
         </div>
-        <button type="submit" style={{ padding: "8px 16px" }} disabled={loading}>
-          {loading ? "Adding..." : "Add Studio"}
+        <button type="submit" style={{ padding: "8px 16px" }} disabled={submitting}>
+          {submitting ? "Adding..." : "Add Studio"}
         </button>
       </form>
       {submitted && (

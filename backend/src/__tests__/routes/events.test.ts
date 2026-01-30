@@ -18,10 +18,11 @@ describe('Events API', () => {
 
     it('should return all events', async () => {
       // Create test data
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
-      dataService.addEvent('Waltz', [couple!.bib], []);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
+      dataService.addEvent('Waltz', [couple!.bib], [], competitionId);
       
       const response = await request(app)
         .get('/api/events')
@@ -34,9 +35,10 @@ describe('Events API', () => {
 
   describe('POST /api/events', () => {
     it('should create a new event', async () => {
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
       
       const response = await request(app)
         .post('/api/events')
@@ -44,6 +46,7 @@ describe('Events API', () => {
           name: 'Foxtrot',
           bibs: [couple!.bib],
           judgeIds: [],
+          competitionId
         })
         .expect(201);
       
@@ -64,10 +67,11 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id', () => {
     it('should return event by ID', async () => {
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
-      const event = dataService.addEvent('Tango', [couple!.bib], []);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = dataService.addEvent('Tango', [couple!.bib], [], competitionId);
       
       const response = await request(app)
         .get(`/api/events/${event.id}`)
@@ -85,10 +89,11 @@ describe('Events API', () => {
 
   describe('DELETE /api/events/:id', () => {
     it('should delete an event', async () => {
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
-      const event = dataService.addEvent('Quickstep', [couple!.bib], []);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = dataService.addEvent('Quickstep', [couple!.bib], [], competitionId);
       
       await request(app)
         .delete(`/api/events/${event.id}`)
@@ -102,10 +107,11 @@ describe('Events API', () => {
 
   describe('POST /api/events/:id/scores/:round', () => {
     it('should submit scores for an event round', async () => {
-      const leader = dataService.addPerson({ name: 'Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
-      const event = dataService.addEvent('Viennese Waltz', [couple!.bib], []);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = dataService.addEvent('Viennese Waltz', [couple!.bib], [], competitionId);
       
       const response = await request(app)
         .post(`/api/events/${event.id}/scores/final`)
@@ -122,10 +128,11 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id/results/:round', () => {
     it('should return results for a scored round', async () => {
-      const leader = dataService.addPerson({ name: 'Test Leader', role: 'leader', status: 'student' });
-      const follower = dataService.addPerson({ name: 'Test Follower', role: 'follower', status: 'student' });
-      const couple = dataService.addCouple(leader.id, follower.id);
-      const event = dataService.addEvent('Samba', [couple!.bib], []);
+      const competitionId = 1;
+      const leader = dataService.addPerson({ firstName: 'Test', lastName: 'Leader', role: 'leader', status: 'student', competitionId });
+      const follower = dataService.addPerson({ firstName: 'Test', lastName: 'Follower', role: 'follower', status: 'student', competitionId });
+      const couple = dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = dataService.addEvent('Samba', [couple!.bib], [], competitionId);
       
       // Add scores
       dataService.setScores(event.id, 'final', couple!.bib, [1, 1, 1]);

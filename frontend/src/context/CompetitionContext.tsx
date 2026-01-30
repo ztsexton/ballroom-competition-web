@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Competition } from '../types';
 import { competitionsApi } from '../api/client';
+import { useAuth } from './AuthContext';
 
 interface CompetitionContextType {
   activeCompetition: Competition | null;
@@ -25,6 +26,7 @@ interface CompetitionProviderProps {
 }
 
 export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
+  const { isAdmin } = useAuth();
   const [activeCompetition, setActiveCompetitionState] = useState<Competition | null>(null);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
     try {
       const response = await competitionsApi.getAll();
       setCompetitions(response.data);
-      
+
       // Load saved active competition from localStorage
       const savedCompId = localStorage.getItem('activeCompetitionId');
       if (savedCompId) {
@@ -43,10 +45,10 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
           return;
         }
       }
-      
+
       // If no saved competition or it doesn't exist, set the most recent one
       if (response.data.length > 0) {
-        const mostRecent = response.data.sort((a, b) => 
+        const mostRecent = response.data.sort((a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         )[0];
         setActiveCompetitionState(mostRecent);
@@ -59,8 +61,14 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
   };
 
   useEffect(() => {
-    loadCompetitions();
-  }, []);
+    if (isAdmin) {
+      loadCompetitions();
+    } else {
+      setCompetitions([]);
+      setActiveCompetitionState(null);
+      setLoading(false);
+    }
+  }, [isAdmin]);
 
   const setActiveCompetition = (competition: Competition | null) => {
     setActiveCompetitionState(competition);
