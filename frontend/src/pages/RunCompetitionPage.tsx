@@ -1,8 +1,121 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { schedulesApi, eventsApi, couplesApi, judgesApi } from '../api/client';
-import { CompetitionSchedule, Event, Couple, Judge } from '../types';
+import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi } from '../api/client';
+import { CompetitionSchedule, Event, Couple, Judge, ScoringProgress } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useCompetitionSSE } from '../hooks/useCompetitionSSE';
+
+/* Inline scoring progress panel shown when a heat is in "scoring" status */
+const ScoringProgressPanel = ({
+  eventId,
+  round,
+  scoringProgress,
+  onLoadProgress,
+  onAdvance,
+  currentCouples,
+}: {
+  eventId: number;
+  round: string;
+  scoringProgress: ScoringProgress | null;
+  onLoadProgress: () => void;
+  onAdvance: () => void;
+  currentCouples: Couple[];
+}) => {
+  useEffect(() => {
+    onLoadProgress();
+  }, [eventId, round]);
+
+  const progress = scoringProgress;
+
+  return (
+    <div>
+      {/* Progress badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <strong style={{ fontSize: '1rem' }}>Scoring Progress</strong>
+        {progress && (
+          <span style={{
+            padding: '0.25rem 0.75rem',
+            background: progress.submittedCount === progress.totalJudges ? '#c6f6d5' : '#fefcbf',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+          }}>
+            {progress.submittedCount} / {progress.totalJudges} judges
+          </span>
+        )}
+      </div>
+
+      {/* Judge status chips */}
+      {progress && (
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {progress.judges.map(judge => (
+            <span
+              key={judge.judgeId}
+              style={{
+                padding: '0.25rem 0.75rem',
+                borderRadius: '4px',
+                fontSize: '0.875rem',
+                background: judge.hasSubmitted ? '#c6f6d5' : '#fed7d7',
+                color: judge.hasSubmitted ? '#276749' : '#9b2c2c',
+                fontWeight: 500,
+              }}
+            >
+              #{judge.judgeNumber}: {judge.judgeName} {judge.hasSubmitted ? '✓' : '…'}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Scores table */}
+      {progress && Object.keys(progress.scoresByBib).length > 0 && (
+        <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Bib</th>
+                <th>Couple</th>
+                {progress.judges.map(j => (
+                  <th key={j.judgeId} style={{ textAlign: 'center' }}>
+                    #{j.judgeNumber}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {currentCouples.map(couple => {
+                const bibScores = progress.scoresByBib[couple.bib] || {};
+                return (
+                  <tr key={couple.bib}>
+                    <td><strong>#{couple.bib}</strong></td>
+                    <td>{couple.leaderName} & {couple.followerName}</td>
+                    {progress.judges.map(j => (
+                      <td key={j.judgeId} style={{ textAlign: 'center', color: bibScores[j.judgeId] !== undefined ? '#2d3748' : '#cbd5e0' }}>
+                        {bibScores[j.judgeId] !== undefined ? bibScores[j.judgeId] : '--'}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link
+          to={`/events/${eventId}/score/${round}`}
+          className="btn btn-secondary"
+        >
+          Open Admin Scoring
+        </Link>
+        <button className="btn btn-success" onClick={onAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+          Mark Complete
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const RunCompetitionPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +127,7 @@ const RunCompetitionPage = () => {
   const [events, setEvents] = useState<Record<number, Event>>({});
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
+  const [scoringProgress, setScoringProgress] = useState<ScoringProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -39,9 +153,29 @@ const RunCompetitionPage = () => {
     }
   }, [competitionId]);
 
+  const loadScoringProgress = useCallback(async () => {
+    if (!competitionId) return;
+    try {
+      const res = await judgingApi.getScoringProgress(competitionId);
+      setScoringProgress(res.data);
+    } catch {
+      setScoringProgress(null);
+    }
+  }, [competitionId]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // SSE: real-time updates
+  useCompetitionSSE(competitionId || null, {
+    onScoreUpdate: () => {
+      loadScoringProgress();
+    },
+    onScheduleUpdate: () => {
+      loadData();
+    },
+  });
 
   const handleAdvance = async () => {
     try {
@@ -287,21 +421,14 @@ const RunCompetitionPage = () => {
                 )}
 
                 {currentStatus === 'scoring' && (
-                  <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>Scoring in progress</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <Link
-                        to={`/events/${currentEvent.id}/score/${currentRound}`}
-                        className="btn"
-                        style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}
-                      >
-                        Open Scoring Page
-                      </Link>
-                      <button className="btn btn-success" onClick={handleAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
-                        Mark Complete
-                      </button>
-                    </div>
-                  </div>
+                  <ScoringProgressPanel
+                    eventId={currentEvent.id}
+                    round={currentRound}
+                    scoringProgress={scoringProgress}
+                    onLoadProgress={loadScoringProgress}
+                    onAdvance={handleAdvance}
+                    currentCouples={currentCouples}
+                  />
                 )}
 
                 {currentStatus === 'completed' && (

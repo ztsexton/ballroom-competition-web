@@ -97,6 +97,58 @@ export class ScoringService {
 
     return true;
   }
+  submitJudgeScores(
+    eventId: number,
+    round: string,
+    judgeId: number,
+    scores: Array<{ bib: number; score: number }>,
+  ): { success: boolean; allSubmitted: boolean } {
+    const event = dataService.getEventById(eventId);
+    if (!event) return { success: false, allSubmitted: false };
+
+    const heat = event.heats.find(h => h.round === round);
+    if (!heat) return { success: false, allSubmitted: false };
+    if (!heat.judges.includes(judgeId)) return { success: false, allSubmitted: false };
+
+    dataService.setJudgeScoresBatch(eventId, round, judgeId, scores);
+
+    const submissionStatus = dataService.getJudgeSubmissionStatus(eventId, round);
+    const allSubmitted = heat.judges.every(jId => submissionStatus[jId]);
+
+    if (allSubmitted) {
+      this.compileJudgeScores(eventId, round);
+    }
+
+    return { success: true, allSubmitted };
+  }
+
+  compileJudgeScores(eventId: number, round: string): boolean {
+    const event = dataService.getEventById(eventId);
+    if (!event) return false;
+
+    const heat = event.heats.find(h => h.round === round);
+    if (!heat) return false;
+
+    const isRecall = ['quarter-final', 'semi-final'].includes(round);
+
+    for (const bib of heat.bibs) {
+      const judgeScores = dataService.getJudgeScores(eventId, round, bib);
+      const compiled = heat.judges.map(judgeId =>
+        judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : (isRecall ? 0 : heat.bibs.length),
+      );
+      dataService.setScores(eventId, round, bib, compiled);
+    }
+
+    // Advance to next round if not final
+    const rounds = event.heats.map(h => h.round);
+    const currentIndex = rounds.indexOf(round);
+    if (currentIndex < rounds.length - 1) {
+      const topBibs = this.getTopCouples(eventId, round, 6);
+      dataService.advanceToNextRound(eventId, round, topBibs);
+    }
+
+    return true;
+  }
 }
 
 export const scoringService = new ScoringService();

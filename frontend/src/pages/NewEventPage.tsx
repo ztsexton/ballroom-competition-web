@@ -23,6 +23,7 @@ const NewEventPage = () => {
   const [selectedDances, setSelectedDances] = useState<string[]>([]);
   const [selectedBibs, setSelectedBibs] = useState<number[]>([]);
   const [selectedJudges, setSelectedJudges] = useState<number[]>([]);
+  const [coupleSearch, setCoupleSearch] = useState('');
 
   useEffect(() => {
     if (activeCompetition) {
@@ -84,6 +85,16 @@ const NewEventPage = () => {
     }
     return [];
   };
+
+  const filteredCouples = couples.filter(couple => {
+    if (!coupleSearch.trim()) return true;
+    const q = coupleSearch.toLowerCase().trim();
+    return (
+      couple.bib.toString().includes(q) ||
+      couple.leaderName.toLowerCase().includes(q) ||
+      couple.followerName.toLowerCase().includes(q)
+    );
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -407,83 +418,233 @@ const NewEventPage = () => {
             </div>
 
             <div className="form-group">
-              <label>Select Couples * ({selectedBibs.length} selected)</label>
-              <div style={{ 
-                border: '1px solid #cbd5e0', 
-                borderRadius: '4px', 
-                padding: '0.5rem',
-                maxHeight: '300px',
-                overflowY: 'auto'
-              }}>
-                {couples.length === 0 ? (
-                  <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
-                    No couples available
-                  </p>
-                ) : (
-                  couples.map(couple => (
-                    <label 
-                      key={couple.bib} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        padding: '0.5rem',
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ margin: 0 }}>
+                  Select Couples *
+                  {selectedBibs.length > 0 && (
+                    <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
+                      ({selectedBibs.length} selected)
+                    </span>
+                  )}
+                </label>
+                {couples.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const visibleBibs = filteredCouples.map(c => c.bib);
+                        setSelectedBibs(prev => {
+                          const combined = new Set([...prev, ...visibleBibs]);
+                          return Array.from(combined);
+                        });
+                      }}
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid #667eea',
+                        borderRadius: '4px',
+                        background: 'white',
+                        color: '#667eea',
                         cursor: 'pointer',
-                        borderBottom: '1px solid #e2e8f0'
+                        fontWeight: '500',
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedBibs.includes(couple.bib)}
-                        onChange={() => handleBibToggle(couple.bib)}
-                        style={{ marginRight: '0.5rem' }}
-                      />
-                      <span>
-                        <strong>Bib #{couple.bib}:</strong> {couple.leaderName} & {couple.followerName}
-                      </span>
-                    </label>
-                  ))
+                      {coupleSearch ? 'Select Matching' : 'Select All'}
+                    </button>
+                    {selectedBibs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBibs([])}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.875rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          background: 'white',
+                          color: '#718096',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
+              {couples.length > 0 && (
+                <input
+                  type="text"
+                  value={coupleSearch}
+                  onChange={e => setCoupleSearch(e.target.value)}
+                  placeholder="Search by bib #, leader, or follower name..."
+                  style={{ marginBottom: '0.5rem' }}
+                />
+              )}
+              {couples.length === 0 ? (
+                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                  No couples available
+                </p>
+              ) : filteredCouples.length === 0 ? (
+                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                  No couples match "{coupleSearch}"
+                </p>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                  gap: '0.5rem',
+                  maxHeight: '360px',
+                  overflowY: 'auto',
+                  padding: '0.25rem',
+                }}>
+                  {filteredCouples.map(couple => {
+                    const isSelected = selectedBibs.includes(couple.bib);
+                    return (
+                      <div
+                        key={couple.bib}
+                        onClick={() => handleBibToggle(couple.bib)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.625rem 0.75rem',
+                          borderRadius: '6px',
+                          border: isSelected ? '2px solid #667eea' : '1px solid #e2e8f0',
+                          background: isSelected ? '#ebf4ff' : '#fff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '6px',
+                          background: isSelected ? '#667eea' : '#edf2f7',
+                          color: isSelected ? '#fff' : '#4a5568',
+                          fontWeight: 700,
+                          fontSize: '0.875rem',
+                          flexShrink: 0,
+                        }}>
+                          {couple.bib}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {couple.leaderName}
+                          </div>
+                          <div style={{ color: '#718096', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            & {couple.followerName}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
-              <label>Select Judges (optional) ({selectedJudges.length} selected)</label>
-              <div style={{ 
-                border: '1px solid #cbd5e0', 
-                borderRadius: '4px', 
-                padding: '0.5rem',
-                maxHeight: '200px',
-                overflowY: 'auto'
-              }}>
-                {judges.length === 0 ? (
-                  <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
-                    No judges available (you can add them later)
-                  </p>
-                ) : (
-                  judges.map(judge => (
-                    <label 
-                      key={judge.id} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        padding: '0.5rem',
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ margin: 0 }}>
+                  Select Judges
+                  <span style={{ color: '#a0aec0', fontWeight: 'normal', marginLeft: '0.25rem' }}>(optional)</span>
+                  {selectedJudges.length > 0 && (
+                    <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
+                      ({selectedJudges.length} selected)
+                    </span>
+                  )}
+                </label>
+                {judges.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedJudges(judges.map(j => j.id))}
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid #667eea',
+                        borderRadius: '4px',
+                        background: 'white',
+                        color: '#667eea',
                         cursor: 'pointer',
-                        borderBottom: '1px solid #e2e8f0'
+                        fontWeight: '500',
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedJudges.includes(judge.id)}
-                        onChange={() => handleJudgeToggle(judge.id)}
-                        style={{ marginRight: '0.5rem' }}
-                      />
-                      <span>
-                        <strong>Judge #{judge.judgeNumber}:</strong> {judge.name}
-                      </span>
-                    </label>
-                  ))
+                      Select All
+                    </button>
+                    {selectedJudges.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedJudges([])}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.875rem',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          background: 'white',
+                          color: '#718096',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
+              {judges.length === 0 ? (
+                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                  No judges available (you can add them later)
+                </p>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                }}>
+                  {judges.map(judge => {
+                    const isSelected = selectedJudges.includes(judge.id);
+                    return (
+                      <div
+                        key={judge.id}
+                        onClick={() => handleJudgeToggle(judge.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.625rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '6px',
+                          border: isSelected ? '2px solid #667eea' : '1px solid #e2e8f0',
+                          background: isSelected ? '#ebf4ff' : '#fff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          background: isSelected ? '#667eea' : '#edf2f7',
+                          color: isSelected ? '#fff' : '#4a5568',
+                          fontWeight: 700,
+                          fontSize: '0.8rem',
+                          flexShrink: 0,
+                        }}>
+                          {judge.judgeNumber}
+                        </span>
+                        <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                          {judge.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={{ 

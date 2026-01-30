@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -129,6 +129,25 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/insert`, { eventId, position }),
   delete: (competitionId: number) =>
     api.delete(`/schedules/${competitionId}`),
+};
+
+// Judging API (non-admin, for judges and SSE)
+export const judgingApi = {
+  getActiveHeat: (competitionId: number) =>
+    api.get<ActiveHeatInfo>(`/judging/competition/${competitionId}/active-heat`),
+  getScoringProgress: (competitionId: number) =>
+    api.get<ScoringProgress>(`/judging/competition/${competitionId}/scoring-progress`),
+  submitJudgeScores: (
+    competitionId: number,
+    judgeId: number,
+    eventId: number,
+    round: string,
+    scores: Array<{ bib: number; score: number }>,
+  ) => api.post(`/judging/competition/${competitionId}/submit-scores`, {
+    judgeId, eventId, round, scores,
+  }),
+  getJudges: (competitionId: number) =>
+    api.get<Judge[]>(`/judging/competition/${competitionId}/judges`),
 };
 
 // Users API

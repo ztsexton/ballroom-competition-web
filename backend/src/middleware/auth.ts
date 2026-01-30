@@ -29,16 +29,15 @@ export const authenticate = async (
   }
 
   try {
-    // Get the Authorization header
+    // Get token from Authorization header or query param (for SSE EventSource)
     const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string | undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : queryToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       res.status(401).json({ error: 'Unauthorized: No token provided' });
       return;
     }
-
-    // Extract the token
-    const token = authHeader.split('Bearer ')[1];
 
     // Verify the token with Firebase Admin
     const decodedToken = await auth.verifyIdToken(token);

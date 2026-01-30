@@ -97,6 +97,34 @@ export interface CompetitionSchedule {
   updatedAt: string;
 }
 
+export interface ActiveHeatInfo {
+  competitionId: number;
+  eventId: number;
+  eventName: string;
+  round: string;
+  status: EventRunStatus;
+  couples: Array<{ bib: number; leaderName: string; followerName: string }>;
+  judges: Array<{ id: number; name: string; judgeNumber: number }>;
+  isRecallRound: boolean;
+  style?: string;
+  level?: string;
+  dances?: string[];
+}
+
+export interface ScoringProgress {
+  eventId: number;
+  round: string;
+  judges: Array<{
+    judgeId: number;
+    judgeName: string;
+    judgeNumber: number;
+    hasSubmitted: boolean;
+  }>;
+  submittedCount: number;
+  totalJudges: number;
+  scoresByBib: Record<number, Record<number, number>>;
+}
+
 export interface User {
   uid: string;
   email: string;

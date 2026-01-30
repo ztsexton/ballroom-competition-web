@@ -13,6 +13,7 @@ import judgesRoutes from './routes/judges';
 import eventsRoutes from './routes/events';
 import schedulesRoutes from './routes/schedules';
 import usersRoutes from './routes/users';
+import judgingRoutes from './routes/judging';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +34,7 @@ app.use('/api', authenticate);
 
 // Protected routes (all users can access)
 app.use('/api/users', usersRoutes);
+app.use('/api/judging', judgingRoutes);
 
 // Admin-only routes
 app.use('/api/competitions', requireAdmin, competitionsRoutes);

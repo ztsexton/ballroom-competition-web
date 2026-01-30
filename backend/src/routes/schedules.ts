@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scheduleService } from '../services/scheduleService';
+import { scoringService } from '../services/scoringService';
+import { sseService } from '../services/sseService';
 
 const router = Router();
 
@@ -61,11 +63,27 @@ router.patch('/:competitionId/reorder', (req: Request, res: Response) => {
 router.post('/:competitionId/advance', (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
+
+    // Before advancing, check if we're transitioning from scoring → completed
+    // If so, compile any judge scores into the final format
+    const preSchedule = dataService.getSchedule(competitionId);
+    if (preSchedule) {
+      const currentHeat = preSchedule.heatOrder[preSchedule.currentHeatIndex];
+      if (currentHeat) {
+        const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
+        if (preSchedule.heatStatuses[heatKey] === 'scoring') {
+          scoringService.compileJudgeScores(currentHeat.eventId, currentHeat.round);
+          dataService.clearJudgeScores(currentHeat.eventId, currentHeat.round);
+        }
+      }
+    }
+
     const schedule = scheduleService.advanceHeat(competitionId);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
     res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to advance event' });
   }
@@ -80,6 +98,7 @@ router.post('/:competitionId/back', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Schedule not found' });
     }
     res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to go back' });
   }
@@ -96,6 +115,7 @@ router.post('/:competitionId/jump', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid event index or schedule not found' });
     }
     res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to jump to event' });
   }

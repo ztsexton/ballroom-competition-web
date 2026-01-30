@@ -37,6 +37,7 @@ class DataService {
       judges: this.loadJudges(),
       events: this.loadEvents(),
       scores: this.loadScores(),
+      judgeScores: this.loadJudgeScores(),
       users: this.loadUsers(),
       schedules: this.loadSchedules(),
       nextCompetitionId: this.getNextId(this.loadCompetitions()),
@@ -131,6 +132,18 @@ class DataService {
     return {};
   }
 
+  private loadJudgeScores(): Record<string, Record<number, number>> {
+    try {
+      if (fs.existsSync(EVENTS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf-8'));
+        return data.judgeScores || {};
+      }
+    } catch (error) {
+      console.error('Error loading judge scores:', error);
+    }
+    return {};
+  }
+
   private loadUsers(): User[] {
     try {
       if (fs.existsSync(USERS_FILE)) {
@@ -206,6 +219,7 @@ class DataService {
     const data = {
       events: this.data.events,
       scores: this.data.scores,
+      judgeScores: this.data.judgeScores,
       next_event_id: this.data.nextEventId,
       next_bib: this.data.nextBib,
     };
@@ -550,6 +564,51 @@ class DataService {
     this.saveEvents();
   }
 
+  // Judge scores methods (per-judge individual submissions)
+  getJudgeScores(eventId: number, round: string, bib: number): Record<number, number> {
+    const key = this.getScoreKey(eventId, round, bib);
+    return this.data.judgeScores[key] || {};
+  }
+
+  setJudgeScoresBatch(eventId: number, round: string, judgeId: number, entries: Array<{ bib: number; score: number }>): void {
+    for (const { bib, score } of entries) {
+      const key = this.getScoreKey(eventId, round, bib);
+      if (!this.data.judgeScores[key]) {
+        this.data.judgeScores[key] = {};
+      }
+      this.data.judgeScores[key][judgeId] = score;
+    }
+    this.saveEvents();
+  }
+
+  clearJudgeScores(eventId: number, round: string): void {
+    const event = this.data.events[eventId];
+    if (!event) return;
+    const heat = event.heats.find(h => h.round === round);
+    if (!heat) return;
+    heat.bibs.forEach(bib => {
+      const key = this.getScoreKey(eventId, round, bib);
+      delete this.data.judgeScores[key];
+    });
+    this.saveEvents();
+  }
+
+  getJudgeSubmissionStatus(eventId: number, round: string): Record<number, boolean> {
+    const event = this.data.events[eventId];
+    if (!event) return {};
+    const heat = event.heats.find(h => h.round === round);
+    if (!heat) return {};
+
+    const status: Record<number, boolean> = {};
+    for (const judgeId of heat.judges) {
+      status[judgeId] = heat.bibs.length > 0 && heat.bibs.every(bib => {
+        const key = this.getScoreKey(eventId, round, bib);
+        return this.data.judgeScores[key]?.[judgeId] !== undefined;
+      });
+    }
+    return status;
+  }
+
   advanceToNextRound(eventId: number, currentRound: string, topBibs: number[]): boolean {
     const event = this.data.events[eventId];
     if (!event) return false;
@@ -651,6 +710,7 @@ class DataService {
       judges: [],
       events: {},
       scores: {},
+      judgeScores: {},
       users: [],
       schedules: {},
       nextCompetitionId: 1,
