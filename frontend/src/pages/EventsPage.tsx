@@ -1,22 +1,33 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { eventsApi } from '../api/client';
 import { Event } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 
 const EventsPage = () => {
-  const { activeCompetition } = useCompetition();
+  const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const competitionId = params.get('competitionId');
+    if (competitionId && competitions.length > 0) {
+      const comp = competitions.find(c => c.id === Number(competitionId));
+      if (comp && (!activeCompetition || activeCompetition.id !== comp.id)) {
+        setActiveCompetition(comp);
+      }
+    }
+    // Only load events if activeCompetition is set
     if (activeCompetition) {
       loadEvents();
     } else {
       setEvents([]);
       setLoading(false);
     }
-  }, [activeCompetition]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompetition, competitions, location.search]);
 
   const loadEvents = async () => {
     if (!activeCompetition) return;

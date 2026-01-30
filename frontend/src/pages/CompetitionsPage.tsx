@@ -217,7 +217,7 @@ const CompetitionsPage = () => {
                       borderRadius: '4px',
                     }}>
                       <p style={{ margin: 0 }}>
-                        No studios available. <button type="button" onClick={() => navigate('/studios')} style={{ color: '#667eea', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Create one first →</button>
+                        No studios available. <button type="button" onClick={() => navigate('/studio')} style={{ color: '#667eea', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Create one first →</button>
                       </p>
                     </div>
                   ) : (
@@ -302,6 +302,9 @@ const CompetitionsPage = () => {
                         <p style={{ margin: '0.25rem 0' }}>📅 {formatDate(competition.date)}</p>
                         {competition.location && (
                           <p style={{ margin: '0.25rem 0' }}>📍 {competition.location}</p>
+                        )}
+                        {competition.type === 'STUDIO' && competition.studioId && (
+                          <p style={{ margin: '0.25rem 0' }}>🏢 Studio: {studios.find(s => s.id === competition.studioId)?.name || competition.studioId}</p>
                         )}
                         {competition.description && (
                           <p style={{ margin: '0.5rem 0 0 0', color: '#4a5568' }}>

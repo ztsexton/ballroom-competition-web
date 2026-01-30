@@ -24,24 +24,26 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Add a new person
 router.post('/', (req: Request, res: Response) => {
-  const { name, role, status, competitionId, studioId } = req.body;
-  
-  if (!name || !role || !competitionId) {
-    return res.status(400).json({ error: 'Name, role, and competitionId are required' });
+  const { firstName, lastName, email, role, status, competitionId, studioId } = req.body;
+
+  if (!firstName || !lastName || !role || !competitionId) {
+    return res.status(400).json({ error: 'First name, last name, role, and competitionId are required' });
   }
-  
+
   if (!['leader', 'follower', 'both'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
-  
+
   const newPerson = dataService.addPerson({
-    name,
+    firstName,
+    lastName,
+    email,
     role,
     status: status || 'student',
     competitionId,
     studioId,
   });
-  
+
   res.status(201).json(newPerson);
 });
 

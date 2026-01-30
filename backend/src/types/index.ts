@@ -20,7 +20,9 @@ export interface Competition {
 
 export interface Person {
   id: number;
-  name: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
   role: 'leader' | 'follower' | 'both';
   status: 'student' | 'professional';
   competitionId: number;

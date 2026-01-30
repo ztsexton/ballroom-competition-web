@@ -33,6 +33,7 @@ const Navigation = () => {
           <Link to="/couples" style={{ color: 'white' }}>💃🕺 Couples</Link>
           <Link to="/judges" style={{ color: 'white' }}>⚖️ Judges</Link>
           <Link to="/events" style={{ color: 'white' }}>📋 Events</Link>
+          <Link to="/studio" style={{ color: 'white' }}>🏢 Studio</Link>
         </div>
         {competitions.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

@@ -10,6 +10,8 @@ import NewEventPage from './pages/NewEventPage';
 import ScoreEventPage from './pages/ScoreEventPage';
 import ResultsPage from './pages/ResultsPage';
 import CompetitionsPage from './pages/CompetitionsPage';
+import CompetitionDetailsPage from './pages/CompetitionDetailsPage';
+import StudioPage from './pages/StudioPage';
 import './App.css';
 
 const App = () => {
@@ -20,16 +22,19 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/competitions" element={<CompetitionsPage />} />
+          <Route path="/competitions/:id" element={<CompetitionDetailsPage />} />
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/couples" element={<CouplesPage />} />
           <Route path="/judges" element={<JudgesPage />} />
           <Route path="/events" element={<EventsPage />} />
+          
           <Route path="/events/new" element={<NewEventPage />} />
           <Route path="/events/:id" element={<ResultsPage />} />
           <Route path="/events/:id/score" element={<ScoreEventPage />} />
           <Route path="/events/:id/score/:round" element={<ScoreEventPage />} />
           <Route path="/events/:id/results" element={<ResultsPage />} />
           <Route path="/events/:id/results/:round" element={<ResultsPage />} />
+          <Route path="/studios" element={<StudioPage />} />
         </Routes>
       </CompetitionProvider>
     </BrowserRouter>

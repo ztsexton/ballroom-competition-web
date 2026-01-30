@@ -1,23 +1,42 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { peopleApi } from '../api/client';
-import { Person } from '../types';
+import { peopleApi, studiosApi } from '../api/client';
+import { Person, Studio } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 
 const PeoplePage = () => {
   const { activeCompetition } = useCompetition();
   const [people, setPeople] = useState<Person[]>([]);
+  const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newPerson, setNewPerson] = useState({ name: '', role: 'both' as Person['role'], status: 'student' as Person['status'] });
+  const [newPerson, setNewPerson] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: 'both' as Person['role'],
+    status: 'student' as Person['status'],
+    studioId: '' as string | number
+  });
 
   useEffect(() => {
     if (activeCompetition) {
       loadPeople();
+      loadStudios();
     } else {
       setPeople([]);
+      setStudios([]);
       setLoading(false);
     }
   }, [activeCompetition]);
+
+  const loadStudios = async () => {
+    try {
+      const response = await studiosApi.getAll();
+      setStudios(response.data);
+    } catch (error) {
+      setStudios([]);
+    }
+  };
 
   const loadPeople = async () => {
     if (!activeCompetition) return;
@@ -34,14 +53,16 @@ const PeoplePage = () => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newPerson.name || !activeCompetition) return;
-    
+    if (!newPerson.firstName || !newPerson.lastName || !activeCompetition) return;
+
     try {
       await peopleApi.create({
         ...newPerson,
+        studioId: newPerson.studioId ? Number(newPerson.studioId) : undefined,
+        email: newPerson.email || undefined,
         competitionId: activeCompetition.id,
       });
-      setNewPerson({ name: '', role: 'both', status: 'student' });
+      setNewPerson({ firstName: '', lastName: '', email: '', role: 'both', status: 'student', studioId: '' });
       loadPeople();
     } catch (error) {
       console.error('Failed to add person:', error);
@@ -87,14 +108,31 @@ const PeoplePage = () => {
         <h2>Manage People - {activeCompetition.name}</h2>
         
         <form onSubmit={handleAdd} style={{ marginTop: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Name</label>
+              <label>First Name</label>
               <input
                 type="text"
-                value={newPerson.name}
-                onChange={e => setNewPerson({ ...newPerson, name: e.target.value })}
+                value={newPerson.firstName}
+                onChange={e => setNewPerson({ ...newPerson, firstName: e.target.value })}
                 required
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Last Name</label>
+              <input
+                type="text"
+                value={newPerson.lastName}
+                onChange={e => setNewPerson({ ...newPerson, lastName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Email</label>
+              <input
+                type="email"
+                value={newPerson.email}
+                onChange={e => setNewPerson({ ...newPerson, email: e.target.value })}
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -112,6 +150,15 @@ const PeoplePage = () => {
                 <option value="professional">Professional</option>
               </select>
             </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Studio</label>
+              <select value={newPerson.studioId} onChange={e => setNewPerson({ ...newPerson, studioId: e.target.value })}>
+                <option value="">None</option>
+                {studios.map(studio => (
+                  <option key={studio.id} value={studio.id}>{studio.name}</option>
+                ))}
+              </select>
+            </div>
             <button type="submit" className="btn" style={{ marginBottom: 0 }}>Add</button>
           </div>
         </form>
@@ -122,18 +169,24 @@ const PeoplePage = () => {
           <table>
             <thead>
               <tr>
-                <th>Name</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Studio</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {people.map(person => (
                 <tr key={person.id}>
-                  <td>{person.name}</td>
+                  <td>{person.firstName}</td>
+                  <td>{person.lastName}</td>
+                  <td>{person.email || ''}</td>
                   <td>{person.role}</td>
                   <td>{person.status}</td>
+                  <td>{studios.find(s => s.id === person.studioId)?.name || ''}</td>
                   <td>
                     <button onClick={() => handleDelete(person.id)} className="btn btn-danger" style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>
                       Delete
