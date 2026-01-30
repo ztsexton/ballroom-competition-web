@@ -11,6 +11,7 @@ import peopleRoutes from './routes/people';
 import couplesRoutes from './routes/couples';
 import judgesRoutes from './routes/judges';
 import eventsRoutes from './routes/events';
+import schedulesRoutes from './routes/schedules';
 import usersRoutes from './routes/users';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/people', requireAdmin, peopleRoutes);
 app.use('/api/couples', requireAdmin, couplesRoutes);
 app.use('/api/judges', requireAdmin, judgesRoutes);
 app.use('/api/events', requireAdmin, eventsRoutes);
+app.use('/api/schedules', requireAdmin, schedulesRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

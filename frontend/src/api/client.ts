@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -107,6 +107,28 @@ export const eventsApi = {
   ) => api.post(`/events/${id}/scores/${round}`, { scores }),
   clearScores: (id: number, round: string) =>
     api.delete(`/events/${id}/scores/${round}`),
+};
+
+// Schedules API
+export const schedulesApi = {
+  get: (competitionId: number) =>
+    api.get<CompetitionSchedule>(`/schedules/${competitionId}`),
+  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, judgeSettings }),
+  reorder: (competitionId: number, fromIndex: number, toIndex: number) =>
+    api.patch<CompetitionSchedule>(`/schedules/${competitionId}/reorder`, { fromIndex, toIndex }),
+  advance: (competitionId: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/advance`),
+  back: (competitionId: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/back`),
+  jump: (competitionId: number, heatIndex: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/jump`, { heatIndex }),
+  suggestPosition: (competitionId: number, eventId: number) =>
+    api.get<{ position: number }>(`/schedules/${competitionId}/suggest/${eventId}`),
+  insert: (competitionId: number, eventId: number, position: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/insert`, { eventId, position }),
+  delete: (competitionId: number) =>
+    api.delete(`/schedules/${competitionId}`),
 };
 
 // Users API

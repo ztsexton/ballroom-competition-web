@@ -16,6 +16,8 @@ import CompetitionsPage from './pages/CompetitionsPage';
 import CompetitionDetailsPage from './pages/CompetitionDetailsPage';
 import StudioPage from './pages/StudioPage';
 import UsersPage from './pages/UsersPage';
+import SchedulePage from './pages/SchedulePage';
+import RunCompetitionPage from './pages/RunCompetitionPage';
 import './App.css';
 
 const App = () => {
@@ -45,6 +47,8 @@ const App = () => {
                     <Route path="/events/:id/score/:round" element={<ScoreEventPage />} />
                     <Route path="/events/:id/results" element={<ResultsPage />} />
                     <Route path="/events/:id/results/:round" element={<ResultsPage />} />
+                    <Route path="/competitions/:id/schedule" element={<SchedulePage />} />
+                    <Route path="/competitions/:id/run" element={<RunCompetitionPage />} />
                     <Route path="/studios" element={<StudioPage />} />
                     <Route path="/users" element={<UsersPage />} />
                   </Routes>

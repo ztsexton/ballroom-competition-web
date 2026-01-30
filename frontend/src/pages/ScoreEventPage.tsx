@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { eventsApi, couplesApi } from '../api/client';
-import { Event, Couple } from '../types';
+import { eventsApi, couplesApi, judgesApi } from '../api/client';
+import { Event, Couple, Judge } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 const ScoreEventPage = () => {
@@ -14,6 +14,7 @@ const ScoreEventPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentRound, setCurrentRound] = useState<string>('final');
   const [numJudges, setNumJudges] = useState(3);
+  const [heatJudges, setHeatJudges] = useState<Judge[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
 
@@ -34,10 +35,16 @@ const ScoreEventPage = () => {
       const heat = eventResponse.data.heats.find(h => h.round === roundToUse);
       if (heat) {
         setNumJudges(heat.judges.length || 3);
-        
-        const couplesResponse = await couplesApi.getAll();
+
+        const [couplesResponse, judgesResponse] = await Promise.all([
+          couplesApi.getAll(),
+          judgesApi.getAll(eventResponse.data.competitionId),
+        ]);
         const eventCouples = couplesResponse.data.filter(c => heat.bibs.includes(c.bib));
         setCouples(eventCouples);
+
+        const judgeMap = new Map(judgesResponse.data.map(j => [j.id, j]));
+        setHeatJudges(heat.judges.map(jId => judgeMap.get(jId)).filter((j): j is Judge => !!j));
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -155,7 +162,7 @@ const ScoreEventPage = () => {
                     <th>Leader</th>
                     <th>Follower</th>
                     {Array.from({ length: numJudges }, (_, i) => (
-                      <th key={i}>Judge {i + 1}</th>
+                      <th key={i}>{heatJudges[i] ? `#${heatJudges[i].judgeNumber}: ${heatJudges[i].name}` : `Judge ${i + 1}`}</th>
                     ))}
                   </tr>
                 </thead>

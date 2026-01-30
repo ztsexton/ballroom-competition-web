@@ -62,9 +62,15 @@ const CompetitionDetailsPage = () => {
           <p><strong>Studio:</strong> {studio.name} ({studio.contactInfo || 'No contact'})</p>
         )}
         {competition.description && <p><strong>Description:</strong> {competition.description}</p>}
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => navigate(`/events?competitionId=${competition.id}`)}>
             Manage Events
+          </button>
+          <button className="btn" onClick={() => navigate(`/competitions/${competition.id}/schedule`)}>
+            Schedule
+          </button>
+          <button className="btn btn-success" onClick={() => navigate(`/competitions/${competition.id}/run`)}>
+            Run Competition
           </button>
           <button className="btn btn-secondary" onClick={() => navigate('/competitions')}>
             Back to Competitions

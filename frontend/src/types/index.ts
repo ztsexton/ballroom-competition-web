@@ -7,6 +7,11 @@ export interface Studio {
   contactInfo?: string;
 }
 
+export interface JudgeSettings {
+  defaultCount: number;
+  levelOverrides: Record<string, number>;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -15,6 +20,7 @@ export interface Competition {
   location?: string;
   studioId?: number;
   description?: string;
+  judgeSettings?: JudgeSettings;
   createdAt: string;
 }
 
@@ -71,6 +77,24 @@ export interface EventResult {
   totalMarks?: number;
   scores: number[];
   isRecall: boolean;
+}
+
+export type EventRunStatus = 'pending' | 'announced' | 'scoring' | 'completed';
+
+export interface ScheduledHeat {
+  eventId: number;
+  round: string;
+}
+
+export interface CompetitionSchedule {
+  competitionId: number;
+  heatOrder: ScheduledHeat[];
+  styleOrder: string[];
+  levelOrder: string[];
+  currentHeatIndex: number;
+  heatStatuses: Record<string, EventRunStatus>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface User {

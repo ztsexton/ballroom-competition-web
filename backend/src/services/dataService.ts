@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Competition, Studio, User } from '../types';
+import { AppData, Person, Couple, Judge, Event, Competition, Studio, User, CompetitionSchedule } from '../types';
 
 const DATA_DIR = process.env.NODE_ENV === 'test'
   ? path.join(__dirname, '../../data-test')
@@ -12,6 +12,7 @@ const COUPLES_FILE = path.join(DATA_DIR, 'couples.json');
 const JUDGES_FILE = path.join(DATA_DIR, 'judges.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SCHEDULES_FILE = path.join(DATA_DIR, 'schedules.json');
 
 const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
@@ -37,6 +38,7 @@ class DataService {
       events: this.loadEvents(),
       scores: this.loadScores(),
       users: this.loadUsers(),
+      schedules: this.loadSchedules(),
       nextCompetitionId: this.getNextId(this.loadCompetitions()),
       nextStudioId: this.getNextId(this.loadStudios()),
       nextPersonId: this.getNextId(this.loadPeople()),
@@ -141,6 +143,25 @@ class DataService {
     return [];
   }
 
+  private loadSchedules(): Record<number, CompetitionSchedule> {
+    try {
+      if (fs.existsSync(SCHEDULES_FILE)) {
+        const data = JSON.parse(fs.readFileSync(SCHEDULES_FILE, 'utf-8'));
+        const schedules = data.schedules || {};
+        // Migrate: discard old-format schedules that have eventOrder instead of heatOrder
+        for (const key of Object.keys(schedules)) {
+          if (!schedules[key].heatOrder) {
+            delete schedules[key];
+          }
+        }
+        return schedules;
+      }
+    } catch (error) {
+      console.error('Error loading schedules:', error);
+    }
+    return {};
+  }
+
   private getNextId(items: Array<{ id: number }>): number {
     if (items.length === 0) return 1;
     return Math.max(...items.map(item => item.id)) + 1;
@@ -196,6 +217,11 @@ class DataService {
     fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
   }
 
+  private saveSchedules(): void {
+    const data = { schedules: this.data.schedules };
+    fs.writeFileSync(SCHEDULES_FILE, JSON.stringify(data, null, 2));
+  }
+
   // Competition methods
   getCompetitions(): Competition[] {
     return this.data.competitions;
@@ -238,11 +264,13 @@ class DataService {
           delete this.data.events[eventId];
         }
       });
+      delete this.data.schedules[id];
       this.saveCompetitions();
       this.savePeople();
       this.saveCouples();
       this.saveJudges();
       this.saveEvents();
+      this.saveSchedules();
       return true;
     }
     return false;
@@ -594,6 +622,26 @@ class DataService {
     return user;
   }
 
+  // Schedule methods
+  getSchedule(competitionId: number): CompetitionSchedule | undefined {
+    return this.data.schedules[competitionId];
+  }
+
+  saveSchedule(schedule: CompetitionSchedule): CompetitionSchedule {
+    this.data.schedules[schedule.competitionId] = schedule;
+    this.saveSchedules();
+    return schedule;
+  }
+
+  deleteSchedule(competitionId: number): boolean {
+    if (this.data.schedules[competitionId]) {
+      delete this.data.schedules[competitionId];
+      this.saveSchedules();
+      return true;
+    }
+    return false;
+  }
+
   resetAllData(): void {
     this.data = {
       competitions: [],
@@ -604,6 +652,7 @@ class DataService {
       events: {},
       scores: {},
       users: [],
+      schedules: {},
       nextCompetitionId: 1,
       nextStudioId: 1,
       nextPersonId: 1,
@@ -618,6 +667,7 @@ class DataService {
     this.saveJudges();
     this.saveEvents();
     this.saveUsers();
+    this.saveSchedules();
   }
 }
 

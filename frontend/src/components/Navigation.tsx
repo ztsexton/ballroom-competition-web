@@ -37,6 +37,9 @@ const Navigation = () => {
               <Link to="/couples" style={{ color: 'white' }}>💃🕺 Couples</Link>
               <Link to="/judges" style={{ color: 'white' }}>⚖️ Judges</Link>
               <Link to="/events" style={{ color: 'white' }}>📋 Events</Link>
+              {activeCompetition && (
+                <Link to={`/competitions/${activeCompetition.id}/schedule`} style={{ color: 'white' }}>📅 Schedule</Link>
+              )}
               <Link to="/studios" style={{ color: 'white' }}>🏢 Studios</Link>
               <Link to="/users" style={{ color: 'white' }}>👤 Users</Link>
             </>
