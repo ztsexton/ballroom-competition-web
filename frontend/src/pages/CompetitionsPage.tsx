@@ -4,15 +4,21 @@ import { useNavigate } from 'react-router-dom';
 import { competitionsApi, studiosApi } from '../api/client';
 import { Competition, CompetitionType, Studio } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useCompetition } from '../context/CompetitionContext';
+import { DEFAULT_LEVELS, LEVEL_TEMPLATES } from '../constants/levels';
 
 const CompetitionsPage = () => {
   const navigate = useNavigate();
   const { isAdmin, loading: authLoading } = useAuth();
+  const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  const [levels, setLevels] = useState<string[]>([...DEFAULT_LEVELS]);
+  const [newLevelName, setNewLevelName] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -67,6 +73,7 @@ const CompetitionsPage = () => {
         studioId: formData.studioId ? parseInt(formData.studioId) : undefined,
         description: formData.description || undefined,
         defaultScoringType: formData.defaultScoringType,
+        levels,
       });
 
       setFormData({
@@ -78,8 +85,11 @@ const CompetitionsPage = () => {
         description: '',
         defaultScoringType: 'standard',
       });
+      setLevels([...DEFAULT_LEVELS]);
+      setNewLevelName('');
       setShowForm(false);
       loadData();
+      refreshCompetitions();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to create competition');
     }
@@ -93,6 +103,7 @@ const CompetitionsPage = () => {
     try {
       await competitionsApi.delete(id);
       loadData();
+      refreshCompetitions();
     } catch (error) {
       setError('Failed to delete competition');
     }
@@ -292,6 +303,102 @@ const CompetitionsPage = () => {
                     ? 'New events will default to proficiency scoring (0-100, single round).'
                     : 'New events will default to standard scoring (recalls + ranking).'}
                 </small>
+              </div>
+
+              <div className="form-group">
+                <label>Competition Levels</label>
+                <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                  Choose a template to start from, then customize as needed.
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  {Object.entries(LEVEL_TEMPLATES).map(([key, template]) => {
+                    const isActive = JSON.stringify(levels) === JSON.stringify(template.levels);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setLevels([...template.levels])}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          border: isActive ? '2px solid #667eea' : '1px solid #cbd5e0',
+                          borderRadius: '4px',
+                          background: isActive ? '#667eea' : 'white',
+                          color: isActive ? 'white' : '#2d3748',
+                          cursor: 'pointer',
+                          fontWeight: isActive ? 'bold' : 'normal',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {template.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '400px' }}>
+                  {levels.map((lvl, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem', background: '#f7fafc',
+                      border: '1px solid #e2e8f0', borderRadius: '4px',
+                    }}>
+                      <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{idx + 1}.</span>
+                      <span style={{ flex: 1 }}>{lvl}</span>
+                      <button type="button" disabled={idx === 0}
+                        onClick={() => {
+                          const next = [...levels];
+                          [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                          setLevels(next);
+                        }}
+                        style={{ padding: '0.125rem 0.375rem', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
+                      >▲</button>
+                      <button type="button" disabled={idx === levels.length - 1}
+                        onClick={() => {
+                          const next = [...levels];
+                          [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                          setLevels(next);
+                        }}
+                        style={{ padding: '0.125rem 0.375rem', cursor: idx === levels.length - 1 ? 'default' : 'pointer', opacity: idx === levels.length - 1 ? 0.3 : 1 }}
+                      >▼</button>
+                      <button type="button"
+                        onClick={() => setLevels(levels.filter((_, i) => i !== idx))}
+                        style={{ padding: '0.125rem 0.375rem', color: '#e53e3e', cursor: 'pointer' }}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', maxWidth: '400px' }}>
+                  <input
+                    type="text"
+                    value={newLevelName}
+                    onChange={e => setNewLevelName(e.target.value)}
+                    placeholder="Add custom level..."
+                    style={{ flex: 1 }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newLevelName.trim() && !levels.includes(newLevelName.trim())) {
+                          setLevels([...levels, newLevelName.trim()]);
+                          setNewLevelName('');
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newLevelName.trim() && !levels.includes(newLevelName.trim())) {
+                        setLevels([...levels, newLevelName.trim()]);
+                        setNewLevelName('');
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.875rem' }}
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>

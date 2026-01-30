@@ -69,7 +69,7 @@ router.post('/:competitionId/advance', (req: Request, res: Response) => {
     const preSchedule = dataService.getSchedule(competitionId);
     if (preSchedule) {
       const currentHeat = preSchedule.heatOrder[preSchedule.currentHeatIndex];
-      if (currentHeat) {
+      if (currentHeat && !currentHeat.isBreak) {
         const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
         if (preSchedule.heatStatuses[heatKey] === 'scoring') {
           scoringService.compileJudgeScores(currentHeat.eventId, currentHeat.round);
@@ -144,8 +144,52 @@ router.post('/:competitionId/insert', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Schedule not found' });
     }
     res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to insert event' });
+  }
+});
+
+// Add a break to the schedule
+router.post('/:competitionId/break', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { label, duration, position } = req.body;
+
+    if (!label || typeof label !== 'string') {
+      return res.status(400).json({ error: 'Break label is required' });
+    }
+
+    const schedule = scheduleService.addBreak(
+      competitionId,
+      label,
+      duration !== undefined ? parseInt(duration) : undefined,
+      position !== undefined ? parseInt(position) : undefined,
+    );
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    res.status(201).json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add break' });
+  }
+});
+
+// Remove a break from the schedule
+router.delete('/:competitionId/break/:heatIndex', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatIndex = parseInt(req.params.heatIndex);
+
+    const schedule = scheduleService.removeBreak(competitionId, heatIndex);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found or item is not a break' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove break' });
   }
 });
 

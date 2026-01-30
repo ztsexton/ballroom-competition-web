@@ -62,6 +62,23 @@ const CompetitionDetailsPage = () => {
           <p><strong>Studio:</strong> {studio.name} ({studio.contactInfo || 'No contact'})</p>
         )}
         {competition.description && <p><strong>Description:</strong> {competition.description}</p>}
+        {competition.levels && competition.levels.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            <strong>Levels:</strong>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              {competition.levels.map((level, idx) => (
+                <span key={idx} style={{
+                  padding: '0.25rem 0.75rem',
+                  background: '#edf2f7',
+                  borderRadius: '12px',
+                  fontSize: '0.875rem',
+                }}>
+                  {level}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => navigate(`/events?competitionId=${competition.id}`)}>
             Manage Events
@@ -71,6 +88,15 @@ const CompetitionDetailsPage = () => {
           </button>
           <button className="btn btn-success" onClick={() => navigate(`/competitions/${competition.id}/run`)}>
             Run Competition
+          </button>
+          <button className="btn" onClick={() => navigate(`/competitions/${competition.id}/ondeck`)}>
+            On-Deck View
+          </button>
+          <button className="btn" onClick={() => navigate(`/competitions/${competition.id}/live`)}>
+            Live View
+          </button>
+          <button className="btn" onClick={() => navigate(`/competitions/${competition.id}/judge`)}>
+            Judge Scoring
           </button>
           <button className="btn btn-secondary" onClick={() => navigate('/competitions')}>
             Back to Competitions

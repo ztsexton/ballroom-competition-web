@@ -30,7 +30,7 @@ router.get('/:id', (req: Request, res: Response) => {
 // Create a new competition
 router.post('/', (req: Request, res: Response) => {
   try {
-    const { name, type, date, location, studioId, description, defaultScoringType } = req.body;
+    const { name, type, date, location, studioId, description, defaultScoringType, levels } = req.body;
 
     if (!name || !type || !date) {
       return res.status(400).json({ error: 'Name, type, and date are required' });
@@ -55,6 +55,7 @@ router.post('/', (req: Request, res: Response) => {
       studioId,
       description,
       defaultScoringType,
+      levels,
     });
     
     res.status(201).json(competition);

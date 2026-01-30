@@ -139,16 +139,23 @@ const EventsPage = () => {
                     <td>{allBibs.size} couple{allBibs.size !== 1 ? 's' : ''}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <Link 
-                          to={`/events/${event.id}`} 
-                          className="btn" 
+                        <Link
+                          to={`/events/${event.id}`}
+                          className="btn"
                           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                         >
                           View
                         </Link>
-                        <Link 
-                          to={`/events/${event.id}/score`} 
-                          className="btn btn-success" 
+                        <Link
+                          to={`/events/${event.id}/edit`}
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                        >
+                          Edit
+                        </Link>
+                        <Link
+                          to={`/events/${event.id}/score`}
+                          className="btn btn-success"
                           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                         >
                           Score

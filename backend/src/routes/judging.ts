@@ -19,6 +19,23 @@ router.get('/competition/:competitionId/active-heat', (req: Request, res: Respon
     const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
     const status = schedule.heatStatuses[heatKey] || 'pending';
 
+    if (currentHeat.isBreak) {
+      const info: ActiveHeatInfo = {
+        competitionId,
+        eventId: 0,
+        eventName: currentHeat.breakLabel || 'Break',
+        round: currentHeat.round,
+        status,
+        couples: [],
+        judges: [],
+        isRecallRound: false,
+        isBreak: true,
+        breakLabel: currentHeat.breakLabel,
+        breakDuration: currentHeat.breakDuration,
+      };
+      return res.json(info);
+    }
+
     const event = dataService.getEventById(currentHeat.eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
@@ -69,6 +86,10 @@ router.get('/competition/:competitionId/scoring-progress', (req: Request, res: R
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
     if (!currentHeat) return res.status(404).json({ error: 'No current heat' });
+
+    if (currentHeat.isBreak) {
+      return res.status(400).json({ error: 'Current heat is a break, no scoring progress' });
+    }
 
     const event = dataService.getEventById(currentHeat.eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
@@ -156,6 +177,52 @@ router.get('/competition/:competitionId/judges', (req: Request, res: Response) =
     res.json(judges);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get judges' });
+  }
+});
+
+// GET /api/judging/competition/:competitionId/schedule (read-only, non-admin)
+router.get('/competition/:competitionId/schedule', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const schedule = dataService.getSchedule(competitionId);
+    if (!schedule) return res.status(404).json({ error: 'No schedule found' });
+    res.json(schedule);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get schedule' });
+  }
+});
+
+// GET /api/judging/competition/:competitionId/events (read-only, non-admin)
+router.get('/competition/:competitionId/events', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const events = dataService.getEvents(competitionId);
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get events' });
+  }
+});
+
+// GET /api/judging/competition/:competitionId/couples (read-only, non-admin)
+router.get('/competition/:competitionId/couples', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const couples = dataService.getCouples(competitionId);
+    res.json(couples);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get couples' });
+  }
+});
+
+// GET /api/judging/competition/:competitionId/competition (read-only, non-admin)
+router.get('/competition/:competitionId/competition', (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const competition = dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+    res.json(competition);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get competition' });
   }
 });
 

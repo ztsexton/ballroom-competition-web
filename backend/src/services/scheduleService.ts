@@ -1,11 +1,8 @@
 import { CompetitionSchedule, EventRunStatus, ScheduledHeat, Event, JudgeSettings } from '../types';
 import { dataService } from './dataService';
+import { DEFAULT_LEVELS } from '../constants/levels';
 
 const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
-const DEFAULT_LEVEL_ORDER = [
-  'Newcomer', 'Bronze', 'Silver', 'Gold',
-  'Novice', 'Pre-Championship', 'Championship',
-];
 
 class ScheduleService {
   private heatKey(heat: ScheduledHeat): string {
@@ -17,11 +14,12 @@ class ScheduleService {
     styleOrder?: string[],
     levelOrder?: string[],
   ): CompetitionSchedule {
+    const competition = dataService.getCompetitionById(competitionId);
     const events = dataService.getEvents(competitionId);
     const eventList = Object.values(events);
 
     const styles = styleOrder || DEFAULT_STYLE_ORDER;
-    const levels = levelOrder || DEFAULT_LEVEL_ORDER;
+    const levels = levelOrder || competition?.levels || DEFAULT_LEVELS;
 
     const sortByStyleLevel = (a: Event, b: Event) => {
       const sA = styles.indexOf(a.style || '');
@@ -96,6 +94,8 @@ class ScheduleService {
     let judgeIndex = 0;
 
     for (const scheduledHeat of schedule.heatOrder) {
+      if (scheduledHeat.isBreak) continue;
+
       const event = events[scheduledHeat.eventId];
       if (!event) continue;
 
@@ -148,6 +148,21 @@ class ScheduleService {
     const key = this.heatKey(currentHeat);
     const currentStatus = schedule.heatStatuses[key] || 'pending';
 
+    if (currentHeat.isBreak) {
+      if (currentStatus === 'pending') {
+        schedule.heatStatuses[key] = 'completed';
+        if (schedule.currentHeatIndex < schedule.heatOrder.length - 1) {
+          schedule.currentHeatIndex++;
+        }
+      } else if (currentStatus === 'completed') {
+        if (schedule.currentHeatIndex < schedule.heatOrder.length - 1) {
+          schedule.currentHeatIndex++;
+        }
+      }
+      schedule.updatedAt = new Date().toISOString();
+      return dataService.saveSchedule(schedule);
+    }
+
     switch (currentStatus) {
       case 'pending':
         schedule.heatStatuses[key] = 'announced';
@@ -181,6 +196,18 @@ class ScheduleService {
 
     const key = this.heatKey(currentHeat);
     const currentStatus = schedule.heatStatuses[key] || 'pending';
+
+    if (currentHeat.isBreak) {
+      if (currentStatus === 'completed') {
+        schedule.heatStatuses[key] = 'pending';
+      } else if (currentStatus === 'pending') {
+        if (schedule.currentHeatIndex > 0) {
+          schedule.currentHeatIndex--;
+        }
+      }
+      schedule.updatedAt = new Date().toISOString();
+      return dataService.saveSchedule(schedule);
+    }
 
     switch (currentStatus) {
       case 'announced':
@@ -219,6 +246,7 @@ class ScheduleService {
     // Find where the first-round heat should go among other first-round heats
     for (let i = 0; i < schedule.heatOrder.length; i++) {
       const h = schedule.heatOrder[i];
+      if (h.isBreak) continue;
       const existingEvent = dataService.getEventById(h.eventId);
       if (!existingEvent) continue;
 
@@ -238,6 +266,7 @@ class ScheduleService {
     // If no first-round heat comes after, place before second-round heats start
     for (let i = 0; i < schedule.heatOrder.length; i++) {
       const h = schedule.heatOrder[i];
+      if (h.isBreak) continue;
       const existingEvent = dataService.getEventById(h.eventId);
       if (!existingEvent) continue;
       if (existingEvent.heats.length > 1 && existingEvent.heats[1]?.round === h.round) {
@@ -280,6 +309,7 @@ class ScheduleService {
       let insertPos = schedule.heatOrder.length;
       for (let i = schedule.heatOrder.length - 1; i >= 0; i--) {
         const existing = schedule.heatOrder[i];
+        if (existing.isBreak) continue;
         const existingEvent = dataService.getEventById(existing.eventId);
         if (!existingEvent) continue;
         const existingRoundIdx = existingEvent.heats.findIndex(h => h.round === existing.round);
@@ -301,6 +331,63 @@ class ScheduleService {
     const saved = dataService.saveSchedule(schedule);
     this.autoAssignJudges(competitionId);
     return saved;
+  }
+
+  addBreak(
+    competitionId: number,
+    label: string,
+    duration?: number,
+    position?: number,
+  ): CompetitionSchedule | null {
+    const schedule = dataService.getSchedule(competitionId);
+    if (!schedule) return null;
+
+    const breakHeat: ScheduledHeat = {
+      eventId: 0,
+      round: `break-${Date.now()}`,
+      isBreak: true,
+      breakLabel: label,
+      breakDuration: duration,
+    };
+
+    const insertAt = position !== undefined
+      ? Math.max(0, Math.min(position, schedule.heatOrder.length))
+      : schedule.heatOrder.length;
+
+    schedule.heatOrder.splice(insertAt, 0, breakHeat);
+    schedule.heatStatuses[this.heatKey(breakHeat)] = 'pending';
+
+    if (insertAt <= schedule.currentHeatIndex) {
+      schedule.currentHeatIndex++;
+    }
+
+    schedule.updatedAt = new Date().toISOString();
+    return dataService.saveSchedule(schedule);
+  }
+
+  removeBreak(
+    competitionId: number,
+    heatIndex: number,
+  ): CompetitionSchedule | null {
+    const schedule = dataService.getSchedule(competitionId);
+    if (!schedule) return null;
+    if (heatIndex < 0 || heatIndex >= schedule.heatOrder.length) return null;
+
+    const heat = schedule.heatOrder[heatIndex];
+    if (!heat.isBreak) return null;
+
+    const key = this.heatKey(heat);
+    schedule.heatOrder.splice(heatIndex, 1);
+    delete schedule.heatStatuses[key];
+
+    if (heatIndex < schedule.currentHeatIndex) {
+      schedule.currentHeatIndex--;
+    } else if (heatIndex === schedule.currentHeatIndex && schedule.currentHeatIndex >= schedule.heatOrder.length) {
+      schedule.currentHeatIndex = Math.max(0, schedule.heatOrder.length - 1);
+    }
+
+    schedule.updatedAt = new Date().toISOString();
+    return dataService.saveSchedule(schedule);
   }
 
   jumpToHeat(competitionId: number, heatIndex: number): CompetitionSchedule | null {

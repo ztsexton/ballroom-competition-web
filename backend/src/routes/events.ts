@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
+import { Event } from '../types';
 
 const router = Router();
 
@@ -49,14 +50,69 @@ router.post('/', (req: Request, res: Response) => {
 // Update event
 router.patch('/:id', (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const updates = req.body;
-  
+  const existing = dataService.getEventById(id);
+  if (!existing) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+
+  const {
+    bibs,
+    judgeIds,
+    scoringType,
+    clearScores: confirmClear,
+    ...otherUpdates
+  } = req.body;
+
+  // Detect structural changes
+  const existingBibs = existing.heats[0]?.bibs || [];
+  const existingJudges = existing.heats[0]?.judges || [];
+  const existingScoringType = existing.scoringType || 'standard';
+
+  const bibsChanged = bibs !== undefined &&
+    JSON.stringify([...bibs].sort()) !== JSON.stringify([...existingBibs].sort());
+  const judgesChanged = judgeIds !== undefined &&
+    JSON.stringify([...judgeIds].sort()) !== JSON.stringify([...existingJudges].sort());
+  const scoringTypeChanged = scoringType !== undefined &&
+    scoringType !== existingScoringType;
+
+  const structuralChange = bibsChanged || judgesChanged || scoringTypeChanged;
+
+  // Check if scores exist
+  const hasExistingScores = existing.heats.some(heat =>
+    heat.bibs.some(bib => dataService.getScores(id, heat.round, bib).length > 0)
+  );
+
+  // If structural change + existing scores + no confirmation, return warning
+  if (structuralChange && hasExistingScores && !confirmClear) {
+    return res.status(409).json({
+      warning: true,
+      message: 'This change will clear all existing scores for this event.',
+      changes: { bibs: bibsChanged, judges: judgesChanged, scoringType: scoringTypeChanged },
+    });
+  }
+
+  // Build update payload
+  const updates: Partial<Omit<Event, 'id'>> = { ...otherUpdates };
+
+  if (structuralChange) {
+    if (hasExistingScores) {
+      dataService.clearAllEventScores(id);
+    }
+    const newBibs = bibs ?? existingBibs;
+    const newJudgeIds = judgeIds ?? existingJudges;
+    const newScoringType = scoringType ?? existingScoringType;
+
+    updates.heats = dataService.rebuildHeats(newBibs, newJudgeIds, newScoringType);
+    if (scoringType !== undefined) {
+      updates.scoringType = scoringType;
+    }
+  }
+
   const updatedEvent = dataService.updateEvent(id, updates);
-  
   if (!updatedEvent) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  
+
   res.json(updatedEvent);
 });
 

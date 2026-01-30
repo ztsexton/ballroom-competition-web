@@ -4,11 +4,9 @@ import { eventsApi, schedulesApi, competitionsApi } from '../api/client';
 import { Event, CompetitionSchedule, Competition, JudgeSettings } from '../types';
 import { useAuth } from '../context/AuthContext';
 
+import { DEFAULT_LEVELS } from '../constants/levels';
+
 const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
-const DEFAULT_LEVEL_ORDER = [
-  'Newcomer', 'Bronze', 'Silver', 'Gold',
-  'Novice', 'Pre-Championship', 'Championship',
-];
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +20,7 @@ const SchedulePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [styleOrder, setStyleOrder] = useState<string[]>(DEFAULT_STYLE_ORDER);
-  const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVEL_ORDER);
+  const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVELS);
   const [judgeSettings, setJudgeSettings] = useState<JudgeSettings>({ defaultCount: 3, levelOverrides: {} });
 
   // Drag-and-drop state
@@ -34,6 +32,12 @@ const SchedulePage = () => {
   const [suggestedPositions, setSuggestedPositions] = useState<Record<number, number>>({});
   const [customPositions, setCustomPositions] = useState<Record<number, number>>({});
 
+  // Break insertion state
+  const [showBreakForm, setShowBreakForm] = useState(false);
+  const [breakLabel, setBreakLabel] = useState('');
+  const [breakDuration, setBreakDuration] = useState<number | ''>('');
+  const [breakPosition, setBreakPosition] = useState<number>(0);
+
   const loadData = useCallback(async () => {
     if (!competitionId) return;
 
@@ -43,6 +47,9 @@ const SchedulePage = () => {
         eventsApi.getAll(competitionId),
       ]);
       setCompetition(compRes.data);
+      if (compRes.data.levels && compRes.data.levels.length > 0) {
+        setLevelOrder(compRes.data.levels);
+      }
       if (compRes.data.judgeSettings) {
         setJudgeSettings(compRes.data.judgeSettings);
       }
@@ -153,6 +160,35 @@ const SchedulePage = () => {
       setError('');
     } catch {
       setError('Failed to delete schedule');
+    }
+  };
+
+  const handleAddBreak = async () => {
+    if (!competitionId || !breakLabel.trim()) return;
+    try {
+      const res = await schedulesApi.addBreak(
+        competitionId,
+        breakLabel.trim(),
+        breakDuration || undefined,
+        breakPosition,
+      );
+      setSchedule(res.data);
+      setBreakLabel('');
+      setBreakDuration('');
+      setShowBreakForm(false);
+      setError('');
+    } catch {
+      setError('Failed to add break');
+    }
+  };
+
+  const handleRemoveBreak = async (heatIndex: number) => {
+    if (!competitionId) return;
+    try {
+      const res = await schedulesApi.removeBreak(competitionId, heatIndex);
+      setSchedule(res.data);
+    } catch {
+      setError('Failed to remove break');
     }
   };
 
@@ -468,10 +504,68 @@ const SchedulePage = () => {
               <button className="btn btn-secondary" onClick={handleRegenerate}>
                 Regenerate Schedule
               </button>
+              <button className="btn btn-secondary" onClick={() => {
+                if (schedule) setBreakPosition(schedule.heatOrder.length);
+                setShowBreakForm(!showBreakForm);
+              }}>
+                {showBreakForm ? 'Cancel Break' : 'Add Break'}
+              </button>
               <button className="btn btn-danger" onClick={handleDelete}>
                 Delete Schedule
               </button>
             </div>
+
+            {showBreakForm && schedule && (
+              <div style={{
+                background: '#f7fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginTop: '0.75rem',
+              }}>
+                <h4 style={{ marginBottom: '0.5rem', marginTop: 0 }}>Add Break</h4>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Label *</label>
+                    <input
+                      type="text"
+                      value={breakLabel}
+                      onChange={(e) => setBreakLabel(e.target.value)}
+                      placeholder="e.g. Lunch Break"
+                      style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Duration (min)</label>
+                    <input
+                      type="number"
+                      value={breakDuration}
+                      onChange={(e) => setBreakDuration(e.target.value ? parseInt(e.target.value) : '')}
+                      placeholder="Optional"
+                      min={1}
+                      style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Position</label>
+                    <select
+                      value={breakPosition}
+                      onChange={(e) => setBreakPosition(parseInt(e.target.value))}
+                      style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                    >
+                      {Array.from({ length: schedule.heatOrder.length + 1 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {i === 0 ? 'At the beginning' : i >= schedule.heatOrder.length ? 'At the end' : `Position ${i + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button className="btn" onClick={handleAddBreak} disabled={!breakLabel.trim()}>
+                    Insert Break
+                  </button>
+                </div>
+              </div>
+            )}
 
             <table style={{ marginTop: '1rem' }}>
               <thead>
@@ -488,8 +582,9 @@ const SchedulePage = () => {
               </thead>
               <tbody>
                 {schedule.heatOrder.map((scheduledHeat, idx) => {
-                  const event = getEventById(scheduledHeat.eventId);
-                  if (!event) return null;
+                  const isBreak = scheduledHeat.isBreak;
+                  const event = isBreak ? null : getEventById(scheduledHeat.eventId);
+                  if (!isBreak && !event) return null;
                   const heatKey = `${scheduledHeat.eventId}:${scheduledHeat.round}`;
                   const isCurrent = idx === schedule.currentHeatIndex;
                   const isDragging = dragIndex === idx;
@@ -502,21 +597,39 @@ const SchedulePage = () => {
                       onDragOver={(e) => handleDragOver(e, idx)}
                       onDragEnd={handleDragEnd}
                       style={{
-                        background: isDragOver ? '#e2e8f0' : isCurrent ? '#ebf8ff' : undefined,
+                        background: isBreak
+                          ? (isDragOver ? '#e2e8f0' : '#fefce8')
+                          : (isDragOver ? '#e2e8f0' : isCurrent ? '#ebf8ff' : undefined),
                         opacity: isDragging ? 0.4 : 1,
                         borderTop: isDragOver && dragIndex !== null && idx < dragIndex ? '2px solid #667eea' : undefined,
                         borderBottom: isDragOver && dragIndex !== null && idx > dragIndex ? '2px solid #667eea' : undefined,
                         transition: 'background 0.15s, opacity 0.15s',
+                        fontStyle: isBreak ? 'italic' : undefined,
                       }}
                     >
                       <td style={{ cursor: 'grab', textAlign: 'center', color: '#a0aec0', userSelect: 'none' }}>
                         ☰
                       </td>
                       <td><strong>{idx + 1}</strong></td>
-                      <td>{event.name}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{scheduledHeat.round}</td>
-                      <td>{event.style || '—'}</td>
-                      <td>{event.level || '—'}</td>
+                      {isBreak ? (
+                        <td colSpan={4}>
+                          <span>
+                            {scheduledHeat.breakLabel || 'Break'}
+                            {scheduledHeat.breakDuration && (
+                              <span style={{ color: '#a0aec0', marginLeft: '0.5rem' }}>
+                                ({scheduledHeat.breakDuration} min)
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                      ) : (
+                        <>
+                          <td>{event!.name}</td>
+                          <td style={{ textTransform: 'capitalize' }}>{scheduledHeat.round}</td>
+                          <td>{event!.style || '\u2014'}</td>
+                          <td>{event!.level || '\u2014'}</td>
+                        </>
+                      )}
                       <td>{statusBadge(schedule.heatStatuses[heatKey] || 'pending')}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -534,6 +647,15 @@ const SchedulePage = () => {
                           >
                             ▼
                           </button>
+                          {isBreak && (
+                            <button
+                              onClick={() => handleRemoveBreak(idx)}
+                              style={{ padding: '0.125rem 0.375rem', color: '#e53e3e', cursor: 'pointer' }}
+                              title="Remove break"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

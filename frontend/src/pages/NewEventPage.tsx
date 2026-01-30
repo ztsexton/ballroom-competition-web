@@ -5,6 +5,7 @@ import { eventsApi, couplesApi, judgesApi } from '../api/client';
 import { Couple, Judge } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
+import { DEFAULT_LEVELS } from '../constants/levels';
 
 const NewEventPage = () => {
   const navigate = useNavigate();
@@ -285,7 +286,7 @@ const NewEventPage = () => {
             <div className="form-group">
               <label>Level</label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {['Newcomer', 'Bronze', 'Silver', 'Gold', 'Novice', 'Pre-Championship', 'Championship'].map(option => (
+                {(activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS).map(option => (
                   <button
                     key={option}
                     type="button"

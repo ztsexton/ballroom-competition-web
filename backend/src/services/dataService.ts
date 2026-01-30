@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Competition, Studio, User, CompetitionSchedule } from '../types';
+import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, CompetitionSchedule } from '../types';
 
 const DATA_DIR = process.env.NODE_ENV === 'test'
   ? path.join(__dirname, '../../data-test')
@@ -595,6 +595,30 @@ class DataService {
       delete this.data.judgeScores[key];
     });
     this.saveEvents();
+  }
+
+  clearAllEventScores(eventId: number): void {
+    const event = this.data.events[eventId];
+    if (!event) return;
+    for (const heat of event.heats) {
+      for (const bib of heat.bibs) {
+        const key = this.getScoreKey(eventId, heat.round, bib);
+        delete this.data.scores[key];
+        delete this.data.judgeScores[key];
+      }
+    }
+    this.saveEvents();
+  }
+
+  rebuildHeats(bibs: number[], judgeIds: number[], scoringType: 'standard' | 'proficiency'): Heat[] {
+    const rounds = scoringType === 'proficiency'
+      ? ['final']
+      : this.determineRounds(bibs.length);
+    return rounds.map((round, index) => ({
+      round,
+      bibs: index === 0 ? bibs : [],
+      judges: judgeIds,
+    }));
   }
 
   getJudgeSubmissionStatus(eventId: number, round: string): Record<number, boolean> {

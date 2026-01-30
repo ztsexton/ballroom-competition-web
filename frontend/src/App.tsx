@@ -19,6 +19,9 @@ import UsersPage from './pages/UsersPage';
 import SchedulePage from './pages/SchedulePage';
 import RunCompetitionPage from './pages/RunCompetitionPage';
 import JudgeScoringPage from './pages/JudgeScoringPage';
+import EditEventPage from './pages/EditEventPage';
+import OnDeckPage from './pages/OnDeckPage';
+import LiveCompetitionPage from './pages/LiveCompetitionPage';
 import './App.css';
 
 const App = () => {
@@ -43,6 +46,7 @@ const App = () => {
                     <Route path="/events" element={<EventsPage />} />
 
                     <Route path="/events/new" element={<NewEventPage />} />
+                    <Route path="/events/:id/edit" element={<EditEventPage />} />
                     <Route path="/events/:id" element={<ResultsPage />} />
                     <Route path="/events/:id/score" element={<ScoreEventPage />} />
                     <Route path="/events/:id/score/:round" element={<ScoreEventPage />} />
@@ -51,6 +55,8 @@ const App = () => {
                     <Route path="/competitions/:id/schedule" element={<SchedulePage />} />
                     <Route path="/competitions/:id/run" element={<RunCompetitionPage />} />
                     <Route path="/competitions/:id/judge" element={<JudgeScoringPage />} />
+                    <Route path="/competitions/:id/ondeck" element={<OnDeckPage />} />
+                    <Route path="/competitions/:id/live" element={<LiveCompetitionPage />} />
                     <Route path="/studios" element={<StudioPage />} />
                     <Route path="/users" element={<UsersPage />} />
                   </Routes>

@@ -130,6 +130,10 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/insert`, { eventId, position }),
   delete: (competitionId: number) =>
     api.delete(`/schedules/${competitionId}`),
+  addBreak: (competitionId: number, label: string, duration?: number, position?: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/break`, { label, duration, position }),
+  removeBreak: (competitionId: number, heatIndex: number) =>
+    api.delete<CompetitionSchedule>(`/schedules/${competitionId}/break/${heatIndex}`),
 };
 
 // Judging API (non-admin, for judges and SSE)
@@ -149,6 +153,14 @@ export const judgingApi = {
   }),
   getJudges: (competitionId: number) =>
     api.get<Judge[]>(`/judging/competition/${competitionId}/judges`),
+  getSchedule: (competitionId: number) =>
+    api.get<CompetitionSchedule>(`/judging/competition/${competitionId}/schedule`),
+  getEvents: (competitionId: number) =>
+    api.get<Record<number, Event>>(`/judging/competition/${competitionId}/events`),
+  getCouples: (competitionId: number) =>
+    api.get<Couple[]>(`/judging/competition/${competitionId}/couples`),
+  getCompetition: (competitionId: number) =>
+    api.get<Competition>(`/judging/competition/${competitionId}/competition`),
 };
 
 // Users API

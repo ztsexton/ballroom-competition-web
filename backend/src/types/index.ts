@@ -22,6 +22,7 @@ export interface Competition {
   description?: string;
   judgeSettings?: JudgeSettings;
   defaultScoringType?: 'standard' | 'proficiency';
+  levels?: string[];
   createdAt: string;
 }
 
@@ -104,6 +105,9 @@ export type EventRunStatus = 'pending' | 'announced' | 'scoring' | 'completed';
 export interface ScheduledHeat {
   eventId: number;
   round: string;
+  isBreak?: boolean;
+  breakLabel?: string;
+  breakDuration?: number;
 }
 
 export interface CompetitionSchedule {
@@ -130,6 +134,9 @@ export interface ActiveHeatInfo {
   style?: string;
   level?: string;
   dances?: string[];
+  isBreak?: boolean;
+  breakLabel?: string;
+  breakDuration?: number;
 }
 
 export interface ScoringProgress {

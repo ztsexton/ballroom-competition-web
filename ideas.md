@@ -25,4 +25,8 @@ Can enter 2 profiency levels (ex. Bronze 4 and Silver 1)
 
 Proficiency
 
-- 
+## Need to have
+
+- Need to have a real time event viewer (MC view, deck captain view, compoetitor up next view)
+
+- Identify when someone is dancing back to back. If it's a student, we should minimize the times they're dancing back to back in events/heats. If it's a pro, it's okay because they'll back dancing a ton and with multiple students, but if possible, minimize that. 

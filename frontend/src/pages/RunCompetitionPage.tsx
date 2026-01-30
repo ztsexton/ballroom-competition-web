@@ -232,7 +232,8 @@ const RunCompetitionPage = () => {
   }
 
   const currentScheduledHeat = schedule.heatOrder[schedule.currentHeatIndex];
-  const currentEvent = currentScheduledHeat ? events[currentScheduledHeat.eventId] : undefined;
+  const isCurrentBreak = currentScheduledHeat?.isBreak === true;
+  const currentEvent = currentScheduledHeat && !isCurrentBreak ? events[currentScheduledHeat.eventId] : undefined;
   const currentRound = currentScheduledHeat?.round || '';
   const heatKey = currentScheduledHeat ? `${currentScheduledHeat.eventId}:${currentScheduledHeat.round}` : '';
   const currentStatus = heatKey ? (schedule.heatStatuses[heatKey] || 'pending') : 'pending';
@@ -320,6 +321,37 @@ const RunCompetitionPage = () => {
               <button className="btn" onClick={() => navigate(`/competitions/${competitionId}/schedule`)} style={{ marginTop: '1rem' }}>
                 Back to Schedule
               </button>
+            </div>
+          ) : isCurrentBreak ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+              <h2 style={{ marginBottom: '0.5rem' }}>
+                {currentScheduledHeat?.breakLabel || 'Break'}
+              </h2>
+              {currentScheduledHeat?.breakDuration && (
+                <p style={{ color: '#718096', fontSize: '1.125rem', marginBottom: '1rem' }}>
+                  Duration: {currentScheduledHeat.breakDuration} minutes
+                </p>
+              )}
+              <p style={{ color: '#a0aec0', marginBottom: '1.5rem' }}>
+                {currentStatus === 'completed' ? 'Break completed' : 'Break in progress'}
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                <button className="btn btn-secondary" onClick={handleBack}
+                  disabled={schedule.currentHeatIndex === 0 && currentStatus === 'pending'}>
+                  Back
+                </button>
+                {currentStatus !== 'completed' ? (
+                  <button className="btn btn-success" onClick={handleAdvance}
+                    style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                    End Break
+                  </button>
+                ) : schedule.currentHeatIndex < totalCount - 1 ? (
+                  <button className="btn btn-success" onClick={handleAdvance}
+                    style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                    Next Heat
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : currentEvent ? (
             <div className="card">
@@ -478,9 +510,9 @@ const RunCompetitionPage = () => {
             <div className="card">
               <h3>Up Next</h3>
               {upcomingHeats.map((scheduledHeat, idx) => {
-                const event = events[scheduledHeat.eventId];
-                if (!event) return null;
-                const heatCouples = getCouplesForHeat(event, scheduledHeat.round);
+                const isBreak = scheduledHeat.isBreak;
+                const event = isBreak ? null : events[scheduledHeat.eventId];
+                if (!isBreak && !event) return null;
                 return (
                   <div key={`${scheduledHeat.eventId}:${scheduledHeat.round}`} style={{
                     padding: '0.5rem 0',
@@ -490,14 +522,22 @@ const RunCompetitionPage = () => {
                     alignItems: 'center',
                   }}>
                     <div>
-                      <strong>{event.name}</strong>
+                      <strong style={{ fontStyle: isBreak ? 'italic' : undefined }}>
+                        {isBreak ? (scheduledHeat.breakLabel || 'Break') : event!.name}
+                      </strong>
                       <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0, textTransform: 'capitalize' }}>
-                        {scheduledHeat.round} | {[event.style, event.level].filter(Boolean).join(' - ') || 'No details'}
+                        {isBreak
+                          ? (scheduledHeat.breakDuration ? `${scheduledHeat.breakDuration} min` : 'Break')
+                          : `${scheduledHeat.round} | ${[event!.style, event!.level].filter(Boolean).join(' - ') || 'No details'}`}
                       </p>
                     </div>
-                    <span style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
-                      {heatCouples.length > 0 ? `${heatCouples.length} couples` : 'TBD'}
-                    </span>
+                    {!isBreak && (
+                      <span style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
+                        {getCouplesForHeat(event!, scheduledHeat.round).length > 0
+                          ? `${getCouplesForHeat(event!, scheduledHeat.round).length} couples`
+                          : 'TBD'}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -509,8 +549,9 @@ const RunCompetitionPage = () => {
         <div className="card" style={{ alignSelf: 'start', maxHeight: '80vh', overflowY: 'auto' }}>
           <h3 style={{ marginBottom: '0.75rem' }}>All Heats</h3>
           {schedule.heatOrder.map((scheduledHeat, idx) => {
-            const event = events[scheduledHeat.eventId];
-            if (!event) return null;
+            const isBreak = scheduledHeat.isBreak;
+            const event = isBreak ? null : events[scheduledHeat.eventId];
+            if (!isBreak && !event) return null;
             const key = `${scheduledHeat.eventId}:${scheduledHeat.round}`;
             const status = schedule.heatStatuses[key] || 'pending';
             const isCurrent = idx === schedule.currentHeatIndex;
@@ -524,12 +565,12 @@ const RunCompetitionPage = () => {
                   marginBottom: '0.25rem',
                   borderRadius: '4px',
                   cursor: 'pointer',
-                  background: isCurrent ? '#ebf8ff' : 'transparent',
+                  background: isCurrent ? '#ebf8ff' : isBreak ? '#fefce8' : 'transparent',
                   border: isCurrent ? '1px solid #90cdf4' : '1px solid transparent',
                   transition: 'background 0.15s',
                 }}
-                onMouseOver={(e) => { if (!isCurrent) e.currentTarget.style.background = '#f7fafc'; }}
-                onMouseOut={(e) => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+                onMouseOver={(e) => { if (!isCurrent) e.currentTarget.style.background = isBreak ? '#fef9c3' : '#f7fafc'; }}
+                onMouseOut={(e) => { if (!isCurrent) e.currentTarget.style.background = isCurrent ? '#ebf8ff' : isBreak ? '#fefce8' : 'transparent'; }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ color: statusColor(status) === '#c6f6d5' ? '#276749' : '#718096' }}>
@@ -541,9 +582,9 @@ const RunCompetitionPage = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    textTransform: 'capitalize',
+                    fontStyle: isBreak ? 'italic' : undefined,
                   }}>
-                    {idx + 1}. {event.name} ({scheduledHeat.round})
+                    {idx + 1}. {isBreak ? (scheduledHeat.breakLabel || 'Break') : `${event!.name} (${scheduledHeat.round})`}
                   </span>
                 </div>
               </div>
