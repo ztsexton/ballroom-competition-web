@@ -12,6 +12,7 @@ import couplesRoutes from './routes/couples';
 import judgesRoutes from './routes/judges';
 import eventsRoutes from './routes/events';
 import schedulesRoutes from './routes/schedules';
+import invoicesRoutes from './routes/invoices';
 import usersRoutes from './routes/users';
 import judgingRoutes from './routes/judging';
 
@@ -44,6 +45,7 @@ app.use('/api/couples', requireAdmin, couplesRoutes);
 app.use('/api/judges', requireAdmin, judgesRoutes);
 app.use('/api/events', requireAdmin, eventsRoutes);
 app.use('/api/schedules', requireAdmin, schedulesRoutes);
+app.use('/api/invoices', requireAdmin, invoicesRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

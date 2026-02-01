@@ -26,7 +26,7 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Create a new event
 router.post('/', (req: Request, res: Response) => {
-  const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType } = req.body;
+  const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship } = req.body;
 
   if (!name || !bibs || !Array.isArray(bibs) || !competitionId) {
     return res.status(400).json({ error: 'Name, bibs array, and competition ID are required' });
@@ -42,7 +42,8 @@ router.post('/', (req: Request, res: Response) => {
     level,
     style,
     dances,
-    scoringType
+    scoringType,
+    isScholarship
   );
   res.status(201).json(newEvent);
 });

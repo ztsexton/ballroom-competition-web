@@ -23,6 +23,7 @@ import SchedulePage from './pages/SchedulePage';
 import RunCompetitionPage from './pages/RunCompetitionPage';
 import JudgeScoringPage from './pages/JudgeScoringPage';
 import EditEventPage from './pages/EditEventPage';
+import InvoicesPage from './pages/InvoicesPage';
 import OnDeckPage from './pages/OnDeckPage';
 import LiveCompetitionPage from './pages/LiveCompetitionPage';
 import './App.css';
@@ -48,6 +49,7 @@ const App = () => {
                       <Route index element={<CompetitionDetailsPage />} />
                       <Route path="participants" element={<CompetitionEntriesPage />} />
                       <Route path="events" element={<EventsPage />} />
+                      <Route path="invoices" element={<InvoicesPage />} />
                       <Route path="schedule" element={<SchedulePage />} />
                       <Route path="run" element={<RunCompetitionPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />

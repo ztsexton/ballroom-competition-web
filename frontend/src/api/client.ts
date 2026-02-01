@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress, InvoiceSummary, EntryPayment } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -93,9 +93,10 @@ export const eventsApi = {
     level?: string,
     style?: string,
     dances?: string[],
-    scoringType?: 'standard' | 'proficiency'
+    scoringType?: 'standard' | 'proficiency',
+    isScholarship?: boolean
   ) =>
-    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType }),
+    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship }),
   update: (id: number, updates: Partial<Omit<Event, 'id'>>) =>
     api.patch<Event>(`/events/${id}`, updates),
   delete: (id: number) => api.delete(`/events/${id}`),
@@ -169,6 +170,19 @@ export const usersApi = {
   getMe: () => api.get<User>('/users/me'),
   updateAdmin: (uid: string, isAdmin: boolean) =>
     api.patch<User>(`/users/${uid}/admin`, { isAdmin }),
+};
+
+// Invoices API
+export const invoicesApi = {
+  getSummary: (competitionId: number) =>
+    api.get<InvoiceSummary>(`/invoices/${competitionId}`),
+  updatePayment: (
+    competitionId: number,
+    entries: Array<{ eventId: number; bib: number }>,
+    paid: boolean,
+    paidBy?: number,
+    notes?: string
+  ) => api.patch<Record<string, EntryPayment>>(`/invoices/${competitionId}/payments`, { entries, paid, paidBy, notes }),
 };
 
 export default api;

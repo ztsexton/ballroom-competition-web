@@ -28,6 +28,7 @@ const NewEventPage = () => {
   const [scoringType, setScoringType] = useState<'standard' | 'proficiency'>(
     activeCompetition?.defaultScoringType || 'standard'
   );
+  const [isScholarship, setIsScholarship] = useState(false);
 
   useEffect(() => {
     if (activeCompetition) {
@@ -129,7 +130,8 @@ const NewEventPage = () => {
         level || undefined,
         style || undefined,
         selectedDances.length > 0 ? selectedDances : undefined,
-        scoringType
+        scoringType,
+        isScholarship || undefined
       );
       navigate(`/events/${response.data.id}`);
     } catch (error: any) {
@@ -231,6 +233,26 @@ const NewEventPage = () => {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="form-group">
+              <label>Scholarship Event</label>
+              <button
+                type="button"
+                onClick={() => setIsScholarship(!isScholarship)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: isScholarship ? '2px solid #d69e2e' : '1px solid #cbd5e0',
+                  borderRadius: '4px',
+                  background: isScholarship ? '#d69e2e' : 'white',
+                  color: isScholarship ? 'white' : '#2d3748',
+                  cursor: 'pointer',
+                  fontWeight: isScholarship ? 'bold' : 'normal',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {isScholarship ? 'Scholarship' : 'Not Scholarship'}
+              </button>
             </div>
 
             <div className="form-group">

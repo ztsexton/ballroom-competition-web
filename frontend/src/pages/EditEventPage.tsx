@@ -29,6 +29,7 @@ const EditEventPage = () => {
   const [selectedJudges, setSelectedJudges] = useState<number[]>([]);
   const [coupleSearch, setCoupleSearch] = useState('');
   const [scoringType, setScoringType] = useState<'standard' | 'proficiency'>('standard');
+  const [isScholarship, setIsScholarship] = useState(false);
 
   useEffect(() => {
     if (activeCompetition && id) {
@@ -59,6 +60,7 @@ const EditEventPage = () => {
       setStyle(evt.style || '');
       setSelectedDances(evt.dances || []);
       setScoringType(evt.scoringType || 'standard');
+      setIsScholarship(evt.isScholarship || false);
       setSelectedBibs(evt.heats[0]?.bibs || []);
       setSelectedJudges(evt.heats[0]?.judges || []);
     } catch {
@@ -129,6 +131,7 @@ const EditEventPage = () => {
       bibs: selectedBibs,
       judgeIds: selectedJudges,
       scoringType,
+      isScholarship,
     };
 
     if (forceOverwrite) {
@@ -208,6 +211,26 @@ const EditEventPage = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Scholarship Event</label>
+            <button
+              type="button"
+              onClick={() => setIsScholarship(!isScholarship)}
+              style={{
+                padding: '0.5rem 1rem',
+                border: isScholarship ? '2px solid #d69e2e' : '1px solid #cbd5e0',
+                borderRadius: '4px',
+                background: isScholarship ? '#d69e2e' : 'white',
+                color: isScholarship ? 'white' : '#2d3748',
+                cursor: 'pointer',
+                fontWeight: isScholarship ? 'bold' : 'normal',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isScholarship ? 'Scholarship' : 'Not Scholarship'}
+            </button>
           </div>
 
           <div className="form-group">

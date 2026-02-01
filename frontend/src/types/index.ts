@@ -12,6 +12,30 @@ export interface JudgeSettings {
   levelOverrides: Record<string, number>;
 }
 
+export interface PricingTier {
+  minEntries: number;
+  pricePerEntry: number;
+}
+
+export interface MultiDancePricing {
+  mode: 'flat' | 'per-dance-count';
+  flatTiers?: PricingTier[];
+  perDanceCountTiers?: Record<string, PricingTier[]>;
+}
+
+export interface CompetitionPricing {
+  singleDance: PricingTier[];
+  multiDance: MultiDancePricing;
+  scholarship: PricingTier[];
+}
+
+export interface EntryPayment {
+  paid: boolean;
+  paidBy?: number;
+  paidAt?: string;
+  notes?: string;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -23,6 +47,8 @@ export interface Competition {
   judgeSettings?: JudgeSettings;
   defaultScoringType?: 'standard' | 'proficiency';
   levels?: string[];
+  pricing?: CompetitionPricing;
+  entryPayments?: Record<string, EntryPayment>;
   createdAt: string;
 }
 
@@ -70,6 +96,44 @@ export interface Event {
   heats: Heat[];
   competitionId: number;
   scoringType?: 'standard' | 'proficiency';
+  isScholarship?: boolean;
+}
+
+export interface InvoiceLineItem {
+  eventId: number;
+  eventName: string;
+  category: 'single' | 'multi' | 'scholarship';
+  danceCount: number;
+  pricePerEntry: number;
+  bib: number;
+  partnerName: string;
+  paid: boolean;
+}
+
+export interface PartnershipGroup {
+  bib: number;
+  partnerId: number;
+  partnerName: string;
+  lineItems: InvoiceLineItem[];
+  subtotal: number;
+  paidAmount: number;
+}
+
+export interface PersonInvoice {
+  personId: number;
+  personName: string;
+  personStatus: 'student' | 'professional';
+  partnerships: PartnershipGroup[];
+  totalAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+}
+
+export interface InvoiceSummary {
+  totalRevenue: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  invoices: PersonInvoice[];
 }
 
 export interface EventResult {

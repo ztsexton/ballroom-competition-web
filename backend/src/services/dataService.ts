@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, CompetitionSchedule } from '../types';
+import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, CompetitionSchedule, EntryPayment } from '../types';
 
 const DATA_DIR = process.env.NODE_ENV === 'test'
   ? path.join(__dirname, '../../data-test')
@@ -264,6 +264,42 @@ class DataService {
     return competition;
   }
 
+  getEntryPayments(competitionId: number): Record<string, EntryPayment> {
+    const competition = this.getCompetitionById(competitionId);
+    return competition?.entryPayments || {};
+  }
+
+  updateEntryPayments(
+    competitionId: number,
+    entries: Array<{ eventId: number; bib: number }>,
+    updates: { paid: boolean; paidBy?: number; notes?: string }
+  ): Record<string, EntryPayment> | null {
+    const competition = this.data.competitions.find(c => c.id === competitionId);
+    if (!competition) return null;
+    if (!competition.entryPayments) {
+      competition.entryPayments = {};
+    }
+    const result: Record<string, EntryPayment> = {};
+    for (const { eventId, bib } of entries) {
+      const key = `${eventId}:${bib}`;
+      const existing = competition.entryPayments[key] || { paid: false };
+      existing.paid = updates.paid;
+      if (updates.paidBy !== undefined) existing.paidBy = updates.paidBy;
+      if (updates.notes !== undefined) existing.notes = updates.notes;
+      if (existing.paid && !existing.paidAt) {
+        existing.paidAt = new Date().toISOString();
+      }
+      if (!existing.paid) {
+        delete existing.paidAt;
+        delete existing.paidBy;
+      }
+      competition.entryPayments[key] = existing;
+      result[key] = existing;
+    }
+    this.saveCompetitions();
+    return result;
+  }
+
   deleteCompetition(id: number): boolean {
     const initialLength = this.data.competitions.length;
     this.data.competitions = this.data.competitions.filter(c => c.id !== id);
@@ -479,7 +515,8 @@ class DataService {
     level?: string,
     style?: string,
     dances?: string[],
-    scoringType?: 'standard' | 'proficiency'
+    scoringType?: 'standard' | 'proficiency',
+    isScholarship?: boolean
   ): Event {
     const rounds = scoringType === 'proficiency'
       ? ['final']
@@ -501,6 +538,7 @@ class DataService {
       heats,
       competitionId,
       scoringType,
+      isScholarship,
     };
     this.data.events[newEvent.id] = newEvent;
     this.saveEvents();
