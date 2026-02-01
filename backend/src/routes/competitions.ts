@@ -4,9 +4,9 @@ import { dataService } from '../services/dataService';
 const router = Router();
 
 // Get all competitions
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const competitions = dataService.getCompetitions();
+    const competitions = await dataService.getCompetitions();
     res.json(competitions);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch competitions' });
@@ -14,10 +14,10 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // Get a specific competition
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const competition = dataService.getCompetitionById(id);
+    const competition = await dataService.getCompetitionById(id);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
     }
@@ -28,7 +28,7 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 // Create a new competition
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { name, type, date, location, studioId, description, defaultScoringType, levels } = req.body;
 
@@ -47,7 +47,7 @@ router.post('/', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Studio ID is required for studio competitions' });
     }
 
-    const competition = dataService.addCompetition({
+    const competition = await dataService.addCompetition({
       name,
       type,
       date,
@@ -57,7 +57,7 @@ router.post('/', (req: Request, res: Response) => {
       defaultScoringType,
       levels,
     });
-    
+
     res.status(201).json(competition);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create competition' });
@@ -65,16 +65,16 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // Update a competition
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const updates = req.body;
-    
-    const competition = dataService.updateCompetition(id, updates);
+
+    const competition = await dataService.updateCompetition(id, updates);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
     }
-    
+
     res.json(competition);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update competition' });
@@ -82,10 +82,10 @@ router.put('/:id', (req: Request, res: Response) => {
 });
 
 // Delete a competition
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const success = dataService.deleteCompetition(id);
+    const success = await dataService.deleteCompetition(id);
     if (!success) {
       return res.status(404).json({ error: 'Competition not found' });
     }

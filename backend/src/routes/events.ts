@@ -6,33 +6,33 @@ import { Event } from '../types';
 const router = Router();
 
 // Get all events (optionally filtered by competition)
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
-  const events = dataService.getEvents(competitionId);
+  const events = await dataService.getEvents(competitionId);
   res.json(events);
 });
 
 // Get event by ID
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const event = dataService.getEventById(id);
-  
+  const event = await dataService.getEventById(id);
+
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  
+
   res.json(event);
 });
 
 // Create a new event
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship } = req.body;
 
   if (!name || !bibs || !Array.isArray(bibs) || !competitionId) {
     return res.status(400).json({ error: 'Name, bibs array, and competition ID are required' });
   }
 
-  const newEvent = dataService.addEvent(
+  const newEvent = await dataService.addEvent(
     name,
     bibs,
     judgeIds || [],
@@ -49,9 +49,9 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // Update event
-router.patch('/:id', (req: Request, res: Response) => {
+router.patch('/:id', async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const existing = dataService.getEventById(id);
+  const existing = await dataService.getEventById(id);
   if (!existing) {
     return res.status(404).json({ error: 'Event not found' });
   }
@@ -79,9 +79,17 @@ router.patch('/:id', (req: Request, res: Response) => {
   const structuralChange = bibsChanged || judgesChanged || scoringTypeChanged;
 
   // Check if scores exist
-  const hasExistingScores = existing.heats.some(heat =>
-    heat.bibs.some(bib => dataService.getScores(id, heat.round, bib).length > 0)
-  );
+  let hasExistingScores = false;
+  for (const heat of existing.heats) {
+    for (const bib of heat.bibs) {
+      const scores = await dataService.getScores(id, heat.round, bib);
+      if (scores.length > 0) {
+        hasExistingScores = true;
+        break;
+      }
+    }
+    if (hasExistingScores) break;
+  }
 
   // If structural change + existing scores + no confirmation, return warning
   if (structuralChange && hasExistingScores && !confirmClear) {
@@ -97,7 +105,7 @@ router.patch('/:id', (req: Request, res: Response) => {
 
   if (structuralChange) {
     if (hasExistingScores) {
-      dataService.clearAllEventScores(id);
+      await dataService.clearAllEventScores(id);
     }
     const newBibs = bibs ?? existingBibs;
     const newJudgeIds = judgeIds ?? existingJudges;
@@ -109,7 +117,7 @@ router.patch('/:id', (req: Request, res: Response) => {
     }
   }
 
-  const updatedEvent = dataService.updateEvent(id, updates);
+  const updatedEvent = await dataService.updateEvent(id, updates);
   if (!updatedEvent) {
     return res.status(404).json({ error: 'Event not found' });
   }
@@ -118,56 +126,56 @@ router.patch('/:id', (req: Request, res: Response) => {
 });
 
 // Delete event
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const deleted = dataService.deleteEvent(id);
-  
+  const deleted = await dataService.deleteEvent(id);
+
   if (!deleted) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  
+
   res.status(204).send();
 });
 
 // Get results for a specific round
-router.get('/:id/results/:round', (req: Request, res: Response) => {
+router.get('/:id/results/:round', async (req: Request, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
-  
-  const event = dataService.getEventById(eventId);
+
+  const event = await dataService.getEventById(eventId);
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  
-  const results = scoringService.calculateResults(eventId, round);
+
+  const results = await scoringService.calculateResults(eventId, round);
   res.json(results);
 });
 
 // Submit scores for a round
-router.post('/:id/scores/:round', (req: Request, res: Response) => {
+router.post('/:id/scores/:round', async (req: Request, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
   const { scores } = req.body;
-  
+
   if (!scores || !Array.isArray(scores)) {
     return res.status(400).json({ error: 'Scores array is required' });
   }
-  
-  const success = scoringService.scoreEvent(eventId, round, scores);
-  
+
+  const success = await scoringService.scoreEvent(eventId, round, scores);
+
   if (!success) {
     return res.status(400).json({ error: 'Failed to score event' });
   }
-  
+
   res.json({ message: 'Scores submitted successfully' });
 });
 
 // Clear scores for a round
-router.delete('/:id/scores/:round', (req: Request, res: Response) => {
+router.delete('/:id/scores/:round', async (req: Request, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
-  
-  dataService.clearScores(eventId, round);
+
+  await dataService.clearScores(eventId, round);
   res.json({ message: 'Scores cleared successfully' });
 });
 

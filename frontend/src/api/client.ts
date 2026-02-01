@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress, InvoiceSummary, EntryPayment } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress, InvoiceSummary, EntryPayment, MindbodyClient } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -125,6 +125,10 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/back`),
   jump: (competitionId: number, heatIndex: number) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/jump`, { heatIndex }),
+  reset: (competitionId: number, heatIndex: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/reset`, { heatIndex }),
+  rerun: (competitionId: number, heatIndex: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/rerun`, { heatIndex }),
   suggestPosition: (competitionId: number, eventId: number) =>
     api.get<{ position: number }>(`/schedules/${competitionId}/suggest/${eventId}`),
   insert: (competitionId: number, eventId: number, position: number) =>
@@ -187,6 +191,18 @@ export const invoicesApi = {
     api.get(`/invoices/${competitionId}/pdf/${personId}`, { responseType: 'blob' }),
   emailInvoice: (competitionId: number, personId: number) =>
     api.post<{ success: boolean; sentTo: string }>(`/invoices/${competitionId}/email/${personId}`),
+};
+
+// MindBody API
+export const mindbodyApi = {
+  connect: (studioId: number, siteId: string, username: string, password: string) =>
+    api.post<{ connected: boolean; siteId: string }>(`/mindbody/studios/${studioId}/connect`, { siteId, username, password }),
+  disconnect: (studioId: number) =>
+    api.delete<{ disconnected: boolean }>(`/mindbody/studios/${studioId}/disconnect`),
+  getClients: (studioId: number, params?: { searchText?: string; limit?: number; offset?: number }) =>
+    api.get<{ clients: MindbodyClient[]; total: number }>(`/mindbody/studios/${studioId}/clients`, { params }),
+  importClients: (studioId: number, competitionId: number, clients: Array<{ id: string; firstName: string; lastName: string; email?: string; role: string; status: string }>) =>
+    api.post<{ imported: number; people: Person[] }>(`/mindbody/studios/${studioId}/import`, { competitionId, clients }),
 };
 
 export default api;

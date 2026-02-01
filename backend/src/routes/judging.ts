@@ -7,10 +7,10 @@ import { ActiveHeatInfo, ScoringProgress } from '../types';
 const router = Router();
 
 // GET /api/judging/competition/:competitionId/active-heat
-router.get('/competition/:competitionId/active-heat', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/active-heat', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = dataService.getSchedule(competitionId);
+    const schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
@@ -32,25 +32,27 @@ router.get('/competition/:competitionId/active-heat', (req: Request, res: Respon
         isBreak: true,
         breakLabel: currentHeat.breakLabel,
         breakDuration: currentHeat.breakDuration,
+        heatNumber: schedule.currentHeatIndex + 1,
+        totalHeats: schedule.heatOrder.length,
       };
       return res.json(info);
     }
 
-    const event = dataService.getEventById(currentHeat.eventId);
+    const event = await dataService.getEventById(currentHeat.eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
     const heat = event.heats.find(h => h.round === currentHeat.round);
     if (!heat) return res.status(404).json({ error: 'Heat not found' });
 
-    const couples = heat.bibs.map(bib => {
-      const couple = dataService.getCoupleByBib(bib);
+    const couples = heat.bibs.map(async bib => {
+      const couple = await dataService.getCoupleByBib(bib);
       return couple
         ? { bib, leaderName: couple.leaderName, followerName: couple.followerName }
         : { bib, leaderName: 'Unknown', followerName: 'Unknown' };
     });
 
-    const judges = heat.judges.map(jId => {
-      const judge = dataService.getJudgeById(jId);
+    const judges = heat.judges.map(async jId => {
+      const judge = await dataService.getJudgeById(jId);
       return judge
         ? { id: judge.id, name: judge.name, judgeNumber: judge.judgeNumber }
         : { id: jId, name: 'Unknown', judgeNumber: 0 };
@@ -62,13 +64,15 @@ router.get('/competition/:competitionId/active-heat', (req: Request, res: Respon
       eventName: event.name,
       round: currentHeat.round,
       status,
-      couples,
-      judges,
+      couples: await Promise.all(couples),
+      judges: await Promise.all(judges),
       isRecallRound: ['quarter-final', 'semi-final'].includes(currentHeat.round),
       scoringType: event.scoringType || 'standard',
       style: event.style,
       level: event.level,
       dances: event.dances,
+      heatNumber: schedule.currentHeatIndex + 1,
+      totalHeats: schedule.heatOrder.length,
     };
 
     res.json(info);
@@ -78,10 +82,10 @@ router.get('/competition/:competitionId/active-heat', (req: Request, res: Respon
 });
 
 // GET /api/judging/competition/:competitionId/scoring-progress
-router.get('/competition/:competitionId/scoring-progress', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/scoring-progress', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = dataService.getSchedule(competitionId);
+    const schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
@@ -91,27 +95,27 @@ router.get('/competition/:competitionId/scoring-progress', (req: Request, res: R
       return res.status(400).json({ error: 'Current heat is a break, no scoring progress' });
     }
 
-    const event = dataService.getEventById(currentHeat.eventId);
+    const event = await dataService.getEventById(currentHeat.eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
     const heat = event.heats.find(h => h.round === currentHeat.round);
     if (!heat) return res.status(404).json({ error: 'Heat not found' });
 
-    const submissionStatus = dataService.getJudgeSubmissionStatus(currentHeat.eventId, currentHeat.round);
+    const submissionStatus = await dataService.getJudgeSubmissionStatus(currentHeat.eventId, currentHeat.round);
 
-    const judgesList = heat.judges.map(jId => {
-      const judge = dataService.getJudgeById(jId);
+    const judgesList = await Promise.all(heat.judges.map(async jId => {
+      const judge = await dataService.getJudgeById(jId);
       return {
         judgeId: jId,
         judgeName: judge?.name || 'Unknown',
         judgeNumber: judge?.judgeNumber || 0,
         hasSubmitted: submissionStatus[jId] || false,
       };
-    });
+    }));
 
     const scoresByBib: Record<number, Record<number, number>> = {};
     for (const bib of heat.bibs) {
-      scoresByBib[bib] = dataService.getJudgeScores(currentHeat.eventId, currentHeat.round, bib);
+      scoresByBib[bib] = await dataService.getJudgeScores(currentHeat.eventId, currentHeat.round, bib);
     }
 
     const progress: ScoringProgress = {
@@ -130,7 +134,7 @@ router.get('/competition/:competitionId/scoring-progress', (req: Request, res: R
 });
 
 // POST /api/judging/competition/:competitionId/submit-scores
-router.post('/competition/:competitionId/submit-scores', (req: Request, res: Response) => {
+router.post('/competition/:competitionId/submit-scores', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { judgeId, eventId, round, scores } = req.body;
@@ -139,7 +143,7 @@ router.post('/competition/:competitionId/submit-scores', (req: Request, res: Res
       return res.status(400).json({ error: 'judgeId, eventId, round, and scores array are required' });
     }
 
-    const schedule = dataService.getSchedule(competitionId);
+    const schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
@@ -153,7 +157,7 @@ router.post('/competition/:competitionId/submit-scores', (req: Request, res: Res
       return res.status(400).json({ error: 'Heat is not in scoring status' });
     }
 
-    const result = scoringService.submitJudgeScores(eventId, round, judgeId, scores);
+    const result = await scoringService.submitJudgeScores(eventId, round, judgeId, scores);
     if (!result.success) {
       return res.status(400).json({ error: 'Failed to submit scores. Judge may not be assigned to this heat.' });
     }
@@ -170,10 +174,10 @@ router.post('/competition/:competitionId/submit-scores', (req: Request, res: Res
 });
 
 // GET /api/judging/competition/:competitionId/judges
-router.get('/competition/:competitionId/judges', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/judges', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const judges = dataService.getJudges(competitionId);
+    const judges = await dataService.getJudges(competitionId);
     res.json(judges);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get judges' });
@@ -181,10 +185,10 @@ router.get('/competition/:competitionId/judges', (req: Request, res: Response) =
 });
 
 // GET /api/judging/competition/:competitionId/schedule (read-only, non-admin)
-router.get('/competition/:competitionId/schedule', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/schedule', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = dataService.getSchedule(competitionId);
+    const schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
     res.json(schedule);
   } catch (error) {
@@ -193,10 +197,10 @@ router.get('/competition/:competitionId/schedule', (req: Request, res: Response)
 });
 
 // GET /api/judging/competition/:competitionId/events (read-only, non-admin)
-router.get('/competition/:competitionId/events', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/events', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const events = dataService.getEvents(competitionId);
+    const events = await dataService.getEvents(competitionId);
     res.json(events);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get events' });
@@ -204,10 +208,10 @@ router.get('/competition/:competitionId/events', (req: Request, res: Response) =
 });
 
 // GET /api/judging/competition/:competitionId/couples (read-only, non-admin)
-router.get('/competition/:competitionId/couples', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/couples', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const couples = dataService.getCouples(competitionId);
+    const couples = await dataService.getCouples(competitionId);
     res.json(couples);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get couples' });
@@ -215,10 +219,10 @@ router.get('/competition/:competitionId/couples', (req: Request, res: Response) 
 });
 
 // GET /api/judging/competition/:competitionId/competition (read-only, non-admin)
-router.get('/competition/:competitionId/competition', (req: Request, res: Response) => {
+router.get('/competition/:competitionId/competition', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const competition = dataService.getCompetitionById(competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) return res.status(404).json({ error: 'Competition not found' });
     res.json(competition);
   } catch (error) {

@@ -48,5 +48,10 @@ Thumbs.db
 # SSL Certificates
 .cert/
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Node.js
 node_modules/

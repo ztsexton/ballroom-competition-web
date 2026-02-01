@@ -20,17 +20,17 @@ function categorizeEvent(event: Event): 'scholarship' | 'single' | 'multi' {
   return 'multi';
 }
 
-export function calculateInvoices(competitionId: number): InvoiceSummary {
-  const competition = dataService.getCompetitionById(competitionId);
+export async function calculateInvoices(competitionId: number): Promise<InvoiceSummary> {
+  const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) {
     return { totalRevenue: 0, totalPaid: 0, totalOutstanding: 0, invoices: [] };
   }
 
   const pricing = competition.pricing;
   const entryPayments = competition.entryPayments || {};
-  const people = dataService.getPeople(competitionId);
-  const couples = dataService.getCouples(competitionId);
-  const eventsMap = dataService.getEvents(competitionId);
+  const people = await dataService.getPeople(competitionId);
+  const couples = await dataService.getCouples(competitionId);
+  const eventsMap = await dataService.getEvents(competitionId);
   const events = Object.values(eventsMap);
 
   // Track unique entry prices for revenue calculation (avoid double-counting)

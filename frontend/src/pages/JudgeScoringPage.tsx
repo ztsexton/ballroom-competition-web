@@ -359,9 +359,14 @@ const JudgeScoringPage = () => {
 
           <h2 style={{ color: '#276749', marginBottom: '0.5rem' }}>Scores Submitted</h2>
           {heatInfo && (
-            <p style={{ color: '#718096', marginBottom: '0.25rem' }}>
-              {heatInfo.eventName} — {formatRound(heatInfo.round)}
-            </p>
+            <>
+              <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
+                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
+              </p>
+              <p style={{ color: '#718096', marginBottom: '0.25rem' }}>
+                {heatInfo.eventName} — {formatRound(heatInfo.round)}
+              </p>
+            </>
           )}
           <p style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
             Waiting for the next heat...
@@ -407,6 +412,9 @@ const JudgeScoringPage = () => {
             </div>
           ) : heatInfo.isBreak ? (
             <div>
+              <p style={{ color: '#a0aec0', margin: '0 0 0.5rem', fontSize: '0.8rem' }}>
+                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
+              </p>
               <div style={{
                 padding: '1rem',
                 background: '#fefce8',
@@ -424,6 +432,9 @@ const JudgeScoringPage = () => {
             </div>
           ) : (
             <div>
+              <p style={{ color: '#a0aec0', margin: '0 0 0.5rem', fontSize: '0.8rem' }}>
+                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
+              </p>
               <div style={{
                 padding: '1rem',
                 background: '#f7fafc',
@@ -537,6 +548,7 @@ const JudgeScoringPage = () => {
 
       {/* Event info */}
       <div className="card" style={{ marginBottom: '0.75rem', padding: '0.75rem 1rem' }}>
+        <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>Heat {heatInfo!.heatNumber} of {heatInfo!.totalHeats}</p>
         <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>{heatInfo!.eventName}</h2>
         <p style={{ color: '#4a5568', margin: 0, fontSize: '0.875rem' }}>
           {formatRound(heatInfo!.round)}

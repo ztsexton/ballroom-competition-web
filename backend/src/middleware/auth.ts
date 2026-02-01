@@ -43,7 +43,7 @@ export const authenticate = async (
     const decodedToken = await auth.verifyIdToken(token);
 
     // Save/update user in database
-    const user = dataService.upsertUser(
+    const user = await dataService.upsertUser(
       decodedToken.uid,
       decodedToken.email || '',
       decodedToken.name,

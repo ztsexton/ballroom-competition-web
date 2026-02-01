@@ -7,22 +7,22 @@ import { sendInvoiceEmail, isEmailConfigured } from '../services/emailService';
 const router = Router();
 
 // GET /api/invoices/:competitionId — compute and return full invoice summary
-router.get('/:competitionId', (req: Request, res: Response) => {
+router.get('/:competitionId', async (req: Request, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  const competition = dataService.getCompetitionById(competitionId);
+  const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) {
     return res.status(404).json({ error: 'Competition not found' });
   }
-  const summary = calculateInvoices(competitionId);
+  const summary = await calculateInvoices(competitionId);
   res.json(summary);
 });
 
 // PATCH /api/invoices/:competitionId/payments — update entry payment statuses
-router.patch('/:competitionId/payments', (req: Request, res: Response) => {
+router.patch('/:competitionId/payments', async (req: Request, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
   const { entries, paid, paidBy, notes } = req.body;
 
-  const competition = dataService.getCompetitionById(competitionId);
+  const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) {
     return res.status(404).json({ error: 'Competition not found' });
   }
@@ -31,7 +31,7 @@ router.patch('/:competitionId/payments', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'entries array is required' });
   }
 
-  const result = dataService.updateEntryPayments(competitionId, entries, {
+  const result = await dataService.updateEntryPayments(competitionId, entries, {
     paid: !!paid,
     paidBy,
     notes,
@@ -45,12 +45,12 @@ router.get('/:competitionId/pdf/:personId', async (req: Request, res: Response) 
   const competitionId = parseInt(req.params.competitionId);
   const personId = parseInt(req.params.personId);
 
-  const competition = dataService.getCompetitionById(competitionId);
+  const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) {
     return res.status(404).json({ error: 'Competition not found' });
   }
 
-  const summary = calculateInvoices(competitionId);
+  const summary = await calculateInvoices(competitionId);
   const invoice = summary.invoices.find(inv => inv.personId === personId);
   if (!invoice) {
     return res.status(404).json({ error: 'Invoice not found for this person' });
@@ -77,12 +77,12 @@ router.post('/:competitionId/email/:personId', async (req: Request, res: Respons
     return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
   }
 
-  const competition = dataService.getCompetitionById(competitionId);
+  const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) {
     return res.status(404).json({ error: 'Competition not found' });
   }
 
-  const person = dataService.getPersonById(personId);
+  const person = await dataService.getPersonById(personId);
   if (!person || person.competitionId !== competitionId) {
     return res.status(404).json({ error: 'Person not found in this competition' });
   }
@@ -91,7 +91,7 @@ router.post('/:competitionId/email/:personId', async (req: Request, res: Respons
     return res.status(400).json({ error: 'Person has no email address on file' });
   }
 
-  const summary = calculateInvoices(competitionId);
+  const summary = await calculateInvoices(competitionId);
   const invoice = summary.invoices.find(inv => inv.personId === personId);
   if (!invoice) {
     return res.status(404).json({ error: 'No invoice for this person (no entries found)' });

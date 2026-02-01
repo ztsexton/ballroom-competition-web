@@ -2,8 +2,8 @@ import { EventResult, Couple } from '../types';
 import { dataService } from './dataService';
 
 export class ScoringService {
-  calculateResults(eventId: number, round: string): EventResult[] {
-    const event = dataService.getEventById(eventId);
+  async calculateResults(eventId: number, round: string): Promise<EventResult[]> {
+    const event = await dataService.getEventById(eventId);
     if (!event) return [];
 
     const heat = event.heats.find(h => h.round === round);
@@ -14,10 +14,10 @@ export class ScoringService {
     const results: EventResult[] = [];
 
     for (const bib of heat.bibs) {
-      const couple = dataService.getCoupleByBib(bib);
+      const couple = await dataService.getCoupleByBib(bib);
       if (!couple) continue;
 
-      const scores = dataService.getScores(eventId, round, bib);
+      const scores = await dataService.getScores(eventId, round, bib);
       if (scores.length === 0) continue;
 
       if (scoringType === 'proficiency') {
@@ -65,24 +65,24 @@ export class ScoringService {
     return results;
   }
 
-  getTopCouples(eventId: number, round: string, count: number = 6): number[] {
-    const results = this.calculateResults(eventId, round);
+  async getTopCouples(eventId: number, round: string, count: number = 6): Promise<number[]> {
+    const results = await this.calculateResults(eventId, round);
     return results.slice(0, count).map(r => r.bib);
   }
 
-  scoreEvent(
+  async scoreEvent(
     eventId: number,
     round: string,
     scores: Array<{ judgeIndex: number; bib: number; score: number }>
-  ): boolean {
-    const event = dataService.getEventById(eventId);
+  ): Promise<boolean> {
+    const event = await dataService.getEventById(eventId);
     if (!event) return false;
 
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return false;
 
     // Clear existing scores for this round
-    dataService.clearScores(eventId, round);
+    await dataService.clearScores(eventId, round);
 
     // Group scores by bib
     const scoresByBib: Record<number, number[]> = {};
@@ -99,46 +99,46 @@ export class ScoringService {
 
     // Save scores
     for (const [bib, bibScores] of Object.entries(scoresByBib)) {
-      dataService.setScores(eventId, round, Number(bib), bibScores);
+      await dataService.setScores(eventId, round, Number(bib), bibScores);
     }
 
     // Check if we need to advance to next round
     const rounds = event.heats.map(h => h.round);
     const currentIndex = rounds.indexOf(round);
     if (currentIndex < rounds.length - 1) {
-      const topBibs = this.getTopCouples(eventId, round, 6);
-      dataService.advanceToNextRound(eventId, round, topBibs);
+      const topBibs = await this.getTopCouples(eventId, round, 6);
+      await dataService.advanceToNextRound(eventId, round, topBibs);
     }
 
     return true;
   }
-  submitJudgeScores(
+  async submitJudgeScores(
     eventId: number,
     round: string,
     judgeId: number,
     scores: Array<{ bib: number; score: number }>,
-  ): { success: boolean; allSubmitted: boolean } {
-    const event = dataService.getEventById(eventId);
+  ): Promise<{ success: boolean; allSubmitted: boolean }> {
+    const event = await dataService.getEventById(eventId);
     if (!event) return { success: false, allSubmitted: false };
 
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return { success: false, allSubmitted: false };
     if (!heat.judges.includes(judgeId)) return { success: false, allSubmitted: false };
 
-    dataService.setJudgeScoresBatch(eventId, round, judgeId, scores);
+    await dataService.setJudgeScoresBatch(eventId, round, judgeId, scores);
 
-    const submissionStatus = dataService.getJudgeSubmissionStatus(eventId, round);
+    const submissionStatus = await dataService.getJudgeSubmissionStatus(eventId, round);
     const allSubmitted = heat.judges.every(jId => submissionStatus[jId]);
 
     if (allSubmitted) {
-      this.compileJudgeScores(eventId, round);
+      await this.compileJudgeScores(eventId, round);
     }
 
     return { success: true, allSubmitted };
   }
 
-  compileJudgeScores(eventId: number, round: string): boolean {
-    const event = dataService.getEventById(eventId);
+  async compileJudgeScores(eventId: number, round: string): Promise<boolean> {
+    const event = await dataService.getEventById(eventId);
     if (!event) return false;
 
     const heat = event.heats.find(h => h.round === round);
@@ -149,19 +149,19 @@ export class ScoringService {
     const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : heat.bibs.length;
 
     for (const bib of heat.bibs) {
-      const judgeScores = dataService.getJudgeScores(eventId, round, bib);
+      const judgeScores = await dataService.getJudgeScores(eventId, round, bib);
       const compiled = heat.judges.map(judgeId =>
         judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : defaultScore,
       );
-      dataService.setScores(eventId, round, bib, compiled);
+      await dataService.setScores(eventId, round, bib, compiled);
     }
 
     // Advance to next round if not final
     const rounds = event.heats.map(h => h.round);
     const currentIndex = rounds.indexOf(round);
     if (currentIndex < rounds.length - 1) {
-      const topBibs = this.getTopCouples(eventId, round, 6);
-      dataService.advanceToNextRound(eventId, round, topBibs);
+      const topBibs = await this.getTopCouples(eventId, round, 6);
+      await dataService.advanceToNextRound(eventId, round, topBibs);
     }
 
     return true;

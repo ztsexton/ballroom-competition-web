@@ -7,10 +7,10 @@ import { sseService } from '../services/sseService';
 const router = Router();
 
 // Get schedule for a competition
-router.get('/:competitionId', (req: Request, res: Response) => {
+router.get('/:competitionId', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = dataService.getSchedule(competitionId);
+    const schedule = await dataService.getSchedule(competitionId);
     if (!schedule) {
       return res.status(404).json({ error: 'No schedule found for this competition' });
     }
@@ -21,22 +21,22 @@ router.get('/:competitionId', (req: Request, res: Response) => {
 });
 
 // Generate/regenerate schedule
-router.post('/:competitionId/generate', (req: Request, res: Response) => {
+router.post('/:competitionId/generate', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { styleOrder, levelOrder, judgeSettings } = req.body;
 
-    const competition = dataService.getCompetitionById(competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
     }
 
     // Save judge settings to competition if provided
     if (judgeSettings) {
-      dataService.updateCompetition(competitionId, { judgeSettings });
+      await dataService.updateCompetition(competitionId, { judgeSettings });
     }
 
-    const schedule = scheduleService.generateSchedule(competitionId, styleOrder, levelOrder);
+    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder);
     res.status(201).json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate schedule' });
@@ -44,12 +44,12 @@ router.post('/:competitionId/generate', (req: Request, res: Response) => {
 });
 
 // Reorder an event in the schedule
-router.patch('/:competitionId/reorder', (req: Request, res: Response) => {
+router.patch('/:competitionId/reorder', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { fromIndex, toIndex } = req.body;
 
-    const schedule = scheduleService.reorderHeat(competitionId, fromIndex, toIndex);
+    const schedule = await scheduleService.reorderHeat(competitionId, fromIndex, toIndex);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found or invalid indices' });
     }
@@ -60,25 +60,25 @@ router.patch('/:competitionId/reorder', (req: Request, res: Response) => {
 });
 
 // Advance the run state
-router.post('/:competitionId/advance', (req: Request, res: Response) => {
+router.post('/:competitionId/advance', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
 
     // Before advancing, check if we're transitioning from scoring → completed
     // If so, compile any judge scores into the final format
-    const preSchedule = dataService.getSchedule(competitionId);
+    const preSchedule = await dataService.getSchedule(competitionId);
     if (preSchedule) {
       const currentHeat = preSchedule.heatOrder[preSchedule.currentHeatIndex];
       if (currentHeat && !currentHeat.isBreak) {
         const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
         if (preSchedule.heatStatuses[heatKey] === 'scoring') {
-          scoringService.compileJudgeScores(currentHeat.eventId, currentHeat.round);
-          dataService.clearJudgeScores(currentHeat.eventId, currentHeat.round);
+          await scoringService.compileJudgeScores(currentHeat.eventId, currentHeat.round);
+          await dataService.clearJudgeScores(currentHeat.eventId, currentHeat.round);
         }
       }
     }
 
-    const schedule = scheduleService.advanceHeat(competitionId);
+    const schedule = await scheduleService.advanceHeat(competitionId);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
@@ -90,10 +90,10 @@ router.post('/:competitionId/advance', (req: Request, res: Response) => {
 });
 
 // Go back in the run state
-router.post('/:competitionId/back', (req: Request, res: Response) => {
+router.post('/:competitionId/back', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = scheduleService.goBackHeat(competitionId);
+    const schedule = await scheduleService.goBackHeat(competitionId);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
@@ -105,12 +105,12 @@ router.post('/:competitionId/back', (req: Request, res: Response) => {
 });
 
 // Jump to a specific event
-router.post('/:competitionId/jump', (req: Request, res: Response) => {
+router.post('/:competitionId/jump', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { heatIndex } = req.body;
 
-    const schedule = scheduleService.jumpToHeat(competitionId, heatIndex);
+    const schedule = await scheduleService.jumpToHeat(competitionId, heatIndex);
     if (!schedule) {
       return res.status(400).json({ error: 'Invalid event index or schedule not found' });
     }
@@ -121,12 +121,46 @@ router.post('/:competitionId/jump', (req: Request, res: Response) => {
   }
 });
 
+// Reset progress to a specific heat (clears scores from target through current)
+router.post('/:competitionId/reset', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { heatIndex } = req.body;
+
+    const schedule = await scheduleService.resetToHeat(competitionId, heatIndex);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Invalid heat index or schedule not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset to heat' });
+  }
+});
+
+// Re-run a single heat (clears only that heat's scores)
+router.post('/:competitionId/rerun', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { heatIndex } = req.body;
+
+    const schedule = await scheduleService.rerunHeat(competitionId, heatIndex);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Invalid heat index or schedule not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to re-run heat' });
+  }
+});
+
 // Suggest position for a new event
-router.get('/:competitionId/suggest/:eventId', (req: Request, res: Response) => {
+router.get('/:competitionId/suggest/:eventId', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const eventId = parseInt(req.params.eventId);
-    const position = scheduleService.suggestPosition(competitionId, eventId);
+    const position = await scheduleService.suggestPosition(competitionId, eventId);
     res.json({ position });
   } catch (error) {
     res.status(500).json({ error: 'Failed to suggest position' });
@@ -134,12 +168,12 @@ router.get('/:competitionId/suggest/:eventId', (req: Request, res: Response) => 
 });
 
 // Insert an event into the schedule at a specific position
-router.post('/:competitionId/insert', (req: Request, res: Response) => {
+router.post('/:competitionId/insert', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { eventId, position } = req.body;
 
-    const schedule = scheduleService.insertEvent(competitionId, eventId, position);
+    const schedule = await scheduleService.insertEvent(competitionId, eventId, position);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
@@ -151,7 +185,7 @@ router.post('/:competitionId/insert', (req: Request, res: Response) => {
 });
 
 // Add a break to the schedule
-router.post('/:competitionId/break', (req: Request, res: Response) => {
+router.post('/:competitionId/break', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const { label, duration, position } = req.body;
@@ -160,7 +194,7 @@ router.post('/:competitionId/break', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Break label is required' });
     }
 
-    const schedule = scheduleService.addBreak(
+    const schedule = await scheduleService.addBreak(
       competitionId,
       label,
       duration !== undefined ? parseInt(duration) : undefined,
@@ -177,12 +211,12 @@ router.post('/:competitionId/break', (req: Request, res: Response) => {
 });
 
 // Remove a break from the schedule
-router.delete('/:competitionId/break/:heatIndex', (req: Request, res: Response) => {
+router.delete('/:competitionId/break/:heatIndex', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
     const heatIndex = parseInt(req.params.heatIndex);
 
-    const schedule = scheduleService.removeBreak(competitionId, heatIndex);
+    const schedule = await scheduleService.removeBreak(competitionId, heatIndex);
     if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found or item is not a break' });
     }
@@ -194,10 +228,10 @@ router.delete('/:competitionId/break/:heatIndex', (req: Request, res: Response) 
 });
 
 // Delete schedule
-router.delete('/:competitionId', (req: Request, res: Response) => {
+router.delete('/:competitionId', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const deleted = dataService.deleteSchedule(competitionId);
+    const deleted = await dataService.deleteSchedule(competitionId);
     if (!deleted) {
       return res.status(404).json({ error: 'Schedule not found' });
     }

@@ -159,6 +159,9 @@ const LiveCompetitionPage = () => {
           <p style={{ color: '#718096', fontSize: '1.125rem', margin: 0 }}>Waiting to start...</p>
         ) : currentHeat.isBreak ? (
           <div>
+            <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
+              Heat {schedule.currentHeatIndex + 1} of {totalCount}
+            </p>
             <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>
               {currentHeat.breakLabel || 'Break'}
             </p>
@@ -171,6 +174,9 @@ const LiveCompetitionPage = () => {
           </div>
         ) : currentEvent ? (
           <div>
+            <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
+              Heat {schedule.currentHeatIndex + 1} of {totalCount}
+            </p>
             <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem', lineHeight: 1.2 }}>
               {formatEventLabel(currentEvent)}
             </p>
@@ -206,6 +212,7 @@ const LiveCompetitionPage = () => {
           {nextHeat.isBreak ? (
             <div>
               <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0, fontStyle: 'italic' }}>
+                <span style={{ color: '#a0aec0', fontStyle: 'normal', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{schedule.currentHeatIndex + 2}</span>
                 {nextHeat.breakLabel || 'Break'}
                 {nextHeat.breakDuration ? ` — ${nextHeat.breakDuration} min` : ''}
               </p>
@@ -213,6 +220,7 @@ const LiveCompetitionPage = () => {
           ) : nextEvent ? (
             <div>
               <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                <span style={{ color: '#a0aec0', fontSize: '0.8rem', fontWeight: 400, marginRight: '0.5rem' }}>#{schedule.currentHeatIndex + 2}</span>
                 {formatEventLabel(nextEvent)}
               </p>
               <p style={{ color: '#718096', margin: 0, fontSize: '0.875rem' }}>
@@ -244,6 +252,8 @@ const LiveCompetitionPage = () => {
               const event = heat.isBreak ? null : events[heat.eventId];
               const hk = `${heat.eventId}:${heat.round}`;
 
+              const heatNum = schedule.currentHeatIndex + 3 + idx;
+
               if (heat.isBreak) {
                 return (
                   <div key={hk + '-' + idx} style={{
@@ -252,6 +262,7 @@ const LiveCompetitionPage = () => {
                     fontStyle: 'italic',
                     color: '#718096',
                   }}>
+                    <span style={{ fontStyle: 'normal', color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
                     {heat.breakLabel || 'Break'}
                     {heat.breakDuration ? ` — ${heat.breakDuration} min` : ''}
                   </div>
@@ -267,6 +278,7 @@ const LiveCompetitionPage = () => {
                   padding: '0.5rem 0',
                   borderBottom: idx < laterHeats.length - 1 ? '1px solid #edf2f7' : undefined,
                 }}>
+                  <span style={{ color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
                   <span style={{ fontWeight: 500 }}>{formatEventLabel(event)}</span>
                   <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.875rem' }}>
                     {formatRound(heat.round)}

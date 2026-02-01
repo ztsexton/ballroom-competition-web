@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import https from 'https';
 import fs from 'fs';
@@ -13,6 +14,7 @@ import judgesRoutes from './routes/judges';
 import eventsRoutes from './routes/events';
 import schedulesRoutes from './routes/schedules';
 import invoicesRoutes from './routes/invoices';
+import mindbodyRoutes from './routes/mindbody';
 import usersRoutes from './routes/users';
 import judgingRoutes from './routes/judging';
 
@@ -46,6 +48,7 @@ app.use('/api/judges', requireAdmin, judgesRoutes);
 app.use('/api/events', requireAdmin, eventsRoutes);
 app.use('/api/schedules', requireAdmin, schedulesRoutes);
 app.use('/api/invoices', requireAdmin, invoicesRoutes);
+app.use('/api/mindbody', requireAdmin, mindbodyRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

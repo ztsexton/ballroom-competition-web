@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { peopleApi, couplesApi, judgesApi, studiosApi } from '../api/client';
-import { Person, Couple, Judge, Studio } from '../types';
+import { peopleApi, couplesApi, judgesApi, studiosApi, mindbodyApi } from '../api/client';
+import { Person, Couple, Judge, Studio, MindbodyClient } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 
 const CompetitionEntriesPage = () => {
@@ -37,6 +37,18 @@ const CompetitionEntriesPage = () => {
 
   // Judges form
   const [newJudgeName, setNewJudgeName] = useState('');
+
+  // MindBody import state
+  const [showMbImport, setShowMbImport] = useState(false);
+  const [mbStudioId, setMbStudioId] = useState<number | ''>('');
+  const [mbSearchText, setMbSearchText] = useState('');
+  const [mbClients, setMbClients] = useState<MindbodyClient[]>([]);
+  const [mbSelected, setMbSelected] = useState<Set<string>>(new Set());
+  const [mbLoading, setMbLoading] = useState(false);
+  const [mbImporting, setMbImporting] = useState(false);
+  const [mbError, setMbError] = useState('');
+  const [mbRole, setMbRole] = useState<Person['role']>('both');
+  const [mbStatus, setMbStatus] = useState<Person['status']>('student');
 
   useEffect(() => {
     if (competitionId) loadAllData();
@@ -150,6 +162,73 @@ const CompetitionEntriesPage = () => {
     }
   };
 
+  // --- MindBody handlers ---
+
+  const connectedStudios = studios.filter(s => !!s.mindbodySiteId);
+
+  const handleMbSearch = async () => {
+    if (!mbStudioId) return;
+    setMbLoading(true);
+    setMbError('');
+    try {
+      const res = await mindbodyApi.getClients(mbStudioId as number, {
+        searchText: mbSearchText || undefined,
+        limit: 200,
+      });
+      setMbClients(res.data.clients);
+      setMbSelected(new Set());
+    } catch (err: any) {
+      setMbError(err?.response?.data?.error || 'Failed to fetch clients');
+      setMbClients([]);
+    } finally {
+      setMbLoading(false);
+    }
+  };
+
+  const handleMbToggle = (id: string) => {
+    setMbSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleMbSelectAll = () => {
+    if (mbSelected.size === mbClients.length) {
+      setMbSelected(new Set());
+    } else {
+      setMbSelected(new Set(mbClients.map(c => c.id)));
+    }
+  };
+
+  const handleMbImport = async () => {
+    if (!mbStudioId || mbSelected.size === 0 || !competitionId) return;
+    setMbImporting(true);
+    setMbError('');
+    try {
+      const clients = mbClients
+        .filter(c => mbSelected.has(c.id))
+        .map(c => ({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          email: c.email,
+          role: mbRole,
+          status: mbStatus,
+        }));
+      const res = await mindbodyApi.importClients(mbStudioId as number, competitionId, clients);
+      alert(`Imported ${res.data.imported} people.`);
+      setShowMbImport(false);
+      setMbClients([]);
+      setMbSelected(new Set());
+      loadAllData();
+    } catch (err: any) {
+      setMbError(err?.response?.data?.error || 'Failed to import clients');
+    } finally {
+      setMbImporting(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading...</div>;
 
   const sectionHeaderStyle = (): React.CSSProperties => ({
@@ -174,7 +253,132 @@ const CompetitionEntriesPage = () => {
             <span style={{ marginRight: '0.5rem', color: '#a0aec0' }}>{chevron('people')}</span>
             People ({people.length})
           </h3>
+          {connectedStudios.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+              onClick={(e) => { e.stopPropagation(); setShowMbImport(!showMbImport); }}
+            >
+              {showMbImport ? 'Close Import' : 'Import from MindBody'}
+            </button>
+          )}
         </div>
+
+        {/* MindBody Import Panel */}
+        {showMbImport && (
+          <div style={{
+            background: '#f0f4ff',
+            border: '1px solid #c3dafe',
+            borderRadius: '8px',
+            padding: '1.25rem',
+            marginBottom: '1rem',
+          }}>
+            <h4 style={{ margin: '0 0 0.75rem 0' }}>Import from MindBody</h4>
+            {mbError && <div className="error" style={{ marginBottom: '0.75rem' }}>{mbError}</div>}
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+              <div className="form-group" style={{ marginBottom: 0, minWidth: '160px' }}>
+                <label style={{ fontSize: '0.8rem' }}>Studio</label>
+                <select value={mbStudioId} onChange={e => setMbStudioId(e.target.value ? Number(e.target.value) : '')}>
+                  <option value="">Select Studio</option>
+                  {connectedStudios.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
+                <label style={{ fontSize: '0.8rem' }}>Search (name, email, phone)</label>
+                <input
+                  type="text"
+                  value={mbSearchText}
+                  onChange={e => setMbSearchText(e.target.value)}
+                  placeholder="Leave blank to fetch all"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleMbSearch(); } }}
+                />
+              </div>
+              <button
+                className="btn"
+                style={{ marginBottom: 0, fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+                disabled={!mbStudioId || mbLoading}
+                onClick={handleMbSearch}
+              >
+                {mbLoading ? 'Loading...' : 'Fetch Clients'}
+              </button>
+            </div>
+
+            {mbClients.length > 0 && (
+              <>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem' }}>Role for imports</label>
+                    <select value={mbRole} onChange={e => setMbRole(e.target.value as Person['role'])}>
+                      <option value="both">Both</option>
+                      <option value="leader">Leader</option>
+                      <option value="follower">Follower</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem' }}>Status for imports</label>
+                    <select value={mbStatus} onChange={e => setMbStatus(e.target.value as Person['status'])}>
+                      <option value="student">Student</option>
+                      <option value="professional">Professional</option>
+                    </select>
+                  </div>
+                  <button
+                    className="btn"
+                    style={{ marginBottom: 0, fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+                    disabled={mbSelected.size === 0 || mbImporting}
+                    onClick={handleMbImport}
+                  >
+                    {mbImporting ? 'Importing...' : `Import Selected (${mbSelected.size})`}
+                  </button>
+                </div>
+
+                <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <table style={{ margin: 0 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '2.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={mbSelected.size === mbClients.length && mbClients.length > 0}
+                            onChange={handleMbSelectAll}
+                          />
+                        </th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Active</th>
+                        <th>Last Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mbClients.map(client => (
+                        <tr key={client.id} style={{ opacity: client.isActive ? 1 : 0.5 }}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={mbSelected.has(client.id)}
+                              onChange={() => handleMbToggle(client.id)}
+                            />
+                          </td>
+                          <td>{client.firstName} {client.lastName}</td>
+                          <td style={{ fontSize: '0.85rem' }}>{client.email || '-'}</td>
+                          <td style={{ fontSize: '0.85rem' }}>{client.phone || '-'}</td>
+                          <td>{client.isActive ? 'Yes' : 'No'}</td>
+                          <td style={{ fontSize: '0.85rem' }}>{client.lastActivityDate || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ color: '#718096', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                  {mbClients.length} clients loaded. {mbSelected.size} selected.
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {expanded.people && (
           <div>

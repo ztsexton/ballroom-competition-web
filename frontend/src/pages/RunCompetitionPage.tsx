@@ -130,6 +130,7 @@ const RunCompetitionPage = () => {
   const [scoringProgress, setScoringProgress] = useState<ScoringProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [resetTargetIndex, setResetTargetIndex] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     if (!competitionId) return;
@@ -201,6 +202,30 @@ const RunCompetitionPage = () => {
       setSchedule(res.data);
     } catch {
       setError('Failed to jump to heat');
+    }
+  };
+
+  const handleReset = async () => {
+    if (resetTargetIndex === null) return;
+    try {
+      const res = await schedulesApi.reset(competitionId, resetTargetIndex);
+      setSchedule(res.data);
+      setResetTargetIndex(null);
+    } catch {
+      setError('Failed to reset to heat');
+      setResetTargetIndex(null);
+    }
+  };
+
+  const handleRerun = async () => {
+    if (resetTargetIndex === null) return;
+    try {
+      const res = await schedulesApi.rerun(competitionId, resetTargetIndex);
+      setSchedule(res.data);
+      setResetTargetIndex(null);
+    } catch {
+      setError('Failed to re-run heat');
+      setResetTargetIndex(null);
     }
   };
 
@@ -494,6 +519,7 @@ const RunCompetitionPage = () => {
                 const isBreak = scheduledHeat.isBreak;
                 const event = isBreak ? null : events[scheduledHeat.eventId];
                 if (!isBreak && !event) return null;
+                const heatNum = schedule.currentHeatIndex + 2 + idx;
                 return (
                   <div key={`${scheduledHeat.eventId}:${scheduledHeat.round}`} style={{
                     padding: '0.5rem 0',
@@ -504,6 +530,7 @@ const RunCompetitionPage = () => {
                   }}>
                     <div>
                       <strong style={{ fontStyle: isBreak ? 'italic' : undefined }}>
+                        <span style={{ color: '#a0aec0', fontWeight: 400, fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
                         {isBreak ? (scheduledHeat.breakLabel || 'Break') : event!.name}
                       </strong>
                       <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0, textTransform: 'capitalize' }}>
@@ -527,7 +554,7 @@ const RunCompetitionPage = () => {
         </div>
 
         {/* Heat Sidebar */}
-        <div className="card" style={{ alignSelf: 'start', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div className="card" style={{ alignSelf: 'start', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
           <h3 style={{ marginBottom: '0.75rem' }}>All Heats</h3>
           {schedule.heatOrder.map((scheduledHeat, idx) => {
             const isBreak = scheduledHeat.isBreak;
@@ -564,15 +591,115 @@ const RunCompetitionPage = () => {
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     fontStyle: isBreak ? 'italic' : undefined,
+                    flex: 1,
                   }}>
                     {idx + 1}. {isBreak ? (scheduledHeat.breakLabel || 'Break') : `${event!.name} (${scheduledHeat.round})`}
                   </span>
+                  {(status === 'completed' || status === 'scoring') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setResetTargetIndex(idx);
+                      }}
+                      title="Reset to this heat"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.125rem 0.25rem',
+                        fontSize: '0.7rem',
+                        color: '#e53e3e',
+                        opacity: 0.6,
+                        flexShrink: 0,
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Reset/re-run confirmation modal */}
+      {resetTargetIndex !== null && (() => {
+        const targetHeat = schedule.heatOrder[resetTargetIndex];
+        const targetEvent = targetHeat && !targetHeat.isBreak ? events[targetHeat.eventId] : null;
+        const targetLabel = targetHeat?.isBreak
+          ? (targetHeat.breakLabel || 'Break')
+          : (targetEvent ? `${targetEvent.name} (${targetHeat.round})` : `Heat ${resetTargetIndex + 1}`);
+        const heatsAffected = Math.max(0, schedule.currentHeatIndex - resetTargetIndex);
+
+        return (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}>
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '520px',
+              width: '90%',
+            }}>
+              <h3 style={{ color: '#e53e3e', marginTop: 0, marginBottom: '0.5rem' }}>
+                Reset: {targetLabel}
+              </h3>
+              <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                Choose how to handle this heat. Scores will be permanently cleared.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                {/* Re-run this heat only */}
+                <button
+                  className="btn"
+                  style={{ background: '#dd6b20', borderColor: '#dd6b20', textAlign: 'left', padding: '0.75rem 1rem' }}
+                  onClick={handleRerun}
+                >
+                  <strong>Re-run this heat only</strong>
+                  <br />
+                  <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+                    Clear scores for this heat and jump to it. All other results are kept.
+                  </span>
+                </button>
+
+                {/* Reset to this heat */}
+                {heatsAffected > 0 && (
+                  <button
+                    className="btn"
+                    style={{ background: '#e53e3e', borderColor: '#e53e3e', textAlign: 'left', padding: '0.75rem 1rem' }}
+                    onClick={handleReset}
+                  >
+                    <strong>Reset to this heat</strong>
+                    <br />
+                    <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+                      Clear scores for this heat and the {heatsAffected} heat{heatsAffected !== 1 ? 's' : ''} after
+                      it (through the current position). Earlier results are kept.
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                className="btn btn-secondary"
+                onClick={() => setResetTargetIndex(null)}
+                style={{ width: '100%' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

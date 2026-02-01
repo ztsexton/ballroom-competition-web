@@ -5,6 +5,19 @@ export interface Studio {
   name: string;
   location?: string;
   contactInfo?: string;
+  mindbodySiteId?: string;
+  mindbodyToken?: string;
+}
+
+export interface MindbodyClient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  isActive: boolean;
+  creationDate?: string;
+  lastActivityDate?: string;
 }
 
 export interface JudgeSettings {
@@ -164,6 +177,8 @@ export interface ActiveHeatInfo {
   isBreak?: boolean;
   breakLabel?: string;
   breakDuration?: number;
+  heatNumber: number;
+  totalHeats: number;
 }
 
 export interface ScoringProgress {
