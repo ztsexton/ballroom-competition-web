@@ -100,7 +100,7 @@ export interface User {
   lastLoginAt: string;
 }
 
-export type EventRunStatus = 'pending' | 'announced' | 'scoring' | 'completed';
+export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 
 export interface ScheduledHeat {
   eventId: number;

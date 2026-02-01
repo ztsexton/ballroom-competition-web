@@ -76,7 +76,6 @@ const LiveCompetitionPage = () => {
   const statusBadge = (status: string, large?: boolean) => {
     const colors: Record<string, { bg: string; text: string }> = {
       pending: { bg: '#e2e8f0', text: '#4a5568' },
-      announced: { bg: '#bee3f8', text: '#2a4365' },
       scoring: { bg: '#fefcbf', text: '#744210' },
       completed: { bg: '#c6f6d5', text: '#276749' },
     };

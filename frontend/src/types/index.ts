@@ -83,7 +83,7 @@ export interface EventResult {
   isRecall: boolean;
 }
 
-export type EventRunStatus = 'pending' | 'announced' | 'scoring' | 'completed';
+export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 
 export interface ScheduledHeat {
   eventId: number;

@@ -224,7 +224,6 @@ const SchedulePage = () => {
   const statusBadge = (status: string) => {
     const colors: Record<string, { bg: string; color: string }> = {
       pending: { bg: '#e2e8f0', color: '#4a5568' },
-      announced: { bg: '#bee3f8', color: '#2b6cb0' },
       scoring: { bg: '#fefcbf', color: '#975a16' },
       completed: { bg: '#c6f6d5', color: '#276749' },
     };

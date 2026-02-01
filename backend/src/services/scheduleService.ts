@@ -165,9 +165,6 @@ class ScheduleService {
 
     switch (currentStatus) {
       case 'pending':
-        schedule.heatStatuses[key] = 'announced';
-        break;
-      case 'announced':
         schedule.heatStatuses[key] = 'scoring';
         break;
       case 'scoring':
@@ -210,11 +207,8 @@ class ScheduleService {
     }
 
     switch (currentStatus) {
-      case 'announced':
-        schedule.heatStatuses[key] = 'pending';
-        break;
       case 'scoring':
-        schedule.heatStatuses[key] = 'announced';
+        schedule.heatStatuses[key] = 'pending';
         break;
       case 'pending':
         if (schedule.currentHeatIndex > 0) {

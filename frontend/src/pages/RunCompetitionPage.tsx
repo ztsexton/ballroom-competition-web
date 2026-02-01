@@ -257,7 +257,6 @@ const RunCompetitionPage = () => {
   const statusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#e2e8f0';
-      case 'announced': return '#bee3f8';
       case 'scoring': return '#fefcbf';
       case 'completed': return '#c6f6d5';
       default: return '#e2e8f0';
@@ -267,7 +266,6 @@ const RunCompetitionPage = () => {
   const statusIcon = (status: string) => {
     switch (status) {
       case 'pending': return '○';
-      case 'announced': return '◐';
       case 'scoring': return '◑';
       case 'completed': return '●';
       default: return '○';
@@ -280,9 +278,6 @@ const RunCompetitionPage = () => {
 
   const currentCouples = currentEvent ? getCouplesForHeat(currentEvent, currentRound) : [];
   const currentJudges = currentEvent ? getJudgesForHeat(currentEvent, currentRound) : [];
-  const coupleCountLabel = currentCouples.length > 0 ? `${currentCouples.length} couples` : 'TBD';
-  const judgeCountLabel = currentJudges.length > 0 ? `${currentJudges.length} judges` : '';
-
   return (
     <div className="container">
       {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
@@ -387,20 +382,6 @@ const RunCompetitionPage = () => {
               {/* State-dependent content */}
               <div style={{ marginTop: '1.5rem' }}>
                 {currentStatus === 'pending' && (
-                  <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    <p style={{ fontSize: '1.125rem', color: '#718096', marginBottom: '1rem' }}>
-                      Ready to announce this heat
-                    </p>
-                    <p style={{ color: '#a0aec0', marginBottom: '1.5rem' }}>
-                      {coupleCountLabel}{judgeCountLabel ? `, ${judgeCountLabel}` : ''}
-                    </p>
-                    <button className="btn btn-success" onClick={handleAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
-                      Announce Heat
-                    </button>
-                  </div>
-                )}
-
-                {currentStatus === 'announced' && (
                   <>
                     <h3 style={{ marginBottom: '0.75rem' }}>Couples</h3>
                     {currentCouples.length > 0 ? (
