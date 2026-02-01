@@ -46,7 +46,7 @@ const App = () => {
                     {/* Competition Hub — tabbed layout */}
                     <Route path="/competitions/:id" element={<CompetitionHubLayout />}>
                       <Route index element={<CompetitionDetailsPage />} />
-                      <Route path="entries" element={<CompetitionEntriesPage />} />
+                      <Route path="participants" element={<CompetitionEntriesPage />} />
                       <Route path="events" element={<EventsPage />} />
                       <Route path="schedule" element={<SchedulePage />} />
                       <Route path="run" element={<RunCompetitionPage />} />

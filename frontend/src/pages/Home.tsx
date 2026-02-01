@@ -13,6 +13,7 @@ const typeColors: Record<string, { bg: string; text: string }> = {
 const Home = () => {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     competitionsApi.getAll()
@@ -23,16 +24,26 @@ const Home = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
-  const sorted = [...competitions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  const query = search.toLowerCase().trim();
+  const filtered = competitions.filter(c =>
+    !query ||
+    c.name.toLowerCase().includes(query) ||
+    c.location?.toLowerCase().includes(query) ||
+    c.type.replace('_', ' ').toLowerCase().includes(query)
   );
+
+  const sorted = [...filtered].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div className="container">
       <div className="card">
         <h2 style={{ marginBottom: '0.5rem' }}>Ballroom Scorer</h2>
         <p style={{ color: '#718096' }}>
-          Manage competitions, entries, events, scheduling, and scoring.
+          Manage competitions, participants, events, scheduling, and scoring.
         </p>
       </div>
 
@@ -46,17 +57,47 @@ const Home = () => {
         </Link>
       </div>
 
-      {/* Competitions List */}
-      {sorted.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <h3 style={{ color: '#718096', marginBottom: '0.5rem' }}>No competitions yet</h3>
-          <p style={{ color: '#a0aec0' }}>Create your first competition to get started.</p>
-        </div>
-      ) : (
-        <div>
-          <h3 style={{ marginBottom: '0.75rem', color: '#4a5568' }}>
+      {/* Search + Competitions List */}
+      <div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '0.75rem',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}>
+          <h3 style={{ margin: 0, color: '#4a5568' }}>
             Competitions ({sorted.length})
           </h3>
+          {competitions.length > 0 && (
+            <input
+              type="text"
+              placeholder="Search competitions..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                padding: '0.5rem 0.75rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                width: '240px',
+                outline: 'none',
+              }}
+            />
+          )}
+        </div>
+
+        {sorted.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <h3 style={{ color: '#718096', marginBottom: '0.5rem' }}>
+              {query ? 'No matching competitions' : 'No competitions yet'}
+            </h3>
+            <p style={{ color: '#a0aec0' }}>
+              {query ? 'Try a different search term.' : 'Create your first competition to get started.'}
+            </p>
+          </div>
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {sorted.map(comp => {
               const colors = typeColors[comp.type] || typeColors.UNAFFILIATED;
@@ -103,8 +144,8 @@ const Home = () => {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

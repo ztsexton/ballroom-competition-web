@@ -6,7 +6,7 @@ import { Competition } from '../types';
 
 const TABS = [
   { label: 'Overview', path: '', end: true },
-  { label: 'Entries', path: 'entries', end: false },
+  { label: 'Participants', path: 'participants', end: false },
   { label: 'Events', path: 'events', end: false },
   { label: 'Schedule', path: 'schedule', end: false },
   { label: 'Run', path: 'run', end: false },

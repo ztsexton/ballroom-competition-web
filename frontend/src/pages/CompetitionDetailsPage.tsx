@@ -82,9 +82,9 @@ const CompetitionDetailsPage = () => {
 
   const workflowSteps = [
     {
-      label: 'Entries',
+      label: 'Participants',
       detail: `${counts.people} people, ${counts.couples} couples, ${counts.judges} judges`,
-      link: 'entries',
+      link: 'participants',
       done: counts.people > 0 && counts.couples > 0,
     },
     {
