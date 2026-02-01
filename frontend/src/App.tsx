@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CompetitionProvider } from './context/CompetitionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
+import CompetitionHubLayout from './components/CompetitionHubLayout';
 import LoginPage from './pages/LoginPage';
 import Home from './pages/Home';
 import PeoplePage from './pages/PeoplePage';
@@ -14,6 +15,8 @@ import ScoreEventPage from './pages/ScoreEventPage';
 import ResultsPage from './pages/ResultsPage';
 import CompetitionsPage from './pages/CompetitionsPage';
 import CompetitionDetailsPage from './pages/CompetitionDetailsPage';
+import CompetitionEntriesPage from './pages/CompetitionEntriesPage';
+import CompetitionDayOfPage from './pages/CompetitionDayOfPage';
 import StudioPage from './pages/StudioPage';
 import UsersPage from './pages/UsersPage';
 import SchedulePage from './pages/SchedulePage';
@@ -39,12 +42,27 @@ const App = () => {
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/competitions" element={<CompetitionsPage />} />
-                    <Route path="/competitions/:id" element={<CompetitionDetailsPage />} />
+
+                    {/* Competition Hub — tabbed layout */}
+                    <Route path="/competitions/:id" element={<CompetitionHubLayout />}>
+                      <Route index element={<CompetitionDetailsPage />} />
+                      <Route path="entries" element={<CompetitionEntriesPage />} />
+                      <Route path="events" element={<EventsPage />} />
+                      <Route path="schedule" element={<SchedulePage />} />
+                      <Route path="run" element={<RunCompetitionPage />} />
+                      <Route path="day-of" element={<CompetitionDayOfPage />} />
+                    </Route>
+
+                    {/* Day-of standalone pages (NOT inside hub tabs) */}
+                    <Route path="/competitions/:id/ondeck" element={<OnDeckPage />} />
+                    <Route path="/competitions/:id/live" element={<LiveCompetitionPage />} />
+                    <Route path="/competitions/:id/judge" element={<JudgeScoringPage />} />
+
+                    {/* Standalone pages (backward compat) */}
                     <Route path="/people" element={<PeoplePage />} />
                     <Route path="/couples" element={<CouplesPage />} />
                     <Route path="/judges" element={<JudgesPage />} />
                     <Route path="/events" element={<EventsPage />} />
-
                     <Route path="/events/new" element={<NewEventPage />} />
                     <Route path="/events/:id/edit" element={<EditEventPage />} />
                     <Route path="/events/:id" element={<ResultsPage />} />
@@ -52,11 +70,6 @@ const App = () => {
                     <Route path="/events/:id/score/:round" element={<ScoreEventPage />} />
                     <Route path="/events/:id/results" element={<ResultsPage />} />
                     <Route path="/events/:id/results/:round" element={<ResultsPage />} />
-                    <Route path="/competitions/:id/schedule" element={<SchedulePage />} />
-                    <Route path="/competitions/:id/run" element={<RunCompetitionPage />} />
-                    <Route path="/competitions/:id/judge" element={<JudgeScoringPage />} />
-                    <Route path="/competitions/:id/ondeck" element={<OnDeckPage />} />
-                    <Route path="/competitions/:id/live" element={<LiveCompetitionPage />} />
                     <Route path="/studios" element={<StudioPage />} />
                     <Route path="/users" element={<UsersPage />} />
                   </Routes>

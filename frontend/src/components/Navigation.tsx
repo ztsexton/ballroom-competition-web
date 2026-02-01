@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
-import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
-  const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
   const { user, isAdmin, logout } = useAuth();
 
   return (
@@ -32,52 +30,12 @@ const Navigation = () => {
         <div style={{ display: 'flex', gap: '1.5rem', flex: 1, flexWrap: 'wrap' }}>
           {isAdmin && (
             <>
-              <Link to="/competitions" style={{ color: 'white' }}>🏆 Competitions</Link>
-              <Link to="/people" style={{ color: 'white' }}>👥 People</Link>
-              <Link to="/couples" style={{ color: 'white' }}>💃🕺 Couples</Link>
-              <Link to="/judges" style={{ color: 'white' }}>⚖️ Judges</Link>
-              <Link to="/events" style={{ color: 'white' }}>📋 Events</Link>
-              {activeCompetition && (
-                <Link to={`/competitions/${activeCompetition.id}/schedule`} style={{ color: 'white' }}>📅 Schedule</Link>
-              )}
-              <Link to="/studios" style={{ color: 'white' }}>🏢 Studios</Link>
-              <Link to="/users" style={{ color: 'white' }}>👤 Users</Link>
+              <Link to="/competitions" style={{ color: 'white' }}>Competitions</Link>
+              <Link to="/studios" style={{ color: 'white' }}>Studios</Link>
+              <Link to="/users" style={{ color: 'white' }}>Users</Link>
             </>
           )}
         </div>
-        {isAdmin && competitions.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ color: 'white', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-              Active:
-            </label>
-            <select
-              value={activeCompetition?.id || ''}
-              onChange={(e) => {
-                const comp = competitions.find(c => c.id === parseInt(e.target.value));
-                setActiveCompetition(comp || null);
-              }}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: 'none',
-                background: 'white',
-                color: '#2d3748',
-                fontWeight: '500',
-                cursor: 'pointer',
-                minWidth: '200px'
-              }}
-            >
-              <option value="">Select Competition...</option>
-              {competitions
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map(comp => (
-                  <option key={comp.id} value={comp.id}>
-                    {comp.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {user && (
             <span style={{ color: 'white', fontSize: '0.875rem' }}>

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { eventsApi } from '../api/client';
 import { Event } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
 
 const EventsPage = () => {
+  const { id: hubId } = useParams<{ id: string }>();
+  const insideHub = !!hubId;
   const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
   const { isAdmin, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
@@ -13,15 +15,16 @@ const EventsPage = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const competitionId = params.get('competitionId');
-    if (competitionId && competitions.length > 0) {
-      const comp = competitions.find(c => c.id === Number(competitionId));
-      if (comp && (!activeCompetition || activeCompetition.id !== comp.id)) {
-        setActiveCompetition(comp);
+    if (!insideHub) {
+      const params = new URLSearchParams(location.search);
+      const competitionId = params.get('competitionId');
+      if (competitionId && competitions.length > 0) {
+        const comp = competitions.find(c => c.id === Number(competitionId));
+        if (comp && (!activeCompetition || activeCompetition.id !== comp.id)) {
+          setActiveCompetition(comp);
+        }
       }
     }
-    // Only load events if activeCompetition is set
     if (activeCompetition) {
       loadEvents();
     } else {
@@ -59,7 +62,7 @@ const EventsPage = () => {
 
   if (loading || authLoading) return <div className="loading">Loading...</div>;
 
-  if (!isAdmin) {
+  if (!insideHub && !isAdmin) {
     return (
       <div className="container">
         <div className="card">
@@ -70,32 +73,32 @@ const EventsPage = () => {
     );
   }
 
-  if (!activeCompetition) {
+  if (!insideHub && !activeCompetition) {
     return (
       <div className="container">
         <div className="card">
-          <h2>📋 Manage Events</h2>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '3rem', 
+          <h2>Manage Events</h2>
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem',
             background: '#fef3c7',
             border: '1px solid #f59e0b',
             borderRadius: '8px'
           }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
-            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage events.</p>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No Active Competition</p>
+            <p style={{ color: '#78350f' }}>Please select a competition to manage events.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="container">
+  const content = (
+    <>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>📋 Manage Events - {activeCompetition.name}</h2>
-          <Link to="/events/new" className="btn">➕ Create New Event</Link>
+          <h2>Manage Events{!insideHub && activeCompetition ? ` - ${activeCompetition.name}` : ''}</h2>
+          <Link to="/events/new" className="btn">Create New Event</Link>
         </div>
 
         {events.length === 0 ? (
@@ -121,7 +124,7 @@ const EventsPage = () => {
                 event.heats.forEach(heat => {
                   heat.bibs.forEach(bib => allBibs.add(bib));
                 });
-                
+
                 return (
                   <tr key={event.id}>
                     <td><strong>#{event.id}</strong></td>
@@ -160,16 +163,16 @@ const EventsPage = () => {
                         >
                           Score
                         </Link>
-                        <Link 
-                          to={`/events/${event.id}/results`} 
-                          className="btn btn-secondary" 
+                        <Link
+                          to={`/events/${event.id}/results`}
+                          className="btn btn-secondary"
                           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                         >
                           Results
                         </Link>
-                        <button 
-                          onClick={() => handleDelete(event.id)} 
-                          className="btn btn-danger" 
+                        <button
+                          onClick={() => handleDelete(event.id)}
+                          className="btn btn-danger"
                           style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                         >
                           Delete
@@ -190,8 +193,10 @@ const EventsPage = () => {
           <p>Total Events: <strong>{events.length}</strong></p>
         </div>
       )}
-    </div>
+    </>
   );
+
+  return <div className="container">{content}</div>;
 };
 
 export default EventsPage;
