@@ -183,6 +183,10 @@ export const invoicesApi = {
     paidBy?: number,
     notes?: string
   ) => api.patch<Record<string, EntryPayment>>(`/invoices/${competitionId}/payments`, { entries, paid, paidBy, notes }),
+  downloadPDF: (competitionId: number, personId: number) =>
+    api.get(`/invoices/${competitionId}/pdf/${personId}`, { responseType: 'blob' }),
+  emailInvoice: (competitionId: number, personId: number) =>
+    api.post<{ success: boolean; sentTo: string }>(`/invoices/${competitionId}/email/${personId}`),
 };
 
 export default api;

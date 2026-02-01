@@ -178,6 +178,31 @@ const InvoicesPage = () => {
     }
   };
 
+  const downloadPDF = async (personId: number, personName: string) => {
+    try {
+      const res = await invoicesApi.downloadPDF(competitionId, personId);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to download PDF');
+    }
+  };
+
+  const emailInvoice = async (personId: number) => {
+    try {
+      const res = await invoicesApi.emailInvoice(competitionId, personId);
+      alert(`Invoice emailed to ${res.data.sentTo}`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Failed to send email';
+      alert(msg);
+    }
+  };
+
   if (loading) return <div className="loading">Loading...</div>;
 
   const hasPricing = !!activeCompetition?.pricing;
@@ -314,6 +339,8 @@ const InvoicesPage = () => {
                   expanded={expandedPerson === inv.personId}
                   onToggle={() => setExpandedPerson(expandedPerson === inv.personId ? null : inv.personId)}
                   onPayEntries={payEntries}
+                  onDownloadPDF={downloadPDF}
+                  onEmailInvoice={emailInvoice}
                   fmt={fmt}
                 />
               ))}
@@ -347,12 +374,16 @@ const InvoiceRow = ({
   expanded,
   onToggle,
   onPayEntries,
+  onDownloadPDF,
+  onEmailInvoice,
   fmt,
 }: {
   invoice: PersonInvoice;
   expanded: boolean;
   onToggle: () => void;
   onPayEntries: (entries: Array<{ eventId: number; bib: number }>, paid: boolean, paidBy?: number) => Promise<void>;
+  onDownloadPDF: (personId: number, personName: string) => Promise<void>;
+  onEmailInvoice: (personId: number) => Promise<void>;
   fmt: (n: number) => string;
 }) => {
   const totalEntries = invoice.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
@@ -383,18 +414,48 @@ const InvoiceRow = ({
         <td style={{ textAlign: 'right', padding: '0.5rem', color: invoice.outstandingAmount > 0 ? '#d69e2e' : '#48bb78', fontWeight: 600 }}>
           {fmt(invoice.outstandingAmount)}
         </td>
-        <td style={{ textAlign: 'center', padding: '0.5rem' }}>
-          {allPaid ? (
-            <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.8125rem' }}>Paid</span>
-          ) : (
+        <td style={{ textAlign: 'center', padding: '0.5rem' }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {allPaid ? (
+              <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.8125rem' }}>Paid</span>
+            ) : (
+              <button
+                className="btn"
+                onClick={() => onPayEntries(unpaidEntries, true, invoice.personId)}
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+              >
+                Pay All
+              </button>
+            )}
             <button
-              className="btn"
-              onClick={e => { e.stopPropagation(); onPayEntries(unpaidEntries, true, invoice.personId); }}
-              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+              onClick={() => onDownloadPDF(invoice.personId, invoice.personName)}
+              style={{
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.75rem',
+                border: '1px solid #cbd5e0',
+                borderRadius: '4px',
+                background: 'white',
+                cursor: 'pointer',
+                color: '#4a5568',
+              }}
             >
-              Pay All
+              PDF
             </button>
-          )}
+            <button
+              onClick={() => onEmailInvoice(invoice.personId)}
+              style={{
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.75rem',
+                border: '1px solid #cbd5e0',
+                borderRadius: '4px',
+                background: 'white',
+                cursor: 'pointer',
+                color: '#4a5568',
+              }}
+            >
+              Email
+            </button>
+          </div>
         </td>
       </tr>
       {expanded && (

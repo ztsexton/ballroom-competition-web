@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { calculateInvoices } from '../services/invoiceService';
+import { generateInvoicePDF } from '../services/pdfService';
+import { sendInvoiceEmail, isEmailConfigured } from '../services/emailService';
 
 const router = Router();
 
@@ -36,6 +38,73 @@ router.patch('/:competitionId/payments', (req: Request, res: Response) => {
   });
 
   res.json(result);
+});
+
+// GET /api/invoices/:competitionId/pdf/:personId — download PDF invoice
+router.get('/:competitionId/pdf/:personId', async (req: Request, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  const personId = parseInt(req.params.personId);
+
+  const competition = dataService.getCompetitionById(competitionId);
+  if (!competition) {
+    return res.status(404).json({ error: 'Competition not found' });
+  }
+
+  const summary = calculateInvoices(competitionId);
+  const invoice = summary.invoices.find(inv => inv.personId === personId);
+  if (!invoice) {
+    return res.status(404).json({ error: 'Invoice not found for this person' });
+  }
+
+  try {
+    const pdfBuffer = await generateInvoicePDF(invoice, competition);
+    const safeName = invoice.personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${safeName}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// POST /api/invoices/:competitionId/email/:personId — email PDF invoice
+router.post('/:competitionId/email/:personId', async (req: Request, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  const personId = parseInt(req.params.personId);
+
+  if (!isEmailConfigured()) {
+    return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
+  }
+
+  const competition = dataService.getCompetitionById(competitionId);
+  if (!competition) {
+    return res.status(404).json({ error: 'Competition not found' });
+  }
+
+  const person = dataService.getPersonById(personId);
+  if (!person || person.competitionId !== competitionId) {
+    return res.status(404).json({ error: 'Person not found in this competition' });
+  }
+
+  if (!person.email) {
+    return res.status(400).json({ error: 'Person has no email address on file' });
+  }
+
+  const summary = calculateInvoices(competitionId);
+  const invoice = summary.invoices.find(inv => inv.personId === personId);
+  if (!invoice) {
+    return res.status(404).json({ error: 'No invoice for this person (no entries found)' });
+  }
+
+  try {
+    const pdfBuffer = await generateInvoicePDF(invoice, competition);
+    await sendInvoiceEmail(person.email, invoice.personName, competition.name, pdfBuffer);
+    res.json({ success: true, sentTo: person.email });
+  } catch (err) {
+    console.error('Email send error:', err);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
 });
 
 export default router;
