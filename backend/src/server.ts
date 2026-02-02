@@ -17,6 +17,7 @@ import invoicesRoutes from './routes/invoices';
 import mindbodyRoutes from './routes/mindbody';
 import usersRoutes from './routes/users';
 import judgingRoutes from './routes/judging';
+import participantRoutes from './routes/participant';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/api', authenticate);
 // Protected routes (all users can access)
 app.use('/api/users', usersRoutes);
 app.use('/api/judging', judgingRoutes);
+app.use('/api/participant', participantRoutes);
 
 // Admin-only routes
 app.use('/api/competitions', requireAdmin, competitionsRoutes);

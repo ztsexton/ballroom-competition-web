@@ -23,9 +23,11 @@ import SchedulePage from './pages/SchedulePage';
 import RunCompetitionPage from './pages/RunCompetitionPage';
 import JudgeScoringPage from './pages/JudgeScoringPage';
 import EditEventPage from './pages/EditEventPage';
+import EventEntriesPage from './pages/EventEntriesPage';
 import InvoicesPage from './pages/InvoicesPage';
 import OnDeckPage from './pages/OnDeckPage';
 import LiveCompetitionPage from './pages/LiveCompetitionPage';
+import ParticipantPortalPage from './pages/ParticipantPortalPage';
 import './App.css';
 
 // Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
@@ -50,6 +52,7 @@ const App = () => {
                   <ConditionalNavigation />
                   <Routes>
                     <Route path="/" element={<Home />} />
+                    <Route path="/portal" element={<ParticipantPortalPage />} />
                     <Route path="/competitions" element={<CompetitionsPage />} />
 
                     {/* Competition Hub — tabbed layout */}
@@ -74,6 +77,7 @@ const App = () => {
                     <Route path="/judges" element={<JudgesPage />} />
                     <Route path="/events" element={<EventsPage />} />
                     <Route path="/events/new" element={<NewEventPage />} />
+                    <Route path="/events/:id/entries" element={<EventEntriesPage />} />
                     <Route path="/events/:id/edit" element={<EditEventPage />} />
                     <Route path="/events/:id" element={<ResultsPage />} />
                     <Route path="/events/:id/score" element={<ScoreEventPage />} />

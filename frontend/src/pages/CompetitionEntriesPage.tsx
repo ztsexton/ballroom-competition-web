@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { peopleApi, couplesApi, judgesApi, studiosApi, mindbodyApi } from '../api/client';
-import { Person, Couple, Judge, Studio, MindbodyClient } from '../types';
+import { peopleApi, couplesApi, judgesApi, studiosApi, mindbodyApi, eventsApi } from '../api/client';
+import { Person, Couple, Judge, Studio, MindbodyClient, Event } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
+import { DEFAULT_LEVELS } from '../constants/levels';
 
 const CompetitionEntriesPage = () => {
   const { activeCompetition } = useCompetition();
@@ -15,12 +16,8 @@ const CompetitionEntriesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Collapse state
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    people: true,
-    couples: true,
-    judges: true,
-  });
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'people' | 'couples' | 'judges'>('people');
 
   // People form
   const [newPerson, setNewPerson] = useState({
@@ -37,6 +34,22 @@ const CompetitionEntriesPage = () => {
 
   // Judges form
   const [newJudgeName, setNewJudgeName] = useState('');
+
+  // Registration panel state
+  const [registerBib, setRegisterBib] = useState<number | null>(null);
+  const [regDesignation, setRegDesignation] = useState('');
+  const [regSyllabusType, setRegSyllabusType] = useState('');
+  const [regLevel, setRegLevel] = useState('');
+  const [regStyle, setRegStyle] = useState('');
+  const [regDances, setRegDances] = useState<string[]>([]);
+  const [regScoringType, setRegScoringType] = useState<'standard' | 'proficiency'>(
+    activeCompetition?.defaultScoringType || 'standard'
+  );
+  const [regLoading, setRegLoading] = useState(false);
+  const [regMessage, setRegMessage] = useState('');
+  const [regError, setRegError] = useState('');
+  const [coupleEvents, setCoupleEvents] = useState<Event[]>([]);
+  const [coupleEventsLoading, setCoupleEventsLoading] = useState(false);
 
   // MindBody import state
   const [showMbImport, setShowMbImport] = useState(false);
@@ -75,9 +88,6 @@ const CompetitionEntriesPage = () => {
     }
   };
 
-  const toggleSection = (key: string) => {
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-  };
 
   // --- People handlers ---
 
@@ -162,6 +172,80 @@ const CompetitionEntriesPage = () => {
     }
   };
 
+  // --- Registration handlers ---
+
+  const getDanceOptions = (s: string) => {
+    if (s === 'Standard') return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
+    if (s === 'Latin') return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
+    if (s === 'Smooth') return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
+    if (s === 'Rhythm') return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
+    return [];
+  };
+
+  const openRegisterPanel = async (bib: number) => {
+    if (registerBib === bib) {
+      setRegisterBib(null);
+      return;
+    }
+    setRegisterBib(bib);
+    setRegDesignation('');
+    setRegSyllabusType('');
+    setRegLevel('');
+    setRegStyle('');
+    setRegDances([]);
+    setRegScoringType(activeCompetition?.defaultScoringType || 'standard');
+    setRegMessage('');
+    setRegError('');
+    setCoupleEventsLoading(true);
+    try {
+      const res = await couplesApi.getEvents(bib);
+      setCoupleEvents(res.data);
+    } catch {
+      setCoupleEvents([]);
+    } finally {
+      setCoupleEventsLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!registerBib || !competitionId) return;
+    setRegLoading(true);
+    setRegMessage('');
+    setRegError('');
+    try {
+      const res = await eventsApi.register({
+        competitionId,
+        bib: registerBib,
+        designation: regDesignation || undefined,
+        syllabusType: regSyllabusType || undefined,
+        level: regLevel || undefined,
+        style: regStyle || undefined,
+        dances: regDances.length > 0 ? regDances : undefined,
+        scoringType: regScoringType,
+      });
+      const action = res.data.created ? 'Created & registered for' : 'Registered for';
+      setRegMessage(`${action} ${res.data.event.name}`);
+      // Refresh couple events
+      const evRes = await couplesApi.getEvents(registerBib);
+      setCoupleEvents(evRes.data);
+    } catch (err: any) {
+      setRegError(err.response?.data?.error || 'Failed to register');
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleRemoveEntry = async (eventId: number) => {
+    if (!registerBib) return;
+    try {
+      await eventsApi.removeEntry(eventId, registerBib);
+      const evRes = await couplesApi.getEvents(registerBib);
+      setCoupleEvents(evRes.data);
+    } catch (err: any) {
+      setRegError(err.response?.data?.error || 'Failed to remove entry');
+    }
+  };
+
   // --- MindBody handlers ---
 
   const connectedStudios = studios.filter(s => !!s.mindbodySiteId);
@@ -231,33 +315,50 @@ const CompetitionEntriesPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
-  const sectionHeaderStyle = (): React.CSSProperties => ({
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  const tabStyle = (tab: string): React.CSSProperties => ({
+    padding: '0.75rem 1.25rem',
+    background: 'none',
+    border: 'none',
+    borderBottom: activeTab === tab ? '3px solid #667eea' : '3px solid transparent',
+    color: activeTab === tab ? '#667eea' : '#718096',
+    fontWeight: activeTab === tab ? 600 : 400,
+    fontSize: '0.95rem',
     cursor: 'pointer',
-    userSelect: 'none',
-    padding: '0.75rem 0',
+    transition: 'all 0.15s',
   });
-
-  const chevron = (key: string) => expanded[key] ? '▾' : '▸';
 
   return (
     <div className="container">
       {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-      {/* ====== PEOPLE ====== */}
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid #e2e8f0',
+        marginBottom: '1rem',
+        gap: '0.25rem',
+      }}>
+        <button style={tabStyle('people')} onClick={() => setActiveTab('people')}>
+          People ({people.length})
+        </button>
+        <button style={tabStyle('couples')} onClick={() => setActiveTab('couples')}>
+          Couples ({couples.length})
+        </button>
+        <button style={tabStyle('judges')} onClick={() => setActiveTab('judges')}>
+          Judges ({judges.length})
+        </button>
+      </div>
+
+      {/* ====== PEOPLE TAB ====== */}
+      {activeTab === 'people' && (
       <div className="card">
-        <div style={sectionHeaderStyle()} onClick={() => toggleSection('people')}>
-          <h3 style={{ margin: 0 }}>
-            <span style={{ marginRight: '0.5rem', color: '#a0aec0' }}>{chevron('people')}</span>
-            People ({people.length})
-          </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0 }}>People</h3>
           {connectedStudios.length > 0 && (
             <button
               className="btn btn-secondary"
               style={{ fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
-              onClick={(e) => { e.stopPropagation(); setShowMbImport(!showMbImport); }}
+              onClick={() => setShowMbImport(!showMbImport)}
             >
               {showMbImport ? 'Close Import' : 'Import from MindBody'}
             </button>
@@ -380,8 +481,6 @@ const CompetitionEntriesPage = () => {
           </div>
         )}
 
-        {expanded.people && (
-          <div>
             <form onSubmit={handleAddPerson} style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -463,20 +562,13 @@ const CompetitionEntriesPage = () => {
                 </tbody>
               </table>
             )}
-          </div>
-        )}
       </div>
+      )}
 
-      {/* ====== COUPLES ====== */}
+      {/* ====== COUPLES TAB ====== */}
+      {activeTab === 'couples' && (
       <div className="card">
-        <div style={sectionHeaderStyle()} onClick={() => toggleSection('couples')}>
-          <h3 style={{ margin: 0 }}>
-            <span style={{ marginRight: '0.5rem', color: '#a0aec0' }}>{chevron('couples')}</span>
-            Couples ({couples.length})
-          </h3>
-        </div>
-
-        {expanded.couples && (
+        <h3 style={{ margin: '0 0 0.75rem' }}>Couples</h3>
           <div>
             {coupleError && <div className="error" style={{ marginBottom: '0.5rem' }}>{coupleError}</div>}
 
@@ -517,46 +609,232 @@ const CompetitionEntriesPage = () => {
             {couples.length === 0 ? (
               <p style={{ textAlign: 'center', padding: '1rem', color: '#718096' }}>No couples created yet.</p>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Bib #</th>
-                    <th>Leader</th>
-                    <th>Follower</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {couples.map(couple => (
-                    <tr key={couple.bib}>
-                      <td><strong>#{couple.bib}</strong></td>
-                      <td>{couple.leaderName}</td>
-                      <td>{couple.followerName}</td>
-                      <td>
-                        <button onClick={() => handleDeleteCouple(couple.bib)}
-                          className="btn btn-danger" style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div>
+                {couples.map(couple => {
+                  const isOpen = registerBib === couple.bib;
+                  const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
+                    padding: '0.375rem 0.75rem',
+                    border: active ? '2px solid #667eea' : '1px solid #cbd5e0',
+                    borderRadius: '4px',
+                    background: active ? '#667eea' : 'white',
+                    color: active ? 'white' : '#2d3748',
+                    cursor: 'pointer',
+                    fontWeight: active ? 600 : 400,
+                    fontSize: '0.85rem',
+                    transition: 'all 0.15s',
+                  });
+
+                  return (
+                    <div key={couple.bib} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0.625rem 0',
+                        gap: '1rem',
+                      }}>
+                        <strong style={{ minWidth: '3rem' }}>#{couple.bib}</strong>
+                        <span style={{ flex: 1 }}>{couple.leaderName} & {couple.followerName}</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => openRegisterPanel(couple.bib)}
+                            className="btn"
+                            style={{
+                              fontSize: '0.875rem',
+                              padding: '0.25rem 0.5rem',
+                              background: isOpen ? '#4c51bf' : undefined,
+                            }}
+                          >
+                            {isOpen ? 'Close' : 'Register'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCouple(couple.bib)}
+                            className="btn btn-danger"
+                            style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      {isOpen && (
+                        <div style={{
+                          background: '#f7fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '6px',
+                          padding: '1rem',
+                          marginBottom: '0.75rem',
+                        }}>
+                          <h4 style={{ margin: '0 0 0.75rem', color: '#4a5568' }}>
+                            Register #{couple.bib} for an event
+                          </h4>
+
+                          {regError && <div className="error" style={{ marginBottom: '0.5rem' }}>{regError}</div>}
+                          {regMessage && (
+                            <div style={{
+                              background: '#c6f6d5',
+                              color: '#276749',
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '4px',
+                              marginBottom: '0.75rem',
+                              fontSize: '0.875rem',
+                            }}>
+                              {regMessage}
+                            </div>
+                          )}
+
+                          {/* Combination builder */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Designation</label>
+                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(opt => (
+                                  <button key={opt} type="button" style={toggleBtnStyle(regDesignation === opt)}
+                                    onClick={() => setRegDesignation(regDesignation === opt ? '' : opt)}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Syllabus Type</label>
+                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                {['Syllabus', 'Open'].map(opt => (
+                                  <button key={opt} type="button" style={toggleBtnStyle(regSyllabusType === opt)}
+                                    onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Level</label>
+                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                {(activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS).map(opt => (
+                                  <button key={opt} type="button" style={toggleBtnStyle(regLevel === opt)}
+                                    onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Style</label>
+                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(opt => (
+                                  <button key={opt} type="button" style={toggleBtnStyle(regStyle === opt)}
+                                    onClick={() => {
+                                      if (regStyle === opt) {
+                                        setRegStyle('');
+                                        setRegDances([]);
+                                      } else {
+                                        setRegStyle(opt);
+                                        setRegDances([]);
+                                      }
+                                    }}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {regStyle && getDanceOptions(regStyle).length > 0 && (
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                                  Dances {regDances.length > 0 && `(${regDances.length})`}
+                                </label>
+                                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                  {getDanceOptions(regStyle).map(d => (
+                                    <button key={d} type="button" style={toggleBtnStyle(regDances.includes(d))}
+                                      onClick={() => setRegDances(prev =>
+                                        prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                                      )}>
+                                      {d}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Scoring</label>
+                              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                                {(['standard', 'proficiency'] as const).map(opt => (
+                                  <button key={opt} type="button" style={toggleBtnStyle(regScoringType === opt)}
+                                    onClick={() => setRegScoringType(opt)}>
+                                    {opt === 'standard' ? 'Standard' : 'Proficiency'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <button
+                              className="btn"
+                              onClick={handleRegister}
+                              disabled={regLoading}
+                              style={{ alignSelf: 'flex-start', marginTop: '0.25rem' }}
+                            >
+                              {regLoading ? 'Registering...' : 'Register for Event'}
+                            </button>
+                          </div>
+
+                          {/* Current events for this couple */}
+                          <div style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+                            <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.9rem' }}>
+                              Currently Entered ({coupleEventsLoading ? '...' : coupleEvents.length} events)
+                            </h4>
+                            {coupleEventsLoading ? (
+                              <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Loading...</p>
+                            ) : coupleEvents.length === 0 ? (
+                              <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Not entered in any events yet.</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                                {coupleEvents.map(ev => (
+                                  <div key={ev.id} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '0.375rem 0.5rem',
+                                    background: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '4px',
+                                    fontSize: '0.875rem',
+                                  }}>
+                                    <span>
+                                      <strong>{ev.name}</strong>
+                                      <span style={{ color: '#718096', marginLeft: '0.5rem' }}>
+                                        {[ev.designation, ev.level, ev.dances?.join(', ')].filter(Boolean).join(' \u2022 ')}
+                                      </span>
+                                    </span>
+                                    <button
+                                      onClick={() => handleRemoveEntry(ev.id)}
+                                      className="btn btn-danger"
+                                      style={{ fontSize: '0.8rem', padding: '0.125rem 0.5rem' }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        )}
       </div>
+      )}
 
-      {/* ====== JUDGES ====== */}
+      {/* ====== JUDGES TAB ====== */}
+      {activeTab === 'judges' && (
       <div className="card">
-        <div style={sectionHeaderStyle()} onClick={() => toggleSection('judges')}>
-          <h3 style={{ margin: 0 }}>
-            <span style={{ marginRight: '0.5rem', color: '#a0aec0' }}>{chevron('judges')}</span>
-            Judges ({judges.length})
-          </h3>
-        </div>
-
-        {expanded.judges && (
+        <h3 style={{ margin: '0 0 0.75rem' }}>Judges</h3>
           <div>
             <form onSubmit={handleAddJudge} style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end' }}>
@@ -597,8 +875,8 @@ const CompetitionEntriesPage = () => {
               </table>
             )}
           </div>
-        )}
       </div>
+      )}
     </div>
   );
 };

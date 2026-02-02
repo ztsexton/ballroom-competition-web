@@ -114,11 +114,6 @@ const NewEventPage = () => {
       return;
     }
     
-    if (selectedBibs.length === 0) {
-      setError('Please select at least one couple');
-      return;
-    }
-    
     try {
       const response = await eventsApi.create(
         eventName.trim(),
@@ -472,7 +467,7 @@ const NewEventPage = () => {
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <label style={{ margin: 0 }}>
-                  Select Couples *
+                  Select Couples <span style={{ color: '#a0aec0', fontWeight: 'normal' }}>(optional)</span>
                   {selectedBibs.length > 0 && (
                     <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
                       ({selectedBibs.length} selected)
@@ -730,7 +725,7 @@ const NewEventPage = () => {
             )}
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn" disabled={selectedBibs.length === 0}>
+              <button type="submit" className="btn">
                 Create Event
               </button>
               <button type="button" onClick={() => navigate('/events')} className="btn btn-secondary">

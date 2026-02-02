@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { competitionsApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { Competition } from '../types';
 
 const typeColors: Record<string, { bg: string; text: string }> = {
@@ -11,18 +12,26 @@ const typeColors: Record<string, { bg: string; text: string }> = {
 };
 
 const Home = () => {
+  const { isAdmin, loading: authLoading } = useAuth();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     competitionsApi.getAll()
       .then(res => setCompetitions(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="loading">Loading...</div>;
+
+  // Non-admins get redirected to participant portal
+  if (!isAdmin) return <Navigate to="/portal" replace />;
 
   const query = search.toLowerCase().trim();
   const filtered = competitions.filter(c =>

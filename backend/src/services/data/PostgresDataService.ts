@@ -28,6 +28,7 @@ export class PostgresDataService implements IDataService {
       levels: row.levels || undefined,
       pricing: row.pricing || undefined,
       entryPayments: row.entry_payments || undefined,
+      registrationOpen: row.registration_open || undefined,
       createdAt: row.created_at,
     };
   }
@@ -53,6 +54,7 @@ export class PostgresDataService implements IDataService {
       status: row.status,
       competitionId: row.competition_id,
       studioId: row.studio_id || undefined,
+      userId: row.user_id || undefined,
     };
   }
 
@@ -133,8 +135,8 @@ export class PostgresDataService implements IDataService {
     const now = new Date().toISOString();
     const { rows } = await this.pool.query(
       `INSERT INTO competitions (name, type, date, location, studio_id, description,
-        judge_settings, timing_settings, default_scoring_type, levels, pricing, entry_payments, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        judge_settings, timing_settings, default_scoring_type, levels, pricing, entry_payments, registration_open, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
@@ -146,6 +148,7 @@ export class PostgresDataService implements IDataService {
         competition.levels ? JSON.stringify(competition.levels) : null,
         competition.pricing ? JSON.stringify(competition.pricing) : null,
         JSON.stringify(competition.entryPayments || {}),
+        competition.registrationOpen || false,
         now,
       ]
     );
@@ -164,6 +167,7 @@ export class PostgresDataService implements IDataService {
       name: 'name', type: 'type', date: 'date', location: 'location',
       studioId: 'studio_id', description: 'description',
       defaultScoringType: 'default_scoring_type',
+      registrationOpen: 'registration_open',
     };
     const jsonFields: Record<string, string> = {
       judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
@@ -308,13 +312,29 @@ export class PostgresDataService implements IDataService {
     return rows.length > 0 ? this.personFromRow(rows[0]) : undefined;
   }
 
+  async getPersonByEmail(email: string, competitionId: number): Promise<Person | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM people WHERE LOWER(email) = LOWER($1) AND competition_id = $2 LIMIT 1',
+      [email, competitionId]
+    );
+    return rows.length > 0 ? this.personFromRow(rows[0]) : null;
+  }
+
+  async getPersonsByUserId(userId: string): Promise<Person[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM people WHERE user_id = $1 ORDER BY id', [userId]
+    );
+    return rows.map(r => this.personFromRow(r));
+  }
+
   async addPerson(person: Omit<Person, 'id'>): Promise<Person> {
     const { rows } = await this.pool.query(
-      `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
         person.firstName, person.lastName, person.email || null,
         person.role, person.status, person.competitionId, person.studioId || null,
+        person.userId || null,
       ]
     );
     return this.personFromRow(rows[0]);
@@ -330,6 +350,7 @@ export class PostgresDataService implements IDataService {
     const map: Record<string, string> = {
       firstName: 'first_name', lastName: 'last_name', email: 'email',
       role: 'role', status: 'status', competitionId: 'competition_id', studioId: 'studio_id',
+      userId: 'user_id',
     };
     for (const [key, col] of Object.entries(map)) {
       if ((updates as any)[key] !== undefined) {

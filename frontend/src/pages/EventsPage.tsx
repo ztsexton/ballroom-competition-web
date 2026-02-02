@@ -175,6 +175,13 @@ const EventsPage = () => {
                               View
                             </Link>
                             <Link
+                              to={`/events/${event.id}/entries`}
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                            >
+                              Entries
+                            </Link>
+                            <Link
                               to={`/events/${event.id}/edit`}
                               className="btn btn-secondary"
                               style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}

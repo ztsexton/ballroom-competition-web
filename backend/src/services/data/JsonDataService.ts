@@ -375,6 +375,16 @@ export class JsonDataService implements IDataService {
     return this.data.people.find(p => p.id === id);
   }
 
+  async getPersonByEmail(email: string, competitionId: number): Promise<Person | null> {
+    return this.data.people.find(p =>
+      p.email?.toLowerCase() === email.toLowerCase() && p.competitionId === competitionId
+    ) || null;
+  }
+
+  async getPersonsByUserId(userId: string): Promise<Person[]> {
+    return this.data.people.filter(p => p.userId === userId);
+  }
+
   async addPerson(person: Omit<Person, 'id'>): Promise<Person> {
     const newPerson: Person = {
       ...person,

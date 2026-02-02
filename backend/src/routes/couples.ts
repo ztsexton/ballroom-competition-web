@@ -43,6 +43,25 @@ router.post('/', async (req: Request, res: Response) => {
   res.status(201).json(newCouple);
 });
 
+// Get all events a couple is entered in
+router.get('/:bib/events', async (req: Request, res: Response) => {
+  try {
+    const bib = parseInt(req.params.bib);
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple) {
+      return res.status(404).json({ error: 'Couple not found' });
+    }
+
+    const allEvents = await dataService.getEvents(couple.competitionId);
+    const coupleEvents = Object.values(allEvents).filter(event =>
+      event.heats[0]?.bibs.includes(bib)
+    );
+    res.json(coupleEvents);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get couple events' });
+  }
+});
+
 // Delete couple
 router.delete('/:bib', async (req: Request, res: Response) => {
   const bib = parseInt(req.params.bib);

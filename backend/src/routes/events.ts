@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
+import { registerCoupleForEvent } from '../services/registrationService';
 import { Event } from '../types';
 
 const router = Router();
@@ -28,13 +29,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship } = req.body;
 
-  if (!name || !bibs || !Array.isArray(bibs) || !competitionId) {
-    return res.status(400).json({ error: 'Name, bibs array, and competition ID are required' });
+  if (!name || !competitionId) {
+    return res.status(400).json({ error: 'Name and competition ID are required' });
   }
+
+  const eventBibs = Array.isArray(bibs) ? bibs : [];
 
   const newEvent = await dataService.addEvent(
     name,
-    bibs,
+    eventBibs,
     judgeIds || [],
     parseInt(competitionId),
     designation,
@@ -46,6 +49,133 @@ router.post('/', async (req: Request, res: Response) => {
     isScholarship
   );
   res.status(201).json(newEvent);
+});
+
+// Register a couple for a combination (find-or-create event)
+router.post('/register', async (req: Request, res: Response) => {
+  try {
+    const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType } = req.body;
+
+    if (!competitionId || bib === undefined) {
+      return res.status(400).json({ error: 'competitionId and bib are required' });
+    }
+
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple) {
+      return res.status(404).json({ error: 'Couple not found' });
+    }
+
+    const result = await registerCoupleForEvent(competitionId, bib, {
+      designation, syllabusType, level, style, dances, scoringType,
+    });
+
+    if (result.error) {
+      return res.status(result.status || 500).json({ error: result.error });
+    }
+
+    if (result.created) {
+      return res.status(201).json({ event: result.event, created: true });
+    }
+    return res.json({ event: result.event, created: false });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to register entry' });
+  }
+});
+
+// Get entries (couples) for an event
+router.get('/:id/entries', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const bibs = event.heats[0]?.bibs || [];
+    const couples = await dataService.getCouples(event.competitionId);
+    const entryCouples = couples.filter(c => bibs.includes(c.bib));
+    res.json(entryCouples);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get entries' });
+  }
+});
+
+// Add a couple to an event
+router.post('/:id/entries', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { bib } = req.body;
+
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const existingBibs = event.heats[0]?.bibs || [];
+    if (existingBibs.includes(bib)) {
+      return res.status(409).json({ error: 'Couple is already entered in this event' });
+    }
+
+    let hasScores = false;
+    for (const heat of event.heats) {
+      for (const b of heat.bibs) {
+        const scores = await dataService.getScores(id, heat.round, b);
+        if (scores.length > 0) { hasScores = true; break; }
+      }
+      if (hasScores) break;
+    }
+    if (hasScores) {
+      return res.status(409).json({ error: 'Cannot add couple: event has existing scores' });
+    }
+
+    const newBibs = [...existingBibs, bib];
+    const judgeIds = event.heats[0]?.judges || [];
+    const st = event.scoringType || 'standard';
+    const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
+    const updated = await dataService.updateEvent(id, { heats: newHeats });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add entry' });
+  }
+});
+
+// Remove a couple from an event
+router.delete('/:id/entries/:bib', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const bib = parseInt(req.params.bib);
+
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const existingBibs = event.heats[0]?.bibs || [];
+    if (!existingBibs.includes(bib)) {
+      return res.status(404).json({ error: 'Couple is not in this event' });
+    }
+
+    let hasScores = false;
+    for (const heat of event.heats) {
+      for (const b of heat.bibs) {
+        const scores = await dataService.getScores(id, heat.round, b);
+        if (scores.length > 0) { hasScores = true; break; }
+      }
+      if (hasScores) break;
+    }
+    if (hasScores) {
+      return res.status(409).json({ error: 'Cannot remove couple: event has existing scores' });
+    }
+
+    const newBibs = existingBibs.filter((b: number) => b !== bib);
+    const judgeIds = event.heats[0]?.judges || [];
+    const st = event.scoringType || 'standard';
+    const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
+    const updated = await dataService.updateEvent(id, { heats: newHeats });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove entry' });
+  }
 });
 
 // Update event

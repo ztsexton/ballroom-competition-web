@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { peopleApi, couplesApi, judgesApi, eventsApi, schedulesApi, studiosApi } from '../api/client';
+import { peopleApi, couplesApi, judgesApi, eventsApi, schedulesApi, studiosApi, competitionsApi } from '../api/client';
 import { useCompetition } from '../context/CompetitionContext';
 import { Studio } from '../types';
 
@@ -17,8 +17,9 @@ interface WorkflowCounts {
 const CompetitionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const competitionId = parseInt(id || '0');
-  const { activeCompetition } = useCompetition();
+  const { activeCompetition, refreshCompetitions } = useCompetition();
   const [studio, setStudio] = useState<Studio | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
   const [counts, setCounts] = useState<WorkflowCounts>({
     people: 0, couples: 0, judges: 0, events: 0,
     scheduleHeats: 0, currentHeatIndex: 0, scheduleExists: false,
@@ -72,6 +73,23 @@ const CompetitionDetailsPage = () => {
       // counts stay at defaults
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeCompetition) {
+      setRegistrationOpen(!!activeCompetition.registrationOpen);
+    }
+  }, [activeCompetition]);
+
+  const handleToggleRegistration = async () => {
+    const newValue = !registrationOpen;
+    setRegistrationOpen(newValue);
+    try {
+      await competitionsApi.update(competitionId, { registrationOpen: newValue });
+      await refreshCompetitions();
+    } catch {
+      setRegistrationOpen(!newValue); // revert on error
     }
   };
 
@@ -154,6 +172,46 @@ const CompetitionDetailsPage = () => {
             ))}
           </div>
         )}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          marginTop: '0.75rem',
+          padding: '0.625rem 0.75rem',
+          background: registrationOpen ? '#f0fff4' : '#f7fafc',
+          border: `1px solid ${registrationOpen ? '#c6f6d5' : '#e2e8f0'}`,
+          borderRadius: '6px',
+        }}>
+          <button
+            onClick={handleToggleRegistration}
+            style={{
+              width: '44px',
+              height: '24px',
+              borderRadius: '12px',
+              border: 'none',
+              background: registrationOpen ? '#48bb78' : '#cbd5e0',
+              cursor: 'pointer',
+              position: 'relative',
+              transition: 'background 0.2s',
+              flexShrink: 0,
+            }}
+          >
+            <span style={{
+              position: 'absolute',
+              top: '2px',
+              left: registrationOpen ? '22px' : '2px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              background: 'white',
+              transition: 'left 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568' }}>
+            Participant Registration {registrationOpen ? 'Open' : 'Closed'}
+          </span>
+        </div>
       </div>
 
       {/* Workflow Checklist */}

@@ -73,6 +73,7 @@ export interface Competition {
   pricing?: CompetitionPricing;
   entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
+  registrationOpen?: boolean;
   createdAt: string;
 }
 
@@ -85,6 +86,7 @@ export interface Person {
   status: 'student' | 'professional';
   competitionId: number;
   studioId?: number;
+  userId?: string;
 }
 
 export interface Couple {

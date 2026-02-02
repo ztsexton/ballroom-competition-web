@@ -73,6 +73,7 @@ export interface Competition {
   pricing?: CompetitionPricing;
   entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
+  registrationOpen?: boolean;
   createdAt: string;
 }
 
@@ -85,6 +86,7 @@ export interface Person {
   status: 'student' | 'professional';
   competitionId: number;
   studioId?: number; // For studio competitions
+  userId?: string; // Firebase UID linking person to logged-in user
 }
 
 export interface Couple {

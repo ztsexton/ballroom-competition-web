@@ -63,6 +63,7 @@ export const couplesApi = {
   getAll: (competitionId?: number) => 
     api.get<Couple[]>('/couples', { params: { competitionId } }),
   getByBib: (bib: number) => api.get<Couple>(`/couples/${bib}`),
+  getEvents: (bib: number) => api.get<Event[]>(`/couples/${bib}/events`),
   create: (leaderId: number, followerId: number, competitionId: number) =>
     api.post<Couple>('/couples', { leaderId, followerId, competitionId }),
   delete: (bib: number) => api.delete(`/couples/${bib}`),
@@ -109,6 +110,17 @@ export const eventsApi = {
   ) => api.post(`/events/${id}/scores/${round}`, { scores }),
   clearScores: (id: number, round: string) =>
     api.delete(`/events/${id}/scores/${round}`),
+  getEntries: (eventId: number) =>
+    api.get<Couple[]>(`/events/${eventId}/entries`),
+  addEntry: (eventId: number, bib: number) =>
+    api.post<Event>(`/events/${eventId}/entries`, { bib }),
+  removeEntry: (eventId: number, bib: number) =>
+    api.delete<Event>(`/events/${eventId}/entries/${bib}`),
+  register: (data: {
+    competitionId: number; bib: number;
+    designation?: string; syllabusType?: string; level?: string;
+    style?: string; dances?: string[]; scoringType?: string;
+  }) => api.post<{ event: Event; created: boolean }>('/events/register', data),
 };
 
 // Schedules API
@@ -177,6 +189,30 @@ export const judgingApi = {
     api.get<Couple[]>(`/judging/competition/${competitionId}/couples`),
   getCompetition: (competitionId: number) =>
     api.get<Competition>(`/judging/competition/${competitionId}/competition`),
+};
+
+// Participant API (non-admin, for self-service registration)
+export const participantApi = {
+  getCompetitions: () => api.get<Competition[]>('/participant/competitions'),
+  getCompetition: (id: number) => api.get<Competition>(`/participant/competitions/${id}`),
+  getProfile: () => api.get<Person[]>('/participant/profile'),
+  register: (competitionId: number, data: { name: string; email?: string; role: string; status?: string }) =>
+    api.post<Person>(`/participant/competitions/${competitionId}/register`, data),
+  addPartner: (competitionId: number, data: { name: string; role: string; status?: string }) =>
+    api.post<{ partner: Person; couple: Couple }>(`/participant/competitions/${competitionId}/partner`, data),
+  getMyEntries: (competitionId: number) =>
+    api.get<{
+      person: Person | null;
+      couples: Couple[];
+      entries: Event[];
+      schedule: Array<{ heatId: string; estimatedStartTime?: string; eventId: number; eventName: string; round: string }>;
+    }>(`/participant/competitions/${competitionId}/my-entries`),
+  registerEntry: (competitionId: number, data: {
+    bib: number; designation?: string; syllabusType?: string; level?: string;
+    style?: string; dances?: string[]; scoringType?: string;
+  }) => api.post<{ event: Event; created: boolean }>(`/participant/competitions/${competitionId}/entries`, data),
+  removeEntry: (competitionId: number, eventId: number, bib: number) =>
+    api.delete(`/participant/competitions/${competitionId}/entries/${eventId}/${bib}`),
 };
 
 // Users API

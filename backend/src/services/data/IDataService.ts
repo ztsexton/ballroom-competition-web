@@ -35,6 +35,8 @@ export interface IDataService {
   // People
   getPeople(competitionId?: number): Promise<Person[]>;
   getPersonById(id: number): Promise<Person | undefined>;
+  getPersonByEmail(email: string, competitionId: number): Promise<Person | null>;
+  getPersonsByUserId(userId: string): Promise<Person[]>;
   addPerson(person: Omit<Person, 'id'>): Promise<Person>;
   updatePerson(id: number, updates: Partial<Omit<Person, 'id'>>): Promise<Person | null>;
   deletePerson(id: number): Promise<boolean>;

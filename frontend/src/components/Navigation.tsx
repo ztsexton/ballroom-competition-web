@@ -28,12 +28,14 @@ const Navigation = () => {
           Ballroom Scorer
         </Link>
         <div style={{ display: 'flex', gap: '1.5rem', flex: 1, flexWrap: 'wrap' }}>
-          {isAdmin && (
+          {isAdmin ? (
             <>
               <Link to="/competitions" style={{ color: 'white' }}>Competitions</Link>
               <Link to="/studios" style={{ color: 'white' }}>Studios</Link>
               <Link to="/users" style={{ color: 'white' }}>Users</Link>
             </>
+          ) : (
+            <Link to="/portal" style={{ color: 'white' }}>My Portal</Link>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
