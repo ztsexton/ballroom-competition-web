@@ -4,6 +4,7 @@ export function determineRounds(numCompetitors: number): string[] {
   return ['quarter-final', 'semi-final', 'final'];
 }
 
-export function getScoreKey(eventId: number, round: string, bib: number): string {
+export function getScoreKey(eventId: number, round: string, bib: number, dance?: string): string {
+  if (dance) return `${eventId}:${round}:${dance}:${bib}`;
   return `${eventId}:${round}:${bib}`;
 }

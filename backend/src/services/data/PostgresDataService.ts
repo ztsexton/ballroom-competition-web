@@ -23,6 +23,7 @@ export class PostgresDataService implements IDataService {
       studioId: row.studio_id || undefined,
       description: row.description || undefined,
       judgeSettings: row.judge_settings || undefined,
+      timingSettings: row.timing_settings || undefined,
       defaultScoringType: row.default_scoring_type || undefined,
       levels: row.levels || undefined,
       pricing: row.pricing || undefined,
@@ -132,14 +133,15 @@ export class PostgresDataService implements IDataService {
     const now = new Date().toISOString();
     const { rows } = await this.pool.query(
       `INSERT INTO competitions (name, type, date, location, studio_id, description,
-        judge_settings, default_scoring_type, levels, pricing, entry_payments, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        judge_settings, timing_settings, default_scoring_type, levels, pricing, entry_payments, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
         competition.location || null, competition.studioId || null,
         competition.description || null,
         competition.judgeSettings ? JSON.stringify(competition.judgeSettings) : null,
+        competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
         competition.defaultScoringType || null,
         competition.levels ? JSON.stringify(competition.levels) : null,
         competition.pricing ? JSON.stringify(competition.pricing) : null,
@@ -164,8 +166,8 @@ export class PostgresDataService implements IDataService {
       defaultScoringType: 'default_scoring_type',
     };
     const jsonFields: Record<string, string> = {
-      judgeSettings: 'judge_settings', levels: 'levels',
-      pricing: 'pricing', entryPayments: 'entry_payments',
+      judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
+      levels: 'levels', pricing: 'pricing', entryPayments: 'entry_payments',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {
@@ -530,35 +532,45 @@ export class PostgresDataService implements IDataService {
 
   // ─── Scores ─────────────────────────────────────────────────────
 
-  async getScores(eventId: number, round: string, bib: number): Promise<number[]> {
+  async getScores(eventId: number, round: string, bib: number, dance?: string): Promise<number[]> {
+    const d = dance || '';
     const { rows } = await this.pool.query(
-      'SELECT scores FROM scores WHERE event_id = $1 AND round = $2 AND bib = $3',
-      [eventId, round, bib]
+      'SELECT scores FROM scores WHERE event_id = $1 AND round = $2 AND bib = $3 AND dance = $4',
+      [eventId, round, bib, d]
     );
     return rows.length > 0 ? rows[0].scores : [];
   }
 
-  async setScores(eventId: number, round: string, bib: number, scores: number[]): Promise<void> {
+  async setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void> {
+    const d = dance || '';
     await this.pool.query(
-      `INSERT INTO scores (event_id, round, bib, scores) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (event_id, round, bib) DO UPDATE SET scores = $4`,
-      [eventId, round, bib, JSON.stringify(scores)]
+      `INSERT INTO scores (event_id, round, bib, dance, scores) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (event_id, round, bib, dance) DO UPDATE SET scores = $5`,
+      [eventId, round, bib, d, JSON.stringify(scores)]
     );
   }
 
-  async clearScores(eventId: number, round: string): Promise<void> {
-    await this.pool.query(
-      'DELETE FROM scores WHERE event_id = $1 AND round = $2',
-      [eventId, round]
-    );
+  async clearScores(eventId: number, round: string, dance?: string): Promise<void> {
+    if (dance) {
+      await this.pool.query(
+        'DELETE FROM scores WHERE event_id = $1 AND round = $2 AND dance = $3',
+        [eventId, round, dance]
+      );
+    } else {
+      await this.pool.query(
+        'DELETE FROM scores WHERE event_id = $1 AND round = $2',
+        [eventId, round]
+      );
+    }
   }
 
   // ─── Judge Scores ───────────────────────────────────────────────
 
-  async getJudgeScores(eventId: number, round: string, bib: number): Promise<Record<number, number>> {
+  async getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>> {
+    const d = dance || '';
     const { rows } = await this.pool.query(
-      'SELECT judge_id, score FROM judge_scores WHERE event_id = $1 AND round = $2 AND bib = $3',
-      [eventId, round, bib]
+      'SELECT judge_id, score FROM judge_scores WHERE event_id = $1 AND round = $2 AND bib = $3 AND dance = $4',
+      [eventId, round, bib, d]
     );
     const result: Record<number, number> = {};
     for (const row of rows) {
@@ -569,23 +581,32 @@ export class PostgresDataService implements IDataService {
 
   async setJudgeScoresBatch(
     eventId: number, round: string, judgeId: number,
-    entries: Array<{ bib: number; score: number }>
+    entries: Array<{ bib: number; score: number }>,
+    dance?: string
   ): Promise<void> {
+    const d = dance || '';
     for (const { bib, score } of entries) {
       await this.pool.query(
-        `INSERT INTO judge_scores (event_id, round, bib, judge_id, score)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (event_id, round, bib, judge_id) DO UPDATE SET score = $5`,
-        [eventId, round, bib, judgeId, score]
+        `INSERT INTO judge_scores (event_id, round, bib, judge_id, dance, score)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (event_id, round, bib, judge_id, dance) DO UPDATE SET score = $6`,
+        [eventId, round, bib, judgeId, d, score]
       );
     }
   }
 
-  async clearJudgeScores(eventId: number, round: string): Promise<void> {
-    await this.pool.query(
-      'DELETE FROM judge_scores WHERE event_id = $1 AND round = $2',
-      [eventId, round]
-    );
+  async clearJudgeScores(eventId: number, round: string, dance?: string): Promise<void> {
+    if (dance) {
+      await this.pool.query(
+        'DELETE FROM judge_scores WHERE event_id = $1 AND round = $2 AND dance = $3',
+        [eventId, round, dance]
+      );
+    } else {
+      await this.pool.query(
+        'DELETE FROM judge_scores WHERE event_id = $1 AND round = $2',
+        [eventId, round]
+      );
+    }
   }
 
   async clearAllEventScores(eventId: number): Promise<void> {
@@ -606,12 +627,13 @@ export class PostgresDataService implements IDataService {
     }));
   }
 
-  async getJudgeSubmissionStatus(eventId: number, round: string): Promise<Record<number, boolean>> {
+  async getJudgeSubmissionStatus(eventId: number, round: string, dance?: string): Promise<Record<number, boolean>> {
     const event = await this.getEventById(eventId);
     if (!event) return {};
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return {};
 
+    const d = dance || '';
     const status: Record<number, boolean> = {};
     for (const judgeId of heat.judges) {
       if (heat.bibs.length === 0) {
@@ -620,8 +642,8 @@ export class PostgresDataService implements IDataService {
       }
       const { rows } = await this.pool.query(
         `SELECT COUNT(*) as cnt FROM judge_scores
-         WHERE event_id = $1 AND round = $2 AND judge_id = $3 AND bib = ANY($4)`,
-        [eventId, round, judgeId, heat.bibs]
+         WHERE event_id = $1 AND round = $2 AND judge_id = $3 AND dance = $4 AND bib = ANY($5)`,
+        [eventId, round, judgeId, d, heat.bibs]
       );
       status[judgeId] = parseInt(rows[0].cnt) === heat.bibs.length;
     }

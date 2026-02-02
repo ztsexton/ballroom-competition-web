@@ -1,0 +1,65 @@
+{
+  "judges": [
+    {
+      "id": 1,
+      "name": "Elena Volkov",
+      "judgeNumber": 1,
+      "competitionId": 1
+    },
+    {
+      "id": 2,
+      "name": "Marcus Chen",
+      "judgeNumber": 2,
+      "competitionId": 1
+    },
+    {
+      "id": 3,
+      "name": "Isabella Romano",
+      "judgeNumber": 3,
+      "competitionId": 1
+    },
+    {
+      "id": 4,
+      "name": "Dmitri Petrov",
+      "judgeNumber": 4,
+      "competitionId": 1
+    },
+    {
+      "id": 5,
+      "name": "Sophia Laurent",
+      "judgeNumber": 5,
+      "competitionId": 1
+    },
+    {
+      "id": 6,
+      "name": "Hiroshi Tanaka",
+      "judgeNumber": 6,
+      "competitionId": 1
+    },
+    {
+      "id": 7,
+      "name": "Victoria Blake",
+      "judgeNumber": 7,
+      "competitionId": 1
+    },
+    {
+      "id": 8,
+      "name": "Rafael Mendez",
+      "judgeNumber": 8,
+      "competitionId": 1
+    },
+    {
+      "id": 9,
+      "name": "Anastasia Kuznetsova",
+      "judgeNumber": 9,
+      "competitionId": 1
+    },
+    {
+      "id": 10,
+      "name": "James Blackwood",
+      "judgeNumber": 10,
+      "competitionId": 1
+    }
+  ],
+  "next_id": 11
+}

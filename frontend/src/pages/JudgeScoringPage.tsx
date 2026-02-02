@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { judgingApi } from '../api/client';
-import { ActiveHeatInfo, Judge } from '../types';
+import { ActiveHeatInfo, ActiveHeatEntry, Judge } from '../types';
 import { useCompetitionSSE } from '../hooks/useCompetitionSSE';
 
 type InputMethod = 'keyboard' | 'tap' | 'picker' | 'quickscore';
@@ -13,19 +13,64 @@ const JudgeScoringPage = () => {
   const [judges, setJudges] = useState<Judge[]>([]);
   const [selectedJudgeId, setSelectedJudgeId] = useState<number | null>(null);
   const [heatInfo, setHeatInfo] = useState<ActiveHeatInfo | null>(null);
-  const [scores, setScores] = useState<Record<number, number>>({});
+  // scores[key][bib] = score — key is "eventId" or "eventId:dance"
+  const [scores, setScores] = useState<Record<string, Record<number, number>>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [activeDance, setActiveDance] = useState<string | null>(null);
+  const [submittedDances, setSubmittedDances] = useState<Set<string>>(new Set());
   const [inputMethod, setInputMethod] = useState<InputMethod>('keyboard');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Track which heat we've submitted for and which heat our scores belong to.
   const [submittedHeatKey, setSubmittedHeatKey] = useState<string | null>(null);
   const scoringHeatKeyRef = useRef<string | null>(null);
 
-  const heatKey = heatInfo ? `${heatInfo.eventId}:${heatInfo.round}` : null;
+  const heatKey = heatInfo ? heatInfo.heatId : null;
+
+  // Convenience: first entry (for shared properties like scoringType, isRecallRound)
+  const firstEntry = heatInfo?.entries[0] ?? null;
+  const isMultiEntry = (heatInfo?.entries.length ?? 0) > 1;
+
+  // Multi-dance support: use server-provided dance list and current dance
+  const allDances = heatInfo?.allDances || [];
+  const isMultiDance = allDances.length > 0;
+  const serverDance = heatInfo?.currentDance || null;
+  const currentDanceIndex = activeDance ? allDances.indexOf(activeDance) : 0;
+
+  // --- Fullscreen API ---
+
+  const tryEnterFullscreen = useCallback(() => {
+    const el = document.documentElement as any;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const doc = document as any;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (doc.exitFullscreen) doc.exitFullscreen();
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+    } else {
+      tryEnterFullscreen();
+    }
+  }, [tryEnterFullscreen]);
+
+  useEffect(() => {
+    const handler = () => {
+      const doc = document as any;
+      setIsFullscreen(!!(doc.fullscreenElement || doc.webkitFullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handler);
+    document.addEventListener('webkitfullscreenchange', handler);
+    return () => {
+      document.removeEventListener('fullscreenchange', handler);
+      document.removeEventListener('webkitfullscreenchange', handler);
+    };
+  }, []);
 
   // --- localStorage helpers for input method preference ---
 
@@ -43,8 +88,8 @@ const JudgeScoringPage = () => {
 
   const handleInputMethodChange = (method: InputMethod) => {
     setInputMethod(method);
-    if (selectedJudgeId !== null && heatInfo) {
-      const mode = heatInfo.scoringType === 'proficiency' ? 'proficiency' : 'ranking';
+    if (selectedJudgeId !== null && firstEntry) {
+      const mode = firstEntry.scoringType === 'proficiency' ? 'proficiency' : 'ranking';
       const key = `judge-input-pref-${selectedJudgeId}-${mode}`;
       localStorage.setItem(key, method);
     }
@@ -85,27 +130,39 @@ const JudgeScoringPage = () => {
     }
   }, [selectedJudgeId, loadActiveHeat]);
 
-  // Initialize scores only when the heat actually changes (different eventId+round).
+  // Initialize scores only when the heat actually changes (different heatId).
   useEffect(() => {
     if (!heatInfo || !heatKey) return;
     if (heatKey === scoringHeatKeyRef.current) return; // same heat, keep scores
 
-    const isProficiency = heatInfo.scoringType === 'proficiency';
-    const initial: Record<number, number> = {};
-    heatInfo.couples.forEach(c => {
-      initial[c.bib] = isProficiency ? 0 : heatInfo.isRecallRound ? 0 : 1;
-    });
+    const initial: Record<string, Record<number, number>> = {};
+    let firstDanceName: string | null = null;
+    for (const entry of heatInfo.entries) {
+      const isProficiency = entry.scoringType === 'proficiency';
+      const dances: (string | undefined)[] = entry.dances && entry.dances.length > 1 ? entry.dances : [undefined];
+      for (const dance of dances) {
+        if (dance && !firstDanceName) firstDanceName = dance;
+        const key = dance ? `${entry.eventId}:${dance}` : String(entry.eventId);
+        initial[key] = {};
+        entry.couples.forEach(c => {
+          initial[key][c.bib] = 0;
+        });
+      }
+    }
     setScores(initial);
+    // Use server-provided currentDance, fallback to first dance found
+    setActiveDance(heatInfo.currentDance || firstDanceName);
+    setSubmittedDances(new Set());
     scoringHeatKeyRef.current = heatKey;
     setSubmitting(false);
     setShowConfirm(false);
     setValidationErrors([]);
 
     // Load saved input method preference for the new heat's scoring type
-    if (selectedJudgeId !== null) {
-      loadInputMethodPref(selectedJudgeId, heatInfo.scoringType, heatInfo.isRecallRound);
+    if (selectedJudgeId !== null && firstEntry) {
+      loadInputMethodPref(selectedJudgeId, firstEntry.scoringType, firstEntry.isRecallRound);
     }
-  }, [heatKey, heatInfo, selectedJudgeId, loadInputMethodPref]);
+  }, [heatKey, heatInfo, selectedJudgeId, loadInputMethodPref, firstEntry]);
 
   // When the heat changes (different key), clear the submitted state.
   useEffect(() => {
@@ -113,6 +170,14 @@ const JudgeScoringPage = () => {
       setSubmittedHeatKey(null);
     }
   }, [heatKey, submittedHeatKey]);
+
+  // Sync activeDance from server's currentDance (admin controls which dance is active)
+  useEffect(() => {
+    if (serverDance && serverDance !== activeDance) {
+      setActiveDance(serverDance);
+      setValidationErrors([]);
+    }
+  }, [serverDance]);
 
   // SSE: refresh heat info on schedule or score updates
   useCompetitionSSE(selectedJudgeId !== null ? competitionId : null, {
@@ -133,46 +198,133 @@ const JudgeScoringPage = () => {
 
   const selectedJudge = judges.find(j => j.id === selectedJudgeId);
 
+  // --- Handlers ---
+
+  const handleToggleRecall = (key: string, bib: number) => {
+    setScores(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [bib]: prev[key]?.[bib] === 1 ? 0 : 1,
+      },
+    }));
+  };
+
+  const handleRankChange = (key: string, bib: number, value: string) => {
+    const rank = parseInt(value);
+    if (value === '') {
+      setScores(prev => ({ ...prev, [key]: { ...prev[key], [bib]: 0 } }));
+    } else if (!isNaN(rank) && rank >= 1) {
+      setScores(prev => ({ ...prev, [key]: { ...prev[key], [bib]: rank } }));
+    }
+  };
+
+  const handleProficiencyChange = (key: string, bib: number, value: string) => {
+    const num = parseInt(value) || 0;
+    setScores(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [bib]: Math.min(100, Math.max(0, num)) },
+    }));
+  };
+
+  const handleScoresBatch = (key: string, newScores: Record<number, number>) => {
+    setScores(prev => ({ ...prev, [key]: newScores }));
+  };
+
   // --- Validation ---
 
   const validate = (): string[] => {
     if (!heatInfo) return ['No active heat'];
     const errors: string[] = [];
-    const coupleCount = heatInfo.couples.length;
-    const isProficiency = heatInfo.scoringType === 'proficiency';
 
-    if (isProficiency) {
-      const missing = heatInfo.couples.filter(c => scores[c.bib] === undefined || scores[c.bib] === 0);
-      if (missing.length > 0) {
-        errors.push(`Enter a score for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
-      }
-    } else if (heatInfo.isRecallRound) {
-      // Recall: no strict validation — 0 recalls is technically valid
-    } else {
-      // Final ranking: unique ranks 1..N
-      const ranks = heatInfo.couples.map(c => scores[c.bib]);
-      const missing = heatInfo.couples.filter(c => !scores[c.bib] || scores[c.bib] < 1 || scores[c.bib] > coupleCount);
-      if (missing.length > 0) {
-        errors.push(`Rank must be 1-${coupleCount} for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
-      }
+    for (const entry of heatInfo.entries) {
+      const dances: (string | undefined)[] = entry.dances && entry.dances.length > 1 ? entry.dances : [undefined];
+      for (const dance of dances) {
+        const key = dance ? `${entry.eventId}:${dance}` : String(entry.eventId);
+        const entryScores = scores[key] || {};
+        const coupleCount = entry.couples.length;
+        const isProficiency = entry.scoringType === 'proficiency';
+        const prefix = isMultiEntry
+          ? `${entry.eventName}${dance ? ` (${dance})` : ''}: `
+          : dance ? `${dance}: ` : '';
 
-      const seen = new Set<number>();
-      const dupes = new Set<number>();
-      for (const r of ranks) {
-        if (r >= 1 && r <= coupleCount) {
-          if (seen.has(r)) dupes.add(r);
-          seen.add(r);
+        if (isProficiency) {
+          const missing = entry.couples.filter(c => entryScores[c.bib] === undefined || entryScores[c.bib] === 0);
+          if (missing.length > 0) {
+            errors.push(`${prefix}Enter a score for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
+          }
+        } else if (entry.isRecallRound) {
+          // Recall: no strict validation — 0 recalls is technically valid
+        } else {
+          // Final ranking: unique ranks 1..N
+          const ranks = entry.couples.map(c => entryScores[c.bib]);
+          const missing = entry.couples.filter(c => !entryScores[c.bib] || entryScores[c.bib] < 1 || entryScores[c.bib] > coupleCount);
+          if (missing.length > 0) {
+            errors.push(`${prefix}Rank must be 1-${coupleCount} for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
+          }
+
+          const seen = new Set<number>();
+          const dupes = new Set<number>();
+          for (const r of ranks) {
+            if (r >= 1 && r <= coupleCount) {
+              if (seen.has(r)) dupes.add(r);
+              seen.add(r);
+            }
+          }
+          if (dupes.size > 0) {
+            errors.push(`${prefix}Duplicate rank(s): ${[...dupes].sort((a, b) => a - b).join(', ')}`);
+          }
         }
       }
-      if (dupes.size > 0) {
-        errors.push(`Duplicate rank(s): ${[...dupes].sort((a, b) => a - b).join(', ')}`);
+    }
+    return errors;
+  };
+
+  // Validate a single dance (for per-dance "Next" navigation)
+  const validateForDance = (targetDance: string): string[] => {
+    if (!heatInfo) return [];
+    const errors: string[] = [];
+    for (const entry of heatInfo.entries) {
+      if (!entry.dances?.includes(targetDance)) continue;
+      const key = `${entry.eventId}:${targetDance}`;
+      const entryScores = scores[key] || {};
+      const coupleCount = entry.couples.length;
+      const isProfEntry = entry.scoringType === 'proficiency';
+      const prefix = isMultiEntry ? `${entry.eventName} (${targetDance}): ` : `${targetDance}: `;
+
+      if (isProfEntry) {
+        const missing = entry.couples.filter(c => entryScores[c.bib] === undefined || entryScores[c.bib] === 0);
+        if (missing.length > 0) {
+          errors.push(`${prefix}Enter a score for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
+        }
+      } else if (entry.isRecallRound) {
+        // Recall: no strict validation
+      } else {
+        const missing = entry.couples.filter(c => !entryScores[c.bib] || entryScores[c.bib] < 1 || entryScores[c.bib] > coupleCount);
+        if (missing.length > 0) {
+          errors.push(`${prefix}Rank must be 1-${coupleCount} for: ${missing.map(c => `#${c.bib}`).join(', ')}`);
+        }
+        const seen = new Set<number>();
+        const dupes = new Set<number>();
+        for (const r of entry.couples.map(c => entryScores[c.bib])) {
+          if (r >= 1 && r <= coupleCount) {
+            if (seen.has(r)) dupes.add(r);
+            seen.add(r);
+          }
+        }
+        if (dupes.size > 0) {
+          errors.push(`${prefix}Duplicate rank(s): ${[...dupes].sort((a, b) => a - b).join(', ')}`);
+        }
       }
     }
     return errors;
   };
 
   const handleSubmitClick = () => {
-    const errors = validate();
+    // For multi-dance, validate only the active dance
+    const errors = isMultiDance && activeDance
+      ? validateForDance(activeDance)
+      : validate();
     setValidationErrors(errors);
     if (errors.length > 0) return;
     setShowConfirm(true);
@@ -185,20 +337,51 @@ const JudgeScoringPage = () => {
     setError('');
     setShowConfirm(false);
     try {
-      const scoreArray = Object.entries(scores).map(([bib, score]) => ({
-        bib: parseInt(bib),
-        score,
-      }));
+      if (isMultiDance && activeDance) {
+        // Per-dance submission: submit only the active dance
+        for (const entry of heatInfo.entries) {
+          if (!entry.dances?.includes(activeDance)) continue;
+          const key = `${entry.eventId}:${activeDance}`;
+          const entryScores = scores[key] || {};
+          const scoreArray = Object.entries(entryScores).map(([bib, score]) => ({
+            bib: parseInt(bib),
+            score,
+          }));
+          await judgingApi.submitJudgeScores(
+            competitionId,
+            selectedJudgeId,
+            entry.eventId,
+            entry.round,
+            scoreArray,
+            activeDance,
+          );
+        }
 
-      await judgingApi.submitJudgeScores(
-        competitionId,
-        selectedJudgeId,
-        heatInfo.eventId,
-        heatInfo.round,
-        scoreArray
-      );
-      setSubmittedHeatKey(heatKey);
-      setValidationErrors([]);
+        // Mark this dance as submitted and wait for admin to advance
+        const updated = new Set(submittedDances);
+        updated.add(activeDance);
+        setSubmittedDances(updated);
+        setValidationErrors([]);
+      } else {
+        // Single-dance: submit all entries at once
+        for (const entry of heatInfo.entries) {
+          const key = String(entry.eventId);
+          const entryScores = scores[key] || {};
+          const scoreArray = Object.entries(entryScores).map(([bib, score]) => ({
+            bib: parseInt(bib),
+            score,
+          }));
+          await judgingApi.submitJudgeScores(
+            competitionId,
+            selectedJudgeId,
+            entry.eventId,
+            entry.round,
+            scoreArray,
+          );
+        }
+        setSubmittedHeatKey(heatKey);
+        setValidationErrors([]);
+      }
     } catch {
       setError('Failed to submit scores. Please try again.');
     } finally {
@@ -210,6 +393,7 @@ const JudgeScoringPage = () => {
     setSelectedJudgeId(judgeId);
     setSubmittedHeatKey(null);
     scoringHeatKeyRef.current = null;
+    tryEnterFullscreen();
   };
 
   const handleChangeJudge = () => {
@@ -218,30 +402,10 @@ const JudgeScoringPage = () => {
     scoringHeatKeyRef.current = null;
     setHeatInfo(null);
     setScores({});
+    setActiveDance(null);
+    setSubmittedDances(new Set());
     setShowConfirm(false);
     setValidationErrors([]);
-  };
-
-  const handleToggleRecall = (bib: number) => {
-    setScores(prev => ({ ...prev, [bib]: prev[bib] === 1 ? 0 : 1 }));
-  };
-
-  const handleRankChange = (bib: number, value: string) => {
-    const rank = parseInt(value);
-    if (value === '') {
-      setScores(prev => ({ ...prev, [bib]: 0 }));
-    } else if (!isNaN(rank) && rank >= 1) {
-      setScores(prev => ({ ...prev, [bib]: rank }));
-    }
-  };
-
-  const handleProficiencyChange = (bib: number, value: string) => {
-    const num = parseInt(value) || 0;
-    setScores(prev => ({ ...prev, [bib]: Math.min(100, Math.max(0, num)) }));
-  };
-
-  const handleScoresBatch = (newScores: Record<number, number>) => {
-    setScores(newScores);
   };
 
   // --- Status display helpers ---
@@ -266,7 +430,7 @@ const JudgeScoringPage = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
-  const containerStyle = { maxWidth: '540px', margin: '0 auto', padding: '0.75rem' };
+  const containerStyle: React.CSSProperties = { maxWidth: '540px', margin: '0 auto', padding: '0.5rem' };
 
   // ==================== JUDGE SELECTION ====================
   if (!isJudgeSelected) {
@@ -363,12 +527,14 @@ const JudgeScoringPage = () => {
               <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
                 Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
               </p>
-              <p style={{ color: '#718096', marginBottom: '0.25rem' }}>
-                {heatInfo.eventName} — {formatRound(heatInfo.round)}
-              </p>
+              {heatInfo.entries.map(entry => (
+                <p key={entry.eventId} style={{ color: '#718096', marginBottom: '0.25rem' }}>
+                  {entry.eventName} — {formatRound(entry.round)}
+                </p>
+              ))}
             </>
           )}
-          <p style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
+          <p style={{ color: '#a0aec0', fontSize: '0.875rem', marginTop: '0.5rem' }}>
             Waiting for the next heat...
           </p>
         </div>
@@ -441,28 +607,34 @@ const JudgeScoringPage = () => {
                 borderRadius: '8px',
                 marginBottom: '0.75rem',
               }}>
-                <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.25rem' }}>
-                  {heatInfo.eventName}
-                </p>
-                <p style={{ color: '#4a5568', margin: '0 0 0.5rem', textTransform: 'capitalize' }}>
-                  {formatRound(heatInfo.round)}
-                </p>
-                {(() => {
-                  const sc = statusColor(heatInfo.status);
-                  return (
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '9999px',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      background: sc.bg,
-                      color: sc.text,
-                      textTransform: 'uppercase',
-                    }}>
-                      {statusLabel(heatInfo.status)}
-                    </span>
-                  );
-                })()}
+                {heatInfo.entries.map(entry => (
+                  <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                    <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                      {entry.eventName}
+                    </p>
+                    <p style={{ color: '#4a5568', margin: 0, textTransform: 'capitalize' }}>
+                      {formatRound(entry.round)}
+                    </p>
+                  </div>
+                ))}
+                <div style={{ marginTop: '0.5rem' }}>
+                  {(() => {
+                    const sc = statusColor(heatInfo.status);
+                    return (
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        background: sc.bg,
+                        color: sc.text,
+                        textTransform: 'uppercase',
+                      }}>
+                        {statusLabel(heatInfo.status)}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
 
               {heatInfo.status === 'scoring' && !isAssigned && (
@@ -506,55 +678,147 @@ const JudgeScoringPage = () => {
   }
 
   // ==================== SCORING ====================
-  const isProficiency = heatInfo!.scoringType === 'proficiency';
-  const isRecall = heatInfo!.isRecallRound;
+
+  const renderEntryForm = (entry: ActiveHeatEntry, dance?: string) => {
+    const key = dance ? `${entry.eventId}:${dance}` : String(entry.eventId);
+    const entryScores = scores[key] || {};
+    const isProficiency = entry.scoringType === 'proficiency';
+    const isRecall = entry.isRecallRound;
+    const proAm = entry.designation === 'Pro-Am';
+
+    if (isProficiency) {
+      return inputMethod === 'quickscore' ? (
+        <QuickScoreForm
+          couples={entry.couples}
+          scores={entryScores}
+          onChange={(bib, value) => handleProficiencyChange(key, bib, value)}
+          isProAm={proAm}
+        />
+      ) : (
+        <ProficiencyForm
+          couples={entry.couples}
+          scores={entryScores}
+          onChange={(bib, value) => handleProficiencyChange(key, bib, value)}
+          isProAm={proAm}
+        />
+      );
+    }
+
+    if (isRecall) {
+      return (
+        <RecallForm
+          couples={entry.couples}
+          scores={entryScores}
+          onToggle={(bib) => handleToggleRecall(key, bib)}
+          isProAm={proAm}
+        />
+      );
+    }
+
+    if (inputMethod === 'tap') {
+      return (
+        <TapToRankForm
+          couples={entry.couples}
+          scores={entryScores}
+          onScoresChange={(newScores) => handleScoresBatch(key, newScores)}
+          isProAm={proAm}
+        />
+      );
+    }
+
+    if (inputMethod === 'picker') {
+      return (
+        <PickerRankForm
+          couples={entry.couples}
+          scores={entryScores}
+          onScoresChange={(newScores) => handleScoresBatch(key, newScores)}
+          isProAm={proAm}
+        />
+      );
+    }
+
+    return (
+      <RankingForm
+        couples={entry.couples}
+        scores={entryScores}
+        onChange={(bib, value) => handleRankChange(key, bib, value)}
+        isProAm={proAm}
+      />
+    );
+  };
+
+  // All entries share same scoringType/isRecallRound (merge criterion)
+  const isRecall = firstEntry?.isRecallRound ?? false;
+  const isProficiency = firstEntry?.scoringType === 'proficiency';
 
   return (
     <div style={containerStyle}>
       {error && (
         <div style={{
-          padding: '0.75rem 1rem',
+          padding: '0.5rem 0.75rem',
           background: '#fed7d7',
           color: '#9b2c2c',
           borderRadius: '6px',
-          marginBottom: '0.75rem',
+          marginBottom: '0.5rem',
           fontWeight: 500,
+          fontSize: '0.875rem',
         }}>
           {error}
         </div>
       )}
 
-      {/* Header */}
+      {/* Compact header: judge identity + heat counter + controls */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '0.75rem',
+        justifyContent: 'space-between',
+        padding: '0.375rem 0.625rem',
+        background: '#667eea',
+        borderRadius: '8px',
+        marginBottom: '0.5rem',
+        color: 'white',
       }}>
-        <JudgeBadge judge={selectedJudge!} />
-        <span style={{
-          padding: '0.25rem 0.75rem',
-          background: '#fefcbf',
-          borderRadius: '9999px',
-          fontSize: '0.875rem',
-          fontWeight: 700,
-          color: '#744210',
-          letterSpacing: '0.05em',
-          textTransform: 'uppercase',
-        }}>
-          Scoring
-        </span>
-      </div>
-
-      {/* Event info */}
-      <div className="card" style={{ marginBottom: '0.75rem', padding: '0.75rem 1rem' }}>
-        <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>Heat {heatInfo!.heatNumber} of {heatInfo!.totalHeats}</p>
-        <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>{heatInfo!.eventName}</h2>
-        <p style={{ color: '#4a5568', margin: 0, fontSize: '0.875rem' }}>
-          {formatRound(heatInfo!.round)}
-          {heatInfo!.style || heatInfo!.level || heatInfo!.dances?.length ? ' | ' : ''}
-          {[heatInfo!.style, heatInfo!.level, heatInfo!.dances?.join(', ')].filter(Boolean).join(' | ')}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            J{selectedJudge!.judgeNumber} {selectedJudge!.name}
+          </span>
+          <button
+            onClick={handleChangeJudge}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: '0.6875rem',
+              cursor: 'pointer',
+              padding: 0,
+              textDecoration: 'underline',
+              touchAction: 'manipulation',
+            }}
+          >
+            change
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
+            Heat {heatInfo!.heatNumber}/{heatInfo!.totalHeats}
+          </span>
+          <button
+            onClick={toggleFullscreen}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              padding: 0,
+              touchAction: 'manipulation',
+              lineHeight: 1,
+            }}
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? '⊗' : '⛶'}
+          </button>
+        </div>
       </div>
 
       {/* Input method toggle (not for recall) */}
@@ -566,164 +830,246 @@ const JudgeScoringPage = () => {
         />
       )}
 
-      {/* Scoring form */}
-      <div className="card">
-        {isProficiency ? (
-          inputMethod === 'quickscore' ? (
-            <QuickScoreForm
-              couples={heatInfo!.couples}
-              scores={scores}
-              onChange={handleProficiencyChange}
-            />
-          ) : (
-            <ProficiencyForm
-              couples={heatInfo!.couples}
-              scores={scores}
-              onChange={handleProficiencyChange}
-            />
-          )
-        ) : isRecall ? (
-          <RecallForm
-            couples={heatInfo!.couples}
-            scores={scores}
-            onToggle={handleToggleRecall}
-          />
-        ) : (
-          inputMethod === 'tap' ? (
-            <TapToRankForm
-              couples={heatInfo!.couples}
-              scores={scores}
-              onScoresChange={handleScoresBatch}
-            />
-          ) : inputMethod === 'picker' ? (
-            <PickerRankForm
-              couples={heatInfo!.couples}
-              scores={scores}
-              onScoresChange={handleScoresBatch}
-            />
-          ) : (
-            <RankingForm
-              couples={heatInfo!.couples}
-              scores={scores}
-              onChange={handleRankChange}
-            />
-          )
-        )}
-
-        {/* Validation errors */}
-        {validationErrors.length > 0 && (
+      {/* Current dance indicator for multi-dance events (read-only, admin-controlled) */}
+      {isMultiDance && activeDance && (() => {
+        const danceSubmitted = submittedDances.has(activeDance);
+        return (
           <div style={{
-            padding: '0.75rem 1rem',
-            background: '#fed7d7',
-            borderRadius: '6px',
-            marginTop: '1rem',
-          }}>
-            {validationErrors.map((err, i) => (
-              <p key={i} style={{ margin: i > 0 ? '0.25rem 0 0' : 0, color: '#9b2c2c', fontSize: '0.875rem' }}>
-                {err}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {/* Confirmation overlay */}
-        {showConfirm && (
-          <div style={{
-            padding: '1rem',
-            background: '#ebf8ff',
-            border: '2px solid #bee3f8',
+            marginBottom: '0.5rem',
             borderRadius: '8px',
-            marginTop: '1rem',
-            textAlign: 'center',
+            overflow: 'hidden',
+            border: `2px solid ${danceSubmitted ? '#48bb78' : '#667eea'}`,
           }}>
-            <p style={{ fontWeight: 600, marginBottom: '0.75rem', color: '#2a4365' }}>
-              Submit these scores?
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <button
-                onClick={handleConfirmSubmit}
-                disabled={submitting}
-                style={{
-                  padding: '0.75rem',
-                  minHeight: '48px',
-                  background: '#48bb78',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '1.125rem',
-                  fontWeight: 700,
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                  opacity: submitting ? 0.6 : 1,
-                  touchAction: 'manipulation',
-                }}
-              >
-                {submitting ? 'Submitting...' : 'Confirm'}
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                disabled={submitting}
-                style={{
-                  padding: '0.75rem',
-                  minHeight: '48px',
-                  background: 'white',
-                  color: '#4a5568',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Cancel
-              </button>
+            <div style={{
+              padding: '0.375rem 0.75rem',
+              background: danceSubmitted ? '#48bb78' : '#667eea',
+              textAlign: 'center',
+            }}>
+              <p style={{
+                margin: 0,
+                fontWeight: 700,
+                fontSize: '1.125rem',
+                color: 'white',
+              }}>
+                {danceSubmitted ? '✓ ' : ''}{activeDance}
+              </p>
+              <p style={{
+                margin: 0,
+                fontSize: '0.6875rem',
+                color: 'rgba(255,255,255,0.85)',
+                fontWeight: 500,
+              }}>
+                {danceSubmitted ? 'Submitted — waiting for next dance' : `Now Scoring — Dance ${currentDanceIndex + 1} of ${allDances.length}`}
+              </p>
             </div>
+
+            {allDances.length > 1 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.25rem',
+                padding: '0.3125rem 0.5rem',
+                background: danceSubmitted ? '#f0fff4' : '#eef2ff',
+              }}>
+                {allDances.map((d, i) => {
+                  const isThisDance = d === activeDance;
+                  const isSubmitted = submittedDances.has(d);
+                  return (
+                    <div key={d} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: isThisDance ? undefined : '8px',
+                        height: isThisDance ? '22px' : '8px',
+                        padding: isThisDance ? '0 0.5rem' : 0,
+                        borderRadius: isThisDance ? '11px' : '50%',
+                        background: isSubmitted ? '#48bb78' : isThisDance ? '#667eea' : '#cbd5e0',
+                        color: 'white',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                      }}>
+                        {isThisDance ? d : ''}
+                      </div>
+                      {i < allDances.length - 1 && (
+                        <div style={{
+                          width: '12px',
+                          height: '2px',
+                          background: isSubmitted ? '#48bb78' : '#cbd5e0',
+                        }} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        );
+      })()}
 
-        {/* Submit button */}
-        {!showConfirm && (
-          <button
-            onClick={handleSubmitClick}
-            disabled={submitting}
-            style={{
-              width: '100%',
-              marginTop: '1.5rem',
-              padding: '1rem',
-              minHeight: '56px',
-              background: '#48bb78',
-              color: 'white',
-              border: 'none',
+      {/* Scoring forms — one per entry (filtered by active dance if multi-dance) */}
+      <div className="card">
+        {/* When current dance is already submitted, show a waiting message instead of the form */}
+        {isMultiDance && activeDance && submittedDances.has(activeDance) ? (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#c6f6d5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 0.75rem',
+              fontSize: '1.5rem',
+              color: '#276749',
+            }}>
+              ✓
+            </div>
+            <p style={{ fontWeight: 700, fontSize: '1.125rem', color: '#276749', margin: '0 0 0.25rem' }}>
+              {activeDance} Scores Submitted
+            </p>
+            <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0 }}>
+              Waiting for the competition director to advance to the next dance.
+            </p>
+          </div>
+        ) : (isMultiDance && activeDance
+          ? heatInfo!.entries.filter(e => e.dances?.includes(activeDance))
+          : heatInfo!.entries
+        ).map((entry, idx, arr) => (
+          <div key={isMultiDance ? `${entry.eventId}:${activeDance}` : entry.eventId}>
+            {/* Section header for multi-entry heats */}
+            {isMultiEntry && (
+              <div style={{
+                padding: '0.5rem 0',
+                marginBottom: '0.5rem',
+                borderBottom: '2px solid #667eea',
+              }}>
+                <p style={{ margin: 0, fontWeight: 700, color: '#667eea', fontSize: '1rem' }}>
+                  {entry.eventName}
+                </p>
+                <p style={{ margin: '0.125rem 0 0', color: '#718096', fontSize: '0.8rem' }}>
+                  {formatRound(entry.round)} — {entry.couples.length} couples
+                </p>
+              </div>
+            )}
+
+            {renderEntryForm(entry, isMultiDance ? activeDance! : undefined)}
+
+            {/* Divider between entries */}
+            {isMultiEntry && idx < arr.length - 1 && (
+              <hr style={{
+                border: 'none',
+                borderTop: '2px dashed #e2e8f0',
+                margin: '1.5rem 0',
+              }} />
+            )}
+          </div>
+        ))}
+
+        {/* Validation errors, confirm overlay, and submit button — hidden when in dance-submitted waiting state */}
+        {!(isMultiDance && activeDance && submittedDances.has(activeDance)) && (<>
+          {/* Validation errors */}
+          {validationErrors.length > 0 && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: '#fed7d7',
+              borderRadius: '6px',
+              marginTop: '1rem',
+            }}>
+              {validationErrors.map((err, i) => (
+                <p key={i} style={{ margin: i > 0 ? '0.25rem 0 0' : 0, color: '#9b2c2c', fontSize: '0.875rem' }}>
+                  {err}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Confirmation overlay */}
+          {showConfirm && (
+            <div style={{
+              padding: '0.75rem',
+              background: '#ebf8ff',
+              border: '2px solid #bee3f8',
               borderRadius: '8px',
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              opacity: submitting ? 0.6 : 1,
-              transition: 'opacity 0.15s',
-              touchAction: 'manipulation',
-            }}
-          >
-            Submit Scores
-          </button>
-        )}
+              marginTop: '0.75rem',
+              textAlign: 'center',
+            }}>
+              <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#2a4365', fontSize: '0.9375rem' }}>
+                Submit {isMultiDance && activeDance ? `${activeDance} scores` : 'scores'}{isMultiEntry ? ` across ${heatInfo!.entries.length} events` : ''}?
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem',
+                    minHeight: '42px',
+                    background: 'white',
+                    color: '#4a5568',
+                    border: '1px solid #cbd5e0',
+                    borderRadius: '6px',
+                    fontSize: '0.9375rem',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmSubmit}
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem',
+                    minHeight: '42px',
+                    background: '#48bb78',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 700,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1,
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  {submitting ? 'Submitting...' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Submit button */}
+          {!showConfirm && (
+            <button
+              onClick={handleSubmitClick}
+              disabled={submitting}
+              style={{
+                width: '100%',
+                marginTop: '0.75rem',
+                padding: '0.75rem',
+                minHeight: '48px',
+                background: '#48bb78',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1.125rem',
+                fontWeight: 700,
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.6 : 1,
+                transition: 'opacity 0.15s',
+                touchAction: 'manipulation',
+              }}
+            >
+              {submitting ? 'Submitting...' : isMultiDance && activeDance ? `Submit ${activeDance}` : isMultiEntry ? 'Submit All Scores' : 'Submit Scores'}
+            </button>
+          )}
+        </>)}
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-        <button
-          onClick={handleChangeJudge}
-          style={{
-            padding: '0.75rem 1.25rem',
-            background: 'transparent',
-            border: '1px solid #cbd5e0',
-            borderRadius: '6px',
-            color: '#718096',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            touchAction: 'manipulation',
-          }}
-        >
-          Change Judge
-        </button>
-      </div>
     </div>
   );
 };
@@ -779,16 +1125,16 @@ const InputMethodToggle = ({
   onMethodChange: (method: InputMethod) => void;
 }) => {
   const options: { key: InputMethod; label: string }[] = mode === 'ranking'
-    ? [{ key: 'tap', label: 'Tap to Rank' }, { key: 'picker', label: 'Picker' }, { key: 'keyboard', label: 'Keyboard' }]
+    ? [{ key: 'tap', label: 'Tap' }, { key: 'picker', label: 'Picker' }, { key: 'keyboard', label: 'Keyboard' }]
     : [{ key: 'quickscore', label: 'Quick Score' }, { key: 'keyboard', label: 'Keyboard' }];
 
   return (
     <div style={{
       display: 'flex',
-      border: '2px solid #e2e8f0',
-      borderRadius: '10px',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
       overflow: 'hidden',
-      marginBottom: '0.75rem',
+      marginBottom: '0.5rem',
     }}>
       {options.map(opt => {
         const isActive = opt.key === selectedMethod;
@@ -798,13 +1144,13 @@ const InputMethodToggle = ({
             onClick={() => onMethodChange(opt.key)}
             style={{
               flex: 1,
-              padding: '0.625rem 0.5rem',
-              minHeight: '44px',
+              padding: '0.375rem 0.25rem',
+              minHeight: '34px',
               border: 'none',
               background: isActive ? '#667eea' : 'transparent',
               color: isActive ? 'white' : '#4a5568',
               fontWeight: isActive ? 700 : 500,
-              fontSize: '0.9375rem',
+              fontSize: '0.8125rem',
               cursor: 'pointer',
               transition: 'all 0.15s',
               touchAction: 'manipulation',
@@ -825,21 +1171,23 @@ const RecallForm = ({
   couples,
   scores,
   onToggle,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onToggle: (bib: number) => void;
+  isProAm?: boolean;
 }) => {
   const recallCount = Object.values(scores).filter(v => v === 1).length;
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <p style={{ fontWeight: 600, margin: 0 }}>Select couples to recall:</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>Select couples to recall:</p>
         <span style={{
-          padding: '0.25rem 0.5rem',
+          padding: '0.125rem 0.375rem',
           background: recallCount > 0 ? '#c6f6d5' : '#e2e8f0',
           borderRadius: '4px',
-          fontSize: '0.875rem',
+          fontSize: '0.8125rem',
           fontWeight: 600,
         }}>
           {recallCount} / {couples.length}
@@ -854,24 +1202,25 @@ const RecallForm = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              borderRadius: '8px',
-              border: selected ? '2px solid #48bb78' : '2px solid #e2e8f0',
-              background: selected ? '#f0fff4' : '#fff',
+              gap: '0.5rem',
+              padding: '0.5rem 0.625rem',
+              marginBottom: '0.3125rem',
+              borderRadius: '6px',
+              border: selected ? '2px solid #48bb78' : `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+              borderLeft: isProAm && !selected ? '3px solid #f59e0b' : undefined,
+              background: selected ? '#f0fff4' : isProAm ? '#fffbeb' : '#fff',
               cursor: 'pointer',
               transition: 'all 0.15s',
               userSelect: 'none',
               WebkitTapHighlightColor: 'transparent',
               touchAction: 'manipulation',
-              minHeight: '56px',
+              minHeight: '44px',
             }}
           >
             <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
+              width: '26px',
+              height: '26px',
+              borderRadius: '5px',
               border: selected ? '2px solid #48bb78' : '2px solid #cbd5e0',
               background: selected ? '#48bb78' : '#fff',
               display: 'flex',
@@ -879,18 +1228,13 @@ const RecallForm = ({
               justifyContent: 'center',
               color: '#fff',
               fontWeight: 700,
-              fontSize: '1rem',
+              fontSize: '0.875rem',
               flexShrink: 0,
               transition: 'all 0.15s',
             }}>
               {selected ? '✓' : ''}
             </div>
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-              <span style={{ color: '#4a5568' }}>
-                {couple.leaderName} & {couple.followerName}
-              </span>
-            </div>
+            <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>
           </div>
         );
       })}
@@ -904,10 +1248,12 @@ const RankingForm = ({
   couples,
   scores,
   onChange,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onChange: (bib: number, value: string) => void;
+  isProAm?: boolean;
 }) => {
   const rankCounts: Record<number, number> = {};
   Object.values(scores).forEach(r => {
@@ -916,7 +1262,7 @@ const RankingForm = ({
 
   return (
     <div>
-      <p style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+      <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
         Rank each couple (1 = best, {couples.length} = last):
       </p>
       {couples.map(couple => {
@@ -928,37 +1274,31 @@ const RankingForm = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              borderRadius: '8px',
-              border: isDuplicate ? '2px solid #e53e3e' : '1px solid #e2e8f0',
-              background: isDuplicate ? '#fff5f5' : '#fff',
-              minHeight: '56px',
+              gap: '0.5rem',
+              padding: '0.5rem 0.625rem',
+              marginBottom: '0.3125rem',
+              borderRadius: '6px',
+              border: isDuplicate ? '2px solid #e53e3e' : `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+              borderLeft: isProAm && !isDuplicate ? '3px solid #f59e0b' : undefined,
+              background: isDuplicate ? '#fff5f5' : isProAm ? '#fffbeb' : '#fff',
+              minHeight: '44px',
             }}
           >
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-              <span style={{ color: '#4a5568' }}>
-                {couple.leaderName} & {couple.followerName}
-              </span>
-            </div>
+            <strong style={{ fontSize: '1.0625rem', flex: 1 }}>#{couple.bib}</strong>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              min={1}
-              max={couples.length}
               value={rank || ''}
               onChange={(e) => onChange(couple.bib, e.target.value)}
               style={{
-                width: '60px',
-                height: '48px',
+                width: '52px',
+                height: '40px',
                 textAlign: 'center',
-                padding: '0.25rem',
+                padding: '0.125rem',
                 border: isDuplicate ? '2px solid #e53e3e' : '2px solid #cbd5e0',
-                borderRadius: '8px',
-                fontSize: '1.375rem',
+                borderRadius: '6px',
+                fontSize: '1.25rem',
                 fontWeight: 700,
                 color: isDuplicate ? '#e53e3e' : '#2d3748',
                 touchAction: 'manipulation',
@@ -977,10 +1317,12 @@ const TapToRankForm = ({
   couples,
   scores,
   onScoresChange,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onScoresChange: (scores: Record<number, number>) => void;
+  isProAm?: boolean;
 }) => {
   // Derive ranked and unranked lists from scores
   const ranked = couples
@@ -1010,6 +1352,23 @@ const TapToRankForm = ({
     onScoresChange(updated);
   };
 
+  const handleMoveUp = (bib: number) => {
+    const rank = scores[bib];
+    if (rank <= 1) return;
+    const swapBib = couples.find(c => scores[c.bib] === rank - 1)?.bib;
+    if (swapBib === undefined) return;
+    onScoresChange({ ...scores, [bib]: rank - 1, [swapBib]: rank });
+  };
+
+  const handleMoveDown = (bib: number) => {
+    const rank = scores[bib];
+    const maxRank = Math.max(0, ...Object.values(scores).filter(v => v > 0));
+    if (rank >= maxRank) return;
+    const swapBib = couples.find(c => scores[c.bib] === rank + 1)?.bib;
+    if (swapBib === undefined) return;
+    onScoresChange({ ...scores, [bib]: rank + 1, [swapBib]: rank });
+  };
+
   const handleClearAll = () => {
     const cleared: Record<number, number> = {};
     couples.forEach(c => { cleared[c.bib] = 0; });
@@ -1019,16 +1378,16 @@ const TapToRankForm = ({
   const rowBase: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
+    gap: '0.5rem',
     width: '100%',
-    padding: '0.875rem 1rem',
-    marginBottom: '0.5rem',
-    borderRadius: '8px',
+    padding: '0.4375rem 0.625rem',
+    marginBottom: '0.3125rem',
+    borderRadius: '6px',
     border: 'none',
     cursor: 'pointer',
     textAlign: 'left',
-    fontSize: '1rem',
-    minHeight: '56px',
+    fontSize: '0.9375rem',
+    minHeight: '44px',
     touchAction: 'manipulation',
     WebkitTapHighlightColor: 'transparent',
     userSelect: 'none',
@@ -1037,13 +1396,13 @@ const TapToRankForm = ({
   return (
     <div>
       {/* Progress header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <p style={{ fontWeight: 600, margin: 0 }}>Tap couples in placement order:</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>Tap couples in placement order:</p>
         <span style={{
-          padding: '0.25rem 0.5rem',
+          padding: '0.125rem 0.375rem',
           background: allRanked ? '#c6f6d5' : '#fefcbf',
           borderRadius: '4px',
-          fontSize: '0.875rem',
+          fontSize: '0.8125rem',
           fontWeight: 600,
         }}>
           {ranked.length} / {couples.length}
@@ -1052,68 +1411,108 @@ const TapToRankForm = ({
 
       {/* Ranked section */}
       {ranked.length > 0 && (
-        <div style={{ marginBottom: unranked.length > 0 ? '1rem' : 0 }}>
-          {ranked.map(couple => (
-            <button
-              key={couple.bib}
-              onClick={() => handleRemoveRank(couple.bib)}
-              style={{
-                ...rowBase,
-                background: '#eef2ff',
-                border: '2px solid #667eea',
-              }}
-            >
-              {/* Rank circle */}
-              <span style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: '#667eea',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '1.25rem',
-                flexShrink: 0,
-              }}>
-                {scores[couple.bib]}
-              </span>
-              <div style={{ flex: 1 }}>
-                <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-                <span style={{ color: '#4a5568' }}>
-                  {couple.leaderName} & {couple.followerName}
+        <div style={{ marginBottom: unranked.length > 0 ? '0.5rem' : 0 }}>
+          {ranked.map(couple => {
+            const rank = scores[couple.bib];
+            const maxRank = Math.max(0, ...Object.values(scores).filter(v => v > 0));
+            const canMoveUp = rank > 1;
+            const canMoveDown = rank < maxRank;
+            const arrowBtn: React.CSSProperties = {
+              width: '28px',
+              height: '28px',
+              borderRadius: '4px',
+              border: '1px solid #c3cfea',
+              background: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+              padding: 0,
+              color: '#667eea',
+            };
+            return (
+              <div
+                key={couple.bib}
+                style={{
+                  ...rowBase,
+                  background: '#eef2ff',
+                  border: '2px solid #667eea',
+                  cursor: 'default',
+                }}
+              >
+                <span style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: '#667eea',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  flexShrink: 0,
+                }}>
+                  {rank}
                 </span>
+                <strong style={{ flex: 1, fontSize: '1.0625rem' }}>#{couple.bib}</strong>
+                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleMoveUp(couple.bib); }}
+                    disabled={!canMoveUp}
+                    style={{ ...arrowBtn, opacity: canMoveUp ? 1 : 0.3 }}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleMoveDown(couple.bib); }}
+                    disabled={!canMoveDown}
+                    style={{ ...arrowBtn, opacity: canMoveDown ? 1 : 0.3 }}
+                  >
+                    ▼
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleRemoveRank(couple.bib); }}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '4px',
+                      background: '#e2e8f0',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      color: '#718096',
+                      flexShrink: 0,
+                      cursor: 'pointer',
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      padding: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              {/* Remove indicator */}
-              <span style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: '#e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.875rem',
-                color: '#718096',
-                flexShrink: 0,
-              }}>
-                ✕
-              </span>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Divider with label */}
       {ranked.length > 0 && unranked.length > 0 && (
         <p style={{
-          fontSize: '0.75rem',
+          fontSize: '0.6875rem',
           fontWeight: 600,
           color: '#a0aec0',
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
-          marginBottom: '0.5rem',
+          marginBottom: '0.3125rem',
         }}>
           Tap to place
         </p>
@@ -1126,32 +1525,27 @@ const TapToRankForm = ({
           onClick={() => handleTapToRank(couple.bib)}
           style={{
             ...rowBase,
-            background: '#fff',
-            border: '2px solid #e2e8f0',
+            background: isProAm ? '#fffbeb' : '#fff',
+            border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+            borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
           }}
         >
-          {/* Placeholder circle */}
           <span style={{
-            width: '40px',
-            height: '40px',
+            width: '32px',
+            height: '32px',
             borderRadius: '50%',
             border: '2px dashed #cbd5e0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 700,
-            fontSize: '1.25rem',
+            fontSize: '1rem',
             color: '#cbd5e0',
             flexShrink: 0,
           }}>
             {ranked.length + unranked.indexOf(couple) + 1}
           </span>
-          <div style={{ flex: 1 }}>
-            <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-            <span style={{ color: '#4a5568' }}>
-              {couple.leaderName} & {couple.followerName}
-            </span>
-          </div>
+          <strong style={{ flex: 1, fontSize: '1.0625rem' }}>#{couple.bib}</strong>
         </button>
       ))}
 
@@ -1185,10 +1579,12 @@ const PickerRankForm = ({
   couples,
   scores,
   onScoresChange,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onScoresChange: (scores: Record<number, number>) => void;
+  isProAm?: boolean;
 }) => {
   const coupleCount = couples.length;
   const rankOptions = Array.from({ length: coupleCount }, (_, i) => i + 1);
@@ -1229,15 +1625,15 @@ const PickerRankForm = ({
   return (
     <div>
       {/* Progress header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <p style={{ fontWeight: 600, margin: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>
           Pick a rank for each couple (1 = best):
         </p>
         <span style={{
-          padding: '0.25rem 0.5rem',
+          padding: '0.125rem 0.375rem',
           background: allRanked ? '#c6f6d5' : '#fefcbf',
           borderRadius: '4px',
-          fontSize: '0.875rem',
+          fontSize: '0.8125rem',
           fontWeight: 600,
         }}>
           {Object.keys(rankToBib).length} / {coupleCount}
@@ -1251,44 +1647,25 @@ const PickerRankForm = ({
           <div
             key={couple.bib}
             style={{
-              padding: '0.75rem',
-              marginBottom: '0.625rem',
-              borderRadius: '8px',
-              border: hasRank ? '2px solid #667eea' : '1px solid #e2e8f0',
-              background: hasRank ? '#eef2ff' : '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.375rem 0.5rem',
+              marginBottom: '0.3125rem',
+              borderRadius: '6px',
+              border: hasRank ? '2px solid #667eea' : `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+              borderLeft: isProAm && !hasRank ? '3px solid #f59e0b' : undefined,
+              background: hasRank ? '#eef2ff' : isProAm ? '#fffbeb' : '#fff',
+              minHeight: '44px',
             }}
           >
-            {/* Couple info */}
+            <strong style={{ fontSize: '1.0625rem', flexShrink: 0, minWidth: '36px' }}>#{couple.bib}</strong>
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-            }}>
-              <div>
-                <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-                <span style={{ color: '#4a5568', fontSize: '0.9375rem' }}>
-                  {couple.leaderName} & {couple.followerName}
-                </span>
-              </div>
-              {hasRank && (
-                <span style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 700,
-                  color: '#667eea',
-                  minWidth: '28px',
-                  textAlign: 'right',
-                }}>
-                  {currentRank}
-                </span>
-              )}
-            </div>
-
-            {/* Rank buttons */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(coupleCount, 8)}, 1fr)`,
-              gap: '0.375rem',
+              flexWrap: 'wrap',
+              gap: '0.25rem',
+              flex: 1,
+              justifyContent: 'flex-end',
             }}>
               {rankOptions.map(rank => {
                 const isSelected = currentRank === rank;
@@ -1297,15 +1674,15 @@ const PickerRankForm = ({
                   <button
                     key={rank}
                     onClick={() => handlePickRank(couple.bib, rank)}
-                    disabled={false}
                     style={{
-                      minHeight: '44px',
+                      width: '36px',
+                      height: '36px',
                       border: isSelected
                         ? '2px solid #667eea'
                         : isUsedByOther
-                          ? '2px solid #e2e8f0'
-                          : '2px solid #cbd5e0',
-                      borderRadius: '8px',
+                          ? '1px solid #e2e8f0'
+                          : '1px solid #cbd5e0',
+                      borderRadius: '6px',
                       background: isSelected
                         ? '#667eea'
                         : isUsedByOther
@@ -1316,13 +1693,14 @@ const PickerRankForm = ({
                         : isUsedByOther
                           ? '#cbd5e0'
                           : '#2d3748',
-                      fontSize: '1.125rem',
+                      fontSize: '1rem',
                       fontWeight: 700,
                       cursor: isUsedByOther ? 'default' : 'pointer',
                       opacity: isUsedByOther ? 0.5 : 1,
                       touchAction: 'manipulation',
                       WebkitTapHighlightColor: 'transparent',
                       transition: 'all 0.1s',
+                      padding: 0,
                     }}
                   >
                     {rank}
@@ -1364,13 +1742,15 @@ const ProficiencyForm = ({
   couples,
   scores,
   onChange,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onChange: (bib: number, value: string) => void;
+  isProAm?: boolean;
 }) => (
   <div>
-    <p style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+    <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
       Score each couple (0-100):
     </p>
     {couples.map(couple => (
@@ -1379,37 +1759,31 @@ const ProficiencyForm = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
-          padding: '1rem',
-          marginBottom: '0.5rem',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0',
-          background: '#fff',
-          minHeight: '56px',
+          gap: '0.5rem',
+          padding: '0.5rem 0.625rem',
+          marginBottom: '0.3125rem',
+          borderRadius: '6px',
+          border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+          borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
+          background: isProAm ? '#fffbeb' : '#fff',
+          minHeight: '44px',
         }}
       >
-        <div style={{ flex: 1 }}>
-          <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-          <span style={{ color: '#4a5568' }}>
-            {couple.leaderName} & {couple.followerName}
-          </span>
-        </div>
+        <strong style={{ fontSize: '1.0625rem', flex: 1 }}>#{couple.bib}</strong>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          min={0}
-          max={100}
           value={scores[couple.bib] ?? ''}
           onChange={(e) => onChange(couple.bib, e.target.value)}
           style={{
-            width: '64px',
-            height: '48px',
+            width: '56px',
+            height: '40px',
             textAlign: 'center',
-            padding: '0.25rem',
+            padding: '0.125rem',
             border: '2px solid #cbd5e0',
-            borderRadius: '8px',
-            fontSize: '1.375rem',
+            borderRadius: '6px',
+            fontSize: '1.25rem',
             fontWeight: 700,
             touchAction: 'manipulation',
           }}
@@ -1427,13 +1801,15 @@ const QuickScoreForm = ({
   couples,
   scores,
   onChange,
+  isProAm,
 }: {
   couples: CoupleInfo[];
   scores: Record<number, number>;
   onChange: (bib: number, value: string) => void;
+  isProAm?: boolean;
 }) => (
   <div>
-    <p style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+    <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
       Score each couple (0-100):
     </p>
     {couples.map(couple => {
@@ -1442,43 +1818,37 @@ const QuickScoreForm = ({
         <div
           key={couple.bib}
           style={{
-            padding: '0.875rem',
-            marginBottom: '0.75rem',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-            background: '#fff',
+            padding: '0.5rem 0.625rem',
+            marginBottom: '0.375rem',
+            borderRadius: '6px',
+            border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
+            borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
+            background: isProAm ? '#fffbeb' : '#fff',
           }}
         >
-          {/* Couple info + score display */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '0.625rem',
+            marginBottom: '0.375rem',
           }}>
-            <div>
-              <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>{' '}
-              <span style={{ color: '#4a5568', fontSize: '0.9375rem' }}>
-                {couple.leaderName} & {couple.followerName}
-              </span>
-            </div>
+            <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>
             <span style={{
-              fontSize: '1.75rem',
+              fontSize: '1.5rem',
               fontWeight: 700,
               color: score > 0 ? '#2d3748' : '#cbd5e0',
-              minWidth: '50px',
+              minWidth: '40px',
               textAlign: 'right',
             }}>
               {score > 0 ? score : '--'}
             </span>
           </div>
 
-          {/* Preset buttons grid */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '0.375rem',
-            marginBottom: '0.5rem',
+            gap: '0.25rem',
+            marginBottom: '0.3125rem',
           }}>
             {SCORE_PRESETS.map(preset => {
               const isActive = score === preset;
@@ -1487,12 +1857,12 @@ const QuickScoreForm = ({
                   key={preset}
                   onClick={() => onChange(couple.bib, String(preset))}
                   style={{
-                    minHeight: '44px',
-                    border: isActive ? '2px solid #667eea' : '2px solid #e2e8f0',
-                    borderRadius: '8px',
+                    minHeight: '36px',
+                    border: isActive ? '2px solid #667eea' : '1px solid #e2e8f0',
+                    borderRadius: '6px',
                     background: isActive ? '#667eea' : '#f7fafc',
                     color: isActive ? 'white' : '#2d3748',
-                    fontSize: '1rem',
+                    fontSize: '0.9375rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     touchAction: 'manipulation',
@@ -1505,22 +1875,21 @@ const QuickScoreForm = ({
             })}
           </div>
 
-          {/* Fine-tune row */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '1rem',
+            gap: '0.75rem',
           }}>
             <button
               onClick={() => onChange(couple.bib, String(Math.max(0, score - 1)))}
               style={{
-                width: '44px',
-                height: '44px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '50%',
-                border: '2px solid #e2e8f0',
+                border: '1px solid #e2e8f0',
                 background: '#f7fafc',
-                fontSize: '1.25rem',
+                fontSize: '1.125rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -1534,10 +1903,10 @@ const QuickScoreForm = ({
               -
             </button>
             <span style={{
-              fontSize: '1.125rem',
+              fontSize: '1rem',
               fontWeight: 600,
               color: '#718096',
-              minWidth: '36px',
+              minWidth: '30px',
               textAlign: 'center',
             }}>
               {score > 0 ? score : '--'}
@@ -1545,12 +1914,12 @@ const QuickScoreForm = ({
             <button
               onClick={() => onChange(couple.bib, String(Math.min(100, score + 1)))}
               style={{
-                width: '44px',
-                height: '44px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '50%',
-                border: '2px solid #e2e8f0',
+                border: '1px solid #e2e8f0',
                 background: '#f7fafc',
-                fontSize: '1.25rem',
+                fontSize: '1.125rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',

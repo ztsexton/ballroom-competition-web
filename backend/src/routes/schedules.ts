@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
-import { scheduleService } from '../services/scheduleService';
+import { scheduleService, ScheduleService } from '../services/scheduleService';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 
@@ -10,10 +10,12 @@ const router = Router();
 router.get('/:competitionId', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = await dataService.getSchedule(competitionId);
+    let schedule = await dataService.getSchedule(competitionId);
     if (!schedule) {
       return res.status(404).json({ error: 'No schedule found for this competition' });
     }
+    // Transparently migrate old-format schedules
+    schedule = ScheduleService.migrateSchedule(schedule);
     res.json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch schedule' });
@@ -24,16 +26,19 @@ router.get('/:competitionId', async (req: Request, res: Response) => {
 router.post('/:competitionId/generate', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const { styleOrder, levelOrder, judgeSettings } = req.body;
+    const { styleOrder, levelOrder, judgeSettings, timingSettings } = req.body;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
     }
 
-    // Save judge settings to competition if provided
-    if (judgeSettings) {
-      await dataService.updateCompetition(competitionId, { judgeSettings });
+    // Save judge settings and timing settings to competition if provided
+    const updates: Partial<typeof competition> = {};
+    if (judgeSettings) updates.judgeSettings = judgeSettings;
+    if (timingSettings) updates.timingSettings = timingSettings;
+    if (Object.keys(updates).length > 0) {
+      await dataService.updateCompetition(competitionId, updates);
     }
 
     const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder);
@@ -65,15 +70,23 @@ router.post('/:competitionId/advance', async (req: Request, res: Response) => {
     const competitionId = parseInt(req.params.competitionId);
 
     // Before advancing, check if we're transitioning from scoring → completed
-    // If so, compile any judge scores into the final format
-    const preSchedule = await dataService.getSchedule(competitionId);
+    // If so, compile any judge scores into the final format for ALL entries in the heat
+    let preSchedule = await dataService.getSchedule(competitionId);
     if (preSchedule) {
+      preSchedule = ScheduleService.migrateSchedule(preSchedule);
       const currentHeat = preSchedule.heatOrder[preSchedule.currentHeatIndex];
       if (currentHeat && !currentHeat.isBreak) {
-        const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
-        if (preSchedule.heatStatuses[heatKey] === 'scoring') {
-          await scoringService.compileJudgeScores(currentHeat.eventId, currentHeat.round);
-          await dataService.clearJudgeScores(currentHeat.eventId, currentHeat.round);
+        const heatStatus = preSchedule.heatStatuses[currentHeat.id];
+        if (heatStatus === 'scoring') {
+          for (const entry of currentHeat.entries) {
+            await scoringService.compileJudgeScores(entry.eventId, entry.round);
+            // Clear judge scores for all dances
+            const event = await dataService.getEventById(entry.eventId);
+            const dances: (string | undefined)[] = event?.dances && event.dances.length > 1 ? event.dances : [undefined];
+            for (const dance of dances) {
+              await dataService.clearJudgeScores(entry.eventId, entry.round, dance);
+            }
+          }
         }
       }
     }
@@ -86,6 +99,36 @@ router.post('/:competitionId/advance', async (req: Request, res: Response) => {
     sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to advance event' });
+  }
+});
+
+// Advance to the next dance (multi-dance heats)
+router.post('/:competitionId/advance-dance', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const schedule = await scheduleService.advanceDance(competitionId);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to advance dance' });
+  }
+});
+
+// Go back to the previous dance (multi-dance heats)
+router.post('/:competitionId/back-dance', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const schedule = await scheduleService.backDance(competitionId);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to go back dance' });
   }
 });
 
@@ -184,6 +227,50 @@ router.post('/:competitionId/insert', async (req: Request, res: Response) => {
   }
 });
 
+// Update entries for a specific heat (merge/split events)
+router.patch('/:competitionId/heat/:heatId/entries', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+    const { entries } = req.body;
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'At least one entry is required' });
+    }
+
+    const schedule = await scheduleService.updateHeatEntries(competitionId, heatId, entries);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Invalid heat, incompatible entries, or exceeds max couples per heat' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update heat entries' });
+  }
+});
+
+// Split an entry out of a multi-entry heat into its own heat
+router.post('/:competitionId/heat/:heatId/split', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+    const { eventId, round } = req.body;
+
+    if (!eventId || !round) {
+      return res.status(400).json({ error: 'eventId and round are required' });
+    }
+
+    const schedule = await scheduleService.splitHeatEntry(competitionId, heatId, eventId, round);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Cannot split: heat not found, entry not found, or heat has only one entry' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to split heat entry' });
+  }
+});
+
 // Add a break to the schedule
 router.post('/:competitionId/break', async (req: Request, res: Response) => {
   try {
@@ -224,6 +311,41 @@ router.delete('/:competitionId/break/:heatIndex', async (req: Request, res: Resp
     sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to remove break' });
+  }
+});
+
+// Update timing settings and recalculate schedule times
+router.patch('/:competitionId/timing', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { timingSettings } = req.body;
+
+    if (!timingSettings) {
+      return res.status(400).json({ error: 'timingSettings is required' });
+    }
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    await dataService.updateCompetition(competitionId, { timingSettings });
+
+    // Recalculate schedule times if a schedule exists
+    let schedule = await dataService.getSchedule(competitionId);
+    if (schedule) {
+      schedule = ScheduleService.migrateSchedule(schedule);
+      const events = await dataService.getEvents(competitionId);
+      const { timingService, DEFAULT_TIMING } = await import('../services/timingService');
+      const settings = { ...DEFAULT_TIMING, ...timingSettings };
+      timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
+      schedule = await dataService.saveSchedule(schedule);
+      return res.json(schedule);
+    }
+
+    res.json({ message: 'Timing settings updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update timing settings' });
   }
 });
 

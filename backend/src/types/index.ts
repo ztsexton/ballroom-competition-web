@@ -25,6 +25,15 @@ export interface JudgeSettings {
   levelOverrides: Record<string, number>;
 }
 
+export interface TimingSettings {
+  defaultDanceDurationSeconds: number;
+  levelDurationOverrides?: Record<string, number>;
+  scholarshipDurationSeconds?: number;
+  betweenDanceSeconds: number;
+  betweenHeatSeconds: number;
+  startTime?: string;
+}
+
 export interface PricingTier {
   minEntries: number;
   pricePerEntry: number;
@@ -58,10 +67,12 @@ export interface Competition {
   studioId?: number; // Only for STUDIO type competitions
   description?: string;
   judgeSettings?: JudgeSettings;
+  timingSettings?: TimingSettings;
   defaultScoringType?: 'standard' | 'proficiency';
   levels?: string[];
   pricing?: CompetitionPricing;
   entryPayments?: Record<string, EntryPayment>;
+  maxCouplesPerHeat?: number;
   createdAt: string;
 }
 
@@ -127,6 +138,7 @@ export interface EventResult {
   totalMarks?: number;
   totalScore?: number;
   scores: number[];
+  danceScores?: Array<{ dance: string; placement: number }>;
   isRecall: boolean;
 }
 
@@ -142,12 +154,20 @@ export interface User {
 
 export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 
-export interface ScheduledHeat {
+export interface HeatEntry {
   eventId: number;
   round: string;
+}
+
+export interface ScheduledHeat {
+  id: string;
+  entries: HeatEntry[];
   isBreak?: boolean;
   breakLabel?: string;
   breakDuration?: number;
+  estimatedStartTime?: string;
+  actualStartTime?: string;
+  estimatedDurationSeconds?: number;
 }
 
 export interface CompetitionSchedule {
@@ -156,34 +176,51 @@ export interface CompetitionSchedule {
   styleOrder: string[];
   levelOrder: string[];
   currentHeatIndex: number;
+  currentDance?: string;
   heatStatuses: Record<string, EventRunStatus>;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ActiveHeatInfo {
-  competitionId: number;
+export interface ActiveHeatEntry {
   eventId: number;
   eventName: string;
   round: string;
-  status: EventRunStatus;
   couples: Array<{ bib: number; leaderName: string; followerName: string }>;
-  judges: Array<{ id: number; name: string; judgeNumber: number }>;
   isRecallRound: boolean;
   scoringType?: 'standard' | 'proficiency';
+  designation?: string;
   style?: string;
   level?: string;
   dances?: string[];
+}
+
+export interface ActiveHeatInfo {
+  competitionId: number;
+  heatId: string;
+  entries: ActiveHeatEntry[];
+  status: EventRunStatus;
+  judges: Array<{ id: number; name: string; judgeNumber: number }>;
   isBreak?: boolean;
   breakLabel?: string;
   breakDuration?: number;
   heatNumber: number;
   totalHeats: number;
+  currentDance?: string;
+  allDances?: string[];
+}
+
+export interface ScoringProgressEntry {
+  eventId: number;
+  round: string;
+  scoresByBib: Record<number, Record<number, number>>;
+  dances?: string[];
+  danceScoresByBib?: Record<string, Record<number, Record<number, number>>>;
 }
 
 export interface ScoringProgress {
-  eventId: number;
-  round: string;
+  heatId: string;
+  entries: ScoringProgressEntry[];
   judges: Array<{
     judgeId: number;
     judgeName: string;
@@ -192,7 +229,6 @@ export interface ScoringProgress {
   }>;
   submittedCount: number;
   totalJudges: number;
-  scoresByBib: Record<number, Record<number, number>>;
 }
 
 export interface InvoiceLineItem {

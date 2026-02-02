@@ -70,25 +70,26 @@ export interface IDataService {
   updateEvent(id: number, updates: Partial<Omit<Event, 'id'>>): Promise<Event | null>;
   deleteEvent(id: number): Promise<boolean>;
 
-  // Scores
-  getScores(eventId: number, round: string, bib: number): Promise<number[]>;
-  setScores(eventId: number, round: string, bib: number, scores: number[]): Promise<void>;
-  clearScores(eventId: number, round: string): Promise<void>;
+  // Scores (dance parameter is optional — used for multi-dance events)
+  getScores(eventId: number, round: string, bib: number, dance?: string): Promise<number[]>;
+  setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void>;
+  clearScores(eventId: number, round: string, dance?: string): Promise<void>;
 
-  // Judge Scores
-  getJudgeScores(eventId: number, round: string, bib: number): Promise<Record<number, number>>;
+  // Judge Scores (dance parameter is optional — used for multi-dance events)
+  getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>>;
   setJudgeScoresBatch(
     eventId: number,
     round: string,
     judgeId: number,
-    entries: Array<{ bib: number; score: number }>
+    entries: Array<{ bib: number; score: number }>,
+    dance?: string
   ): Promise<void>;
-  clearJudgeScores(eventId: number, round: string): Promise<void>;
+  clearJudgeScores(eventId: number, round: string, dance?: string): Promise<void>;
   clearAllEventScores(eventId: number): Promise<void>;
 
   // Heat management
   rebuildHeats(bibs: number[], judgeIds: number[], scoringType: 'standard' | 'proficiency'): Heat[];
-  getJudgeSubmissionStatus(eventId: number, round: string): Promise<Record<number, boolean>>;
+  getJudgeSubmissionStatus(eventId: number, round: string, dance?: string): Promise<Record<number, boolean>>;
   advanceToNextRound(eventId: number, currentRound: string, topBibs: number[]): Promise<boolean>;
 
   // Users

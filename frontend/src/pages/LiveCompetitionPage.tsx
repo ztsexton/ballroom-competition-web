@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { judgingApi } from '../api/client';
-import { CompetitionSchedule, Event, Competition } from '../types';
+import { CompetitionSchedule, Event, Competition, ScheduledHeat } from '../types';
 import { useCompetitionSSE } from '../hooks/useCompetitionSSE';
 
 const LiveCompetitionPage = () => {
@@ -60,18 +60,20 @@ const LiveCompetitionPage = () => {
   }
 
   const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
-  const currentEvent = currentHeat && !currentHeat.isBreak ? events[currentHeat.eventId] : null;
-  const heatKey = currentHeat ? `${currentHeat.eventId}:${currentHeat.round}` : '';
-  const currentStatus = heatKey ? (schedule.heatStatuses[heatKey] || 'pending') : 'pending';
+  const currentStatus = currentHeat ? (schedule.heatStatuses[currentHeat.id] || 'pending') : 'pending';
 
   const completedCount = Object.values(schedule.heatStatuses).filter(s => s === 'completed').length;
   const totalCount = schedule.heatOrder.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const nextHeat = schedule.heatOrder[schedule.currentHeatIndex + 1];
-  const nextEvent = nextHeat && !nextHeat.isBreak ? events[nextHeat.eventId] : null;
-
   const laterHeats = schedule.heatOrder.slice(schedule.currentHeatIndex + 2, schedule.currentHeatIndex + 6);
+
+  const formatTime = (isoString?: string): string => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
 
   const statusBadge = (status: string, large?: boolean) => {
     const colors: Record<string, { bg: string; text: string }> = {
@@ -107,11 +109,30 @@ const LiveCompetitionPage = () => {
   const formatRound = (round: string) =>
     round.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-  const getCoupleCount = (eventId: number, round: string): number => {
-    const event = events[eventId];
-    if (!event) return 0;
-    const heat = event.heats.find(h => h.round === round);
-    return heat?.bibs.length || 0;
+  const getHeatCoupleCount = (heat: ScheduledHeat): number => {
+    let count = 0;
+    for (const entry of heat.entries) {
+      const event = events[entry.eventId];
+      if (!event) continue;
+      const h = event.heats.find(h => h.round === entry.round);
+      count += h?.bibs.length || 0;
+    }
+    return count;
+  };
+
+  const getHeatLabel = (heat: ScheduledHeat): string => {
+    if (heat.isBreak) return heat.breakLabel || 'Break';
+    const labels = heat.entries.map(entry => {
+      const event = events[entry.eventId];
+      return event ? formatEventLabel(event) : 'Unknown';
+    });
+    return labels.join(' + ');
+  };
+
+  const getHeatRound = (heat: ScheduledHeat): string => {
+    if (heat.entries.length === 0) return '';
+    // All entries in a merged heat share the same round depth
+    return formatRound(heat.entries[0].round);
   };
 
   return (
@@ -172,22 +193,37 @@ const LiveCompetitionPage = () => {
             )}
             {statusBadge(currentStatus, true)}
           </div>
-        ) : currentEvent ? (
+        ) : currentHeat.entries.length > 0 ? (
           <div>
             <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
               Heat {schedule.currentHeatIndex + 1} of {totalCount}
             </p>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem', lineHeight: 1.2 }}>
-              {formatEventLabel(currentEvent)}
-            </p>
-            <p style={{ fontSize: '1rem', color: '#4a5568', margin: '0 0 0.5rem' }}>
-              {formatRound(currentHeat.round)}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {currentHeat.entries.map(entry => {
+              const event = events[entry.eventId];
+              if (!event) return null;
+              return (
+                <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.125rem', lineHeight: 1.2 }}>
+                    {formatEventLabel(event)}
+                  </p>
+                  <p style={{ fontSize: '1rem', color: '#4a5568', margin: 0 }}>
+                    {formatRound(entry.round)}
+                  </p>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
               {statusBadge(currentStatus, true)}
               <span style={{ color: '#718096', fontSize: '0.875rem' }}>
-                {getCoupleCount(currentHeat.eventId, currentHeat.round)} couples
+                {getHeatCoupleCount(currentHeat)} couples
               </span>
+              {(currentHeat.estimatedStartTime || currentHeat.actualStartTime) && (
+                <span style={{ color: '#a0aec0', fontSize: '0.8125rem' }}>
+                  {currentHeat.actualStartTime
+                    ? `Started ${formatTime(currentHeat.actualStartTime)}`
+                    : `Est. ${formatTime(currentHeat.estimatedStartTime)}`}
+                </span>
+              )}
             </div>
           </div>
         ) : (
@@ -217,16 +253,21 @@ const LiveCompetitionPage = () => {
                 {nextHeat.breakDuration ? ` — ${nextHeat.breakDuration} min` : ''}
               </p>
             </div>
-          ) : nextEvent ? (
+          ) : nextHeat.entries.length > 0 ? (
             <div>
               <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
                 <span style={{ color: '#a0aec0', fontSize: '0.8rem', fontWeight: 400, marginRight: '0.5rem' }}>#{schedule.currentHeatIndex + 2}</span>
-                {formatEventLabel(nextEvent)}
+                {getHeatLabel(nextHeat)}
               </p>
               <p style={{ color: '#718096', margin: 0, fontSize: '0.875rem' }}>
-                {formatRound(nextHeat.round)}
+                {getHeatRound(nextHeat)}
                 {' · '}
-                {getCoupleCount(nextHeat.eventId, nextHeat.round)} couples
+                {getHeatCoupleCount(nextHeat)} couples
+                {nextHeat.estimatedStartTime && (
+                  <span style={{ marginLeft: '0.5rem', color: '#a0aec0' }}>
+                    · {formatTime(nextHeat.estimatedStartTime)}
+                  </span>
+                )}
               </p>
             </div>
           ) : (
@@ -249,14 +290,11 @@ const LiveCompetitionPage = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {laterHeats.map((heat, idx) => {
-              const event = heat.isBreak ? null : events[heat.eventId];
-              const hk = `${heat.eventId}:${heat.round}`;
-
               const heatNum = schedule.currentHeatIndex + 3 + idx;
 
               if (heat.isBreak) {
                 return (
-                  <div key={hk + '-' + idx} style={{
+                  <div key={heat.id + '-' + idx} style={{
                     padding: '0.5rem 0',
                     borderBottom: idx < laterHeats.length - 1 ? '1px solid #edf2f7' : undefined,
                     fontStyle: 'italic',
@@ -265,24 +303,28 @@ const LiveCompetitionPage = () => {
                     <span style={{ fontStyle: 'normal', color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
                     {heat.breakLabel || 'Break'}
                     {heat.breakDuration ? ` — ${heat.breakDuration} min` : ''}
+                    {heat.estimatedStartTime && (
+                      <span style={{ fontStyle: 'normal', color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8rem' }}>
+                        {formatTime(heat.estimatedStartTime)}
+                      </span>
+                    )}
                   </div>
                 );
               }
 
-              if (!event) return null;
-
-              const coupleCount = getCoupleCount(heat.eventId, heat.round);
+              const coupleCount = getHeatCoupleCount(heat);
 
               return (
-                <div key={hk + '-' + idx} style={{
+                <div key={heat.id + '-' + idx} style={{
                   padding: '0.5rem 0',
                   borderBottom: idx < laterHeats.length - 1 ? '1px solid #edf2f7' : undefined,
                 }}>
                   <span style={{ color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
-                  <span style={{ fontWeight: 500 }}>{formatEventLabel(event)}</span>
+                  <span style={{ fontWeight: 500 }}>{getHeatLabel(heat)}</span>
                   <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.875rem' }}>
-                    {formatRound(heat.round)}
+                    {getHeatRound(heat)}
                     {coupleCount > 0 && ` · ${coupleCount}`}
+                    {heat.estimatedStartTime && ` · ${formatTime(heat.estimatedStartTime)}`}
                   </span>
                 </div>
               );
@@ -300,7 +342,17 @@ const LiveCompetitionPage = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.875rem', color: '#718096' }}>Progress</span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{completedCount} of {totalCount} heats</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+            {completedCount} of {totalCount} heats
+            {(() => {
+              const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
+              if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
+                const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
+                return <span style={{ fontWeight: 400, color: '#a0aec0', marginLeft: '0.5rem' }}>· Est. finish {formatTime(finish.toISOString())}</span>;
+              }
+              return null;
+            })()}
+          </span>
         </div>
         <div style={{
           width: '100%',

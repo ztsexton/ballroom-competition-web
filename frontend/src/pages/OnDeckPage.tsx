@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { judgingApi } from '../api/client';
-import { CompetitionSchedule, Event, Couple, Competition } from '../types';
+import { CompetitionSchedule, Event, Couple, Competition, ScheduledHeat } from '../types';
 import { useCompetitionSSE } from '../hooks/useCompetitionSSE';
 
 const OnDeckPage = () => {
@@ -65,26 +65,51 @@ const OnDeckPage = () => {
   const couplesByBib: Record<number, Couple> = {};
   couples.forEach(c => { couplesByBib[c.bib] = c; });
 
-  const getHeatCouples = (eventId: number, round: string): Couple[] => {
-    const event = events[eventId];
-    if (!event) return [];
-    const heat = event.heats.find(h => h.round === round);
-    if (!heat) return [];
-    return heat.bibs.map(bib => couplesByBib[bib]).filter(Boolean);
+  const getHeatCouples = (heat: ScheduledHeat): { eventName: string; couples: Couple[] }[] => {
+    return heat.entries.map(entry => {
+      const event = events[entry.eventId];
+      if (!event) return { eventName: 'Unknown', couples: [] };
+      const h = event.heats.find(h => h.round === entry.round);
+      if (!h) return { eventName: event.name, couples: [] };
+      return {
+        eventName: event.name,
+        couples: h.bibs.map(bib => couplesByBib[bib]).filter(Boolean),
+      };
+    });
+  };
+
+  const getAllHeatCouples = (heat: ScheduledHeat): Couple[] => {
+    const seen = new Set<number>();
+    const result: Couple[] = [];
+    for (const entry of heat.entries) {
+      const event = events[entry.eventId];
+      if (!event) continue;
+      const h = event.heats.find(h => h.round === entry.round);
+      if (!h) continue;
+      for (const bib of h.bibs) {
+        if (!seen.has(bib) && couplesByBib[bib]) {
+          seen.add(bib);
+          result.push(couplesByBib[bib]);
+        }
+      }
+    }
+    return result;
   };
 
   const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
-  const currentEvent = currentHeat && !currentHeat.isBreak ? events[currentHeat.eventId] : null;
-  const heatKey = currentHeat ? `${currentHeat.eventId}:${currentHeat.round}` : '';
-  const currentStatus = heatKey ? (schedule.heatStatuses[heatKey] || 'pending') : 'pending';
+  const currentStatus = currentHeat ? (schedule.heatStatuses[currentHeat.id] || 'pending') : 'pending';
 
   const nextHeat = schedule.heatOrder[schedule.currentHeatIndex + 1];
-  const nextEvent = nextHeat && !nextHeat.isBreak ? events[nextHeat.eventId] : null;
-
   const upcomingHeats = schedule.heatOrder.slice(schedule.currentHeatIndex + 2, schedule.currentHeatIndex + 8);
 
   const completedCount = Object.values(schedule.heatStatuses).filter(s => s === 'completed').length;
   const totalCount = schedule.heatOrder.length;
+
+  const formatTime = (isoString?: string): string => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
 
   const statusBadge = (status: string) => {
     const colors: Record<string, { bg: string; text: string }> = {
@@ -119,6 +144,62 @@ const OnDeckPage = () => {
   const formatRound = (round: string) =>
     round.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
+  const getHeatLabel = (heat: ScheduledHeat): string => {
+    if (heat.isBreak) return heat.breakLabel || 'Break';
+    const labels = heat.entries.map(entry => {
+      const event = events[entry.eventId];
+      return event ? formatEventLabel(event) : 'Unknown';
+    });
+    return labels.join(' + ');
+  };
+
+  const getHeatRound = (heat: ScheduledHeat): string => {
+    if (heat.entries.length === 0) return '';
+    return formatRound(heat.entries[0].round);
+  };
+
+  const renderCoupleList = (heat: ScheduledHeat, bgColor: string = '#f7fafc') => {
+    const entryCouples = getHeatCouples(heat);
+    const multiEntry = heat.entries.length > 1;
+    const totalCouples = entryCouples.reduce((sum, e) => sum + e.couples.length, 0);
+
+    if (totalCouples === 0) {
+      return <p style={{ color: '#a0aec0', fontSize: '0.875rem', margin: 0 }}>Couples TBD</p>;
+    }
+
+    return (
+      <div>
+        {entryCouples.map((ec, idx) => (
+          <div key={idx} style={{ marginBottom: idx < entryCouples.length - 1 ? '0.5rem' : 0 }}>
+            {multiEntry && (
+              <strong style={{ fontSize: '0.8rem', color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                {ec.eventName} ({ec.couples.length}):
+              </strong>
+            )}
+            {!multiEntry && (
+              <strong style={{ fontSize: '0.875rem', color: '#718096' }}>
+                Couples ({ec.couples.length}):
+              </strong>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+              {ec.couples.map(c => (
+                <span key={c.bib} style={{
+                  padding: '0.25rem 0.5rem',
+                  background: bgColor,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                }}>
+                  <strong>#{c.bib}</strong> {c.leaderName} & {c.followerName}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="container" style={{ maxWidth: '900px' }}>
       {/* Header */}
@@ -140,7 +221,16 @@ const OnDeckPage = () => {
         borderLeft: '4px solid #667eea',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0, color: '#667eea' }}>NOW ON FLOOR</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: '#667eea' }}>NOW ON FLOOR</h3>
+            {currentHeat?.estimatedStartTime && (
+              <span style={{ fontSize: '0.8125rem', color: '#718096' }}>
+                {currentHeat.actualStartTime
+                  ? `Started ${formatTime(currentHeat.actualStartTime)}`
+                  : `Est. ${formatTime(currentHeat.estimatedStartTime)}`}
+              </span>
+            )}
+          </div>
           {statusBadge(currentStatus)}
         </div>
 
@@ -155,39 +245,25 @@ const OnDeckPage = () => {
               <p style={{ color: '#718096', margin: 0 }}>{currentHeat.breakDuration} minutes</p>
             )}
           </div>
-        ) : currentEvent ? (
+        ) : currentHeat.entries.length > 0 ? (
           <div>
-            <p style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.25rem' }}>
-              {formatEventLabel(currentEvent)}
-            </p>
-            <p style={{ color: '#4a5568', margin: '0 0 0.75rem' }}>
-              {formatRound(currentHeat.round)}
-            </p>
-            {(() => {
-              const heatCouples = getHeatCouples(currentHeat.eventId, currentHeat.round);
-              return heatCouples.length > 0 ? (
-                <div>
-                  <strong style={{ fontSize: '0.875rem', color: '#718096' }}>
-                    Couples ({heatCouples.length}):
-                  </strong>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    {heatCouples.map(c => (
-                      <span key={c.bib} style={{
-                        padding: '0.25rem 0.5rem',
-                        background: '#f7fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                      }}>
-                        <strong>#{c.bib}</strong> {c.leaderName} & {c.followerName}
-                      </span>
-                    ))}
-                  </div>
+            {currentHeat.entries.map(entry => {
+              const event = events[entry.eventId];
+              if (!event) return null;
+              return (
+                <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                  <p style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                    {formatEventLabel(event)}
+                  </p>
+                  <p style={{ color: '#4a5568', margin: 0 }}>
+                    {formatRound(entry.round)}
+                  </p>
                 </div>
-              ) : (
-                <p style={{ color: '#a0aec0', fontSize: '0.875rem', margin: 0 }}>Couples TBD</p>
               );
-            })()}
+            })}
+            <div style={{ marginTop: '0.75rem' }}>
+              {renderCoupleList(currentHeat)}
+            </div>
           </div>
         ) : (
           <p style={{ color: '#718096' }}>Event not found</p>
@@ -201,7 +277,14 @@ const OnDeckPage = () => {
           borderLeft: '4px solid #ed8936',
           background: '#fffaf0',
         }}>
-          <h3 style={{ margin: '0 0 0.75rem', color: '#c05621' }}>ON DECK — Get Ready!</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: '#c05621' }}>ON DECK — Get Ready!</h3>
+            {nextHeat.estimatedStartTime && (
+              <span style={{ fontSize: '0.8125rem', color: '#718096' }}>
+                Est. {formatTime(nextHeat.estimatedStartTime)}
+              </span>
+            )}
+          </div>
 
           {nextHeat.isBreak ? (
             <div>
@@ -212,39 +295,25 @@ const OnDeckPage = () => {
                 <p style={{ color: '#718096', margin: 0 }}>{nextHeat.breakDuration} minutes</p>
               )}
             </div>
-          ) : nextEvent ? (
+          ) : nextHeat.entries.length > 0 ? (
             <div>
-              <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.25rem' }}>
-                {formatEventLabel(nextEvent)}
-              </p>
-              <p style={{ color: '#4a5568', margin: '0 0 0.75rem' }}>
-                {formatRound(nextHeat.round)}
-              </p>
-              {(() => {
-                const heatCouples = getHeatCouples(nextHeat.eventId, nextHeat.round);
-                return heatCouples.length > 0 ? (
-                  <div>
-                    <strong style={{ fontSize: '0.875rem', color: '#718096' }}>
-                      Couples ({heatCouples.length}):
-                    </strong>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-                      {heatCouples.map(c => (
-                        <span key={c.bib} style={{
-                          padding: '0.25rem 0.5rem',
-                          background: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem',
-                        }}>
-                          <strong>#{c.bib}</strong> {c.leaderName} & {c.followerName}
-                        </span>
-                      ))}
-                    </div>
+              {nextHeat.entries.map(entry => {
+                const event = events[entry.eventId];
+                if (!event) return null;
+                return (
+                  <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                    <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                      {formatEventLabel(event)}
+                    </p>
+                    <p style={{ color: '#4a5568', margin: 0 }}>
+                      {formatRound(entry.round)}
+                    </p>
                   </div>
-                ) : (
-                  <p style={{ color: '#a0aec0', fontSize: '0.875rem', margin: 0 }}>Couples TBD</p>
                 );
-              })()}
+              })}
+              <div style={{ marginTop: '0.75rem' }}>
+                {renderCoupleList(nextHeat, 'white')}
+              </div>
             </div>
           ) : (
             <p style={{ color: '#718096' }}>Event not found</p>
@@ -259,13 +328,11 @@ const OnDeckPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {upcomingHeats.map((heat, idx) => {
               const heatIdx = schedule.currentHeatIndex + 2 + idx;
-              const event = heat.isBreak ? null : events[heat.eventId];
-              const hk = `${heat.eventId}:${heat.round}`;
-              const status = schedule.heatStatuses[hk] || 'pending';
+              const status = schedule.heatStatuses[heat.id] || 'pending';
 
               if (heat.isBreak) {
                 return (
-                  <div key={hk + '-' + heatIdx} style={{
+                  <div key={heat.id + '-' + heatIdx} style={{
                     padding: '0.5rem 0.75rem',
                     background: '#fefce8',
                     borderRadius: '4px',
@@ -278,19 +345,21 @@ const OnDeckPage = () => {
                       <strong>{heatIdx + 1}.</strong>{' '}
                       {heat.breakLabel || 'Break'}
                       {heat.breakDuration ? ` — ${heat.breakDuration} min` : ''}
+                      {heat.estimatedStartTime && (
+                        <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+                          {formatTime(heat.estimatedStartTime)}
+                        </span>
+                      )}
                     </span>
                     {statusBadge(status)}
                   </div>
                 );
               }
 
-              if (!event) return null;
-
-              const heatData = event.heats.find(h => h.round === heat.round);
-              const coupleCount = heatData?.bibs.length || 0;
+              const coupleCount = getAllHeatCouples(heat).length;
 
               return (
-                <div key={hk + '-' + heatIdx} style={{
+                <div key={heat.id + '-' + heatIdx} style={{
                   padding: '0.5rem 0.75rem',
                   background: '#f7fafc',
                   borderRadius: '4px',
@@ -300,8 +369,13 @@ const OnDeckPage = () => {
                 }}>
                   <span>
                     <strong>{heatIdx + 1}.</strong>{' '}
-                    {formatEventLabel(event)} ({formatRound(heat.round)})
+                    {getHeatLabel(heat)} ({getHeatRound(heat)})
                     {coupleCount > 0 && <span style={{ color: '#718096' }}> — {coupleCount} couples</span>}
+                    {heat.estimatedStartTime && (
+                      <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+                        {formatTime(heat.estimatedStartTime)}
+                      </span>
+                    )}
                   </span>
                   {statusBadge(status)}
                 </div>

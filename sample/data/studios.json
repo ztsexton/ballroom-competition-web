@@ -1,0 +1,17 @@
+{
+  "studios": [
+    {
+      "id": 1,
+      "name": "Starlight Dance Academy",
+      "location": "Chicago, IL",
+      "contactInfo": "info@starlightdance.com"
+    },
+    {
+      "id": 2,
+      "name": "Golden Ballroom Studio",
+      "location": "New York, NY",
+      "contactInfo": "hello@goldenballroom.com"
+    }
+  ],
+  "next_id": 3
+}

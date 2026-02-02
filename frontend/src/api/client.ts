@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, ActiveHeatInfo, ScoringProgress, InvoiceSummary, EntryPayment, MindbodyClient } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -115,14 +115,20 @@ export const eventsApi = {
 export const schedulesApi = {
   get: (competitionId: number) =>
     api.get<CompetitionSchedule>(`/schedules/${competitionId}`),
-  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings) =>
-    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, judgeSettings }),
+  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, judgeSettings, timingSettings }),
+  updateTiming: (competitionId: number, timingSettings: TimingSettings) =>
+    api.patch<CompetitionSchedule>(`/schedules/${competitionId}/timing`, { timingSettings }),
   reorder: (competitionId: number, fromIndex: number, toIndex: number) =>
     api.patch<CompetitionSchedule>(`/schedules/${competitionId}/reorder`, { fromIndex, toIndex }),
   advance: (competitionId: number) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/advance`),
   back: (competitionId: number) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/back`),
+  advanceDance: (competitionId: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/advance-dance`),
+  backDance: (competitionId: number) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/back-dance`),
   jump: (competitionId: number, heatIndex: number) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/jump`, { heatIndex }),
   reset: (competitionId: number, heatIndex: number) =>
@@ -139,6 +145,10 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/break`, { label, duration, position }),
   removeBreak: (competitionId: number, heatIndex: number) =>
     api.delete<CompetitionSchedule>(`/schedules/${competitionId}/break/${heatIndex}`),
+  updateHeatEntries: (competitionId: number, heatId: string, entries: HeatEntry[]) =>
+    api.patch<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/entries`, { entries }),
+  splitHeatEntry: (competitionId: number, heatId: string, eventId: number, round: string) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/split`, { eventId, round }),
 };
 
 // Judging API (non-admin, for judges and SSE)
@@ -153,8 +163,9 @@ export const judgingApi = {
     eventId: number,
     round: string,
     scores: Array<{ bib: number; score: number }>,
+    dance?: string,
   ) => api.post(`/judging/competition/${competitionId}/submit-scores`, {
-    judgeId, eventId, round, scores,
+    judgeId, eventId, round, scores, dance,
   }),
   getJudges: (competitionId: number) =>
     api.get<Judge[]>(`/judging/competition/${competitionId}/judges`),

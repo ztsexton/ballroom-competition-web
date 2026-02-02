@@ -639,7 +639,7 @@ export function dataServiceContractTests(
       const now = new Date().toISOString();
       const schedule = await ds.saveSchedule({
         competitionId: compId,
-        heatOrder: [{ eventId: 1, round: 'final' }],
+        heatOrder: [{ id: 'test-heat-1', entries: [{ eventId: 1, round: 'final' }] }],
         styleOrder: ['Smooth'],
         levelOrder: ['Gold'],
         currentHeatIndex: 0,

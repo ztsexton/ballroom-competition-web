@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
-import { ActiveHeatInfo, ScoringProgress } from '../types';
+import { scheduleService, ScheduleService } from '../services/scheduleService';
+import { ActiveHeatInfo, ActiveHeatEntry, ScoringProgress, ScoringProgressEntry } from '../types';
 
 const router = Router();
 
@@ -10,25 +11,22 @@ const router = Router();
 router.get('/competition/:competitionId/active-heat', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = await dataService.getSchedule(competitionId);
+    let schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
     if (!currentHeat) return res.status(404).json({ error: 'No current heat' });
 
-    const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
-    const status = schedule.heatStatuses[heatKey] || 'pending';
+    const status = schedule.heatStatuses[currentHeat.id] || 'pending';
 
     if (currentHeat.isBreak) {
       const info: ActiveHeatInfo = {
         competitionId,
-        eventId: 0,
-        eventName: currentHeat.breakLabel || 'Break',
-        round: currentHeat.round,
+        heatId: currentHeat.id,
+        entries: [],
         status,
-        couples: [],
         judges: [],
-        isRecallRound: false,
         isBreak: true,
         breakLabel: currentHeat.breakLabel,
         breakDuration: currentHeat.breakDuration,
@@ -38,41 +36,62 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
       return res.json(info);
     }
 
-    const event = await dataService.getEventById(currentHeat.eventId);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    // Build entries array and collect all judge IDs
+    const entries: ActiveHeatEntry[] = [];
+    const allJudgeIds = new Set<number>();
 
-    const heat = event.heats.find(h => h.round === currentHeat.round);
-    if (!heat) return res.status(404).json({ error: 'Heat not found' });
+    for (const entry of currentHeat.entries) {
+      const event = await dataService.getEventById(entry.eventId);
+      if (!event) continue;
 
-    const couples = heat.bibs.map(async bib => {
-      const couple = await dataService.getCoupleByBib(bib);
-      return couple
-        ? { bib, leaderName: couple.leaderName, followerName: couple.followerName }
-        : { bib, leaderName: 'Unknown', followerName: 'Unknown' };
-    });
+      const heat = event.heats.find(h => h.round === entry.round);
+      if (!heat) continue;
 
-    const judges = heat.judges.map(async jId => {
+      heat.judges.forEach(j => allJudgeIds.add(j));
+
+      const couples = await Promise.all(heat.bibs.map(async bib => {
+        const couple = await dataService.getCoupleByBib(bib);
+        return couple
+          ? { bib, leaderName: couple.leaderName, followerName: couple.followerName }
+          : { bib, leaderName: 'Unknown', followerName: 'Unknown' };
+      }));
+
+      entries.push({
+        eventId: entry.eventId,
+        eventName: event.name,
+        round: entry.round,
+        couples,
+        isRecallRound: ['quarter-final', 'semi-final'].includes(entry.round),
+        scoringType: event.scoringType || 'standard',
+        designation: event.designation,
+        style: event.style,
+        level: event.level,
+        dances: event.dances,
+      });
+    }
+
+    // Resolve judge details
+    const judges = await Promise.all(Array.from(allJudgeIds).map(async jId => {
       const judge = await dataService.getJudgeById(jId);
       return judge
         ? { id: judge.id, name: judge.name, judgeNumber: judge.judgeNumber }
         : { id: jId, name: 'Unknown', judgeNumber: 0 };
-    });
+    }));
+    judges.sort((a, b) => a.judgeNumber - b.judgeNumber);
+
+    // Get dance info for multi-dance heats
+    const allDances = await scheduleService.getDancesForHeat(currentHeat);
 
     const info: ActiveHeatInfo = {
       competitionId,
-      eventId: currentHeat.eventId,
-      eventName: event.name,
-      round: currentHeat.round,
+      heatId: currentHeat.id,
+      entries,
       status,
-      couples: await Promise.all(couples),
-      judges: await Promise.all(judges),
-      isRecallRound: ['quarter-final', 'semi-final'].includes(currentHeat.round),
-      scoringType: event.scoringType || 'standard',
-      style: event.style,
-      level: event.level,
-      dances: event.dances,
+      judges,
       heatNumber: schedule.currentHeatIndex + 1,
       totalHeats: schedule.heatOrder.length,
+      currentDance: allDances.length > 0 ? schedule.currentDance : undefined,
+      allDances: allDances.length > 0 ? allDances : undefined,
     };
 
     res.json(info);
@@ -85,8 +104,9 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
 router.get('/competition/:competitionId/scoring-progress', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = await dataService.getSchedule(competitionId);
+    let schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
     if (!currentHeat) return res.status(404).json({ error: 'No current heat' });
@@ -95,36 +115,72 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
       return res.status(400).json({ error: 'Current heat is a break, no scoring progress' });
     }
 
-    const event = await dataService.getEventById(currentHeat.eventId);
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    // Collect all judge IDs from all entries
+    const allJudgeIds = new Set<number>();
+    const progressEntries: ScoringProgressEntry[] = [];
 
-    const heat = event.heats.find(h => h.round === currentHeat.round);
-    if (!heat) return res.status(404).json({ error: 'Heat not found' });
+    for (const entry of currentHeat.entries) {
+      const event = await dataService.getEventById(entry.eventId);
+      if (!event) continue;
 
-    const submissionStatus = await dataService.getJudgeSubmissionStatus(currentHeat.eventId, currentHeat.round);
+      const heat = event.heats.find(h => h.round === entry.round);
+      if (!heat) continue;
 
-    const judgesList = await Promise.all(heat.judges.map(async jId => {
+      heat.judges.forEach(j => allJudgeIds.add(j));
+
+      const eventDances = event.dances && event.dances.length > 1 ? event.dances : [undefined];
+      const scoresByBib: Record<number, Record<number, number>> = {};
+      const danceProgress: Record<string, Record<number, Record<number, number>>> = {};
+
+      for (const dance of eventDances) {
+        if (dance) {
+          danceProgress[dance] = {};
+        }
+        for (const bib of heat.bibs) {
+          const judgeScores = await dataService.getJudgeScores(entry.eventId, entry.round, bib, dance);
+          if (dance) {
+            danceProgress[dance][bib] = judgeScores;
+          } else {
+            scoresByBib[bib] = judgeScores;
+          }
+        }
+      }
+
+      progressEntries.push({
+        eventId: entry.eventId,
+        round: entry.round,
+        scoresByBib: Object.keys(danceProgress).length > 0 ? {} : scoresByBib,
+        dances: eventDances.filter((d): d is string => d !== undefined),
+        danceScoresByBib: Object.keys(danceProgress).length > 0 ? danceProgress : undefined,
+      });
+    }
+
+    // A judge hasSubmitted only when they've submitted for ALL entries
+    const judgesList = await Promise.all(Array.from(allJudgeIds).map(async jId => {
       const judge = await dataService.getJudgeById(jId);
+      let allEntriesSubmitted = true;
+      for (const entry of currentHeat.entries) {
+        const submissionStatus = await dataService.getJudgeSubmissionStatus(entry.eventId, entry.round);
+        if (!submissionStatus[jId]) {
+          allEntriesSubmitted = false;
+          break;
+        }
+      }
       return {
         judgeId: jId,
         judgeName: judge?.name || 'Unknown',
         judgeNumber: judge?.judgeNumber || 0,
-        hasSubmitted: submissionStatus[jId] || false,
+        hasSubmitted: allEntriesSubmitted,
       };
     }));
-
-    const scoresByBib: Record<number, Record<number, number>> = {};
-    for (const bib of heat.bibs) {
-      scoresByBib[bib] = await dataService.getJudgeScores(currentHeat.eventId, currentHeat.round, bib);
-    }
+    judgesList.sort((a, b) => a.judgeNumber - b.judgeNumber);
 
     const progress: ScoringProgress = {
-      eventId: currentHeat.eventId,
-      round: currentHeat.round,
+      heatId: currentHeat.id,
+      entries: progressEntries,
       judges: judgesList,
       submittedCount: judgesList.filter(j => j.hasSubmitted).length,
       totalJudges: judgesList.length,
-      scoresByBib,
     };
 
     res.json(progress);
@@ -137,27 +193,31 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
 router.post('/competition/:competitionId/submit-scores', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const { judgeId, eventId, round, scores } = req.body;
+    const { judgeId, eventId, round, scores, dance } = req.body;
 
     if (!judgeId || !eventId || !round || !Array.isArray(scores)) {
       return res.status(400).json({ error: 'judgeId, eventId, round, and scores array are required' });
     }
 
-    const schedule = await dataService.getSchedule(competitionId);
+    let schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
 
     const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
-    const heatKey = `${currentHeat.eventId}:${currentHeat.round}`;
-    const status = schedule.heatStatuses[heatKey];
+    const status = schedule.heatStatuses[currentHeat.id];
 
-    if (currentHeat.eventId !== eventId || currentHeat.round !== round) {
-      return res.status(400).json({ error: 'This is not the currently active heat' });
+    // Validate this event/round is in the current heat
+    const matchingEntry = currentHeat.entries.find(
+      e => e.eventId === eventId && e.round === round
+    );
+    if (!matchingEntry) {
+      return res.status(400).json({ error: 'This event/round is not in the currently active heat' });
     }
     if (status !== 'scoring') {
       return res.status(400).json({ error: 'Heat is not in scoring status' });
     }
 
-    const result = await scoringService.submitJudgeScores(eventId, round, judgeId, scores);
+    const result = await scoringService.submitJudgeScores(eventId, round, judgeId, scores, dance || undefined);
     if (!result.success) {
       return res.status(400).json({ error: 'Failed to submit scores. Judge may not be assigned to this heat.' });
     }
@@ -188,8 +248,9 @@ router.get('/competition/:competitionId/judges', async (req: Request, res: Respo
 router.get('/competition/:competitionId/schedule', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const schedule = await dataService.getSchedule(competitionId);
+    let schedule = await dataService.getSchedule(competitionId);
     if (!schedule) return res.status(404).json({ error: 'No schedule found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
     res.json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get schedule' });

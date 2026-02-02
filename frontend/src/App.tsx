@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CompetitionProvider } from './context/CompetitionContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,6 +28,14 @@ import OnDeckPage from './pages/OnDeckPage';
 import LiveCompetitionPage from './pages/LiveCompetitionPage';
 import './App.css';
 
+// Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
+const ConditionalNavigation = () => {
+  const location = useLocation();
+  const hideNav = /\/(judge|ondeck|live)$/.test(location.pathname);
+  if (hideNav) return null;
+  return <Navigation />;
+};
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -39,7 +47,7 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <CompetitionProvider>
-                  <Navigation />
+                  <ConditionalNavigation />
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/competitions" element={<CompetitionsPage />} />

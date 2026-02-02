@@ -556,10 +556,14 @@ export class JsonDataService implements IDataService {
   async deleteEvent(id: number): Promise<boolean> {
     if (this.data.events[id]) {
       const event = this.data.events[id];
+      const dances = event.dances && event.dances.length > 1 ? event.dances : [undefined];
       event.heats.forEach(heat => {
         heat.bibs.forEach(bib => {
-          const key = getScoreKey(id, heat.round, bib);
-          delete this.data.scores[key];
+          for (const dance of dances) {
+            const key = getScoreKey(id, heat.round, bib, dance);
+            delete this.data.scores[key];
+            delete this.data.judgeScores[key];
+          }
         });
       });
       delete this.data.events[id];
@@ -570,18 +574,18 @@ export class JsonDataService implements IDataService {
   }
 
   // Scores methods
-  async getScores(eventId: number, round: string, bib: number): Promise<number[]> {
-    const key = getScoreKey(eventId, round, bib);
+  async getScores(eventId: number, round: string, bib: number, dance?: string): Promise<number[]> {
+    const key = getScoreKey(eventId, round, bib, dance);
     return this.data.scores[key] || [];
   }
 
-  async setScores(eventId: number, round: string, bib: number, scores: number[]): Promise<void> {
-    const key = getScoreKey(eventId, round, bib);
+  async setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void> {
+    const key = getScoreKey(eventId, round, bib, dance);
     this.data.scores[key] = scores;
     this.saveEvents();
   }
 
-  async clearScores(eventId: number, round: string): Promise<void> {
+  async clearScores(eventId: number, round: string, dance?: string): Promise<void> {
     const event = this.data.events[eventId];
     if (!event) return;
 
@@ -589,21 +593,21 @@ export class JsonDataService implements IDataService {
     if (!heat) return;
 
     heat.bibs.forEach(bib => {
-      const key = getScoreKey(eventId, round, bib);
+      const key = getScoreKey(eventId, round, bib, dance);
       delete this.data.scores[key];
     });
     this.saveEvents();
   }
 
   // Judge scores methods
-  async getJudgeScores(eventId: number, round: string, bib: number): Promise<Record<number, number>> {
-    const key = getScoreKey(eventId, round, bib);
+  async getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>> {
+    const key = getScoreKey(eventId, round, bib, dance);
     return this.data.judgeScores[key] || {};
   }
 
-  async setJudgeScoresBatch(eventId: number, round: string, judgeId: number, entries: Array<{ bib: number; score: number }>): Promise<void> {
+  async setJudgeScoresBatch(eventId: number, round: string, judgeId: number, entries: Array<{ bib: number; score: number }>, dance?: string): Promise<void> {
     for (const { bib, score } of entries) {
-      const key = getScoreKey(eventId, round, bib);
+      const key = getScoreKey(eventId, round, bib, dance);
       if (!this.data.judgeScores[key]) {
         this.data.judgeScores[key] = {};
       }
@@ -612,13 +616,13 @@ export class JsonDataService implements IDataService {
     this.saveEvents();
   }
 
-  async clearJudgeScores(eventId: number, round: string): Promise<void> {
+  async clearJudgeScores(eventId: number, round: string, dance?: string): Promise<void> {
     const event = this.data.events[eventId];
     if (!event) return;
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return;
     heat.bibs.forEach(bib => {
-      const key = getScoreKey(eventId, round, bib);
+      const key = getScoreKey(eventId, round, bib, dance);
       delete this.data.judgeScores[key];
     });
     this.saveEvents();
@@ -627,11 +631,14 @@ export class JsonDataService implements IDataService {
   async clearAllEventScores(eventId: number): Promise<void> {
     const event = this.data.events[eventId];
     if (!event) return;
+    const dances = event.dances && event.dances.length > 1 ? event.dances : [undefined];
     for (const heat of event.heats) {
       for (const bib of heat.bibs) {
-        const key = getScoreKey(eventId, heat.round, bib);
-        delete this.data.scores[key];
-        delete this.data.judgeScores[key];
+        for (const dance of dances) {
+          const key = getScoreKey(eventId, heat.round, bib, dance);
+          delete this.data.scores[key];
+          delete this.data.judgeScores[key];
+        }
       }
     }
     this.saveEvents();
@@ -648,7 +655,7 @@ export class JsonDataService implements IDataService {
     }));
   }
 
-  async getJudgeSubmissionStatus(eventId: number, round: string): Promise<Record<number, boolean>> {
+  async getJudgeSubmissionStatus(eventId: number, round: string, dance?: string): Promise<Record<number, boolean>> {
     const event = this.data.events[eventId];
     if (!event) return {};
     const heat = event.heats.find(h => h.round === round);
@@ -657,7 +664,7 @@ export class JsonDataService implements IDataService {
     const status: Record<number, boolean> = {};
     for (const judgeId of heat.judges) {
       status[judgeId] = heat.bibs.length > 0 && heat.bibs.every(bib => {
-        const key = getScoreKey(eventId, round, bib);
+        const key = getScoreKey(eventId, round, bib, dance);
         return this.data.judgeScores[key]?.[judgeId] !== undefined;
       });
     }

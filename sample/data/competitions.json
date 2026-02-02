@@ -1,0 +1,72 @@
+{
+  "competitions": [
+    {
+      "id": 1,
+      "name": "Galaxy Ballroom Classic 2026",
+      "type": "STUDIO",
+      "date": "2026-03-15",
+      "location": "Grand Hyatt Chicago",
+      "studioId": 1,
+      "description": "A comprehensive sample competition showcasing every supported event combination. Includes Pro-Am and Amateur divisions across all styles, levels, and scoring types.",
+      "judgeSettings": {
+        "defaultCount": 5,
+        "levelOverrides": {
+          "Newcomer": 3,
+          "Bronze": 3,
+          "Championship": 7,
+          "Pre-Championship": 5
+        }
+      },
+      "defaultScoringType": "standard",
+      "levels": [
+        "Newcomer",
+        "Bronze",
+        "Silver",
+        "Gold",
+        "Novice",
+        "Pre-Championship",
+        "Championship"
+      ],
+      "maxCouplesPerHeat": 7,
+      "pricing": {
+        "singleDance": [
+          {
+            "minEntries": 1,
+            "pricePerEntry": 95
+          },
+          {
+            "minEntries": 6,
+            "pricePerEntry": 85
+          },
+          {
+            "minEntries": 11,
+            "pricePerEntry": 75
+          }
+        ],
+        "multiDance": {
+          "mode": "flat",
+          "flatTiers": [
+            {
+              "minEntries": 1,
+              "pricePerEntry": 135
+            },
+            {
+              "minEntries": 6,
+              "pricePerEntry": 120
+            }
+          ],
+          "perDanceCountTiers": {}
+        },
+        "scholarship": [
+          {
+            "minEntries": 1,
+            "pricePerEntry": 175
+          }
+        ]
+      },
+      "entryPayments": {},
+      "createdAt": "2026-03-15T09:00:00.000Z"
+    }
+  ],
+  "next_id": 2
+}
