@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -45,6 +45,17 @@ export const studiosApi = {
   update: (id: number, updates: Partial<Omit<Studio, 'id'>>) =>
     api.put<Studio>(`/studios/${id}`, updates),
   delete: (id: number) => api.delete(`/studios/${id}`),
+};
+
+// Organizations API
+export const organizationsApi = {
+  getAll: () => api.get<Organization[]>('/organizations'),
+  getById: (id: number) => api.get<Organization>(`/organizations/${id}`),
+  create: (org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>) =>
+    api.post<Organization>('/organizations', org),
+  update: (id: number, updates: Partial<Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>>) =>
+    api.put<Organization>(`/organizations/${id}`, updates),
+  delete: (id: number) => api.delete(`/organizations/${id}`),
 };
 
 // People API

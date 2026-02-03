@@ -1,6 +1,7 @@
 import {
   Competition,
   Studio,
+  Organization,
   Person,
   Couple,
   Judge,
@@ -32,6 +33,13 @@ export interface IDataService {
   addStudio(studio: Omit<Studio, 'id'>): Promise<Studio>;
   updateStudio(id: number, updates: Partial<Omit<Studio, 'id'>>): Promise<Studio | null>;
   deleteStudio(id: number): Promise<boolean>;
+
+  // Organizations
+  getOrganizations(): Promise<Organization[]>;
+  getOrganizationById(id: number): Promise<Organization | undefined>;
+  addOrganization(org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>): Promise<Organization>;
+  updateOrganization(id: number, updates: Partial<Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Organization | null>;
+  deleteOrganization(id: number): Promise<boolean>;
 
   // People
   getPeople(competitionId?: number): Promise<Person[]>;

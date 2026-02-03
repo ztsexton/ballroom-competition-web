@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  Competition, Studio, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
+  Competition, Studio, Organization, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
   CompetitionSchedule, EntryPayment,
 } from '../../types';
 import { IDataService } from './IDataService';
@@ -21,6 +21,7 @@ export class PostgresDataService implements IDataService {
       date: row.date,
       location: row.location || undefined,
       studioId: row.studio_id || undefined,
+      organizationId: row.organization_id || undefined,
       description: row.description || undefined,
       judgeSettings: row.judge_settings || undefined,
       timingSettings: row.timing_settings || undefined,
@@ -41,6 +42,17 @@ export class PostgresDataService implements IDataService {
       contactInfo: row.contact_info || undefined,
       mindbodySiteId: row.mindbody_site_id || undefined,
       mindbodyToken: row.mindbody_token || undefined,
+    };
+  }
+
+  private organizationFromRow(row: any): Organization {
+    return {
+      id: row.id,
+      name: row.name,
+      rulePresetKey: row.rule_preset_key,
+      settings: row.settings || {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
@@ -142,13 +154,14 @@ export class PostgresDataService implements IDataService {
   async addCompetition(competition: Omit<Competition, 'id' | 'createdAt'>): Promise<Competition> {
     const now = new Date().toISOString();
     const { rows } = await this.pool.query(
-      `INSERT INTO competitions (name, type, date, location, studio_id, description,
+      `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
         judge_settings, timing_settings, default_scoring_type, levels, pricing, entry_payments, registration_open, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
         competition.location || null, competition.studioId || null,
+        competition.organizationId || null,
         competition.description || null,
         competition.judgeSettings ? JSON.stringify(competition.judgeSettings) : null,
         competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
@@ -173,7 +186,8 @@ export class PostgresDataService implements IDataService {
 
     const fieldMap: Record<string, string> = {
       name: 'name', type: 'type', date: 'date', location: 'location',
-      studioId: 'studio_id', description: 'description',
+      studioId: 'studio_id', organizationId: 'organization_id',
+      description: 'description',
       defaultScoringType: 'default_scoring_type',
       registrationOpen: 'registration_open',
     };
@@ -299,6 +313,66 @@ export class PostgresDataService implements IDataService {
 
   async deleteStudio(id: number): Promise<boolean> {
     const { rowCount } = await this.pool.query('DELETE FROM studios WHERE id = $1', [id]);
+    return (rowCount ?? 0) > 0;
+  }
+
+  // ─── Organizations ─────────────────────────────────────────────
+
+  async getOrganizations(): Promise<Organization[]> {
+    const { rows } = await this.pool.query('SELECT * FROM organizations ORDER BY id');
+    return rows.map(r => this.organizationFromRow(r));
+  }
+
+  async getOrganizationById(id: number): Promise<Organization | undefined> {
+    const { rows } = await this.pool.query('SELECT * FROM organizations WHERE id = $1', [id]);
+    return rows.length > 0 ? this.organizationFromRow(rows[0]) : undefined;
+  }
+
+  async addOrganization(org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>): Promise<Organization> {
+    const now = new Date().toISOString();
+    const { rows } = await this.pool.query(
+      `INSERT INTO organizations (name, rule_preset_key, settings, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [org.name, org.rulePresetKey, JSON.stringify(org.settings || {}), now, now]
+    );
+    return this.organizationFromRow(rows[0]);
+  }
+
+  async updateOrganization(id: number, updates: Partial<Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Organization | null> {
+    const existing = await this.getOrganizationById(id);
+    if (!existing) return null;
+
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+    const map: Record<string, string> = {
+      name: 'name', rulePresetKey: 'rule_preset_key',
+    };
+    for (const [key, col] of Object.entries(map)) {
+      if ((updates as any)[key] !== undefined) {
+        fields.push(`${col} = $${paramIdx++}`);
+        values.push((updates as any)[key]);
+      }
+    }
+    if (updates.settings !== undefined) {
+      fields.push(`settings = $${paramIdx++}`);
+      values.push(JSON.stringify(updates.settings));
+    }
+
+    if (fields.length === 0) return existing;
+
+    fields.push(`updated_at = $${paramIdx++}`);
+    values.push(new Date().toISOString());
+    values.push(id);
+    await this.pool.query(
+      `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${paramIdx}`,
+      values
+    );
+    return (await this.getOrganizationById(id))!;
+  }
+
+  async deleteOrganization(id: number): Promise<boolean> {
+    const { rowCount } = await this.pool.query('DELETE FROM organizations WHERE id = $1', [id]);
     return (rowCount ?? 0) > 0;
   }
 
@@ -825,6 +899,6 @@ export class PostgresDataService implements IDataService {
   // ─── Testing ────────────────────────────────────────────────────
 
   async resetAllData(): Promise<void> {
-    await this.pool.query('TRUNCATE judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, users RESTART IDENTITY CASCADE');
+    await this.pool.query('TRUNCATE judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, organizations, users RESTART IDENTITY CASCADE');
   }
 }

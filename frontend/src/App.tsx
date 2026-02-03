@@ -23,6 +23,7 @@ import CompetitionDetailsPage from './pages/CompetitionDetailsPage';
 import CompetitionEntriesPage from './pages/CompetitionEntriesPage';
 import CompetitionDayOfPage from './pages/CompetitionDayOfPage';
 import StudioPage from './pages/StudioPage';
+import OrganizationsPage from './pages/OrganizationsPage';
 import UsersPage from './pages/UsersPage';
 import SchedulePage from './pages/Schedule';
 import RunCompetitionPage from './pages/RunCompetition';
@@ -102,6 +103,7 @@ const App = () => {
                     <Route path="/events/:id/results" element={<ResultsPage />} />
                     <Route path="/events/:id/results/:round" element={<ResultsPage />} />
                     <Route path="/studios" element={<StudioPage />} />
+                    <Route path="/organizations" element={<OrganizationsPage />} />
                     <Route path="/users" element={<UsersPage />} />
                   </Routes>
                 </CompetitionProvider>

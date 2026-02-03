@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { peopleApi, couplesApi, judgesApi, eventsApi, schedulesApi, studiosApi, competitionsApi } from '../api/client';
+import { peopleApi, couplesApi, judgesApi, eventsApi, schedulesApi, studiosApi, competitionsApi, organizationsApi } from '../api/client';
 import { useCompetition } from '../context/CompetitionContext';
-import { Studio } from '../types';
+import { Studio, Organization } from '../types';
 
 interface WorkflowCounts {
   people: number;
@@ -19,6 +19,7 @@ const CompetitionDetailsPage = () => {
   const competitionId = parseInt(id || '0');
   const { activeCompetition, refreshCompetitions } = useCompetition();
   const [studio, setStudio] = useState<Studio | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [counts, setCounts] = useState<WorkflowCounts>({
     people: 0, couples: 0, judges: 0, events: 0,
@@ -67,6 +68,13 @@ const CompetitionDetailsPage = () => {
         try {
           const studioRes = await studiosApi.getById(activeCompetition.studioId);
           setStudio(studioRes.data);
+        } catch { /* ignore */ }
+      }
+
+      if (activeCompetition?.organizationId) {
+        try {
+          const orgRes = await organizationsApi.getById(activeCompetition.organizationId);
+          setOrganization(orgRes.data);
         } catch { /* ignore */ }
       }
     } catch {
@@ -152,6 +160,7 @@ const CompetitionDetailsPage = () => {
           <span>{new Date(competition.date).toLocaleDateString()}</span>
           {competition.location && <span>{competition.location}</span>}
           {studio && <span>{studio.name}</span>}
+          {organization && <span>{organization.name}</span>}
         </div>
         {competition.description && (
           <p style={{ color: '#718096', marginTop: '0.75rem' }}>{competition.description}</p>

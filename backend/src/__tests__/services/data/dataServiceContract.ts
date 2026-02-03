@@ -169,6 +169,64 @@ export function dataServiceContractTests(
     });
   });
 
+  // ─── Organizations ─────────────────────────────────────────────
+
+  describe('Organizations', () => {
+    it('should start empty', async () => {
+      const orgs = await ds.getOrganizations();
+      expect(orgs).toEqual([]);
+    });
+
+    it('should add and retrieve an organization', async () => {
+      const org = await ds.addOrganization({
+        name: 'NDCA Region 1',
+        rulePresetKey: 'ndca',
+        settings: { defaultLevels: ['Bronze', 'Silver'], defaultScoringType: 'standard' },
+      });
+      expect(org.id).toBeDefined();
+      expect(org.name).toBe('NDCA Region 1');
+      expect(org.rulePresetKey).toBe('ndca');
+      expect(org.settings.defaultLevels).toEqual(['Bronze', 'Silver']);
+      expect(org.createdAt).toBeDefined();
+      expect(org.updatedAt).toBeDefined();
+
+      const fetched = await ds.getOrganizationById(org.id);
+      expect(fetched).toEqual(org);
+    });
+
+    it('should list all organizations', async () => {
+      await ds.addOrganization({ name: 'Org A', rulePresetKey: 'ndca', settings: {} });
+      await ds.addOrganization({ name: 'Org B', rulePresetKey: 'usadance', settings: {} });
+      const orgs = await ds.getOrganizations();
+      expect(orgs).toHaveLength(2);
+    });
+
+    it('should update an organization', async () => {
+      const org = await ds.addOrganization({ name: 'Old Name', rulePresetKey: 'custom', settings: {} });
+      const updated = await ds.updateOrganization(org.id, { name: 'New Name', settings: { defaultMaxCouplesPerHeat: 8 } });
+      expect(updated?.name).toBe('New Name');
+      expect(updated?.settings.defaultMaxCouplesPerHeat).toBe(8);
+      expect(updated?.rulePresetKey).toBe('custom');
+    });
+
+    it('should return null when updating non-existent organization', async () => {
+      const result = await ds.updateOrganization(999, { name: 'X' });
+      expect(result).toBeNull();
+    });
+
+    it('should delete an organization', async () => {
+      const org = await ds.addOrganization({ name: 'Del', rulePresetKey: 'custom', settings: {} });
+      const deleted = await ds.deleteOrganization(org.id);
+      expect(deleted).toBe(true);
+      expect(await ds.getOrganizationById(org.id)).toBeUndefined();
+    });
+
+    it('should return false when deleting non-existent organization', async () => {
+      const result = await ds.deleteOrganization(999);
+      expect(result).toBe(false);
+    });
+  });
+
   // ─── People ─────────────────────────────────────────────────────
 
   describe('People', () => {
@@ -682,12 +740,14 @@ export function dataServiceContractTests(
       const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
       await ds.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
       await ds.addStudio({ name: 'S' });
+      await ds.addOrganization({ name: 'O', rulePresetKey: 'custom', settings: {} });
 
       await ds.resetAllData();
 
       expect(await ds.getCompetitions()).toEqual([]);
       expect(await ds.getPeople()).toEqual([]);
       expect(await ds.getStudios()).toEqual([]);
+      expect(await ds.getOrganizations()).toEqual([]);
       expect(await ds.getCouples()).toEqual([]);
       expect(await ds.getJudges()).toEqual([]);
       expect(Object.keys(await ds.getEvents())).toHaveLength(0);

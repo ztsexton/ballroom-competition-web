@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { competitionsApi, studiosApi } from '../api/client';
-import { Competition, CompetitionType, Studio } from '../types';
+import { competitionsApi, studiosApi, organizationsApi } from '../api/client';
+import { Competition, CompetitionType, Studio, Organization } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useCompetition } from '../context/CompetitionContext';
 import { DEFAULT_LEVELS, LEVEL_TEMPLATES } from '../constants/levels';
@@ -13,6 +13,7 @@ const CompetitionsPage = () => {
   const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -26,6 +27,7 @@ const CompetitionsPage = () => {
     date: new Date().toISOString().split('T')[0],
     location: '',
     studioId: '',
+    organizationId: '',
     description: '',
     defaultScoringType: 'standard' as 'standard' | 'proficiency',
   });
@@ -36,12 +38,14 @@ const CompetitionsPage = () => {
 
   const loadData = async () => {
     try {
-      const [compsRes, studiosRes] = await Promise.all([
+      const [compsRes, studiosRes, orgsRes] = await Promise.all([
         competitionsApi.getAll(),
         studiosApi.getAll(),
+        organizationsApi.getAll(),
       ]);
       setCompetitions(compsRes.data);
       setStudios(studiosRes.data);
+      setOrganizations(orgsRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);
       setError('Failed to load competitions');
@@ -71,6 +75,7 @@ const CompetitionsPage = () => {
         date: formData.date,
         location: formData.location || undefined,
         studioId: formData.studioId ? parseInt(formData.studioId) : undefined,
+        organizationId: formData.organizationId ? parseInt(formData.organizationId) : undefined,
         description: formData.description || undefined,
         defaultScoringType: formData.defaultScoringType,
         levels,
@@ -82,6 +87,7 @@ const CompetitionsPage = () => {
         date: new Date().toISOString().split('T')[0],
         location: '',
         studioId: '',
+        organizationId: '',
         description: '',
         defaultScoringType: 'standard',
       });
@@ -275,6 +281,38 @@ const CompetitionsPage = () => {
                 />
               </div>
 
+              {organizations.length > 0 && (
+                <div className="form-group">
+                  <label>Organization (Optional)</label>
+                  <select
+                    value={formData.organizationId}
+                    onChange={e => {
+                      const orgId = e.target.value;
+                      setFormData(prev => ({ ...prev, organizationId: orgId }));
+                      if (orgId) {
+                        const org = organizations.find(o => o.id === parseInt(orgId));
+                        if (org?.settings) {
+                          if (org.settings.defaultLevels) setLevels([...org.settings.defaultLevels]);
+                          if (org.settings.defaultScoringType) {
+                            setFormData(prev => ({ ...prev, organizationId: orgId, defaultScoringType: org.settings.defaultScoringType! }));
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">None</option>
+                    {organizations.map(org => (
+                      <option key={org.id} value={org.id}>
+                        {org.name} ({org.rulePresetKey.toUpperCase()})
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+                    Selecting an organization will pre-fill levels and scoring defaults.
+                  </small>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Default Scoring Type</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -458,6 +496,9 @@ const CompetitionsPage = () => {
                         )}
                         {competition.type === 'STUDIO' && competition.studioId && (
                           <p style={{ margin: '0.25rem 0' }}>🏢 Studio: {studios.find(s => s.id === competition.studioId)?.name || competition.studioId}</p>
+                        )}
+                        {competition.organizationId && (
+                          <p style={{ margin: '0.25rem 0' }}>🏛 Org: {organizations.find(o => o.id === competition.organizationId)?.name || competition.organizationId}</p>
                         )}
                         {competition.description && (
                           <p style={{ margin: '0.5rem 0 0 0', color: '#4a5568' }}>

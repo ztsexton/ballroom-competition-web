@@ -9,6 +9,23 @@ export interface Studio {
   mindbodyToken?: string;
 }
 
+export type RulePresetKey = 'ndca' | 'usadance' | 'custom';
+
+export interface OrganizationSettings {
+  defaultLevels?: string[];
+  defaultScoringType?: 'standard' | 'proficiency';
+  defaultMaxCouplesPerHeat?: number;
+}
+
+export interface Organization {
+  id: number;
+  name: string;
+  rulePresetKey: RulePresetKey;
+  settings: OrganizationSettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MindbodyClient {
   id: string;
   firstName: string;
@@ -65,6 +82,7 @@ export interface Competition {
   date: string;
   location?: string;
   studioId?: number; // Only for STUDIO type competitions
+  organizationId?: number;
   description?: string;
   judgeSettings?: JudgeSettings;
   timingSettings?: TimingSettings;
@@ -301,6 +319,8 @@ export interface AppData {
   schedules: Record<number, CompetitionSchedule>;
   nextCompetitionId: number;
   nextStudioId: number;
+  organizations: Organization[];
+  nextOrganizationId: number;
   nextPersonId: number;
   nextBib: number;
   nextJudgeId: number;

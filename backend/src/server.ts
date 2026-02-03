@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { authenticate, requireAdmin } from './middleware/auth';
 import competitionsRoutes from './routes/competitions';
 import studiosRoutes from './routes/studios';
+import organizationsRoutes from './routes/organizations';
 import peopleRoutes from './routes/people';
 import couplesRoutes from './routes/couples';
 import judgesRoutes from './routes/judges';
@@ -48,6 +49,7 @@ app.use('/api/participant', participantRoutes);
 // Admin-only routes
 app.use('/api/competitions', requireAdmin, competitionsRoutes);
 app.use('/api/studios', requireAdmin, studiosRoutes);
+app.use('/api/organizations', requireAdmin, organizationsRoutes);
 app.use('/api/people', requireAdmin, peopleRoutes);
 app.use('/api/couples', requireAdmin, couplesRoutes);
 app.use('/api/judges', requireAdmin, judgesRoutes);

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
+import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 
@@ -14,6 +14,7 @@ const COUPLES_FILE = path.join(DATA_DIR, 'couples.json');
 const JUDGES_FILE = path.join(DATA_DIR, 'judges.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const ORGANIZATIONS_FILE = path.join(DATA_DIR, 'organizations.json');
 const SCHEDULES_FILE = path.join(DATA_DIR, 'schedules.json');
 
 const ADMIN_EMAIL = 'zsexton2011@gmail.com';
@@ -44,6 +45,8 @@ export class JsonDataService implements IDataService {
       schedules: this.loadSchedules(),
       nextCompetitionId: this.getNextId(this.loadCompetitions()),
       nextStudioId: this.getNextId(this.loadStudios()),
+      organizations: this.loadOrganizations(),
+      nextOrganizationId: this.getNextId(this.loadOrganizations()),
       nextPersonId: this.getNextId(this.loadPeople()),
       nextBib: this.getNextBib(this.loadCouples()),
       nextJudgeId: this.getNextId(this.loadJudges()),
@@ -71,6 +74,18 @@ export class JsonDataService implements IDataService {
       }
     } catch (error) {
       console.error('Error loading studios:', error);
+    }
+    return [];
+  }
+
+  private loadOrganizations(): Organization[] {
+    try {
+      if (fs.existsSync(ORGANIZATIONS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(ORGANIZATIONS_FILE, 'utf-8'));
+        return data.organizations || [];
+      }
+    } catch (error) {
+      console.error('Error loading organizations:', error);
     }
     return [];
   }
@@ -200,6 +215,11 @@ export class JsonDataService implements IDataService {
   private saveStudios(): void {
     const data = { studios: this.data.studios, next_id: this.data.nextStudioId };
     fs.writeFileSync(STUDIOS_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private saveOrganizations(): void {
+    const data = { organizations: this.data.organizations, next_id: this.data.nextOrganizationId };
+    fs.writeFileSync(ORGANIZATIONS_FILE, JSON.stringify(data, null, 2));
   }
 
   private savePeople(): void {
@@ -358,6 +378,47 @@ export class JsonDataService implements IDataService {
     this.data.studios = this.data.studios.filter(s => s.id !== id);
     if (this.data.studios.length < initialLength) {
       this.saveStudios();
+      return true;
+    }
+    return false;
+  }
+
+  // Organization methods
+  async getOrganizations(): Promise<Organization[]> {
+    return this.data.organizations;
+  }
+
+  async getOrganizationById(id: number): Promise<Organization | undefined> {
+    return this.data.organizations.find(o => o.id === id);
+  }
+
+  async addOrganization(org: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>): Promise<Organization> {
+    const now = new Date().toISOString();
+    const newOrg: Organization = {
+      ...org,
+      id: this.data.nextOrganizationId++,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.organizations.push(newOrg);
+    this.saveOrganizations();
+    return newOrg;
+  }
+
+  async updateOrganization(id: number, updates: Partial<Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Organization | null> {
+    const org = this.data.organizations.find(o => o.id === id);
+    if (!org) return null;
+    Object.assign(org, updates);
+    org.updatedAt = new Date().toISOString();
+    this.saveOrganizations();
+    return org;
+  }
+
+  async deleteOrganization(id: number): Promise<boolean> {
+    const initialLength = this.data.organizations.length;
+    this.data.organizations = this.data.organizations.filter(o => o.id !== id);
+    if (this.data.organizations.length < initialLength) {
+      this.saveOrganizations();
       return true;
     }
     return false;
@@ -814,6 +875,8 @@ export class JsonDataService implements IDataService {
       schedules: {},
       nextCompetitionId: 1,
       nextStudioId: 1,
+      organizations: [],
+      nextOrganizationId: 1,
       nextPersonId: 1,
       nextBib: 1,
       nextJudgeId: 1,
@@ -821,6 +884,7 @@ export class JsonDataService implements IDataService {
     };
     this.saveCompetitions();
     this.saveStudios();
+    this.saveOrganizations();
     this.savePeople();
     this.saveCouples();
     this.saveJudges();

@@ -25,6 +25,15 @@ CREATE TABLE IF NOT EXISTS studios (
   mindbody_token TEXT
 );
 
+CREATE TABLE IF NOT EXISTS organizations (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  rule_preset_key TEXT NOT NULL,
+  settings JSONB DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS people (
   id SERIAL PRIMARY KEY,
   first_name TEXT NOT NULL,
@@ -110,6 +119,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS state_region TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS studio_team_name TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS sign_in_methods JSONB NOT NULL DEFAULT '[]';
+
+-- Migration: add organization_id to competitions (for existing deployments)
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
