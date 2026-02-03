@@ -30,7 +30,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create a new competition
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, type, date, location, studioId, description, defaultScoringType, levels } = req.body;
+    const { name, type, date, location, studioId, description, defaultScoringType, levels, publiclyVisible, resultsPublic, websiteUrl, organizerEmail } = req.body;
 
     if (!name || !type || !date) {
       return res.status(400).json({ error: 'Name, type, and date are required' });
@@ -56,6 +56,10 @@ router.post('/', async (req: Request, res: Response) => {
       description,
       defaultScoringType,
       levels,
+      publiclyVisible: publiclyVisible !== undefined ? publiclyVisible : true,
+      resultsPublic: resultsPublic !== undefined ? resultsPublic : (type === 'STUDIO' ? false : true),
+      websiteUrl,
+      organizerEmail,
     });
 
     res.status(201).json(competition);

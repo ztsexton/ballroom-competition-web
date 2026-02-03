@@ -172,6 +172,10 @@ export const schedulesApi = {
     api.patch<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/entries`, { entries }),
   splitHeatEntry: (competitionId: number, heatId: string, eventId: number, round: string) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/split`, { eventId, round }),
+  getBackToBack: (competitionId: number) =>
+    api.get<{ conflicts: Array<{ bib: number; leaderName: string; followerName: string; heatIndex1: number; heatIndex2: number; eventName1: string; eventName2: string }>; count: number }>(`/schedules/${competitionId}/back-to-back`),
+  minimizeBackToBack: (competitionId: number) =>
+    api.post<{ schedule: CompetitionSchedule; conflictsRemaining: number }>(`/schedules/${competitionId}/minimize-back-to-back`),
 };
 
 // Judging API (non-admin, for judges and SSE)

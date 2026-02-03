@@ -13,6 +13,8 @@ function sanitizeCompetition(comp: Competition) {
     date: comp.date,
     location: comp.location,
     description: comp.description,
+    websiteUrl: comp.websiteUrl,
+    organizerEmail: comp.organizerEmail,
   };
 }
 
@@ -39,17 +41,18 @@ router.get('/competitions', async (_req: Request, res: Response) => {
     const competitions = await dataService.getCompetitions();
     const today = new Date().toISOString().split('T')[0];
 
-    let filtered = competitions;
+    // Only show competitions where publiclyVisible is true (or undefined for backwards compat)
+    let filtered = competitions.filter(c => c.publiclyVisible !== false);
     if (scope === 'upcoming') {
-      filtered = competitions
+      filtered = filtered
         .filter(c => c.date >= today)
         .sort((a, b) => a.date.localeCompare(b.date));
     } else if (scope === 'recent') {
-      filtered = competitions
+      filtered = filtered
         .filter(c => c.date < today)
         .sort((a, b) => b.date.localeCompare(a.date));
     } else {
-      filtered = [...competitions].sort((a, b) => b.date.localeCompare(a.date));
+      filtered = filtered.sort((a, b) => b.date.localeCompare(a.date));
     }
 
     res.json(filtered.map(sanitizeCompetition));
@@ -64,7 +67,7 @@ router.get('/competitions/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const competition = await dataService.getCompetitionById(id);
-    if (!competition) {
+    if (!competition || competition.publiclyVisible === false) {
       return res.status(404).json({ error: 'Competition not found' });
     }
     res.json(sanitizeCompetition(competition));
@@ -98,6 +101,15 @@ router.get('/competitions/:id/events/:eventId/results/:round', async (req: Reque
     const competitionId = parseInt(req.params.id);
     const eventId = parseInt(req.params.eventId);
     const round = req.params.round;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition || competition.publiclyVisible === false) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    if (competition.resultsPublic === false) {
+      return res.status(403).json({ error: 'Results are not publicly available for this competition' });
+    }
 
     // Validate event belongs to this competition
     const eventsMap = await dataService.getEvents(competitionId);

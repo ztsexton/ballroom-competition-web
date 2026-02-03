@@ -5,6 +5,7 @@ import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigati
 import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, splitHeatEntry, suggestPosition } from './scheduleModification';
 import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
+import { detectBackToBack, minimizeBackToBack, BackToBackConflict } from './backToBack';
 
 export class ScheduleService {
   static migrateSchedule = migrateSchedule;
@@ -75,6 +76,26 @@ export class ScheduleService {
 
   splitHeatEntry(competitionId: number, heatId: string, eventId: number, round: string): Promise<CompetitionSchedule | null> {
     return splitHeatEntry(competitionId, heatId, eventId, round);
+  }
+
+  detectBackToBack(competitionId: number): Promise<BackToBackConflict[]> {
+    return (async () => {
+      const schedule = await (await import('../dataService')).dataService.getSchedule(competitionId);
+      if (!schedule) return [];
+      const migrated = migrateSchedule(schedule);
+      return detectBackToBack(migrated.heatOrder, competitionId);
+    })();
+  }
+
+  async minimizeBackToBack(competitionId: number): Promise<CompetitionSchedule | null> {
+    const { dataService } = await import('../dataService');
+    let schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) return null;
+    schedule = migrateSchedule(schedule);
+    const result = await minimizeBackToBack(schedule.heatOrder, competitionId);
+    schedule.heatOrder = result.heatOrder;
+    schedule.updatedAt = new Date().toISOString();
+    return dataService.saveSchedule(schedule);
   }
 }
 

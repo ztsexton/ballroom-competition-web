@@ -179,9 +179,45 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
         &larr; All competitions
       </Link>
       <h2 style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>{competition.name}</h2>
-      <div style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '1.25rem' }}>
+      <div style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '0.5rem' }}>
         {formatDate(competition.date)}
         {competition.location && <> &middot; {competition.location}</>}
+      </div>
+      {(competition.websiteUrl || competition.organizerEmail) && (
+        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+          {competition.websiteUrl && (
+            <a href={competition.websiteUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#667eea' }}>
+              Website
+            </a>
+          )}
+          {competition.organizerEmail && (
+            <a href={`mailto:${competition.organizerEmail}`} style={{ color: '#667eea' }}>
+              Contact Organizer
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Participant action buttons */}
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+        <Link to="/portal" style={{
+          padding: '0.5rem 1rem', background: '#667eea', color: 'white',
+          borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+        }}>
+          Register
+        </Link>
+        <Link to={`/pay/${competitionId}`} style={{
+          padding: '0.5rem 1rem', background: '#48bb78', color: 'white',
+          borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+        }}>
+          Pay
+        </Link>
+        <Link to={`/results/${competitionId}/heats`} style={{
+          padding: '0.5rem 1rem', background: '#ed8936', color: 'white',
+          borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+        }}>
+          Heat Lists
+        </Link>
       </div>
 
       {/* Search */}

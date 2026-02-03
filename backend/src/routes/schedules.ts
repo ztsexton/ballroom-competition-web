@@ -349,6 +349,34 @@ router.patch('/:competitionId/timing', async (req: Request, res: Response) => {
   }
 });
 
+// Detect back-to-back scheduling conflicts
+router.get('/:competitionId/back-to-back', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const conflicts = await scheduleService.detectBackToBack(competitionId);
+    res.json({ conflicts, count: conflicts.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to detect back-to-back conflicts' });
+  }
+});
+
+// Minimize back-to-back scheduling conflicts
+router.post('/:competitionId/minimize-back-to-back', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const schedule = await scheduleService.minimizeBackToBack(competitionId);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    // Return the new schedule along with remaining conflicts
+    const conflicts = await scheduleService.detectBackToBack(competitionId);
+    res.json({ schedule, conflicts, conflictsRemaining: conflicts.length });
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to minimize back-to-back conflicts' });
+  }
+});
+
 // Delete schedule
 router.delete('/:competitionId', async (req: Request, res: Response) => {
   try {

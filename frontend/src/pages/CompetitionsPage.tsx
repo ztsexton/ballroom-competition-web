@@ -30,6 +30,8 @@ const CompetitionsPage = () => {
     organizationId: '',
     description: '',
     defaultScoringType: 'standard' as 'standard' | 'proficiency',
+    websiteUrl: '',
+    organizerEmail: '',
   });
 
   useEffect(() => {
@@ -79,6 +81,8 @@ const CompetitionsPage = () => {
         description: formData.description || undefined,
         defaultScoringType: formData.defaultScoringType,
         levels,
+        websiteUrl: formData.websiteUrl || undefined,
+        organizerEmail: formData.organizerEmail || undefined,
       });
 
       setFormData({
@@ -90,6 +94,8 @@ const CompetitionsPage = () => {
         organizationId: '',
         description: '',
         defaultScoringType: 'standard',
+        websiteUrl: '',
+        organizerEmail: '',
       });
       setLevels([...DEFAULT_LEVELS]);
       setNewLevelName('');
@@ -279,6 +285,27 @@ const CompetitionsPage = () => {
                   rows={3}
                   style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e0' }}
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Website URL</label>
+                  <input
+                    type="url"
+                    value={formData.websiteUrl}
+                    onChange={e => setFormData({ ...formData, websiteUrl: e.target.value })}
+                    placeholder="https://mycompetition.com"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Organizer Email</label>
+                  <input
+                    type="email"
+                    value={formData.organizerEmail}
+                    onChange={e => setFormData({ ...formData, organizerEmail: e.target.value })}
+                    placeholder="organizer@example.com"
+                  />
+                </div>
               </div>
 
               {organizations.length > 0 && (

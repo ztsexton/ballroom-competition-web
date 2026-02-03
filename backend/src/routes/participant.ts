@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { registerCoupleForEvent, removeEntryFromEvent } from '../services/registrationService';
+import { validateEntry } from '../services/validationService';
 
 const router = Router();
 
@@ -252,6 +253,12 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
       return res.status(403).json({ error: 'This couple does not belong to you' });
     }
 
+    // Validate eligibility before registering
+    const validation = await validateEntry(competitionId, bib, { level, designation, ageCategory: req.body.ageCategory });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors.join('; ') });
+    }
+
     const result = await registerCoupleForEvent(competitionId, bib, {
       designation, syllabusType, level, style, dances, scoringType,
     });
@@ -297,6 +304,23 @@ router.delete('/competitions/:id/entries/:eventId/:bib', async (req: AuthRequest
     res.json(result.event);
   } catch {
     res.status(500).json({ error: 'Failed to remove entry' });
+  }
+});
+
+// POST /participant/competitions/:id/validate — check entry eligibility
+router.post('/competitions/:id/validate', async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const { bib, level, designation, ageCategory } = req.body;
+
+    if (!bib) {
+      return res.status(400).json({ error: 'bib is required' });
+    }
+
+    const result = await validateEntry(competitionId, bib, { level, designation, ageCategory });
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Failed to validate entry' });
   }
 });
 

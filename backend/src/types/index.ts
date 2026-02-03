@@ -11,10 +11,17 @@ export interface Studio {
 
 export type RulePresetKey = 'ndca' | 'usadance' | 'custom';
 
+export interface AgeCategory {
+  name: string;
+  minAge?: number;
+  maxAge?: number;
+}
+
 export interface OrganizationSettings {
   defaultLevels?: string[];
   defaultScoringType?: 'standard' | 'proficiency';
   defaultMaxCouplesPerHeat?: number;
+  ageCategories?: AgeCategory[];
 }
 
 export interface Organization {
@@ -92,6 +99,10 @@ export interface Competition {
   entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
   registrationOpen?: boolean;
+  publiclyVisible?: boolean;
+  resultsPublic?: boolean;
+  websiteUrl?: string;
+  organizerEmail?: string;
   createdAt: string;
 }
 
@@ -102,6 +113,8 @@ export interface Person {
   email?: string;
   role: 'leader' | 'follower' | 'both';
   status: 'student' | 'professional';
+  dateOfBirth?: string;
+  ageCategory?: string;
   competitionId: number;
   studioId?: number; // For studio competitions
   userId?: string; // Firebase UID linking person to logged-in user
@@ -141,6 +154,7 @@ export interface Event {
   competitionId: number;
   scoringType?: 'standard' | 'proficiency';
   isScholarship?: boolean;
+  ageCategory?: string;
 }
 
 export interface Score {

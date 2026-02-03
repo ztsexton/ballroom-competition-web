@@ -217,6 +217,11 @@ const OrganizationsPage = () => {
                             Max couples/heat: {org.settings.defaultMaxCouplesPerHeat}
                           </span>
                         )}
+                        {org.settings.ageCategories && org.settings.ageCategories.length > 0 && (
+                          <p style={{ margin: '0.25rem 0' }}>
+                            Age categories: {org.settings.ageCategories.map(ac => ac.name).join(', ')}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <button

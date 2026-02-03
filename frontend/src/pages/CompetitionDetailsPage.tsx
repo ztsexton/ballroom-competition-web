@@ -21,6 +21,8 @@ const CompetitionDetailsPage = () => {
   const [studio, setStudio] = useState<Studio | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [publiclyVisible, setPubliclyVisible] = useState(true);
+  const [resultsPublic, setResultsPublic] = useState(true);
   const [counts, setCounts] = useState<WorkflowCounts>({
     people: 0, couples: 0, judges: 0, events: 0,
     scheduleHeats: 0, currentHeatIndex: 0, scheduleExists: false,
@@ -87,6 +89,8 @@ const CompetitionDetailsPage = () => {
   useEffect(() => {
     if (activeCompetition) {
       setRegistrationOpen(!!activeCompetition.registrationOpen);
+      setPubliclyVisible(activeCompetition.publiclyVisible !== false);
+      setResultsPublic(activeCompetition.resultsPublic !== false);
     }
   }, [activeCompetition]);
 
@@ -98,6 +102,28 @@ const CompetitionDetailsPage = () => {
       await refreshCompetitions();
     } catch {
       setRegistrationOpen(!newValue); // revert on error
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    const newValue = !publiclyVisible;
+    setPubliclyVisible(newValue);
+    try {
+      await competitionsApi.update(competitionId, { publiclyVisible: newValue });
+      await refreshCompetitions();
+    } catch {
+      setPubliclyVisible(!newValue);
+    }
+  };
+
+  const handleToggleResultsPublic = async () => {
+    const newValue = !resultsPublic;
+    setResultsPublic(newValue);
+    try {
+      await competitionsApi.update(competitionId, { resultsPublic: newValue });
+      await refreshCompetitions();
+    } catch {
+      setResultsPublic(!newValue);
     }
   };
 
@@ -120,9 +146,9 @@ const CompetitionDetailsPage = () => {
       done: counts.events > 0,
     },
     {
-      label: 'Schedule',
+      label: 'Heat Lists',
       detail: counts.scheduleExists ? `${counts.scheduleHeats} heats generated` : 'Not yet created',
-      link: 'schedule',
+      link: 'heat-lists',
       done: counts.scheduleExists,
     },
     {
@@ -181,45 +207,55 @@ const CompetitionDetailsPage = () => {
             ))}
           </div>
         )}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          marginTop: '0.75rem',
-          padding: '0.625rem 0.75rem',
-          background: registrationOpen ? '#f0fff4' : '#f7fafc',
-          border: `1px solid ${registrationOpen ? '#c6f6d5' : '#e2e8f0'}`,
-          borderRadius: '6px',
-        }}>
-          <button
-            onClick={handleToggleRegistration}
-            style={{
-              width: '44px',
-              height: '24px',
-              borderRadius: '12px',
-              border: 'none',
-              background: registrationOpen ? '#48bb78' : '#cbd5e0',
-              cursor: 'pointer',
-              position: 'relative',
-              transition: 'background 0.2s',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{
-              position: 'absolute',
-              top: '2px',
-              left: registrationOpen ? '22px' : '2px',
-              width: '20px',
-              height: '20px',
-              borderRadius: '50%',
-              background: 'white',
-              transition: 'left 0.2s',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-            }} />
-          </button>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568' }}>
-            Participant Registration {registrationOpen ? 'Open' : 'Closed'}
-          </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
+          {[
+            { value: publiclyVisible, handler: handleToggleVisibility, label: `Public Visibility ${publiclyVisible ? 'On' : 'Off'}` },
+            { value: registrationOpen, handler: handleToggleRegistration, label: `Participant Registration ${registrationOpen ? 'Open' : 'Closed'}` },
+            { value: resultsPublic, handler: handleToggleResultsPublic, label: `Public Results ${resultsPublic ? 'On' : 'Off'}` },
+          ].map(({ value, handler, label }) => (
+            <div
+              key={label}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.625rem 0.75rem',
+                background: value ? '#f0fff4' : '#f7fafc',
+                border: `1px solid ${value ? '#c6f6d5' : '#e2e8f0'}`,
+                borderRadius: '6px',
+              }}
+            >
+              <button
+                onClick={handler}
+                style={{
+                  width: '44px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: value ? '#48bb78' : '#cbd5e0',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: value ? '22px' : '2px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  background: 'white',
+                  transition: 'left 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }} />
+              </button>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568' }}>
+                {label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 

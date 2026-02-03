@@ -9,6 +9,8 @@ import LoginPage from './pages/LoginPage';
 import Home from './pages/Home';
 import PublicHomePage from './pages/PublicHomePage';
 import PublicResultsPage from './pages/PublicResultsPage';
+import PublicHeatListsPage from './pages/PublicHeatListsPage';
+import PaymentPage from './pages/PaymentPage';
 import PricingPage from './pages/PricingPage';
 import FaqPage from './pages/FaqPage';
 import PeoplePage from './pages/PeoplePage';
@@ -26,6 +28,7 @@ import StudioPage from './pages/StudioPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import UsersPage from './pages/UsersPage';
 import SchedulePage from './pages/Schedule';
+import ScheduleConfigPage from './pages/ScheduleConfigPage';
 import RunCompetitionPage from './pages/RunCompetition';
 import JudgeScoringPage from './pages/JudgeScoring';
 import EventEntriesPage from './pages/EventEntriesPage';
@@ -54,6 +57,8 @@ const App = () => {
             <Route path="/" element={<PublicHomePage />} />
             <Route path="/results" element={<PublicResultsPage />} />
             <Route path="/results/:competitionId" element={<PublicResultsPage />} />
+            <Route path="/results/:competitionId/heats" element={<PublicHeatListsPage />} />
+            <Route path="/pay/:competitionId" element={<PaymentPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/faq" element={<FaqPage />} />
           </Route>
@@ -79,7 +84,8 @@ const App = () => {
                       <Route path="participants" element={<CompetitionEntriesPage />} />
                       <Route path="events" element={<EventsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
-                      <Route path="schedule" element={<SchedulePage />} />
+                      <Route path="schedule-config" element={<ScheduleConfigPage />} />
+                      <Route path="heat-lists" element={<SchedulePage />} />
                       <Route path="run" element={<RunCompetitionPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />
                     </Route>
