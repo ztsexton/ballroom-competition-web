@@ -229,34 +229,6 @@ const InvoicesPage = () => {
 
         {pricingOpen && (
           <div style={{ marginTop: '1rem' }}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ fontWeight: 600, fontSize: '0.875rem', marginRight: '0.5rem' }}>Currency</label>
-              <select
-                value={currency}
-                onChange={async (e) => {
-                  try {
-                    const res = await competitionsApi.update(competitionId, { currency: e.target.value });
-                    setActiveCompetition(res.data);
-                  } catch {
-                    alert('Failed to update currency');
-                  }
-                }}
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <option value="USD">USD - US Dollar ($)</option>
-                <option value="ZAR">ZAR - South African Rand (R)</option>
-                <option value="GBP">GBP - British Pound (£)</option>
-                <option value="EUR">EUR - Euro (€)</option>
-                <option value="CAD">CAD - Canadian Dollar (CA$)</option>
-                <option value="AUD">AUD - Australian Dollar (A$)</option>
-              </select>
-            </div>
-
             <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Single Dance</h4>
             <TierTable tiers={singleTiers} onChange={setSingleTiers} label="" currency={currency} />
 

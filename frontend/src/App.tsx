@@ -28,7 +28,7 @@ import StudioPage from './pages/StudioPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import UsersPage from './pages/UsersPage';
 import SchedulePage from './pages/Schedule';
-import ScheduleConfigPage from './pages/ScheduleConfigPage';
+import CompetitionSettingsPage from './pages/CompetitionSettingsPage';
 import RunCompetitionPage from './pages/RunCompetition';
 import JudgeScoringPage from './pages/JudgeScoring';
 import EventEntriesPage from './pages/EventEntriesPage';
@@ -85,7 +85,7 @@ const App = () => {
                       <Route path="participants" element={<CompetitionEntriesPage />} />
                       <Route path="events" element={<EventsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
-                      <Route path="schedule-config" element={<ScheduleConfigPage />} />
+                      <Route path="settings" element={<CompetitionSettingsPage />} />
                       <Route path="heat-lists" element={<SchedulePage />} />
                       <Route path="run" element={<RunCompetitionPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />
