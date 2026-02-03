@@ -3,12 +3,12 @@ Music DJ
 MC
 
 
-- Allow the ability to add breaks in the schedule
-- Smooth + Standard done together and rhythm / latin done together 
 - 3 age categories
   - 18-40
   - 41-55
   - 61+
+
+  This probably means age categories should be configurable with defaults per organization (NDCA has its own defaults, USA dance has its defaults, etc.)
 
 - Can only enter in 1 age category
 

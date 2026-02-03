@@ -3,14 +3,19 @@ import { AuthProvider } from './context/AuthContext';
 import { CompetitionProvider } from './context/CompetitionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
+import PublicLayout from './components/PublicLayout';
 import CompetitionHubLayout from './components/CompetitionHubLayout';
 import LoginPage from './pages/LoginPage';
 import Home from './pages/Home';
+import PublicHomePage from './pages/PublicHomePage';
+import PublicResultsPage from './pages/PublicResultsPage';
+import PricingPage from './pages/PricingPage';
+import FaqPage from './pages/FaqPage';
 import PeoplePage from './pages/PeoplePage';
 import CouplesPage from './pages/CouplesPage';
 import JudgesPage from './pages/JudgesPage';
 import EventsPage from './pages/EventsPage';
-import NewEventPage from './pages/NewEventPage';
+import EventFormPage from './pages/EventFormPage';
 import ScoreEventPage from './pages/ScoreEventPage';
 import ResultsPage from './pages/ResultsPage';
 import CompetitionsPage from './pages/CompetitionsPage';
@@ -19,14 +24,14 @@ import CompetitionEntriesPage from './pages/CompetitionEntriesPage';
 import CompetitionDayOfPage from './pages/CompetitionDayOfPage';
 import StudioPage from './pages/StudioPage';
 import UsersPage from './pages/UsersPage';
-import SchedulePage from './pages/SchedulePage';
-import RunCompetitionPage from './pages/RunCompetitionPage';
-import JudgeScoringPage from './pages/JudgeScoringPage';
-import EditEventPage from './pages/EditEventPage';
+import SchedulePage from './pages/Schedule';
+import RunCompetitionPage from './pages/RunCompetition';
+import JudgeScoringPage from './pages/JudgeScoring';
 import EventEntriesPage from './pages/EventEntriesPage';
 import InvoicesPage from './pages/InvoicesPage';
 import OnDeckPage from './pages/OnDeckPage';
 import LiveCompetitionPage from './pages/LiveCompetitionPage';
+import ProfilePage from './pages/ProfilePage';
 import ParticipantPortalPage from './pages/ParticipantPortalPage';
 import './App.css';
 
@@ -43,7 +48,18 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Public routes — no auth required */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<PublicHomePage />} />
+            <Route path="/results" element={<PublicResultsPage />} />
+            <Route path="/results/:competitionId" element={<PublicResultsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/faq" element={<FaqPage />} />
+          </Route>
+
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected routes — auth required */}
           <Route
             path="*"
             element={
@@ -51,7 +67,8 @@ const App = () => {
                 <CompetitionProvider>
                   <ConditionalNavigation />
                   <Routes>
-                    <Route path="/" element={<Home />} />
+                    <Route path="/dashboard" element={<Home />} />
+                    <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/portal" element={<ParticipantPortalPage />} />
                     <Route path="/competitions" element={<CompetitionsPage />} />
 
@@ -76,9 +93,9 @@ const App = () => {
                     <Route path="/couples" element={<CouplesPage />} />
                     <Route path="/judges" element={<JudgesPage />} />
                     <Route path="/events" element={<EventsPage />} />
-                    <Route path="/events/new" element={<NewEventPage />} />
+                    <Route path="/events/new" element={<EventFormPage />} />
                     <Route path="/events/:id/entries" element={<EventEntriesPage />} />
-                    <Route path="/events/:id/edit" element={<EditEventPage />} />
+                    <Route path="/events/:id/edit" element={<EventFormPage />} />
                     <Route path="/events/:id" element={<ResultsPage />} />
                     <Route path="/events/:id/score" element={<ScoreEventPage />} />
                     <Route path="/events/:id/score/:round" element={<ScoreEventPage />} />

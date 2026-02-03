@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, CompetitionSchedule, EntryPayment } from '../../types';
+import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 
@@ -707,7 +707,7 @@ export class JsonDataService implements IDataService {
     return this.data.users.find(u => u.uid === uid);
   }
 
-  async upsertUser(uid: string, email: string, displayName?: string, photoURL?: string): Promise<User> {
+  async upsertUser(uid: string, email: string, displayName?: string, photoURL?: string, signInMethod?: string): Promise<User> {
     const existingUser = await this.getUserByUid(uid);
     const now = new Date().toISOString();
     const isAdmin = email === ADMIN_EMAIL;
@@ -717,15 +717,30 @@ export class JsonDataService implements IDataService {
       existingUser.photoURL = photoURL || existingUser.photoURL;
       existingUser.lastLoginAt = now;
       existingUser.isAdmin = isAdmin;
+      // Backfill firstName/lastName from displayName if still empty
+      if (!existingUser.firstName && !existingUser.lastName && displayName) {
+        const parts = displayName.trim().split(/\s+/);
+        existingUser.firstName = parts[0] || undefined;
+        existingUser.lastName = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+      }
+      // Add signInMethod if not already present
+      if (!existingUser.signInMethods) existingUser.signInMethods = [];
+      if (signInMethod && !existingUser.signInMethods.includes(signInMethod)) {
+        existingUser.signInMethods.push(signInMethod);
+      }
       this.saveUsers();
       return existingUser;
     }
 
+    const nameParts = displayName?.trim().split(/\s+/) || [];
     const newUser: User = {
       uid,
       email,
       displayName,
+      firstName: nameParts[0] || undefined,
+      lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined,
       photoURL,
+      signInMethods: signInMethod ? [signInMethod] : [],
       isAdmin,
       createdAt: now,
       lastLoginAt: now,
@@ -734,6 +749,22 @@ export class JsonDataService implements IDataService {
     this.data.users.push(newUser);
     this.saveUsers();
     return newUser;
+  }
+
+  async updateUserProfile(uid: string, updates: UserProfileUpdate): Promise<User | null> {
+    const user = await this.getUserByUid(uid);
+    if (!user) return null;
+
+    if (updates.firstName !== undefined) user.firstName = updates.firstName;
+    if (updates.lastName !== undefined) user.lastName = updates.lastName;
+    if (updates.phone !== undefined) user.phone = updates.phone;
+    if (updates.city !== undefined) user.city = updates.city;
+    if (updates.stateRegion !== undefined) user.stateRegion = updates.stateRegion;
+    if (updates.country !== undefined) user.country = updates.country;
+    if (updates.studioTeamName !== undefined) user.studioTeamName = updates.studioTeamName;
+
+    this.saveUsers();
+    return user;
   }
 
   async updateUserAdmin(uid: string, isAdmin: boolean): Promise<User | null> {

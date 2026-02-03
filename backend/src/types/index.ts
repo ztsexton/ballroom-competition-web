@@ -148,10 +148,28 @@ export interface User {
   uid: string;
   email: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   photoURL?: string;
+  phone?: string;
+  city?: string;
+  stateRegion?: string;
+  country?: string;
+  studioTeamName?: string;
+  signInMethods: string[];
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string;
+}
+
+export interface UserProfileUpdate {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  city?: string;
+  stateRegion?: string;
+  country?: string;
+  studioTeamName?: string;
 }
 
 export type EventRunStatus = 'pending' | 'scoring' | 'completed';

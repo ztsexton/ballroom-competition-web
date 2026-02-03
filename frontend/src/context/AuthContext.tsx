@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect } from 'react
 import { User as FirebaseUser } from 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, googleProvider } from '../config/firebase';
-import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signOut as firebaseSignOut } from 'firebase/auth';
 import { usersApi } from '../api/client';
 import { User } from '../types';
 
@@ -62,8 +62,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setError(null);
       await signInWithPopup(auth, googleProvider);
-      await refreshUser();
     } catch (err: any) {
+      if (err.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
       const errorMessage = err.message || 'Failed to sign in';
       setError(errorMessage);
       console.error('Login error:', err);

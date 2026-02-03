@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Home from '../pages/Home';
+
+// Mock the auth context
+vi.mock('../context/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    isAdmin: true,
+    loading: false,
+  })),
+}));
 
 // Mock the API client
 vi.mock('../api/client', () => ({
@@ -11,10 +19,6 @@ vi.mock('../api/client', () => ({
 }));
 
 describe('Home Page', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should display welcome message', async () => {
     render(
       <BrowserRouter>

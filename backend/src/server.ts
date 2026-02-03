@@ -18,6 +18,7 @@ import mindbodyRoutes from './routes/mindbody';
 import usersRoutes from './routes/users';
 import judgingRoutes from './routes/judging';
 import participantRoutes from './routes/participant';
+import publicRoutes from './routes/public';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,9 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Public routes (no auth required)
+app.use('/api/public', publicRoutes);
 
 // Apply authentication middleware to all API routes
 app.use('/api', authenticate);

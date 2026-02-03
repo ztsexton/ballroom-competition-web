@@ -257,8 +257,54 @@ export interface User {
   uid: string;
   email: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   photoURL?: string;
+  phone?: string;
+  city?: string;
+  stateRegion?: string;
+  country?: string;
+  studioTeamName?: string;
+  signInMethods: string[];
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string;
+}
+
+export interface UserProfileUpdate {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  city?: string;
+  stateRegion?: string;
+  country?: string;
+  studioTeamName?: string;
+}
+
+// Public API types (sanitized, no sensitive data)
+export interface PublicCompetition {
+  id: number;
+  name: string;
+  type: CompetitionType;
+  date: string;
+  location?: string;
+  description?: string;
+}
+
+export interface PublicEvent {
+  id: number;
+  name: string;
+  designation?: string;
+  syllabusType?: string;
+  level?: string;
+  style?: string;
+  dances?: string[];
+  scoringType?: 'standard' | 'proficiency';
+  isScholarship?: boolean;
+  rounds: string[];
+  coupleCount: number;
+}
+
+export interface PublicEventSearchResult extends PublicEvent {
+  matchingCouples: Array<{ bib: number; leaderName: string; followerName: string }>;
 }

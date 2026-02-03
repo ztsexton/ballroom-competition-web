@@ -8,10 +8,14 @@ vi.mock('firebase/app', () => ({
 
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({})),
+  initializeAuth: vi.fn(() => ({})),
+  browserLocalPersistence: {},
+  browserPopupRedirectResolver: {},
   GoogleAuthProvider: vi.fn(),
   signInWithPopup: vi.fn(() => Promise.resolve({ user: { uid: 'test-uid', email: 'test@example.com' } })),
+  signInWithRedirect: vi.fn(() => Promise.resolve()),
   signOut: vi.fn(() => Promise.resolve()),
-  onAuthStateChanged: vi.fn((auth, callback) => {
+  onAuthStateChanged: vi.fn((_auth, callback) => {
     // Immediately call callback with mock user
     callback({ uid: 'test-uid', email: 'test@example.com', displayName: 'Test User' });
     return vi.fn(); // Return unsubscribe function

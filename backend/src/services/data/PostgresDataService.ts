@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  Competition, Studio, Person, Couple, Judge, Event, Heat, User,
+  Competition, Studio, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
   CompetitionSchedule, EntryPayment,
 } from '../../types';
 import { IDataService } from './IDataService';
@@ -99,7 +99,15 @@ export class PostgresDataService implements IDataService {
       uid: row.uid,
       email: row.email,
       displayName: row.display_name || undefined,
+      firstName: row.first_name || undefined,
+      lastName: row.last_name || undefined,
       photoURL: row.photo_url || undefined,
+      phone: row.phone || undefined,
+      city: row.city || undefined,
+      stateRegion: row.state_region || undefined,
+      country: row.country || undefined,
+      studioTeamName: row.studio_team_name || undefined,
+      signInMethods: row.sign_in_methods || [],
       isAdmin: row.is_admin,
       createdAt: row.created_at,
       lastLoginAt: row.last_login_at,
@@ -703,22 +711,68 @@ export class PostgresDataService implements IDataService {
     return rows.length > 0 ? this.userFromRow(rows[0]) : undefined;
   }
 
-  async upsertUser(uid: string, email: string, displayName?: string, photoURL?: string): Promise<User> {
+  async upsertUser(uid: string, email: string, displayName?: string, photoURL?: string, signInMethod?: string): Promise<User> {
     const now = new Date().toISOString();
     const isAdmin = email === ADMIN_EMAIL;
+    const nameParts = displayName?.trim().split(/\s+/) || [];
+    const firstName = nameParts[0] || null;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
+    const methods = signInMethod ? JSON.stringify([signInMethod]) : '[]';
 
     const { rows } = await this.pool.query(
-      `INSERT INTO users (uid, email, display_name, photo_url, is_admin, created_at, last_login_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $6)
+      `INSERT INTO users (uid, email, display_name, first_name, last_name, photo_url, sign_in_methods, is_admin, created_at, last_login_at)
+       VALUES ($1, $2, $3, $7, $8, $4, $9::jsonb, $5, $6, $6)
        ON CONFLICT (uid) DO UPDATE SET
          display_name = COALESCE(NULLIF($3, ''), users.display_name),
+         first_name = COALESCE(users.first_name, $7),
+         last_name = COALESCE(users.last_name, $8),
          photo_url = COALESCE(NULLIF($4, ''), users.photo_url),
+         sign_in_methods = CASE
+           WHEN $9::jsonb = '[]'::jsonb THEN users.sign_in_methods
+           WHEN users.sign_in_methods @> $9::jsonb THEN users.sign_in_methods
+           ELSE users.sign_in_methods || $9::jsonb
+         END,
          is_admin = $5,
          last_login_at = $6
        RETURNING *`,
-      [uid, email, displayName || null, photoURL || null, isAdmin, now]
+      [uid, email, displayName || null, photoURL || null, isAdmin, now, firstName, lastName, methods]
     );
     return this.userFromRow(rows[0]);
+  }
+
+  async updateUserProfile(uid: string, updates: UserProfileUpdate): Promise<User | null> {
+    const existing = await this.getUserByUid(uid);
+    if (!existing) return null;
+
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    const map: Record<string, string> = {
+      firstName: 'first_name',
+      lastName: 'last_name',
+      phone: 'phone',
+      city: 'city',
+      stateRegion: 'state_region',
+      country: 'country',
+      studioTeamName: 'studio_team_name',
+    };
+
+    for (const [key, col] of Object.entries(map)) {
+      if ((updates as any)[key] !== undefined) {
+        fields.push(`${col} = $${idx++}`);
+        values.push((updates as any)[key]);
+      }
+    }
+
+    if (fields.length === 0) return existing;
+
+    values.push(uid);
+    await this.pool.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE uid = $${idx}`,
+      values
+    );
+    return (await this.getUserByUid(uid))!;
   }
 
   async updateUserAdmin(uid: string, isAdmin: boolean): Promise<User | null> {

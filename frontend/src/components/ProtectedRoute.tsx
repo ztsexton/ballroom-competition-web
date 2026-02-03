@@ -9,6 +9,10 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
 
+  if (user) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div style={{
@@ -24,11 +28,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

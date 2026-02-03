@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -219,6 +219,8 @@ export const participantApi = {
 export const usersApi = {
   getAll: () => api.get<User[]>('/users'),
   getMe: () => api.get<User>('/users/me'),
+  updateProfile: (updates: UserProfileUpdate) =>
+    api.patch<User>('/users/me', updates),
   updateAdmin: (uid: string, isAdmin: boolean) =>
     api.patch<User>(`/users/${uid}/admin`, { isAdmin }),
 };
@@ -250,6 +252,28 @@ export const mindbodyApi = {
     api.get<{ clients: MindbodyClient[]; total: number }>(`/mindbody/studios/${studioId}/clients`, { params }),
   importClients: (studioId: number, competitionId: number, clients: Array<{ id: string; firstName: string; lastName: string; email?: string; role: string; status: string }>) =>
     api.post<{ imported: number; people: Person[] }>(`/mindbody/studios/${studioId}/import`, { competitionId, clients }),
+};
+
+// Public API client (no auth token)
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Public API (no authentication required)
+export const publicCompetitionsApi = {
+  getAll: (scope?: 'upcoming' | 'recent') =>
+    publicApi.get<PublicCompetition[]>('/public/competitions', { params: { scope } }),
+  getById: (id: number) =>
+    publicApi.get<PublicCompetition>(`/public/competitions/${id}`),
+  getEvents: (id: number) =>
+    publicApi.get<PublicEvent[]>(`/public/competitions/${id}/events`),
+  getEventResults: (competitionId: number, eventId: number, round: string) =>
+    publicApi.get<EventResult[]>(`/public/competitions/${competitionId}/events/${eventId}/results/${round}`),
+  searchByDancer: (competitionId: number, dancerName: string) =>
+    publicApi.get<PublicEventSearchResult[]>(`/public/competitions/${competitionId}/search`, { params: { dancerName } }),
 };
 
 export default api;

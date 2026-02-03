@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { initializeAuth, GoogleAuthProvider, browserLocalPersistence, browserPopupRedirectResolver } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -27,7 +27,10 @@ if (missingKeys.length > 0) {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence,
+  popupRedirectResolver: browserPopupRedirectResolver,
+});
 
 // Create Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();

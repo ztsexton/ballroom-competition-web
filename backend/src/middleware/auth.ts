@@ -43,11 +43,20 @@ export const authenticate = async (
     const decodedToken = await auth.verifyIdToken(token);
 
     // Save/update user in database
+    const providerMap: Record<string, string> = {
+      'google.com': 'google',
+      'password': 'email',
+      'facebook.com': 'facebook',
+    };
+    const signInMethod = providerMap[decodedToken.firebase?.sign_in_provider]
+      || decodedToken.firebase?.sign_in_provider || 'google';
+
     const user = await dataService.upsertUser(
       decodedToken.uid,
       decodedToken.email || '',
       decodedToken.name,
-      decodedToken.picture
+      decodedToken.picture,
+      signInMethod
     );
 
     // Attach user info to request

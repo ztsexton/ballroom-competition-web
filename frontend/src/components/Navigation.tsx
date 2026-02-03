@@ -1,8 +1,14 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
   const { user, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <nav style={{
@@ -19,7 +25,7 @@ const Navigation = () => {
         alignItems: 'center',
         flexWrap: 'wrap'
       }}>
-        <Link to="/" style={{
+        <Link to="/dashboard" style={{
           color: 'white',
           fontWeight: 'bold',
           fontSize: '1.25rem',
@@ -40,12 +46,12 @@ const Navigation = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {user && (
-            <span style={{ color: 'white', fontSize: '0.875rem' }}>
+            <Link to="/profile" style={{ color: 'white', fontSize: '0.875rem', textDecoration: 'none' }}>
               {user.displayName || user.email}
-            </span>
+            </Link>
           )}
           <button
-            onClick={logout}
+            onClick={handleLogout}
             style={{
               padding: '0.5rem 1rem',
               borderRadius: '4px',

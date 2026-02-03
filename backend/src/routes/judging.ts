@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
-import { scheduleService, ScheduleService } from '../services/scheduleService';
+import { scheduleService, ScheduleService } from '../services/schedule';
 import { ActiveHeatInfo, ActiveHeatEntry, ScoringProgress, ScoringProgressEntry } from '../types';
 
 const router = Router();

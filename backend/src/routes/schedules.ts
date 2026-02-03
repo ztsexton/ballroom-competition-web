@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
-import { scheduleService, ScheduleService } from '../services/scheduleService';
+import { scheduleService, ScheduleService } from '../services/schedule';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 

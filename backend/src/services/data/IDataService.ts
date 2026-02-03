@@ -7,6 +7,7 @@ import {
   Event,
   Heat,
   User,
+  UserProfileUpdate,
   CompetitionSchedule,
   EntryPayment,
 } from '../../types';
@@ -97,7 +98,8 @@ export interface IDataService {
   // Users
   getUsers(): Promise<User[]>;
   getUserByUid(uid: string): Promise<User | undefined>;
-  upsertUser(uid: string, email: string, displayName?: string, photoURL?: string): Promise<User>;
+  upsertUser(uid: string, email: string, displayName?: string, photoURL?: string, signInMethod?: string): Promise<User>;
+  updateUserProfile(uid: string, updates: UserProfileUpdate): Promise<User | null>;
   updateUserAdmin(uid: string, isAdmin: boolean): Promise<User | null>;
 
   // Schedules

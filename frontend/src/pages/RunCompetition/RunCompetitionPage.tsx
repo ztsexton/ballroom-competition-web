@@ -1,173 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi } from '../api/client';
-import { CompetitionSchedule, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../types';
-import { useAuth } from '../context/AuthContext';
-import { useCompetitionSSE } from '../hooks/useCompetitionSSE';
-
-/* Inline scoring progress panel shown when a heat is in "scoring" status */
-const ScoringProgressPanel = ({
-  scoringProgress,
-  onLoadProgress,
-  onAdvance,
-  couples,
-  events,
-}: {
-  scoringProgress: ScoringProgress | null;
-  onLoadProgress: () => void;
-  onAdvance: () => void;
-  couples: Couple[];
-  events: Record<number, Event>;
-}) => {
-  useEffect(() => {
-    onLoadProgress();
-  }, []);
-
-  const progress = scoringProgress;
-
-  return (
-    <div>
-      {/* Progress badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <strong style={{ fontSize: '1rem' }}>Scoring Progress</strong>
-        {progress && (
-          <span style={{
-            padding: '0.25rem 0.75rem',
-            background: progress.submittedCount === progress.totalJudges ? '#c6f6d5' : '#fefcbf',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}>
-            {progress.submittedCount} / {progress.totalJudges} judges
-          </span>
-        )}
-      </div>
-
-      {/* Judge status chips */}
-      {progress && (
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {progress.judges.map(judge => (
-            <span
-              key={judge.judgeId}
-              style={{
-                padding: '0.25rem 0.75rem',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                background: judge.hasSubmitted ? '#c6f6d5' : '#fed7d7',
-                color: judge.hasSubmitted ? '#276749' : '#9b2c2c',
-                fontWeight: 500,
-              }}
-            >
-              #{judge.judgeNumber}: {judge.judgeName} {judge.hasSubmitted ? '✓' : '…'}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Per-entry scores tables */}
-      {progress && progress.entries.map(entry => {
-        const hasDances = entry.dances && entry.dances.length > 0 && entry.danceScoresByBib;
-        return (
-          <div key={`${entry.eventId}:${entry.round}`} style={{ marginBottom: '1rem' }}>
-            {progress.entries.length > 1 && (
-              <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.875rem' }}>
-                {events[entry.eventId]?.name || `Event #${entry.eventId}`} — {entry.round}
-              </h4>
-            )}
-            {hasDances ? (
-              // Per-dance score tables for multi-dance events
-              entry.dances!.map(dance => {
-                const danceScores = entry.danceScoresByBib![dance] || {};
-                return Object.keys(danceScores).length > 0 ? (
-                  <div key={dance} style={{ marginBottom: '0.75rem' }}>
-                    <h5 style={{ margin: '0 0 0.375rem', color: '#667eea', fontSize: '0.8125rem', fontWeight: 600 }}>
-                      {dance}
-                    </h5>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Bib</th>
-                            <th>Couple</th>
-                            {progress.judges.map(j => (
-                              <th key={j.judgeId} style={{ textAlign: 'center' }}>
-                                #{j.judgeNumber}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(danceScores).map(([bibStr, judgeScores]) => {
-                            const bib = parseInt(bibStr);
-                            const couple = couples.find(c => c.bib === bib);
-                            return (
-                              <tr key={bib}>
-                                <td><strong>#{bib}</strong></td>
-                                <td>{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
-                                {progress.judges.map(j => (
-                                  <td key={j.judgeId} style={{ textAlign: 'center', color: judgeScores[j.judgeId] !== undefined ? '#2d3748' : '#cbd5e0' }}>
-                                    {judgeScores[j.judgeId] !== undefined ? judgeScores[j.judgeId] : '--'}
-                                  </td>
-                                ))}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : null;
-              })
-            ) : (
-              // Single-dance score table
-              Object.keys(entry.scoresByBib).length > 0 && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Bib</th>
-                        <th>Couple</th>
-                        {progress.judges.map(j => (
-                          <th key={j.judgeId} style={{ textAlign: 'center' }}>
-                            #{j.judgeNumber}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(entry.scoresByBib).map(([bibStr, judgeScores]) => {
-                        const bib = parseInt(bibStr);
-                        const couple = couples.find(c => c.bib === bib);
-                        return (
-                          <tr key={bib}>
-                            <td><strong>#{bib}</strong></td>
-                            <td>{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
-                            {progress.judges.map(j => (
-                              <td key={j.judgeId} style={{ textAlign: 'center', color: judgeScores[j.judgeId] !== undefined ? '#2d3748' : '#cbd5e0' }}>
-                                {judgeScores[j.judgeId] !== undefined ? judgeScores[j.judgeId] : '--'}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            )}
-          </div>
-        );
-      })}
-
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button className="btn btn-success" onClick={onAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
-          Mark Complete
-        </button>
-      </div>
-    </div>
-  );
-};
+import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi } from '../../api/client';
+import { CompetitionSchedule, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useCompetitionSSE } from '../../hooks/useCompetitionSSE';
+import { formatTime, statusColor, getHeatLabel, getHeatRound } from './utils';
+import ScoringProgressPanel from './components/ScoringProgressPanel';
+import HeatSidebar from './components/HeatSidebar';
+import ResetModal from './components/ResetModal';
 
 const RunCompetitionPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -220,7 +60,6 @@ const RunCompetitionPage = () => {
     loadData();
   }, [loadData]);
 
-  // SSE: real-time updates
   useCompetitionSSE(competitionId || null, {
     onScoreUpdate: () => {
       loadScoringProgress();
@@ -365,45 +204,6 @@ const RunCompetitionPage = () => {
     return judges.filter(j => judgeIds.has(j.id)).sort((a, b) => a.judgeNumber - b.judgeNumber);
   };
 
-  const getHeatLabel = (heat: ScheduledHeat): string => {
-    if (heat.isBreak) return heat.breakLabel || 'Break';
-    const labels = heat.entries.map(entry => {
-      const event = events[entry.eventId];
-      return event ? event.name : 'Unknown';
-    });
-    if (labels.length === 1) return labels[0];
-    return labels.join(' + ');
-  };
-
-  const getHeatRound = (heat: ScheduledHeat): string => {
-    if (heat.entries.length === 0) return '';
-    return heat.entries[0].round;
-  };
-
-  const formatTime = (isoString?: string): string => {
-    if (!isoString) return '';
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return '#e2e8f0';
-      case 'scoring': return '#fefcbf';
-      case 'completed': return '#c6f6d5';
-      default: return '#e2e8f0';
-    }
-  };
-
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return '○';
-      case 'scoring': return '◑';
-      case 'completed': return '●';
-      default: return '○';
-    }
-  };
-
   // Upcoming heats (next 3 after current)
   const upcomingHeats = schedule.heatOrder
     .slice(schedule.currentHeatIndex + 1, schedule.currentHeatIndex + 4);
@@ -446,7 +246,7 @@ const RunCompetitionPage = () => {
               const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
               if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
                 const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
-                return <span style={{ marginLeft: '0.5rem', color: '#718096' }}>· Est. finish {formatTime(finish.toISOString())}</span>;
+                return <span style={{ marginLeft: '0.5rem', color: '#718096' }}>&middot; Est. finish {formatTime(finish.toISOString())}</span>;
               }
               return null;
             })()}
@@ -746,7 +546,7 @@ const RunCompetitionPage = () => {
                     <div>
                       <strong style={{ fontStyle: isBreak ? 'italic' : undefined }}>
                         <span style={{ color: '#a0aec0', fontWeight: 400, fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
-                        {isBreak ? (scheduledHeat.breakLabel || 'Break') : getHeatLabel(scheduledHeat)}
+                        {isBreak ? (scheduledHeat.breakLabel || 'Break') : getHeatLabel(scheduledHeat, events)}
                       </strong>
                       <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0, textTransform: 'capitalize' }}>
                         {isBreak
@@ -757,7 +557,7 @@ const RunCompetitionPage = () => {
                             }).filter(Boolean).join(', ') || 'No details'}`}
                         {scheduledHeat.estimatedStartTime && (
                           <span style={{ marginLeft: '0.5rem', textTransform: 'none' }}>
-                            · {formatTime(scheduledHeat.estimatedStartTime)}
+                            &middot; {formatTime(scheduledHeat.estimatedStartTime)}
                           </span>
                         )}
                       </p>
@@ -777,155 +577,25 @@ const RunCompetitionPage = () => {
         </div>
 
         {/* Heat Sidebar */}
-        <div className="card" style={{ alignSelf: 'start', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
-          <h3 style={{ marginBottom: '0.75rem' }}>All Heats</h3>
-          {schedule.heatOrder.map((scheduledHeat, idx) => {
-            const isBreak = scheduledHeat.isBreak;
-            const status = schedule.heatStatuses[scheduledHeat.id] || 'pending';
-            const isCurrent = idx === schedule.currentHeatIndex;
-
-            return (
-              <div
-                key={scheduledHeat.id + '-' + idx}
-                onClick={() => handleJump(idx)}
-                style={{
-                  padding: '0.5rem',
-                  marginBottom: '0.25rem',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  background: isCurrent ? '#ebf8ff' : isBreak ? '#fefce8' : 'transparent',
-                  border: isCurrent ? '1px solid #90cdf4' : '1px solid transparent',
-                  transition: 'background 0.15s',
-                }}
-                onMouseOver={(e) => { if (!isCurrent) e.currentTarget.style.background = isBreak ? '#fef9c3' : '#f7fafc'; }}
-                onMouseOut={(e) => { if (!isCurrent) e.currentTarget.style.background = isCurrent ? '#ebf8ff' : isBreak ? '#fefce8' : 'transparent'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ color: statusColor(status) === '#c6f6d5' ? '#276749' : '#718096' }}>
-                    {statusIcon(status)}
-                  </span>
-                  <span style={{
-                    fontSize: '0.8rem',
-                    fontWeight: isCurrent ? 600 : 400,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    fontStyle: isBreak ? 'italic' : undefined,
-                    flex: 1,
-                  }}>
-                    {idx + 1}. {isBreak
-                      ? (scheduledHeat.breakLabel || 'Break')
-                      : `${getHeatLabel(scheduledHeat)} (${getHeatRound(scheduledHeat)})`}
-                    {scheduledHeat.estimatedStartTime && (
-                      <span style={{ color: '#a0aec0', fontSize: '0.7rem', marginLeft: '0.25rem' }}>
-                        {formatTime(scheduledHeat.estimatedStartTime)}
-                      </span>
-                    )}
-                  </span>
-                  {(status === 'completed' || status === 'scoring') && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setResetTargetIndex(idx);
-                      }}
-                      title="Reset to this heat"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0.125rem 0.25rem',
-                        fontSize: '0.7rem',
-                        color: '#e53e3e',
-                        opacity: 0.6,
-                        flexShrink: 0,
-                      }}
-                      onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; }}
-                      onMouseOut={(e) => { e.currentTarget.style.opacity = '0.6'; }}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <HeatSidebar
+          schedule={schedule}
+          events={events}
+          onJump={handleJump}
+          onResetRequest={setResetTargetIndex}
+        />
       </div>
 
       {/* Reset/re-run confirmation modal */}
-      {resetTargetIndex !== null && (() => {
-        const targetHeat = schedule.heatOrder[resetTargetIndex];
-        const targetLabel = targetHeat?.isBreak
-          ? (targetHeat.breakLabel || 'Break')
-          : getHeatLabel(targetHeat) + ` (${getHeatRound(targetHeat)})`;
-        const heatsAffected = Math.max(0, schedule.currentHeatIndex - resetTargetIndex);
-
-        return (
-          <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}>
-            <div style={{
-              background: 'white',
-              padding: '2rem',
-              borderRadius: '8px',
-              maxWidth: '520px',
-              width: '90%',
-            }}>
-              <h3 style={{ color: '#e53e3e', marginTop: 0, marginBottom: '0.5rem' }}>
-                Reset: {targetLabel}
-              </h3>
-              <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                Choose how to handle this heat. Scores will be permanently cleared.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                {/* Re-run this heat only */}
-                <button
-                  className="btn"
-                  style={{ background: '#dd6b20', borderColor: '#dd6b20', textAlign: 'left', padding: '0.75rem 1rem' }}
-                  onClick={handleRerun}
-                >
-                  <strong>Re-run this heat only</strong>
-                  <br />
-                  <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
-                    Clear scores for this heat and jump to it. All other results are kept.
-                  </span>
-                </button>
-
-                {/* Reset to this heat */}
-                {heatsAffected > 0 && (
-                  <button
-                    className="btn"
-                    style={{ background: '#e53e3e', borderColor: '#e53e3e', textAlign: 'left', padding: '0.75rem 1rem' }}
-                    onClick={handleReset}
-                  >
-                    <strong>Reset to this heat</strong>
-                    <br />
-                    <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
-                      Clear scores for this heat and the {heatsAffected} heat{heatsAffected !== 1 ? 's' : ''} after
-                      it (through the current position). Earlier results are kept.
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              <button
-                className="btn btn-secondary"
-                onClick={() => setResetTargetIndex(null)}
-                style={{ width: '100%' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        );
-      })()}
+      {resetTargetIndex !== null && (
+        <ResetModal
+          schedule={schedule}
+          events={events}
+          targetIndex={resetTargetIndex}
+          onRerun={handleRerun}
+          onReset={handleReset}
+          onCancel={() => setResetTargetIndex(null)}
+        />
+      )}
     </div>
   );
 };

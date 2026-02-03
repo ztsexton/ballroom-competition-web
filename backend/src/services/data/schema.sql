@@ -87,11 +87,29 @@ CREATE TABLE IF NOT EXISTS users (
   uid TEXT PRIMARY KEY,
   email TEXT NOT NULL,
   display_name TEXT,
+  first_name TEXT,
+  last_name TEXT,
   photo_url TEXT,
+  phone TEXT,
+  city TEXT,
+  state_region TEXT,
+  country TEXT,
+  studio_team_name TEXT,
+  sign_in_methods JSONB NOT NULL DEFAULT '[]',
   is_admin BOOLEAN DEFAULT FALSE,
   created_at TEXT NOT NULL,
   last_login_at TEXT NOT NULL
 );
+
+-- Migration: add profile fields to users (for existing deployments)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS state_region TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS studio_team_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sign_in_methods JSONB NOT NULL DEFAULT '[]';
 
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,

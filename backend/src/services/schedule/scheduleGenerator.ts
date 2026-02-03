@@ -1,0 +1,162 @@
+import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus } from '../../types';
+import { dataService } from '../dataService';
+import { DEFAULT_LEVELS } from '../../constants/levels';
+import { heatKey, generateHeatId, recalculateTimingIfConfigured } from './helpers';
+import { autoAssignJudges } from './judgeAssignment';
+
+const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
+const DEFAULT_MAX_COUPLES_PER_HEAT = 6;
+
+export async function generateSchedule(
+  competitionId: number,
+  styleOrder?: string[],
+  levelOrder?: string[],
+): Promise<CompetitionSchedule> {
+  const competition = await dataService.getCompetitionById(competitionId);
+  const events = await dataService.getEvents(competitionId);
+  const eventList = Object.values(events);
+
+  const styles = styleOrder || DEFAULT_STYLE_ORDER;
+  const levels = levelOrder || competition?.levels || DEFAULT_LEVELS;
+  const maxCouples = competition?.maxCouplesPerHeat ?? DEFAULT_MAX_COUPLES_PER_HEAT;
+
+  const sortByStyleLevel = (a: Event, b: Event) => {
+    const sA = styles.indexOf(a.style || '');
+    const sB = styles.indexOf(b.style || '');
+    const styleA = sA === -1 ? styles.length : sA;
+    const styleB = sB === -1 ? styles.length : sB;
+    if (styleA !== styleB) return styleA - styleB;
+
+    const lA = levels.indexOf(a.level || '');
+    const lB = levels.indexOf(b.level || '');
+    const levelA = lA === -1 ? levels.length : lA;
+    const levelB = lB === -1 ? levels.length : lB;
+    return levelA - levelB;
+  };
+
+  // Build entry lists per round depth, sorted by style+level
+  type EntryWithEvent = { entry: HeatEntry; event: Event; coupleCount: number };
+  const buckets: EntryWithEvent[][] = [[], [], []];
+
+  for (const event of eventList) {
+    const totalCouples = event.heats[0]?.bibs.length ?? 0;
+    event.heats.forEach((heat, index) => {
+      if (index < 3) {
+        buckets[index].push({
+          entry: { eventId: event.id, round: heat.round },
+          event,
+          coupleCount: totalCouples,
+        });
+      }
+    });
+  }
+
+  // Sort within each bucket by style then level
+  for (const bucket of buckets) {
+    bucket.sort((a, b) => sortByStyleLevel(a.event, b.event));
+  }
+
+  // Merge compatible events within each bucket
+  const mergedBuckets: ScheduledHeat[][] = [];
+  for (const bucket of buckets) {
+    mergedBuckets.push(mergeEntries(bucket, maxCouples));
+  }
+
+  const heatOrder = [...mergedBuckets[0], ...mergedBuckets[1], ...mergedBuckets[2]];
+
+  const heatStatuses: Record<string, EventRunStatus> = {};
+  heatOrder.forEach(h => { heatStatuses[heatKey(h)] = 'pending'; });
+
+  const now = new Date().toISOString();
+
+  const schedule: CompetitionSchedule = {
+    competitionId,
+    heatOrder,
+    styleOrder: styles,
+    levelOrder: levels,
+    currentHeatIndex: 0,
+    heatStatuses,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const saved = await dataService.saveSchedule(schedule);
+  await autoAssignJudges(competitionId);
+  return await recalculateTimingIfConfigured(competitionId, saved);
+}
+
+/**
+ * Merge compatible entries into multi-entry heats using first-fit-decreasing.
+ * Two entries can share a heat if they have the same style, dances, and scoringType,
+ * their combined couple count doesn't exceed maxCouples, and neither event has
+ * multiple rounds (events with multiple rounds are never combined).
+ */
+function mergeEntries(
+  items: Array<{ entry: HeatEntry; event: Event; coupleCount: number }>,
+  maxCouples: number,
+): ScheduledHeat[] {
+  // Events with multiple rounds are never combined — give each its own heat
+  const mergeable: typeof items = [];
+  const result: ScheduledHeat[] = [];
+
+  for (const item of items) {
+    if (item.event.heats.length > 1) {
+      result.push({
+        id: generateHeatId(),
+        entries: [item.entry],
+      });
+    } else {
+      mergeable.push(item);
+    }
+  }
+
+  // Group mergeable entries by key: (style, dances sorted, scoringType)
+  const groups = new Map<string, typeof items>();
+  for (const item of mergeable) {
+    const danceKey = (item.event.dances || []).slice().sort().join(',');
+    const key = `${item.event.style || ''}|${danceKey}|${item.event.scoringType || 'standard'}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+
+  for (const [, group] of groups) {
+    // Sort by couple count descending for first-fit-decreasing packing
+    const sorted = [...group].sort((a, b) => b.coupleCount - a.coupleCount);
+
+    const heats: { entries: HeatEntry[]; totalCouples: number }[] = [];
+
+    for (const item of sorted) {
+      let placed = false;
+      for (const heat of heats) {
+        if (heat.totalCouples + item.coupleCount <= maxCouples) {
+          heat.entries.push(item.entry);
+          heat.totalCouples += item.coupleCount;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        heats.push({ entries: [item.entry], totalCouples: item.coupleCount });
+      }
+    }
+
+    for (const heat of heats) {
+      result.push({
+        id: generateHeatId(),
+        entries: heat.entries,
+      });
+    }
+  }
+
+  // Sort result heats by style/level of their first entry to maintain ordering
+  result.sort((a, b) => {
+    const aFirst = items.find(i => i.entry.eventId === a.entries[0]?.eventId);
+    const bFirst = items.find(i => i.entry.eventId === b.entries[0]?.eventId);
+    if (!aFirst || !bFirst) return 0;
+    const aIdx = items.indexOf(aFirst);
+    const bIdx = items.indexOf(bFirst);
+    return aIdx - bIdx;
+  });
+
+  return result;
+}

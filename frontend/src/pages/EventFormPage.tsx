@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../api/client';
-import { Couple, Judge } from '../types';
+import { Couple, Judge, Event } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_LEVELS } from '../constants/levels';
 
-const NewEventPage = () => {
+const EventFormPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
   const navigate = useNavigate();
   const { activeCompetition } = useCompetition();
   const { isAdmin, loading: authLoading } = useAuth();
+  const [originalEvent, setOriginalEvent] = useState<Event | null>(null);
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+  const [showScoreWarning, setShowScoreWarning] = useState(false);
+
   const [eventName, setEventName] = useState('');
   const [designation, setDesignation] = useState('');
   const [syllabusType, setSyllabusType] = useState('');
@@ -31,29 +35,53 @@ const NewEventPage = () => {
   const [isScholarship, setIsScholarship] = useState(false);
 
   useEffect(() => {
-    if (activeCompetition) {
+    if (activeCompetition && (!isEditMode || id)) {
       loadData();
     }
-  }, [activeCompetition]);
+  }, [activeCompetition, id]);
 
   const loadData = async () => {
     if (!activeCompetition) return;
-    
+
     try {
-      const [couplesRes, judgesRes] = await Promise.all([
-        couplesApi.getAll(activeCompetition.id),
-        judgesApi.getAll(activeCompetition.id),
-      ]);
-      setCouples(couplesRes.data);
-      setJudges(judgesRes.data);
-      
-      // Auto-select all judges if 3 or fewer
-      if (judgesRes.data.length <= 3) {
-        setSelectedJudges(judgesRes.data.map(j => j.id));
+      if (isEditMode) {
+        const [eventRes, couplesRes, judgesRes] = await Promise.all([
+          eventsApi.getById(parseInt(id!)),
+          couplesApi.getAll(activeCompetition.id),
+          judgesApi.getAll(activeCompetition.id),
+        ]);
+
+        const evt = eventRes.data;
+        setOriginalEvent(evt);
+        setCouples(couplesRes.data);
+        setJudges(judgesRes.data);
+
+        // Pre-populate form from existing event
+        setEventName(evt.name);
+        setDesignation(evt.designation || '');
+        setSyllabusType(evt.syllabusType || '');
+        setLevel(evt.level || '');
+        setStyle(evt.style || '');
+        setSelectedDances(evt.dances || []);
+        setScoringType(evt.scoringType || 'standard');
+        setIsScholarship(evt.isScholarship || false);
+        setSelectedBibs(evt.heats[0]?.bibs || []);
+        setSelectedJudges(evt.heats[0]?.judges || []);
+      } else {
+        const [couplesRes, judgesRes] = await Promise.all([
+          couplesApi.getAll(activeCompetition.id),
+          judgesApi.getAll(activeCompetition.id),
+        ]);
+        setCouples(couplesRes.data);
+        setJudges(judgesRes.data);
+
+        // Auto-select all judges if 3 or fewer
+        if (judgesRes.data.length <= 3) {
+          setSelectedJudges(judgesRes.data.map(j => j.id));
+        }
       }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      setError('Failed to load data');
+    } catch {
+      setError(isEditMode ? 'Failed to load event data' : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -77,17 +105,11 @@ const NewEventPage = () => {
     );
   };
 
-  // Dance options based on style
   const getDanceOptions = () => {
-    if (style === 'Standard') {
-      return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
-    } else if (style === 'Latin') {
-      return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
-    } else if (style === 'Smooth') {
-      return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
-    } else if (style === 'Rhythm') {
-      return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
-    }
+    if (style === 'Standard') return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
+    if (style === 'Latin') return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
+    if (style === 'Smooth') return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
+    if (style === 'Rhythm') return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
     return [];
   };
 
@@ -101,37 +123,78 @@ const NewEventPage = () => {
     );
   });
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent, forceOverwrite = false) => {
     e.preventDefault();
-    
+
     if (!activeCompetition) {
       setError('No active competition selected');
       return;
     }
-    
+
     if (!eventName.trim()) {
       setError('Event name is required');
       return;
     }
-    
-    try {
-      const response = await eventsApi.create(
-        eventName.trim(),
-        selectedBibs,
-        selectedJudges,
-        activeCompetition.id,
-        designation || undefined,
-        syllabusType || undefined,
-        level || undefined,
-        style || undefined,
-        selectedDances.length > 0 ? selectedDances : undefined,
+
+    if (isEditMode) {
+      if (!originalEvent) return;
+
+      if (selectedBibs.length === 0) {
+        setError('Please select at least one couple');
+        return;
+      }
+
+      const payload: Record<string, unknown> = {
+        name: eventName.trim(),
+        designation: designation || undefined,
+        syllabusType: syllabusType || undefined,
+        level: level || undefined,
+        style: style || undefined,
+        dances: selectedDances.length > 0 ? selectedDances : undefined,
+        bibs: selectedBibs,
+        judgeIds: selectedJudges,
         scoringType,
-        isScholarship || undefined
-      );
-      navigate(`/events/${response.data.id}`);
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to create event');
+        isScholarship,
+      };
+
+      if (forceOverwrite) {
+        payload.clearScores = true;
+      }
+
+      try {
+        const response = await eventsApi.update(originalEvent.id, payload as any);
+        navigate(`/events/${response.data.id}`);
+      } catch (err: any) {
+        if (err.response?.status === 409 && err.response?.data?.warning) {
+          setShowScoreWarning(true);
+        } else {
+          setError(err.response?.data?.error || 'Failed to update event');
+        }
+      }
+    } else {
+      try {
+        const response = await eventsApi.create(
+          eventName.trim(),
+          selectedBibs,
+          selectedJudges,
+          activeCompetition.id,
+          designation || undefined,
+          syllabusType || undefined,
+          level || undefined,
+          style || undefined,
+          selectedDances.length > 0 ? selectedDances : undefined,
+          scoringType,
+          isScholarship || undefined
+        );
+        navigate(`/events/${response.data.id}`);
+      } catch (error: any) {
+        setError(error.response?.data?.error || 'Failed to create event');
+      }
     }
+  };
+
+  const handleCancel = () => {
+    navigate(isEditMode ? `/events/${id}` : '/events');
   };
 
   if (loading || authLoading) return <div className="loading">Loading...</div>;
@@ -141,25 +204,39 @@ const NewEventPage = () => {
       <div className="container">
         <div className="card">
           <h2>Access Denied</h2>
-          <p>You must be an admin to create events.</p>
+          <p>You must be an admin to {isEditMode ? 'edit' : 'create'} events.</p>
         </div>
       </div>
     );
   }
 
-  if (!activeCompetition) {
+  if (isEditMode && (!activeCompetition || !originalEvent)) {
     return (
       <div className="container">
         <div className="card">
-          <h2>➕ Create New Event</h2>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '3rem', 
+          <h2>Event Not Found</h2>
+          <p>Unable to load the event for editing.</p>
+          <button onClick={() => navigate('/events')} className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+            Back to Events
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isEditMode && !activeCompetition) {
+    return (
+      <div className="container">
+        <div className="card">
+          <h2>Create New Event</h2>
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem',
             background: '#fef3c7',
             border: '1px solid #f59e0b',
             borderRadius: '8px'
           }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
+            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No Active Competition</p>
             <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to create events.</p>
           </div>
         </div>
@@ -173,21 +250,21 @@ const NewEventPage = () => {
     <div className="container">
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>➕ Create New Event - {activeCompetition.name}</h2>
-          <button onClick={() => navigate('/events')} className="btn btn-secondary">Cancel</button>
+          <h2>{isEditMode ? 'Edit Event' : 'Create New Event'} - {activeCompetition!.name}</h2>
+          <button onClick={handleCancel} className="btn btn-secondary">Cancel</button>
         </div>
 
         {error && <div className="error">{error}</div>}
 
-        {!hasData ? (
-          <div style={{ 
-            background: '#fef3c7', 
-            border: '1px solid #f59e0b', 
-            padding: '1.5rem', 
+        {!isEditMode && !hasData ? (
+          <div style={{
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            padding: '1.5rem',
             borderRadius: '4px',
             marginTop: '1rem'
           }}>
-            <h3>⚠️ Setup Required</h3>
+            <h3>Setup Required</h3>
             <p>Before creating an event, you need to:</p>
             <ol style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
               <li>Add people (leaders and followers)</li>
@@ -266,7 +343,7 @@ const NewEventPage = () => {
                       color: designation === option ? 'white' : '#2d3748',
                       cursor: 'pointer',
                       fontWeight: designation === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
                     }}
                   >
                     {option}
@@ -291,7 +368,7 @@ const NewEventPage = () => {
                       color: syllabusType === option ? 'white' : '#2d3748',
                       cursor: 'pointer',
                       fontWeight: syllabusType === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
                     }}
                   >
                     {option}
@@ -316,7 +393,7 @@ const NewEventPage = () => {
                       color: level === option ? 'white' : '#2d3748',
                       cursor: 'pointer',
                       fontWeight: level === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
                     }}
                   >
                     {option}
@@ -349,7 +426,7 @@ const NewEventPage = () => {
                       color: style === option ? 'white' : '#2d3748',
                       cursor: 'pointer',
                       fontWeight: style === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
                     }}
                   >
                     {option}
@@ -363,8 +440,8 @@ const NewEventPage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <label style={{ margin: 0 }}>
                     Select Dances {selectedDances.length > 0 && (
-                      <span style={{ 
-                        color: '#667eea', 
+                      <span style={{
+                        color: '#667eea',
                         fontWeight: 'bold',
                         marginLeft: '0.5rem'
                       }}>
@@ -384,7 +461,7 @@ const NewEventPage = () => {
                         background: 'white',
                         color: '#667eea',
                         cursor: 'pointer',
-                        fontWeight: '500'
+                        fontWeight: '500',
                       }}
                     >
                       Select All
@@ -400,7 +477,7 @@ const NewEventPage = () => {
                           borderRadius: '4px',
                           background: 'white',
                           color: '#718096',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
                         }}
                       >
                         Clear
@@ -408,11 +485,7 @@ const NewEventPage = () => {
                     )}
                   </div>
                 </div>
-                <div style={{ 
-                  display: 'flex',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap'
-                }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {getDanceOptions().map(dance => (
                     <button
                       key={dance}
@@ -427,7 +500,7 @@ const NewEventPage = () => {
                         cursor: 'pointer',
                         fontWeight: selectedDances.includes(dance) ? 'bold' : 'normal',
                         transition: 'all 0.2s',
-                        minWidth: '120px'
+                        minWidth: '120px',
                       }}
                     >
                       {dance}
@@ -443,7 +516,7 @@ const NewEventPage = () => {
                 type="text"
                 value={eventName}
                 onChange={e => setEventName(e.target.value)}
-                placeholder="e.g., Bronze Waltz, Silver Foxtrot (or auto-generate based on selections)"
+                placeholder={isEditMode ? 'e.g., Bronze Waltz, Silver Foxtrot' : 'e.g., Bronze Waltz, Silver Foxtrot (or auto-generate based on selections)'}
                 required
               />
               {designation && level && style && (
@@ -467,7 +540,7 @@ const NewEventPage = () => {
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <label style={{ margin: 0 }}>
-                  Select Couples <span style={{ color: '#a0aec0', fontWeight: 'normal' }}>(optional)</span>
+                  Select Couples {isEditMode ? '*' : <span style={{ color: '#a0aec0', fontWeight: 'normal' }}>(optional)</span>}
                   {selectedBibs.length > 0 && (
                     <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
                       ({selectedBibs.length} selected)
@@ -646,11 +719,7 @@ const NewEventPage = () => {
                   No judges available (you can add them later)
                 </p>
               ) : (
-                <div style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {judges.map(judge => {
                     const isSelected = selectedJudges.includes(judge.id);
                     return (
@@ -700,7 +769,7 @@ const NewEventPage = () => {
                 border: '1px solid #38a169',
                 padding: '1rem',
                 borderRadius: '4px',
-                marginTop: '1rem'
+                marginTop: '1rem',
               }}>
                 <strong>Proficiency Scoring</strong>
                 <p style={{ margin: '0.5rem 0 0 0' }}>
@@ -713,7 +782,7 @@ const NewEventPage = () => {
                 border: '1px solid #1890ff',
                 padding: '1rem',
                 borderRadius: '4px',
-                marginTop: '1rem'
+                marginTop: '1rem',
               }}>
                 <strong>Standard Scoring — Automatic Round Generation</strong>
                 <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: 0 }}>
@@ -725,18 +794,68 @@ const NewEventPage = () => {
             )}
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn">
-                Create Event
+              <button type="submit" className="btn" disabled={isEditMode && selectedBibs.length === 0}>
+                {isEditMode ? 'Save Changes' : 'Create Event'}
               </button>
-              <button type="button" onClick={() => navigate('/events')} className="btn btn-secondary">
+              <button type="button" onClick={handleCancel} className="btn btn-secondary">
                 Cancel
               </button>
             </div>
           </form>
         )}
       </div>
+
+      {/* Score clearing confirmation modal (edit mode only) */}
+      {showScoreWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '480px',
+            width: '90%',
+          }}>
+            <h3 style={{ color: '#e53e3e', marginTop: 0, marginBottom: '1rem' }}>
+              Warning: Scores Will Be Cleared
+            </h3>
+            <p style={{ marginBottom: '1.5rem' }}>
+              Changing couples, judges, or scoring type will permanently clear all
+              existing scores for this event. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="btn"
+                style={{ background: '#e53e3e', borderColor: '#e53e3e' }}
+                onClick={(e) => {
+                  setShowScoreWarning(false);
+                  handleSubmit(e as any, true);
+                }}
+              >
+                Clear Scores & Save
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowScoreWarning(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default NewEventPage;
+export default EventFormPage;

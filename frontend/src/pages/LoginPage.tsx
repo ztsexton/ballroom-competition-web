@@ -9,7 +9,7 @@ const LoginPage = () => {
   useEffect(() => {
     // Redirect to home if already authenticated
     if (user && !loading) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -17,8 +17,8 @@ const LoginPage = () => {
     await login();
   };
 
-  if (loading) {
-    return <div className="loading">Loading...</div>;
+  if (!loading && user) {
+    return null;
   }
 
   return (
