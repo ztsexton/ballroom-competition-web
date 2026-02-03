@@ -96,6 +96,7 @@ export interface Competition {
   defaultScoringType?: 'standard' | 'proficiency';
   levels?: string[];
   pricing?: CompetitionPricing;
+  currency?: string;
   entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
   registrationOpen?: boolean;

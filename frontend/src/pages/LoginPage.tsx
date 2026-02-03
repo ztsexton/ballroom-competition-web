@@ -1,17 +1,18 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const { user, loading, login, error } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Redirect to home if already authenticated
     if (user && !loading) {
-      navigate('/dashboard', { replace: true });
+      const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, searchParams]);
 
   const handleLogin = async () => {
     await login();

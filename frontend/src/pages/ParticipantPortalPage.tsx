@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { participantApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Competition, Person, Couple, Event } from '../types';
@@ -34,6 +35,7 @@ const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
 
 const ParticipantPortalPage = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // Competition selection
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -71,7 +73,15 @@ const ParticipantPortalPage = () => {
   // Load published competitions
   useEffect(() => {
     participantApi.getCompetitions()
-      .then(res => setCompetitions(res.data))
+      .then(res => {
+        setCompetitions(res.data);
+        // Auto-select competition from query param (e.g. /portal?competitionId=3)
+        const preselect = searchParams.get('competitionId');
+        if (preselect) {
+          const match = res.data.find((c: Competition) => c.id === parseInt(preselect));
+          if (match) setSelectedComp(match);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingComps(false));
   }, []);

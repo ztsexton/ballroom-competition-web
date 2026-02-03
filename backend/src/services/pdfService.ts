@@ -10,8 +10,8 @@ const COL_PRICE = 420;
 const COL_STATUS = 480;
 const PAGE_WIDTH = 612; // letter size
 
-function fmt(n: number): string {
-  return '$' + n.toFixed(2);
+function fmt(n: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
 }
 
 function formatDate(dateStr: string): string {
@@ -23,6 +23,7 @@ export function generateInvoicePDF(
   invoice: PersonInvoice,
   competition: Competition
 ): Promise<Buffer> {
+  const currency = competition.currency || 'USD';
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'LETTER', margin: MARGIN });
     const stream = new PassThrough();
@@ -103,7 +104,7 @@ export function generateInvoicePDF(
         doc.text(item.eventName, COL_EVENT, rowY, { width: COL_CATEGORY - COL_EVENT - 10 });
         doc.text(categoryLabels[item.category] || item.category, COL_CATEGORY, rowY);
         doc.text(String(item.danceCount), COL_DANCES, rowY);
-        doc.text(fmt(item.pricePerEntry), COL_PRICE, rowY);
+        doc.text(fmt(item.pricePerEntry, currency), COL_PRICE, rowY);
         doc.fillColor(item.paid ? '#48bb78' : '#d69e2e');
         doc.text(item.paid ? 'Paid' : 'Unpaid', COL_STATUS, rowY);
         doc.fillColor('#000000');
@@ -116,14 +117,14 @@ export function generateInvoicePDF(
       doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333');
       const subY = doc.y;
       doc.text('Subtotal:', COL_DANCES, subY);
-      doc.text(fmt(partnership.subtotal), COL_PRICE, subY);
+      doc.text(fmt(partnership.subtotal, currency), COL_PRICE, subY);
       doc.y = subY + 13;
 
       if (partnership.paidAmount > 0) {
         const paidY = doc.y;
         doc.fontSize(9).font('Helvetica').fillColor('#48bb78');
         doc.text('Paid:', COL_DANCES, paidY);
-        doc.text(fmt(partnership.paidAmount), COL_PRICE, paidY);
+        doc.text(fmt(partnership.paidAmount, currency), COL_PRICE, paidY);
         doc.fillColor('#000000');
         doc.y = paidY + 13;
       }
@@ -143,19 +144,19 @@ export function generateInvoicePDF(
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000');
     const totalY = doc.y;
     doc.text('Total:', MARGIN, totalY);
-    doc.text(fmt(invoice.totalAmount), COL_PRICE, totalY);
+    doc.text(fmt(invoice.totalAmount, currency), COL_PRICE, totalY);
     doc.y = totalY + 18;
 
     const paidTotalY = doc.y;
     doc.fontSize(11).font('Helvetica').fillColor('#48bb78');
     doc.text('Paid:', MARGIN, paidTotalY);
-    doc.text(fmt(invoice.paidAmount), COL_PRICE, paidTotalY);
+    doc.text(fmt(invoice.paidAmount, currency), COL_PRICE, paidTotalY);
     doc.y = paidTotalY + 16;
 
     const outY = doc.y;
     doc.fontSize(12).font('Helvetica-Bold').fillColor(invoice.outstandingAmount > 0 ? '#d69e2e' : '#48bb78');
     doc.text('Outstanding:', MARGIN, outY);
-    doc.text(fmt(invoice.outstandingAmount), COL_PRICE, outY);
+    doc.text(fmt(invoice.outstandingAmount, currency), COL_PRICE, outY);
 
     doc.end();
   });

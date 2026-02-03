@@ -17,10 +17,12 @@ const TierTable = ({
   tiers,
   onChange,
   label,
+  currency = 'USD',
 }: {
   tiers: PricingTier[];
   onChange: (tiers: PricingTier[]) => void;
   label: string;
+  currency?: string;
 }) => {
   const update = (idx: number, field: keyof PricingTier, value: string) => {
     const next = [...tiers];
@@ -35,7 +37,7 @@ const TierTable = ({
         <thead>
           <tr>
             <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem' }}>Min Entries</th>
-            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem' }}>Price Per Entry ($)</th>
+            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem' }}>Price Per Entry ({currency})</th>
             <th style={{ width: '40px' }}></th>
           </tr>
         </thead>
@@ -206,7 +208,9 @@ const InvoicesPage = () => {
   if (loading) return <div className="loading">Loading...</div>;
 
   const hasPricing = !!activeCompetition?.pricing;
-  const fmt = (n: number) => '$' + n.toFixed(2);
+  const currency = activeCompetition?.currency || 'USD';
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
 
   return (
     <div className="container">
@@ -225,8 +229,36 @@ const InvoicesPage = () => {
 
         {pricingOpen && (
           <div style={{ marginTop: '1rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.875rem', marginRight: '0.5rem' }}>Currency</label>
+              <select
+                value={currency}
+                onChange={async (e) => {
+                  try {
+                    const res = await competitionsApi.update(competitionId, { currency: e.target.value });
+                    setActiveCompetition(res.data);
+                  } catch {
+                    alert('Failed to update currency');
+                  }
+                }}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                }}
+              >
+                <option value="USD">USD - US Dollar ($)</option>
+                <option value="ZAR">ZAR - South African Rand (R)</option>
+                <option value="GBP">GBP - British Pound (£)</option>
+                <option value="EUR">EUR - Euro (€)</option>
+                <option value="CAD">CAD - Canadian Dollar (CA$)</option>
+                <option value="AUD">AUD - Australian Dollar (A$)</option>
+              </select>
+            </div>
+
             <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Single Dance</h4>
-            <TierTable tiers={singleTiers} onChange={setSingleTiers} label="" />
+            <TierTable tiers={singleTiers} onChange={setSingleTiers} label="" currency={currency} />
 
             <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
 
@@ -254,7 +286,7 @@ const InvoicesPage = () => {
             </div>
 
             {multiMode === 'flat' ? (
-              <TierTable tiers={multiFlatTiers} onChange={setMultiFlatTiers} label="" />
+              <TierTable tiers={multiFlatTiers} onChange={setMultiFlatTiers} label="" currency={currency} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {DANCE_COUNTS.map(dc => (
@@ -263,6 +295,7 @@ const InvoicesPage = () => {
                     tiers={multiPerDanceTiers[dc] || []}
                     onChange={t => setMultiPerDanceTiers(prev => ({ ...prev, [dc]: t }))}
                     label={`${dc}-dance events`}
+                    currency={currency}
                   />
                 ))}
               </div>
@@ -271,7 +304,7 @@ const InvoicesPage = () => {
             <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
 
             <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Scholarship</h4>
-            <TierTable tiers={scholarshipTiers} onChange={setScholarshipTiers} label="" />
+            <TierTable tiers={scholarshipTiers} onChange={setScholarshipTiers} label="" currency={currency} />
 
             <button
               className="btn"
@@ -394,6 +427,9 @@ const InvoiceRow = ({
   const unpaidEntries = invoice.partnerships.flatMap(p =>
     p.lineItems.filter(item => !item.paid).map(item => ({ eventId: item.eventId, bib: item.bib }))
   );
+  const paidEntries = invoice.partnerships.flatMap(p =>
+    p.lineItems.filter(item => item.paid).map(item => ({ eventId: item.eventId, bib: item.bib }))
+  );
 
   return (
     <>
@@ -415,9 +451,21 @@ const InvoiceRow = ({
           {fmt(invoice.outstandingAmount)}
         </td>
         <td style={{ textAlign: 'center', padding: '0.5rem' }} onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
             {allPaid ? (
-              <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.8125rem' }}>Paid</span>
+              <>
+                <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.8125rem' }}>Paid</span>
+                <button
+                  onClick={() => onPayEntries(paidEntries, false)}
+                  style={{
+                    padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                    border: '1px solid #cbd5e0', borderRadius: '4px',
+                    background: 'white', cursor: 'pointer', color: '#e53e3e',
+                  }}
+                >
+                  Undo
+                </button>
+              </>
             ) : (
               <button
                 className="btn"
@@ -506,7 +554,22 @@ const PartnershipSection = ({
           </span>
         </div>
         {allPaid ? (
-          <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.75rem' }}>Paid</span>
+          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+            <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.75rem' }}>Paid</span>
+            <button
+              onClick={() => onPayEntries(
+                partnership.lineItems.filter(i => i.paid).map(i => ({ eventId: i.eventId, bib: i.bib })),
+                false,
+              )}
+              style={{
+                padding: '0.2rem 0.5rem', fontSize: '0.7rem',
+                border: '1px solid #cbd5e0', borderRadius: '4px',
+                background: 'white', cursor: 'pointer', color: '#e53e3e',
+              }}
+            >
+              Undo
+            </button>
+          </div>
         ) : unpaidEntries.length > 0 ? (
           <button
             className="btn"

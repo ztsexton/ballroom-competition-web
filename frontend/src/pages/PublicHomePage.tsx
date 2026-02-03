@@ -8,10 +8,10 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function CompetitionCard({ comp }: { comp: PublicCompetition }) {
+function CompetitionCard({ comp, linkPrefix = '/results' }: { comp: PublicCompetition; linkPrefix?: string }) {
   return (
     <Link
-      to={`/results/${comp.id}`}
+      to={`${linkPrefix}/${comp.id}`}
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
       <div
@@ -93,7 +93,7 @@ const PublicHomePage = () => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {upcoming.map((c) => (
-                  <CompetitionCard key={c.id} comp={c} />
+                  <CompetitionCard key={c.id} comp={c} linkPrefix="/competition" />
                 ))}
               </div>
             )}

@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { PublicCompetition, PublicEvent, PublicEventSearchResult, EventResult } from '../types';
-import { publicCompetitionsApi } from '../api/client';
+import { useParams, useLocation, Link } from 'react-router-dom';
+import { PublicCompetition, PublicEvent, PublicEventSearchResult, EventResult, Person } from '../types';
+import { publicCompetitionsApi, participantApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -129,7 +130,7 @@ function EventResultsTable({ competitionId, eventId, rounds }: {
   );
 }
 
-/* ── Competition detail view (/results/:competitionId) ── */
+/* ── Competition detail view (/results/:competitionId or /competition/:competitionId) ── */
 function CompetitionDetail({ competitionId }: { competitionId: number }) {
   const [competition, setCompetition] = useState<PublicCompetition | null>(null);
   const [events, setEvents] = useState<(PublicEvent | PublicEventSearchResult)[]>([]);
@@ -137,24 +138,48 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const { user, isAdmin } = useAuth();
+  const location = useLocation();
+  const isCompetitionRoute = location.pathname.startsWith('/competition/');
+  const [myPerson, setMyPerson] = useState<Person | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      publicCompetitionsApi.getById(competitionId),
-      publicCompetitionsApi.getEvents(competitionId),
-    ])
-      .then(([c, e]) => {
-        setCompetition(c.data);
-        setEvents(e.data);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [competitionId]);
+    if (isCompetitionRoute) {
+      // Competition info page — only load competition details
+      publicCompetitionsApi.getById(competitionId)
+        .then(c => setCompetition(c.data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else {
+      // Results page — load competition + events
+      Promise.all([
+        publicCompetitionsApi.getById(competitionId),
+        publicCompetitionsApi.getEvents(competitionId),
+      ])
+        .then(([c, e]) => {
+          setCompetition(c.data);
+          setEvents(e.data);
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [competitionId, isCompetitionRoute]);
 
-  // Debounced dancer search
+  // Check registration status when logged in
   useEffect(() => {
+    if (!user) {
+      setMyPerson(null);
+      return;
+    }
+    participantApi.getMyEntries(competitionId)
+      .then(res => setMyPerson(res.data.person))
+      .catch(() => setMyPerson(null));
+  }, [user, competitionId]);
+
+  // Debounced dancer search (only on results page)
+  useEffect(() => {
+    if (isCompetitionRoute) return;
     if (!search.trim()) {
-      // Reset to full event list
       publicCompetitionsApi.getEvents(competitionId)
         .then((r) => setEvents(r.data))
         .catch(() => {});
@@ -168,44 +193,80 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
         .finally(() => setIsSearching(false));
     }, 300);
     return () => clearTimeout(timeout);
-  }, [search, competitionId]);
+  }, [search, competitionId, isCompetitionRoute]);
 
   if (loading) return <div style={{ textAlign: 'center', color: '#718096' }}>Loading...</div>;
   if (!competition) return <div style={{ textAlign: 'center', color: '#e53e3e' }}>Competition not found.</div>;
 
+  const typeBadgeColors: Record<string, { bg: string; fg: string }> = {
+    NDCA: { bg: '#e9d8fd', fg: '#553c9a' },
+    USA_DANCE: { bg: '#bee3f8', fg: '#2a4365' },
+    STUDIO: { bg: '#fefcbf', fg: '#744210' },
+  };
+  const badge = typeBadgeColors[competition.type] || { bg: '#e2e8f0', fg: '#4a5568' };
+
+  const rulesLabel: Record<string, string> = {
+    NDCA: 'NDCA Rules',
+    USA_DANCE: 'USA Dance Rules',
+    STUDIO: 'Studio Rules',
+  };
+
   return (
     <>
-      <Link to="/results" style={{ color: '#667eea', fontSize: '0.9rem' }}>
-        &larr; All competitions
+      <Link to={isCompetitionRoute ? '/' : '/results'} style={{ color: '#667eea', fontSize: '0.9rem' }}>
+        &larr; {isCompetitionRoute ? 'Home' : 'All competitions'}
       </Link>
-      <h2 style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>{competition.name}</h2>
-      <div style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '0.5rem' }}>
-        {formatDate(competition.date)}
-        {competition.location && <> &middot; {competition.location}</>}
-      </div>
-      {(competition.websiteUrl || competition.organizerEmail) && (
-        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-          {competition.websiteUrl && (
-            <a href={competition.websiteUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#667eea' }}>
-              Website
-            </a>
-          )}
-          {competition.organizerEmail && (
-            <a href={`mailto:${competition.organizerEmail}`} style={{ color: '#667eea' }}>
-              Contact Organizer
-            </a>
-          )}
+      <div className="card" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+        <h2 style={{ marginBottom: '0.5rem' }}>{competition.name}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{
+            padding: '0.125rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem',
+            fontWeight: 600, background: badge.bg, color: badge.fg,
+          }}>
+            {rulesLabel[competition.type] || competition.type.replace(/_/g, ' ')}
+          </span>
         </div>
-      )}
+        <div style={{ fontSize: '0.9rem', color: '#4a5568', marginBottom: '0.75rem' }}>
+          {formatDate(competition.date)}
+          {competition.location && <> &middot; {competition.location}</>}
+        </div>
 
-      {/* Participant action buttons */}
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-        <Link to="/portal" style={{
-          padding: '0.5rem 1rem', background: '#667eea', color: 'white',
-          borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
-        }}>
-          Register
-        </Link>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
+        {competition.registrationOpen ? (
+          !user ? (
+            <Link to={`/login?redirectTo=/competition/${competitionId}`} style={{
+              padding: '0.5rem 1rem', background: '#667eea', color: 'white',
+              borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+            }}>
+              Sign in to Register
+            </Link>
+          ) : myPerson ? (
+            <>
+              <span style={{
+                padding: '0.5rem 0.75rem', background: '#f0fff4', color: '#276749',
+                border: '1px solid #c6f6d5', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500,
+              }}>
+                Registered as {myPerson.firstName} {myPerson.lastName}
+              </span>
+              <Link to={`/portal?competitionId=${competitionId}`} style={{
+                padding: '0.5rem 1rem', background: '#667eea', color: 'white',
+                borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+              }}>
+                Manage Entries
+              </Link>
+            </>
+          ) : (
+            <Link to={`/portal?competitionId=${competitionId}`} style={{
+              padding: '0.5rem 1rem', background: '#667eea', color: 'white',
+              borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+            }}>
+              Register
+            </Link>
+          )
+        ) : (
+          <span style={{ fontSize: '0.875rem', color: '#a0aec0' }}>Registration closed</span>
+        )}
         <Link to={`/pay/${competitionId}`} style={{
           padding: '0.5rem 1rem', background: '#48bb78', color: 'white',
           borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
@@ -218,85 +279,125 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
         }}>
           Heat Lists
         </Link>
+        {isCompetitionRoute && (
+          <Link to={`/results/${competitionId}`} style={{
+            padding: '0.5rem 1rem', background: '#805ad5', color: 'white',
+            borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+          }}>
+            Results
+          </Link>
+        )}
+        {isAdmin && (
+          <Link to={`/competitions/${competitionId}`} style={{
+            padding: '0.5rem 1rem', background: '#4a5568', color: 'white',
+            borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600,
+          }}>
+            Manage Competition
+          </Link>
+        )}
+        </div>
+
+        {competition.description && (
+          <p style={{ color: '#718096', fontSize: '0.9rem', margin: '0.5rem 0 0' }}>
+            {competition.description}
+          </p>
+        )}
+        {(competition.websiteUrl || competition.organizerEmail) && (
+          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+            {competition.websiteUrl && (
+              <a href={competition.websiteUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#667eea' }}>
+                Visit Website
+              </a>
+            )}
+            {competition.organizerEmail && (
+              <a href={`mailto:${competition.organizerEmail}`} style={{ color: '#667eea' }}>
+                Contact Organizer
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Search */}
-      <div style={{ marginBottom: '1rem' }}>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by dancer name..."
-          style={{
-            width: '100%',
-            maxWidth: '400px',
-            padding: '0.5rem 0.75rem',
-            border: '1px solid #cbd5e0',
-            borderRadius: '4px',
-            fontSize: '0.9rem',
-          }}
-        />
-        {isSearching && <span style={{ marginLeft: '0.5rem', color: '#a0aec0', fontSize: '0.8rem' }}>Searching...</span>}
-      </div>
+      {/* Events + search only on /results/:id */}
+      {!isCompetitionRoute && (
+        <>
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by dancer name..."
+              style={{
+                width: '100%',
+                maxWidth: '400px',
+                padding: '0.5rem 0.75rem',
+                border: '1px solid #cbd5e0',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+              }}
+            />
+            {isSearching && <span style={{ marginLeft: '0.5rem', color: '#a0aec0', fontSize: '0.8rem' }}>Searching...</span>}
+          </div>
 
-      {/* Events list */}
-      {events.length === 0 ? (
-        <p style={{ color: '#a0aec0' }}>
-          {search.trim() ? 'No events match that dancer name.' : 'No events for this competition.'}
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {events.map((evt) => {
-            const isExpanded = expandedEventId === evt.id;
-            const searchResult = 'matchingCouples' in evt ? evt as PublicEventSearchResult : null;
-            return (
-              <div key={evt.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                <div
-                  onClick={() => setExpandedEventId(isExpanded ? null : evt.id)}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#f7fafc')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = '')}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{evt.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.15rem' }}>
-                      {[evt.style, evt.level].filter(Boolean).join(' \u00b7 ')}
-                      {evt.coupleCount > 0 && <> &middot; {evt.coupleCount} couple{evt.coupleCount !== 1 ? 's' : ''}</>}
-                      {evt.rounds.length > 0 && <> &middot; {evt.rounds.length} round{evt.rounds.length !== 1 ? 's' : ''}</>}
+          {events.length === 0 ? (
+            <p style={{ color: '#a0aec0' }}>
+              {search.trim() ? 'No events match that dancer name.' : 'No events for this competition.'}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {events.map((evt) => {
+                const isExpanded = expandedEventId === evt.id;
+                const searchResult = 'matchingCouples' in evt ? evt as PublicEventSearchResult : null;
+                return (
+                  <div key={evt.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div
+                      onClick={() => setExpandedEventId(isExpanded ? null : evt.id)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = '#f7fafc')}
+                      onMouseOut={(e) => (e.currentTarget.style.background = '')}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{evt.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.15rem' }}>
+                          {[evt.style, evt.level].filter(Boolean).join(' \u00b7 ')}
+                          {evt.coupleCount > 0 && <> &middot; {evt.coupleCount} couple{evt.coupleCount !== 1 ? 's' : ''}</>}
+                          {evt.rounds.length > 0 && <> &middot; {evt.rounds.length} round{evt.rounds.length !== 1 ? 's' : ''}</>}
+                        </div>
+                        {searchResult && searchResult.matchingCouples.length > 0 && (
+                          <div style={{ fontSize: '0.8rem', color: '#667eea', marginTop: '0.25rem' }}>
+                            {searchResult.matchingCouples.map(
+                              (mc) => `#${mc.bib} ${mc.leaderName} & ${mc.followerName}`
+                            ).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ color: '#a0aec0', fontSize: '1.1rem' }}>
+                        {isExpanded ? '\u25B2' : '\u25BC'}
+                      </span>
                     </div>
-                    {searchResult && searchResult.matchingCouples.length > 0 && (
-                      <div style={{ fontSize: '0.8rem', color: '#667eea', marginTop: '0.25rem' }}>
-                        {searchResult.matchingCouples.map(
-                          (mc) => `#${mc.bib} ${mc.leaderName} & ${mc.followerName}`
-                        ).join(', ')}
+
+                    {isExpanded && evt.rounds.length > 0 && (
+                      <div style={{ borderTop: '1px solid #e2e8f0', padding: '0 1rem' }}>
+                        <EventResultsTable
+                          competitionId={competitionId}
+                          eventId={evt.id}
+                          rounds={evt.rounds}
+                        />
                       </div>
                     )}
                   </div>
-                  <span style={{ color: '#a0aec0', fontSize: '1.1rem' }}>
-                    {isExpanded ? '\u25B2' : '\u25BC'}
-                  </span>
-                </div>
-
-                {isExpanded && evt.rounds.length > 0 && (
-                  <div style={{ borderTop: '1px solid #e2e8f0', padding: '0 1rem' }}>
-                    <EventResultsTable
-                      competitionId={competitionId}
-                      eventId={evt.id}
-                      rounds={evt.rounds}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </>
   );

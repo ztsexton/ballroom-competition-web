@@ -15,6 +15,7 @@ function sanitizeCompetition(comp: Competition) {
     description: comp.description,
     websiteUrl: comp.websiteUrl,
     organizerEmail: comp.organizerEmail,
+    registrationOpen: comp.registrationOpen || false,
   };
 }
 
