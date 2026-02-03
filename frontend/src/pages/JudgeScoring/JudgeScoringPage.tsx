@@ -718,6 +718,7 @@ const JudgeScoringPage = () => {
           scores={entryScores}
           onToggle={(bib) => handleToggleRecall(key, bib)}
           isProAm={proAm}
+          maxRecalls={entry.recallCount}
         />
       );
     }

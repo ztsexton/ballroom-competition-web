@@ -112,10 +112,14 @@ const LiveCompetitionPage = () => {
   const getHeatCoupleCount = (heat: ScheduledHeat): number => {
     let count = 0;
     for (const entry of heat.entries) {
-      const event = events[entry.eventId];
-      if (!event) continue;
-      const h = event.heats.find(h => h.round === entry.round);
-      count += h?.bibs.length || 0;
+      if (entry.bibSubset) {
+        count += entry.bibSubset.length;
+      } else {
+        const event = events[entry.eventId];
+        if (!event) continue;
+        const h = event.heats.find(h => h.round === entry.round);
+        count += h?.bibs.length || 0;
+      }
     }
     return count;
   };
@@ -131,8 +135,15 @@ const LiveCompetitionPage = () => {
 
   const getHeatRound = (heat: ScheduledHeat): string => {
     if (heat.entries.length === 0) return '';
-    // All entries in a merged heat share the same round depth
-    return formatRound(heat.entries[0].round);
+    const entry = heat.entries[0];
+    let round = formatRound(entry.round);
+    if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
+      round += ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})`;
+    }
+    if (entry.dance) {
+      round += ` — ${entry.dance}`;
+    }
+    return round;
   };
 
   return (
@@ -201,13 +212,16 @@ const LiveCompetitionPage = () => {
             {currentHeat.entries.map(entry => {
               const event = events[entry.eventId];
               if (!event) return null;
+              const liveRoundLabel = formatRound(entry.round)
+                + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
+                + (entry.dance ? ` — ${entry.dance}` : '');
               return (
-                <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
                   <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.125rem', lineHeight: 1.2 }}>
                     {formatEventLabel(event)}
                   </p>
                   <p style={{ fontSize: '1rem', color: '#4a5568', margin: 0 }}>
-                    {formatRound(entry.round)}
+                    {liveRoundLabel}
                   </p>
                 </div>
               );

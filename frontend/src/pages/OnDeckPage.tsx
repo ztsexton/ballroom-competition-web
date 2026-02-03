@@ -71,9 +71,10 @@ const OnDeckPage = () => {
       if (!event) return { eventName: 'Unknown', couples: [] };
       const h = event.heats.find(h => h.round === entry.round);
       if (!h) return { eventName: event.name, couples: [] };
+      const bibs = (entry.bibSubset || h.bibs).slice().sort((a, b) => a - b);
       return {
         eventName: event.name,
-        couples: h.bibs.map(bib => couplesByBib[bib]).filter(Boolean),
+        couples: bibs.map(bib => couplesByBib[bib]).filter(Boolean),
       };
     });
   };
@@ -86,14 +87,15 @@ const OnDeckPage = () => {
       if (!event) continue;
       const h = event.heats.find(h => h.round === entry.round);
       if (!h) continue;
-      for (const bib of h.bibs) {
+      const bibs = entry.bibSubset || h.bibs;
+      for (const bib of bibs) {
         if (!seen.has(bib) && couplesByBib[bib]) {
           seen.add(bib);
           result.push(couplesByBib[bib]);
         }
       }
     }
-    return result;
+    return result.sort((a, b) => a.bib - b.bib);
   };
 
   const currentHeat = schedule.heatOrder[schedule.currentHeatIndex];
@@ -155,7 +157,15 @@ const OnDeckPage = () => {
 
   const getHeatRound = (heat: ScheduledHeat): string => {
     if (heat.entries.length === 0) return '';
-    return formatRound(heat.entries[0].round);
+    const entry = heat.entries[0];
+    let round = formatRound(entry.round);
+    if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
+      round += ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})`;
+    }
+    if (entry.dance) {
+      round += ` — ${entry.dance}`;
+    }
+    return round;
   };
 
   const renderCoupleList = (heat: ScheduledHeat, bgColor: string = '#f7fafc') => {
@@ -250,13 +260,16 @@ const OnDeckPage = () => {
             {currentHeat.entries.map(entry => {
               const event = events[entry.eventId];
               if (!event) return null;
+              const roundLabel = formatRound(entry.round)
+                + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
+                + (entry.dance ? ` — ${entry.dance}` : '');
               return (
-                <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
                   <p style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
                     {formatEventLabel(event)}
                   </p>
                   <p style={{ color: '#4a5568', margin: 0 }}>
-                    {formatRound(entry.round)}
+                    {roundLabel}
                   </p>
                 </div>
               );
@@ -300,13 +313,16 @@ const OnDeckPage = () => {
               {nextHeat.entries.map(entry => {
                 const event = events[entry.eventId];
                 if (!event) return null;
+                const nextRoundLabel = formatRound(entry.round)
+                  + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
+                  + (entry.dance ? ` — ${entry.dance}` : '');
                 return (
-                  <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
+                  <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
                     <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
                       {formatEventLabel(event)}
                     </p>
                     <p style={{ color: '#4a5568', margin: 0 }}>
-                      {formatRound(entry.round)}
+                      {nextRoundLabel}
                     </p>
                   </div>
                 );

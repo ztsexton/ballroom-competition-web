@@ -121,3 +121,11 @@ Requirements to finish and improve the application. Merges what's already implem
 - Test harness for multiple judges scoring simultaneously
 - Load testing for audience reading heat sheets
 - Verify data consistency under concurrent writes
+
+
+
+
+
+
+
+

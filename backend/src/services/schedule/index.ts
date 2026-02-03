@@ -2,7 +2,7 @@ import { CompetitionSchedule, HeatEntry, ScheduledHeat } from '../../types';
 import { migrateSchedule, getDancesForHeat } from './helpers';
 import { generateSchedule } from './scheduleGenerator';
 import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigation';
-import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, splitHeatEntry, suggestPosition } from './scheduleModification';
+import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, splitHeatEntry, splitRoundIntoFloorHeats, unsplitFloorHeats, suggestPosition } from './scheduleModification';
 import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
 import { detectBackToBack, minimizeBackToBack, BackToBackConflict } from './backToBack';
@@ -76,6 +76,14 @@ export class ScheduleService {
 
   splitHeatEntry(competitionId: number, heatId: string, eventId: number, round: string): Promise<CompetitionSchedule | null> {
     return splitHeatEntry(competitionId, heatId, eventId, round);
+  }
+
+  splitRoundIntoFloorHeats(competitionId: number, heatId: string, groupCount: number): Promise<CompetitionSchedule | null> {
+    return splitRoundIntoFloorHeats(competitionId, heatId, groupCount);
+  }
+
+  unsplitFloorHeats(competitionId: number, heatId: string): Promise<CompetitionSchedule | null> {
+    return unsplitFloorHeats(competitionId, heatId);
   }
 
   detectBackToBack(competitionId: number): Promise<BackToBackConflict[]> {

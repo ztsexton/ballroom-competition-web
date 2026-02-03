@@ -36,5 +36,13 @@ export function getHeatLabel(heat: ScheduledHeat, events: Record<number, Event>)
 
 export function getHeatRound(heat: ScheduledHeat): string {
   if (heat.entries.length === 0) return '';
-  return heat.entries[0].round;
+  const entry = heat.entries[0];
+  let round = entry.round;
+  if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
+    round += ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})`;
+  }
+  if (entry.dance) {
+    round += ` — ${entry.dance}`;
+  }
+  return round;
 }

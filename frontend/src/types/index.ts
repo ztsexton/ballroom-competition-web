@@ -99,6 +99,8 @@ export interface Competition {
   currency?: string;
   entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
+  maxCouplesOnFloor?: number;
+  maxCouplesOnFloorByLevel?: Record<string, number>;
   registrationOpen?: boolean;
   publiclyVisible?: boolean;
   resultsPublic?: boolean;
@@ -212,6 +214,10 @@ export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 export interface HeatEntry {
   eventId: number;
   round: string;
+  bibSubset?: number[];
+  floorHeatIndex?: number;
+  totalFloorHeats?: number;
+  dance?: string;
 }
 
 export interface ScheduledHeat {
@@ -248,6 +254,9 @@ export interface ActiveHeatEntry {
   style?: string;
   level?: string;
   dances?: string[];
+  floorHeatIndex?: number;
+  totalFloorHeats?: number;
+  recallCount?: number;
 }
 
 export interface ActiveHeatInfo {

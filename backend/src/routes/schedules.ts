@@ -3,6 +3,7 @@ import { dataService } from '../services/dataService';
 import { scheduleService, ScheduleService } from '../services/schedule';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
+import { getRecallCount } from '../constants/rounds';
 
 const router = Router();
 
@@ -79,12 +80,52 @@ router.post('/:competitionId/advance', async (req: Request, res: Response) => {
         const heatStatus = preSchedule.heatStatuses[currentHeat.id];
         if (heatStatus === 'scoring') {
           for (const entry of currentHeat.entries) {
-            await scoringService.compileJudgeScores(entry.eventId, entry.round);
-            // Clear judge scores for all dances
-            const event = await dataService.getEventById(entry.eventId);
-            const dances: (string | undefined)[] = event?.dances && event.dances.length > 1 ? event.dances : [undefined];
-            for (const dance of dances) {
-              await dataService.clearJudgeScores(entry.eventId, entry.round, dance);
+            await scoringService.compileJudgeScores(entry.eventId, entry.round, entry.bibSubset, entry.dance);
+            // Clear judge scores for the relevant dance(s)
+            if (entry.dance) {
+              await dataService.clearJudgeScores(entry.eventId, entry.round, entry.dance);
+            } else {
+              const event = await dataService.getEventById(entry.eventId);
+              const dances: (string | undefined)[] = event?.dances && event.dances.length > 1 ? event.dances : [undefined];
+              for (const dance of dances) {
+                await dataService.clearJudgeScores(entry.eventId, entry.round, dance);
+              }
+            }
+
+            // Floor heat deferred advancement: only advance when ALL sibling floor heats complete
+            if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
+              // Find all sibling heats for this event/round
+              const siblingHeats = preSchedule.heatOrder.filter(h =>
+                h.entries.some(e => e.eventId === entry.eventId && e.round === entry.round));
+
+              // The current heat is about to be marked completed by advanceHeat,
+              // so treat it as completed for this check
+              const allDone = siblingHeats.every(h =>
+                h.id === currentHeat.id || preSchedule!.heatStatuses[h.id] === 'completed');
+
+              if (allDone) {
+                // All floor heats done — collect top bibs from each subset and advance
+                const subsetsByIndex = new Map<number, number[]>();
+                for (const h of siblingHeats) {
+                  const e = h.entries.find(e => e.eventId === entry.eventId && e.round === entry.round)!;
+                  if (e.bibSubset && e.floorHeatIndex !== undefined) {
+                    subsetsByIndex.set(e.floorHeatIndex, e.bibSubset);
+                  }
+                }
+
+                const event = await dataService.getEventById(entry.eventId);
+                const allRecalled: number[] = [];
+                for (const [idx, bibSubset] of subsetsByIndex) {
+                  const results = await scoringService.calculateResults(entry.eventId, entry.round, bibSubset);
+                  const perHeatRecall = event
+                    ? getRecallCount(event.heats, entry.round, entry.totalFloorHeats, idx) ?? 6
+                    : 6;
+                  const topBibs = results.slice(0, perHeatRecall).map(r => r.bib);
+                  allRecalled.push(...topBibs);
+                }
+                await dataService.advanceToNextRound(entry.eventId, entry.round, allRecalled);
+              }
+              // else: not all sibling heats done yet, skip advancement
             }
           }
         }
@@ -268,6 +309,45 @@ router.post('/:competitionId/heat/:heatId/split', async (req: Request, res: Resp
     sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to split heat entry' });
+  }
+});
+
+// Split a round into floor heats (manual split)
+router.post('/:competitionId/heat/:heatId/split-floor', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+    const { groupCount } = req.body;
+
+    if (!groupCount || groupCount < 2) {
+      return res.status(400).json({ error: 'groupCount must be at least 2' });
+    }
+
+    const schedule = await scheduleService.splitRoundIntoFloorHeats(competitionId, heatId, groupCount);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Cannot split: heat not found, already split, or invalid group count' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to split into floor heats' });
+  }
+});
+
+// Unsplit floor heats back into a single heat
+router.post('/:competitionId/heat/:heatId/unsplit', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+
+    const schedule = await scheduleService.unsplitFloorHeats(competitionId, heatId);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Cannot unsplit: heat not found, not a split heat, or only one floor heat' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unsplit floor heats' });
   }
 });
 

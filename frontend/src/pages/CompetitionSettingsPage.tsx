@@ -415,6 +415,67 @@ const CompetitionSettingsPage = () => {
         </div>
       </Section>
 
+      {/* ─── Floor Size ─── */}
+      <Section title="Floor Size" defaultOpen={false} savedKey="floor" savedMap={savedMap}>
+        <div className="form-group">
+          <label style={{ fontWeight: 600, fontSize: '0.875rem' }}>Default Max Couples on Floor</label>
+          <input
+            type="number"
+            min="1"
+            value={comp.maxCouplesOnFloor || ''}
+            onChange={e => {
+              const val = e.target.value ? parseInt(e.target.value) : undefined;
+              saveField('maxCouplesOnFloor', val, 'floor');
+            }}
+            placeholder="No limit"
+            style={{ width: '120px', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+          />
+          <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+            When a round has more couples than this limit, it will be split into multiple floor heats.
+            Each floor heat is scored independently. Leave empty for no automatic splitting.
+          </small>
+        </div>
+
+        {levels.length > 0 && (
+          <div className="form-group">
+            <label style={{ fontWeight: 600, fontSize: '0.875rem' }}>Per-Level Overrides</label>
+            <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+              Set a different floor limit for specific levels. Empty uses the default above.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: '400px' }}>
+              {levels.map(lvl => (
+                <div key={lvl} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.375rem 0.5rem',
+                  background: '#f7fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                }}>
+                  <span style={{ flex: 1, fontSize: '0.875rem', fontWeight: 500 }}>{lvl}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={comp.maxCouplesOnFloorByLevel?.[lvl] || ''}
+                    onChange={e => {
+                      const val = e.target.value ? parseInt(e.target.value) : undefined;
+                      const updated = { ...(comp.maxCouplesOnFloorByLevel || {}) };
+                      if (val) {
+                        updated[lvl] = val;
+                      } else {
+                        delete updated[lvl];
+                      }
+                      saveField('maxCouplesOnFloorByLevel', Object.keys(updated).length > 0 ? updated : undefined, 'floor');
+                    }}
+                    placeholder={comp.maxCouplesOnFloor ? `${comp.maxCouplesOnFloor}` : '—'}
+                    style={{ width: '80px', padding: '0.375rem', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.875rem', textAlign: 'center' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Section>
+
       {/* ─── Billing ─── */}
       <Section title="Billing" savedKey="billing" savedMap={savedMap}>
         <div className="form-group">

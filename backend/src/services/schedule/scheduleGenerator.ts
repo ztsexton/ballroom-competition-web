@@ -1,7 +1,7 @@
 import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus } from '../../types';
 import { dataService } from '../dataService';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { heatKey, generateHeatId, recalculateTimingIfConfigured } from './helpers';
+import { heatKey, generateHeatId, recalculateTimingIfConfigured, splitBibsEvenly } from './helpers';
 import { autoAssignJudges } from './judgeAssignment';
 
 const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
@@ -62,7 +62,8 @@ export async function generateSchedule(
     mergedBuckets.push(mergeEntries(bucket, maxCouples));
   }
 
-  const heatOrder = [...mergedBuckets[0], ...mergedBuckets[1], ...mergedBuckets[2]];
+  const rawHeatOrder = [...mergedBuckets[0], ...mergedBuckets[1], ...mergedBuckets[2]];
+  const heatOrder = await applyFloorHeatSplitting(rawHeatOrder, competitionId);
 
   const heatStatuses: Record<string, EventRunStatus> = {};
   heatOrder.forEach(h => { heatStatuses[heatKey(h)] = 'pending'; });
@@ -157,6 +158,89 @@ function mergeEntries(
     const bIdx = items.indexOf(bFirst);
     return aIdx - bIdx;
   });
+
+  return result;
+}
+
+/**
+ * Post-process the heat order to split rounds that exceed the floor capacity.
+ * Only applies to single-entry heats (not merged heats or breaks).
+ * For multi-dance events, creates N × D heats ordered by dance then floor heat.
+ */
+async function applyFloorHeatSplitting(
+  heatOrder: ScheduledHeat[],
+  competitionId: number,
+): Promise<ScheduledHeat[]> {
+  const competition = await dataService.getCompetitionById(competitionId);
+  if (!competition?.maxCouplesOnFloor && !competition?.maxCouplesOnFloorByLevel) {
+    return heatOrder;
+  }
+
+  const result: ScheduledHeat[] = [];
+
+  for (const heat of heatOrder) {
+    if (heat.isBreak || heat.entries.length !== 1) {
+      result.push(heat);
+      continue;
+    }
+
+    const entry = heat.entries[0];
+    const event = await dataService.getEventById(entry.eventId);
+    if (!event) {
+      result.push(heat);
+      continue;
+    }
+
+    const heatData = event.heats.find(h => h.round === entry.round);
+    if (!heatData) {
+      result.push(heat);
+      continue;
+    }
+
+    const levelMax = competition.maxCouplesOnFloorByLevel?.[event.level || ''];
+    const floorMax = levelMax ?? competition.maxCouplesOnFloor;
+
+    if (!floorMax || heatData.bibs.length <= floorMax) {
+      result.push(heat);
+      continue;
+    }
+
+    const groupCount = Math.ceil(heatData.bibs.length / floorMax);
+    const chunks = splitBibsEvenly(heatData.bibs, groupCount);
+    const totalFloorHeats = chunks.length;
+    const isMultiDance = event.dances && event.dances.length > 1;
+
+    if (isMultiDance) {
+      for (const dance of event.dances!) {
+        for (let i = 0; i < chunks.length; i++) {
+          result.push({
+            id: generateHeatId(),
+            entries: [{
+              eventId: entry.eventId,
+              round: entry.round,
+              bibSubset: chunks[i],
+              floorHeatIndex: i,
+              totalFloorHeats,
+              dance,
+            }],
+          });
+        }
+      }
+    } else {
+      for (let i = 0; i < chunks.length; i++) {
+        result.push({
+          id: generateHeatId(),
+          entries: [{
+            eventId: entry.eventId,
+            round: entry.round,
+            bibSubset: chunks[i],
+            floorHeatIndex: i,
+            totalFloorHeats,
+          }],
+        });
+      }
+    }
+  }
 
   return result;
 }

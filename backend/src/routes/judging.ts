@@ -4,6 +4,7 @@ import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { scheduleService, ScheduleService } from '../services/schedule';
 import { ActiveHeatInfo, ActiveHeatEntry, ScoringProgress, ScoringProgressEntry } from '../types';
+import { RECALL_ROUNDS, getRecallCount } from '../constants/rounds';
 
 const router = Router();
 
@@ -49,24 +50,36 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
 
       heat.judges.forEach(j => allJudgeIds.add(j));
 
-      const couples = await Promise.all(heat.bibs.map(async bib => {
+      // Use bibSubset if this is a floor-split heat, otherwise all bibs
+      const bibs = entry.bibSubset || heat.bibs;
+      const couples = await Promise.all(bibs.map(async bib => {
         const couple = await dataService.getCoupleByBib(bib);
         return couple
           ? { bib, leaderName: couple.leaderName, followerName: couple.followerName }
           : { bib, leaderName: 'Unknown', followerName: 'Unknown' };
       }));
 
+      const recallCount = getRecallCount(
+        event.heats,
+        entry.round,
+        entry.totalFloorHeats,
+        entry.floorHeatIndex,
+      );
+
       entries.push({
         eventId: entry.eventId,
         eventName: event.name,
         round: entry.round,
         couples,
-        isRecallRound: ['quarter-final', 'semi-final'].includes(entry.round),
+        isRecallRound: RECALL_ROUNDS.includes(entry.round),
         scoringType: event.scoringType || 'standard',
         designation: event.designation,
         style: event.style,
         level: event.level,
-        dances: event.dances,
+        dances: entry.dance ? [entry.dance] : event.dances,
+        floorHeatIndex: entry.floorHeatIndex,
+        totalFloorHeats: entry.totalFloorHeats,
+        recallCount,
       });
     }
 
@@ -79,8 +92,9 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
     }));
     judges.sort((a, b) => a.judgeNumber - b.judgeNumber);
 
-    // Get dance info for multi-dance heats
-    const allDances = await scheduleService.getDancesForHeat(currentHeat);
+    // Get dance info — floor-split heats have a specific dance per heat entry
+    const floorDance = currentHeat.entries[0]?.dance;
+    const allDances = floorDance ? [floorDance] : await scheduleService.getDancesForHeat(currentHeat);
 
     const info: ActiveHeatInfo = {
       competitionId,
@@ -90,7 +104,7 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
       judges,
       heatNumber: schedule.currentHeatIndex + 1,
       totalHeats: schedule.heatOrder.length,
-      currentDance: allDances.length > 0 ? schedule.currentDance : undefined,
+      currentDance: floorDance || (allDances.length > 0 ? schedule.currentDance : undefined),
       allDances: allDances.length > 0 ? allDances : undefined,
     };
 
@@ -128,7 +142,8 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
 
       heat.judges.forEach(j => allJudgeIds.add(j));
 
-      const eventDances = event.dances && event.dances.length > 1 ? event.dances : [undefined];
+      const bibs = entry.bibSubset || heat.bibs;
+      const eventDances = entry.dance ? [entry.dance] : (event.dances && event.dances.length > 1 ? event.dances : [undefined]);
       const scoresByBib: Record<number, Record<number, number>> = {};
       const danceProgress: Record<string, Record<number, Record<number, number>>> = {};
 
@@ -136,7 +151,7 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
         if (dance) {
           danceProgress[dance] = {};
         }
-        for (const bib of heat.bibs) {
+        for (const bib of bibs) {
           const judgeScores = await dataService.getJudgeScores(entry.eventId, entry.round, bib, dance);
           if (dance) {
             danceProgress[dance][bib] = judgeScores;

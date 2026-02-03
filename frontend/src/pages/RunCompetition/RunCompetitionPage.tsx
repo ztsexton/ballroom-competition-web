@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi } from '../../api/client';
-import { CompetitionSchedule, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../../types';
+import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi, competitionsApi } from '../../api/client';
+import { CompetitionSchedule, Competition, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useCompetitionSSE } from '../../hooks/useCompetitionSSE';
 import { formatTime, statusColor, getHeatLabel, getHeatRound } from './utils';
@@ -16,6 +16,7 @@ const RunCompetitionPage = () => {
   const competitionId = parseInt(id || '0');
 
   const [schedule, setSchedule] = useState<CompetitionSchedule | null>(null);
+  const [competition, setCompetition] = useState<Competition | null>(null);
   const [events, setEvents] = useState<Record<number, Event>>({});
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
@@ -23,21 +24,24 @@ const RunCompetitionPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resetTargetIndex, setResetTargetIndex] = useState<number | null>(null);
+  const [unsplitConfirm, setUnsplitConfirm] = useState<{ heatId: string; totalCouples: number; exceedsLimit: boolean; limitValue?: number } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!competitionId) return;
 
     try {
-      const [schedRes, eventsRes, couplesRes, judgesRes] = await Promise.all([
+      const [schedRes, eventsRes, couplesRes, judgesRes, compRes] = await Promise.all([
         schedulesApi.get(competitionId),
         eventsApi.getAll(competitionId),
         couplesApi.getAll(competitionId),
         judgesApi.getAll(competitionId),
+        competitionsApi.getById(competitionId),
       ]);
       setSchedule(schedRes.data);
       setEvents(eventsRes.data);
       setCouples(couplesRes.data);
       setJudges(judgesRes.data);
+      setCompetition(compRes.data);
       setError('');
     } catch {
       setError('Failed to load competition data. Make sure a schedule has been generated.');
@@ -138,6 +142,41 @@ const RunCompetitionPage = () => {
     }
   };
 
+  const handleUnsplitRequest = (heat: ScheduledHeat) => {
+    const entry = heat.entries[0];
+    if (!entry?.bibSubset) return;
+
+    // Count total couples across all sibling floor heats
+    const event = events[entry.eventId];
+    if (!event) return;
+    const heatData = event.heats.find(h => h.round === entry.round);
+    const totalCouples = heatData?.bibs.length ?? 0;
+
+    // Check floor limit
+    const levelMax = competition?.maxCouplesOnFloorByLevel?.[event.level || ''];
+    const floorMax = levelMax ?? competition?.maxCouplesOnFloor;
+    const exceedsLimit = !!floorMax && totalCouples > floorMax;
+
+    setUnsplitConfirm({
+      heatId: heat.id,
+      totalCouples,
+      exceedsLimit,
+      limitValue: floorMax || undefined,
+    });
+  };
+
+  const handleUnsplitConfirm = async () => {
+    if (!unsplitConfirm) return;
+    try {
+      const res = await schedulesApi.unsplitFloorHeat(competitionId, unsplitConfirm.heatId);
+      setSchedule(res.data);
+      setUnsplitConfirm(null);
+    } catch {
+      alert('Failed to unsplit heat');
+      setUnsplitConfirm(null);
+    }
+  };
+
   if (loading || authLoading) return <div className="loading">Loading...</div>;
 
   if (!isAdmin) {
@@ -181,7 +220,8 @@ const RunCompetitionPage = () => {
       if (!event) continue;
       const h = event.heats.find(h => h.round === entry.round);
       if (!h) continue;
-      for (const bib of h.bibs) {
+      const bibs = entry.bibSubset || h.bibs;
+      for (const bib of bibs) {
         if (!seen.has(bib)) {
           seen.add(bib);
           const couple = couples.find(c => c.bib === bib);
@@ -189,7 +229,7 @@ const RunCompetitionPage = () => {
         }
       }
     }
-    return result;
+    return result.sort((a, b) => a.bib - b.bib);
   };
 
   const getJudgesForHeat = (heat: ScheduledHeat): Judge[] => {
@@ -373,9 +413,91 @@ const RunCompetitionPage = () => {
                         const event = events[entry.eventId];
                         if (!event) return null;
                         const heat = event.heats.find(h => h.round === entry.round);
-                        const entryCouples = heat
-                          ? heat.bibs.map(bib => couples.find(c => c.bib === bib)).filter(Boolean) as Couple[]
-                          : [];
+                        const isSplit = entry.totalFloorHeats && entry.totalFloorHeats > 1;
+
+                        if (isSplit) {
+                          // Find all sibling heats for this event/round
+                          const siblingHeats = schedule.heatOrder.filter(h =>
+                            h.entries.some(e => e.eventId === entry.eventId && e.round === entry.round
+                              && e.dance === entry.dance));
+
+                          // Group unique floor heat subsets (deduplicate across dances)
+                          const floorGroups: { index: number; bibs: number[]; isCurrent: boolean }[] = [];
+                          const seenIndices = new Set<number>();
+                          for (const sh of siblingHeats) {
+                            const e = sh.entries.find(e => e.eventId === entry.eventId && e.round === entry.round)!;
+                            const idx = e.floorHeatIndex ?? 0;
+                            if (seenIndices.has(idx)) continue;
+                            seenIndices.add(idx);
+                            floorGroups.push({
+                              index: idx,
+                              bibs: (e.bibSubset || []).slice().sort((a, b) => a - b),
+                              isCurrent: idx === (entry.floorHeatIndex ?? 0),
+                            });
+                          }
+                          floorGroups.sort((a, b) => a.index - b.index);
+
+                          return (
+                            <div key={`${entry.eventId}-${entry.dance ?? ''}`}>
+                              {currentScheduledHeat.entries.length > 1 && (
+                                <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.875rem' }}>
+                                  {event.name}
+                                </h4>
+                              )}
+                              {floorGroups.map(group => {
+                                const groupCouples = group.bibs.map(bib => couples.find(c => c.bib === bib)).filter(Boolean) as Couple[];
+                                return (
+                                  <div key={group.index} style={{
+                                    marginBottom: '0.75rem',
+                                    padding: '0.5rem',
+                                    background: group.isCurrent ? '#f0fff4' : '#f7fafc',
+                                    border: group.isCurrent ? '2px solid #48bb78' : '1px solid #e2e8f0',
+                                    borderRadius: '6px',
+                                  }}>
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                      marginBottom: '0.375rem',
+                                    }}>
+                                      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: group.isCurrent ? '#276749' : '#4a5568' }}>
+                                        Heat {group.index + 1} of {entry.totalFloorHeats} ({groupCouples.length} couples)
+                                      </span>
+                                      {group.isCurrent && (
+                                        <span style={{
+                                          fontSize: '0.75rem', fontWeight: 600, color: '#276749',
+                                          background: '#c6f6d5', padding: '0.125rem 0.5rem', borderRadius: '9999px',
+                                        }}>
+                                          Current
+                                        </span>
+                                      )}
+                                    </div>
+                                    <table>
+                                      <thead>
+                                        <tr>
+                                          <th>Bib #</th>
+                                          <th>Leader</th>
+                                          <th>Follower</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {groupCouples.map(couple => (
+                                          <tr key={couple.bib}>
+                                            <td><strong>#{couple.bib}</strong></td>
+                                            <td>{couple.leaderName}</td>
+                                            <td>{couple.followerName}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+
+                        // Non-split heat: original display, sorted by bib
+                        const bibs = (entry.bibSubset || heat?.bibs || []).slice().sort((a, b) => a - b);
+                        const entryCouples = bibs.map(bib => couples.find(c => c.bib === bib)).filter(Boolean) as Couple[];
                         return (
                           <div key={entry.eventId} style={{ marginBottom: currentScheduledHeat.entries.length > 1 ? '1rem' : 0 }}>
                             {currentScheduledHeat.entries.length > 1 && (
@@ -426,7 +548,42 @@ const RunCompetitionPage = () => {
                       </div>
                     )}
 
-                    <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                    <div style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      {/* Split Heat button — only for single-entry, unsplit heats with >2 couples */}
+                      {currentScheduledHeat.entries.length === 1
+                        && !currentScheduledHeat.entries[0].bibSubset
+                        && currentCouples.length > 2
+                        && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={async () => {
+                              const groupCount = prompt(`Split into how many floor heats? (${currentCouples.length} couples total)`, '2');
+                              if (!groupCount) return;
+                              const n = parseInt(groupCount);
+                              if (isNaN(n) || n < 2) return;
+                              try {
+                                const res = await schedulesApi.splitFloorHeat(competitionId, currentScheduledHeat.id, n);
+                                setSchedule(res.data);
+                              } catch {
+                                alert('Failed to split heat');
+                              }
+                            }}
+                          >
+                            Split Heat
+                          </button>
+                        )}
+                      {/* Merge Heats button — only for split heats */}
+                      {currentScheduledHeat.entries.length === 1
+                        && currentScheduledHeat.entries[0].bibSubset
+                        && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => handleUnsplitRequest(currentScheduledHeat)}
+                            style={{ background: '#e53e3e', borderColor: '#e53e3e', color: '#fff' }}
+                          >
+                            Merge Heats
+                          </button>
+                        )}
                       <button className="btn btn-success" onClick={handleAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
                         Begin Scoring
                       </button>
@@ -595,6 +752,53 @@ const RunCompetitionPage = () => {
           onReset={handleReset}
           onCancel={() => setResetTargetIndex(null)}
         />
+      )}
+
+      {/* Unsplit confirmation modal */}
+      {unsplitConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div className="card" style={{ maxWidth: '480px', width: '90%', margin: '1rem' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Merge Heats?</h3>
+            <p style={{ marginBottom: '0.75rem' }}>
+              This will merge all split floor heats back into a single heat with{' '}
+              <strong>{unsplitConfirm.totalCouples} couples</strong> on the floor at once.
+            </p>
+            {unsplitConfirm.exceedsLimit && (
+              <div style={{
+                padding: '0.75rem 1rem',
+                background: '#fff5f5',
+                border: '2px solid #fc8181',
+                borderRadius: '6px',
+                marginBottom: '0.75rem',
+              }}>
+                <p style={{ margin: 0, color: '#c53030', fontWeight: 700, marginBottom: '0.25rem' }}>
+                  Warning: Exceeds Floor Limit
+                </p>
+                <p style={{ margin: 0, color: '#9b2c2c', fontSize: '0.875rem' }}>
+                  The configured maximum is <strong>{unsplitConfirm.limitValue}</strong> couples on the floor.
+                  Merging will put <strong>{unsplitConfirm.totalCouples}</strong> couples on the floor,
+                  exceeding the limit by <strong>{unsplitConfirm.totalCouples - (unsplitConfirm.limitValue || 0)}</strong>.
+                </p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => setUnsplitConfirm(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn"
+                onClick={handleUnsplitConfirm}
+                style={{ background: '#e53e3e', borderColor: '#e53e3e', color: '#fff' }}
+              >
+                {unsplitConfirm.exceedsLimit ? 'Override & Merge' : 'Merge Heats'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -23,7 +23,15 @@ export function getHeatLabel(heat: ScheduledHeat, events: Event[]): string {
 
 export function getHeatRound(heat: ScheduledHeat): string {
   if (heat.entries.length === 0) return '';
-  return heat.entries[0].round;
+  const entry = heat.entries[0];
+  let round = entry.round;
+  if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
+    round += ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})`;
+  }
+  if (entry.dance) {
+    round += ` — ${entry.dance}`;
+  }
+  return round;
 }
 
 export function getHeatStyle(heat: ScheduledHeat, events: Event[]): string {
@@ -47,11 +55,15 @@ export function formatTime(isoString?: string): string {
 export function getHeatCoupleCount(heat: ScheduledHeat, events: Event[]): number {
   let total = 0;
   for (const entry of heat.entries) {
-    const event = getEventById(events, entry.eventId);
-    if (event) {
-      const allBibs = new Set<number>();
-      event.heats.forEach(h => h.bibs.forEach(b => allBibs.add(b)));
-      total += allBibs.size;
+    if (entry.bibSubset) {
+      total += entry.bibSubset.length;
+    } else {
+      const event = getEventById(events, entry.eventId);
+      if (event) {
+        const allBibs = new Set<number>();
+        event.heats.forEach(h => h.bibs.forEach(b => allBibs.add(b)));
+        total += allBibs.size;
+      }
     }
   }
   return total;

@@ -13,13 +13,14 @@ export class ScoringService {
     return event.dances;
   }
 
-  async calculateResults(eventId: number, round: string): Promise<EventResult[]> {
+  async calculateResults(eventId: number, round: string, bibSubset?: number[]): Promise<EventResult[]> {
     const event = await dataService.getEventById(eventId);
     if (!event) return [];
 
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return [];
 
+    const bibs = bibSubset || heat.bibs;
     const scoringType = event.scoringType || 'standard';
     const isRecallRound = ['quarter-final', 'semi-final'].includes(round);
     const dances = await this.getDancesForScoring(eventId);
@@ -27,16 +28,16 @@ export class ScoringService {
 
     if (isMultiDance && !isRecallRound) {
       // Multi-dance final: calculate per-dance placements, then combine
-      return this.calculateMultiDanceResults(eventId, round, heat.bibs, dances as string[], scoringType);
+      return this.calculateMultiDanceResults(eventId, round, bibs, dances as string[], scoringType);
     }
 
     if (isMultiDance && isRecallRound) {
       // Multi-dance recall: sum marks across all dances
-      return this.calculateMultiDanceRecallResults(eventId, round, heat.bibs, dances as string[]);
+      return this.calculateMultiDanceRecallResults(eventId, round, bibs, dances as string[]);
     }
 
     // Single-dance or no-dance: original logic
-    return this.calculateSingleDanceResults(eventId, round, heat.bibs, scoringType, isRecallRound);
+    return this.calculateSingleDanceResults(eventId, round, bibs, scoringType, isRecallRound);
   }
 
   private async calculateSingleDanceResults(
@@ -295,21 +296,22 @@ export class ScoringService {
     return { success: true, allSubmitted };
   }
 
-  async compileJudgeScores(eventId: number, round: string): Promise<boolean> {
+  async compileJudgeScores(eventId: number, round: string, bibSubset?: number[], danceFilter?: string): Promise<boolean> {
     const event = await dataService.getEventById(eventId);
     if (!event) return false;
 
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return false;
 
+    const bibs = bibSubset || heat.bibs;
     const scoringType = event.scoringType || 'standard';
     const isRecall = ['quarter-final', 'semi-final'].includes(round);
-    const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : heat.bibs.length;
+    const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : bibs.length;
 
-    const dances = await this.getDancesForScoring(eventId);
+    const dances = danceFilter ? [danceFilter] : await this.getDancesForScoring(eventId);
 
     for (const dance of dances) {
-      for (const bib of heat.bibs) {
+      for (const bib of bibs) {
         const judgeScores = await dataService.getJudgeScores(eventId, round, bib, dance);
         const compiled = heat.judges.map(judgeId =>
           judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : defaultScore,
@@ -318,12 +320,14 @@ export class ScoringService {
       }
     }
 
-    // Advance to next round if not final
-    const rounds = event.heats.map(h => h.round);
-    const currentIndex = rounds.indexOf(round);
-    if (currentIndex < rounds.length - 1) {
-      const topBibs = await this.getTopCouples(eventId, round, 6);
-      await dataService.advanceToNextRound(eventId, round, topBibs);
+    // Skip auto-advancement when bibSubset is provided (caller handles it)
+    if (!bibSubset) {
+      const rounds = event.heats.map(h => h.round);
+      const currentIndex = rounds.indexOf(round);
+      if (currentIndex < rounds.length - 1) {
+        const topBibs = await this.getTopCouples(eventId, round, 6);
+        await dataService.advanceToNextRound(eventId, round, topBibs);
+      }
     }
 
     return true;

@@ -54,7 +54,7 @@ const ScoreEventPage = () => {
     }
   };
 
-  const isRecallRound = ['quarter-final', 'semi-final'].includes(currentRound);
+  const isRecallRound = ['quarter-final', 'semi-final', '1/8-final', '1/16-final', '1/32-final'].includes(currentRound);
   const isProficiency = event?.scoringType === 'proficiency';
 
   const handleScoreChange = (judgeIndex: number, bib: number, value: string) => {

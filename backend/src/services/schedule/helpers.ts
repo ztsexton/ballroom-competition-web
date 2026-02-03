@@ -11,6 +11,25 @@ export function generateHeatId(): string {
 }
 
 /**
+ * Split bibs into N groups as evenly as possible, sorted by bib number.
+ * E.g. 10 bibs into 3 groups → [4, 3, 3], not [4, 4, 2].
+ * Bibs are sorted numerically so heat 1 gets the lowest bibs.
+ */
+export function splitBibsEvenly(bibs: number[], groupCount: number): number[][] {
+  const sorted = [...bibs].sort((a, b) => a - b);
+  const baseSize = Math.floor(sorted.length / groupCount);
+  const remainder = sorted.length % groupCount;
+  const chunks: number[][] = [];
+  let offset = 0;
+  for (let i = 0; i < groupCount; i++) {
+    const size = baseSize + (i < remainder ? 1 : 0);
+    chunks.push(sorted.slice(offset, offset + size));
+    offset += size;
+  }
+  return chunks;
+}
+
+/**
  * Get the ordered union of dances across all entries in a heat.
  * Returns empty array for single-dance or no-dance heats.
  */
