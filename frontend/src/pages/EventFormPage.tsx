@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../api/client';
-import { Couple, Judge, Event } from '../types';
+import { Couple, Judge, Event, AgeCategory } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_LEVELS } from '../constants/levels';
@@ -33,6 +33,8 @@ const EventFormPage = () => {
     activeCompetition?.defaultScoringType || 'standard'
   );
   const [isScholarship, setIsScholarship] = useState(false);
+  const [ageCategory, setAgeCategory] = useState('');
+  const [availableAgeCategories, setAvailableAgeCategories] = useState<AgeCategory[]>([]);
 
   useEffect(() => {
     if (activeCompetition && (!isEditMode || id)) {
@@ -44,6 +46,11 @@ const EventFormPage = () => {
     if (!activeCompetition) return;
 
     try {
+      // Load age categories from competition
+      if (activeCompetition.ageCategories?.length) {
+        setAvailableAgeCategories(activeCompetition.ageCategories);
+      }
+
       if (isEditMode) {
         const [eventRes, couplesRes, judgesRes] = await Promise.all([
           eventsApi.getById(parseInt(id!)),
@@ -65,6 +72,7 @@ const EventFormPage = () => {
         setSelectedDances(evt.dances || []);
         setScoringType(evt.scoringType || 'standard');
         setIsScholarship(evt.isScholarship || false);
+        setAgeCategory(evt.ageCategory || '');
         setSelectedBibs(evt.heats[0]?.bibs || []);
         setSelectedJudges(evt.heats[0]?.judges || []);
       } else {
@@ -155,6 +163,7 @@ const EventFormPage = () => {
         judgeIds: selectedJudges,
         scoringType,
         isScholarship,
+        ageCategory: ageCategory || undefined,
       };
 
       if (forceOverwrite) {
@@ -184,7 +193,8 @@ const EventFormPage = () => {
           style || undefined,
           selectedDances.length > 0 ? selectedDances : undefined,
           scoringType,
-          isScholarship || undefined
+          isScholarship || undefined,
+          ageCategory || undefined
         );
         navigate(`/events/${response.data.id}`);
       } catch (error: any) {
@@ -402,6 +412,33 @@ const EventFormPage = () => {
               </div>
             </div>
 
+            {availableAgeCategories.length > 0 && (
+              <div className="form-group">
+                <label>Age Category</label>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {availableAgeCategories.map(cat => (
+                    <button
+                      key={cat.name}
+                      type="button"
+                      onClick={() => setAgeCategory(ageCategory === cat.name ? '' : cat.name)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        border: ageCategory === cat.name ? '2px solid #667eea' : '1px solid #cbd5e0',
+                        borderRadius: '4px',
+                        background: ageCategory === cat.name ? '#667eea' : 'white',
+                        color: ageCategory === cat.name ? 'white' : '#2d3748',
+                        cursor: 'pointer',
+                        fontWeight: ageCategory === cat.name ? 'bold' : 'normal',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Style</label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -523,7 +560,7 @@ const EventFormPage = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const parts = [designation, syllabusType, level, style];
+                    const parts = [designation, ageCategory, syllabusType, level, style];
                     if (selectedDances.length > 0) {
                       parts.push(selectedDances.join('/'));
                     }

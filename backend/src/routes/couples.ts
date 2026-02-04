@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
+import { getCoupleEligibleCategories, calculateAge } from '../services/validationService';
 
 const router = Router();
 
@@ -41,6 +42,38 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   res.status(201).json(newCouple);
+});
+
+// Get eligible age categories for a couple
+router.get('/:bib/eligible-categories', async (req: Request, res: Response) => {
+  try {
+    const bib = parseInt(req.params.bib);
+    const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+
+    if (!competitionId) {
+      return res.status(400).json({ error: 'competitionId query parameter is required' });
+    }
+
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple) {
+      return res.status(404).json({ error: 'Couple not found' });
+    }
+
+    const categories = await getCoupleEligibleCategories(couple.leaderId, couple.followerId, competitionId);
+
+    const [leader, follower] = await Promise.all([
+      dataService.getPersonById(couple.leaderId),
+      dataService.getPersonById(couple.followerId),
+    ]);
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    const leaderAge = leader?.dateOfBirth && competition ? calculateAge(leader.dateOfBirth, competition.date) : undefined;
+    const followerAge = follower?.dateOfBirth && competition ? calculateAge(follower.dateOfBirth, competition.date) : undefined;
+
+    res.json({ categories, leaderAge, followerAge });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get eligible categories' });
+  }
 });
 
 // Get all events a couple is entered in

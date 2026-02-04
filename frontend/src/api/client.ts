@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, AgeCategory } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -74,6 +74,8 @@ export const couplesApi = {
   getAll: (competitionId?: number) => 
     api.get<Couple[]>('/couples', { params: { competitionId } }),
   getByBib: (bib: number) => api.get<Couple>(`/couples/${bib}`),
+  getEligibleCategories: (bib: number, competitionId: number) =>
+    api.get<{ categories: string[]; leaderAge?: number; followerAge?: number }>(`/couples/${bib}/eligible-categories`, { params: { competitionId } }),
   getEvents: (bib: number) => api.get<Event[]>(`/couples/${bib}/events`),
   create: (leaderId: number, followerId: number, competitionId: number) =>
     api.post<Couple>('/couples', { leaderId, followerId, competitionId }),
@@ -108,9 +110,10 @@ export const eventsApi = {
     style?: string,
     dances?: string[],
     scoringType?: 'standard' | 'proficiency',
-    isScholarship?: boolean
+    isScholarship?: boolean,
+    ageCategory?: string
   ) =>
-    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship }),
+    api.post<Event>('/events', { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship, ageCategory }),
   update: (id: number, updates: Partial<Omit<Event, 'id'>>) =>
     api.patch<Event>(`/events/${id}`, updates),
   delete: (id: number) => api.delete(`/events/${id}`),
@@ -133,6 +136,7 @@ export const eventsApi = {
     competitionId: number; bib: number;
     designation?: string; syllabusType?: string; level?: string;
     style?: string; dances?: string[]; scoringType?: string;
+    ageCategory?: string;
   }) => api.post<{ event: Event; created: boolean }>('/events/register', data),
 };
 
@@ -216,6 +220,8 @@ export const judgingApi = {
 export const participantApi = {
   getCompetitions: () => api.get<Competition[]>('/participant/competitions'),
   getCompetition: (id: number) => api.get<Competition>(`/participant/competitions/${id}`),
+  getAgeCategories: (competitionId: number) =>
+    api.get<AgeCategory[]>(`/participant/competitions/${competitionId}/age-categories`),
   getProfile: () => api.get<Person[]>('/participant/profile'),
   register: (competitionId: number, data: { name: string; email?: string; role: string; status?: string }) =>
     api.post<Person>(`/participant/competitions/${competitionId}/register`, data),
@@ -231,6 +237,7 @@ export const participantApi = {
   registerEntry: (competitionId: number, data: {
     bib: number; designation?: string; syllabusType?: string; level?: string;
     style?: string; dances?: string[]; scoringType?: string;
+    ageCategory?: string;
   }) => api.post<{ event: Event; created: boolean }>(`/participant/competitions/${competitionId}/entries`, data),
   removeEntry: (competitionId: number, eventId: number, bib: number) =>
     api.delete(`/participant/competitions/${competitionId}/entries/${eventId}/${bib}`),

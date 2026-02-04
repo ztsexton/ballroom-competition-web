@@ -14,6 +14,7 @@ const PeoplePage = () => {
   const [newPerson, setNewPerson] = useState({
     firstName: '',
     lastName: '',
+    dateOfBirth: '',
     email: '',
     role: 'both' as Person['role'],
     status: 'student' as Person['status'],
@@ -62,9 +63,10 @@ const PeoplePage = () => {
         ...newPerson,
         studioId: newPerson.studioId ? Number(newPerson.studioId) : undefined,
         email: newPerson.email || undefined,
+        dateOfBirth: newPerson.dateOfBirth || undefined,
         competitionId: activeCompetition.id,
       });
-      setNewPerson({ firstName: '', lastName: '', email: '', role: 'both', status: 'student', studioId: '' });
+      setNewPerson({ firstName: '', lastName: '', dateOfBirth: '', email: '', role: 'both', status: 'student', studioId: '' });
       loadPeople();
     } catch (error) {
       console.error('Failed to add person:', error);
@@ -121,7 +123,7 @@ const PeoplePage = () => {
         <h2>Manage People - {activeCompetition.name}</h2>
         
         <form onSubmit={handleAdd} style={{ marginTop: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 2fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>First Name</label>
               <input
@@ -138,6 +140,14 @@ const PeoplePage = () => {
                 value={newPerson.lastName}
                 onChange={e => setNewPerson({ ...newPerson, lastName: e.target.value })}
                 required
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>DOB</label>
+              <input
+                type="date"
+                value={newPerson.dateOfBirth}
+                onChange={e => setNewPerson({ ...newPerson, dateOfBirth: e.target.value })}
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -184,6 +194,7 @@ const PeoplePage = () => {
               <tr>
                 <th>First Name</th>
                 <th>Last Name</th>
+                <th>DOB</th>
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
@@ -196,6 +207,7 @@ const PeoplePage = () => {
                 <tr key={person.id}>
                   <td>{person.firstName}</td>
                   <td>{person.lastName}</td>
+                  <td>{person.dateOfBirth || ''}</td>
                   <td>{person.email || ''}</td>
                   <td>{person.role}</td>
                   <td>{person.status}</td>

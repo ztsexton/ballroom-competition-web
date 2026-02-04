@@ -42,6 +42,20 @@ router.get('/profile', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /participant/competitions/:id/age-categories — get available age categories for a competition
+router.get('/competitions/:id/age-categories', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const comp = await dataService.getCompetitionById(id);
+    if (!comp || !comp.registrationOpen) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    res.json(comp.ageCategories || []);
+  } catch {
+    res.status(500).json({ error: 'Failed to load age categories' });
+  }
+});
+
 // POST /participant/competitions/:id/register — register self as participant
 router.post('/competitions/:id/register', async (req: AuthRequest, res: Response) => {
   try {
@@ -230,7 +244,7 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
   try {
     const competitionId = parseInt(req.params.id);
     const userId = req.user!.uid;
-    const { bib, designation, syllabusType, level, style, dances, scoringType } = req.body;
+    const { bib, designation, syllabusType, level, style, dances, scoringType, ageCategory } = req.body;
 
     if (bib === undefined) {
       return res.status(400).json({ error: 'bib is required' });
@@ -260,7 +274,7 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
     }
 
     const result = await registerCoupleForEvent(competitionId, bib, {
-      designation, syllabusType, level, style, dances, scoringType,
+      designation, syllabusType, level, style, dances, scoringType, ageCategory,
     });
 
     if (result.error) {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { participantApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Competition, Person, Couple, Event } from '../types';
+import { Competition, Person, Couple, Event, AgeCategory } from '../types';
 import { DEFAULT_LEVELS } from '../constants/levels';
 
 interface ScheduleItem {
@@ -65,6 +65,8 @@ const ParticipantPortalPage = () => {
   const [regStyle, setRegStyle] = useState('');
   const [regDances, setRegDances] = useState<string[]>([]);
   const [regScoringType, setRegScoringType] = useState('');
+  const [regAgeCategory, setRegAgeCategory] = useState('');
+  const [availableAgeCategories, setAvailableAgeCategories] = useState<AgeCategory[]>([]);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -90,6 +92,9 @@ const ParticipantPortalPage = () => {
   useEffect(() => {
     if (selectedComp) {
       loadMyData(selectedComp.id);
+      participantApi.getAgeCategories(selectedComp.id)
+        .then(res => setAvailableAgeCategories(res.data))
+        .catch(() => setAvailableAgeCategories([]));
     }
   }, [selectedComp]);
 
@@ -174,6 +179,7 @@ const ParticipantPortalPage = () => {
         style: regStyle || undefined,
         dances: regDances.length > 0 ? regDances : undefined,
         scoringType: regScoringType || undefined,
+        ageCategory: regAgeCategory || undefined,
       });
       const label = res.data.event.name;
       setSuccess(res.data.created ? `Created & registered for ${label}` : `Added to ${label}`);
@@ -185,6 +191,7 @@ const ParticipantPortalPage = () => {
       setRegStyle('');
       setRegDances([]);
       setRegScoringType('');
+      setRegAgeCategory('');
       await loadMyData(selectedComp.id);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to register entry');
@@ -464,6 +471,20 @@ const ParticipantPortalPage = () => {
                       ))}
                     </div>
                   </div>
+
+                  {availableAgeCategories.length > 0 && (
+                    <div>
+                      <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Age Category</label>
+                      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                        {availableAgeCategories.map(cat => (
+                          <button key={cat.name} type="button" style={toggleBtnStyle(regAgeCategory === cat.name)}
+                            onClick={() => setRegAgeCategory(regAgeCategory === cat.name ? '' : cat.name)}>
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Style</label>

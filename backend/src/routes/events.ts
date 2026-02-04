@@ -27,7 +27,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // Create a new event
 router.post('/', async (req: Request, res: Response) => {
-  const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship } = req.body;
+  const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship, ageCategory } = req.body;
 
   if (!name || !competitionId) {
     return res.status(400).json({ error: 'Name and competition ID are required' });
@@ -46,7 +46,8 @@ router.post('/', async (req: Request, res: Response) => {
     style,
     dances,
     scoringType,
-    isScholarship
+    isScholarship,
+    ageCategory
   );
   res.status(201).json(newEvent);
 });
@@ -54,7 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Register a couple for a combination (find-or-create event)
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType } = req.body;
+    const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType, ageCategory } = req.body;
 
     if (!competitionId || bib === undefined) {
       return res.status(400).json({ error: 'competitionId and bib are required' });
@@ -66,7 +67,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const result = await registerCoupleForEvent(competitionId, bib, {
-      designation, syllabusType, level, style, dances, scoringType,
+      designation, syllabusType, level, style, dances, scoringType, ageCategory,
     });
 
     if (result.error) {

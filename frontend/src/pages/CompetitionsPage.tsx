@@ -133,6 +133,8 @@ const CompetitionsPage = () => {
     const labels: Record<CompetitionType, string> = {
       'NDCA': 'NDCA',
       'USA_DANCE': 'USA Dance',
+      'WDC': 'WDC',
+      'WDSF': 'WDSF',
       'UNAFFILIATED': 'Unaffiliated',
       'STUDIO': 'Studio',
     };
@@ -143,7 +145,9 @@ const CompetitionsPage = () => {
     const colors: Record<CompetitionType, string> = {
       'NDCA': '#dc2626',
       'USA_DANCE': '#2563eb',
-      'UNAFFILIATED': '#059669',
+      'WDC': '#059669',
+      'WDSF': '#d97706',
+      'UNAFFILIATED': '#6b7280',
       'STUDIO': '#7c3aed',
     };
     return colors[type];
@@ -201,7 +205,7 @@ const CompetitionsPage = () => {
               <div className="form-group">
                 <label>Competition Type *</label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {(['NDCA', 'USA_DANCE', 'UNAFFILIATED', 'STUDIO'] as CompetitionType[]).map(type => (
+                  {(['NDCA', 'USA_DANCE', 'WDC', 'WDSF', 'UNAFFILIATED', 'STUDIO'] as CompetitionType[]).map(type => (
                     <button
                       key={type}
                       type="button"

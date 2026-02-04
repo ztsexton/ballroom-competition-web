@@ -30,14 +30,14 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create a new competition
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, type, date, location, studioId, description, defaultScoringType, levels, publiclyVisible, resultsPublic, websiteUrl, organizerEmail } = req.body;
+    const { name, type, date, location, studioId, organizationId, description, defaultScoringType, levels, publiclyVisible, resultsPublic, websiteUrl, organizerEmail } = req.body;
 
     if (!name || !type || !date) {
       return res.status(400).json({ error: 'Name, type, and date are required' });
     }
 
     // Validate competition type
-    const validTypes = ['NDCA', 'USA_DANCE', 'UNAFFILIATED', 'STUDIO'];
+    const validTypes = ['NDCA', 'USA_DANCE', 'WDC', 'WDSF', 'UNAFFILIATED', 'STUDIO'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ error: 'Invalid competition type' });
     }
@@ -53,6 +53,7 @@ router.post('/', async (req: Request, res: Response) => {
       date,
       location,
       studioId,
+      organizationId,
       description,
       defaultScoringType,
       levels,

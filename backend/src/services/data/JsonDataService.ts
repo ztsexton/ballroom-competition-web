@@ -604,7 +604,8 @@ export class JsonDataService implements IDataService {
     style?: string,
     dances?: string[],
     scoringType?: 'standard' | 'proficiency',
-    isScholarship?: boolean
+    isScholarship?: boolean,
+    ageCategory?: string
   ): Promise<Event> {
     const rounds = scoringType === 'proficiency'
       ? ['final']
@@ -627,6 +628,7 @@ export class JsonDataService implements IDataService {
       competitionId,
       scoringType,
       isScholarship,
+      ageCategory,
     };
     this.data.events[newEvent.id] = newEvent;
     this.saveEvents();

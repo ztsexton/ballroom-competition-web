@@ -8,6 +8,7 @@ export interface EventCombination {
   style?: string;
   dances?: string[];
   scoringType?: string;
+  ageCategory?: string;
 }
 
 export async function findMatchingEvent(
@@ -32,6 +33,7 @@ export async function findMatchingEvent(
       (event.syllabusType || undefined) === (combination.syllabusType || undefined) &&
       (event.level || undefined) === (combination.level || undefined) &&
       (event.style || undefined) === (combination.style || undefined) &&
+      (event.ageCategory || undefined) === (combination.ageCategory || undefined) &&
       JSON.stringify(evtDances) === JSON.stringify(reqDances) &&
       evtScoringType === reqScoringType
     ) {
@@ -86,7 +88,7 @@ export async function registerCoupleForEvent(
   }
 
   // No match — auto-create event
-  const parts = [combination.designation, combination.syllabusType, combination.level, combination.style].filter(Boolean);
+  const parts = [combination.designation, combination.ageCategory, combination.syllabusType, combination.level, combination.style].filter(Boolean);
   if (reqDances.length > 0) parts.push(reqDances.join('/'));
   const name = parts.length > 0 ? parts.join(' ') : 'Untitled Event';
 
@@ -105,6 +107,7 @@ export async function registerCoupleForEvent(
     reqDances.length > 0 ? reqDances : undefined,
     (combination.scoringType as 'standard' | 'proficiency') || 'standard',
     undefined,
+    combination.ageCategory,
   );
 
   return { event: newEvent, created: true };

@@ -201,6 +201,8 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
   const typeBadgeColors: Record<string, { bg: string; fg: string }> = {
     NDCA: { bg: '#e9d8fd', fg: '#553c9a' },
     USA_DANCE: { bg: '#bee3f8', fg: '#2a4365' },
+    WDC: { bg: '#d1fae5', fg: '#059669' },
+    WDSF: { bg: '#fef3c7', fg: '#d97706' },
     STUDIO: { bg: '#fefcbf', fg: '#744210' },
   };
   const badge = typeBadgeColors[competition.type] || { bg: '#e2e8f0', fg: '#4a5568' };
@@ -208,6 +210,8 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
   const rulesLabel: Record<string, string> = {
     NDCA: 'NDCA Rules',
     USA_DANCE: 'USA Dance Rules',
+    WDC: 'WDC Rules',
+    WDSF: 'WDSF Rules',
     STUDIO: 'Studio Rules',
   };
 

@@ -77,7 +77,8 @@ export interface IDataService {
     style?: string,
     dances?: string[],
     scoringType?: 'standard' | 'proficiency',
-    isScholarship?: boolean
+    isScholarship?: boolean,
+    ageCategory?: string
   ): Promise<Event>;
   updateEvent(id: number, updates: Partial<Omit<Event, 'id'>>): Promise<Event | null>;
   deleteEvent(id: number): Promise<boolean>;

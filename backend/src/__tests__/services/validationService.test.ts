@@ -1,9 +1,321 @@
 import { dataService } from '../../services/dataService';
-import { validateEntry, getEligibleAgeCategories } from '../../services/validationService';
+import { validateEntry, getEligibleAgeCategories, getNdcaCoupleCategories, getCoupleEligibleCategories, calculateAge } from '../../services/validationService';
 
 describe('Validation Service', () => {
   beforeEach(async () => {
     await dataService.resetAllData();
+  });
+
+  describe('getNdcaCoupleCategories (pure function)', () => {
+    it('should return Youth + Adult for youth couple (17, 16)', () => {
+      expect(getNdcaCoupleCategories(17, 16)).toEqual(['Youth', 'Adult']);
+    });
+
+    it('should return Youth + Adult for youth couple (18, 15)', () => {
+      expect(getNdcaCoupleCategories(18, 15)).toEqual(['Youth', 'Adult']);
+    });
+
+    it('should return Adult only for adult couple (25, 23)', () => {
+      expect(getNdcaCoupleCategories(25, 23)).toEqual(['Adult']);
+    });
+
+    it('should return Adult only at edge (19, 18)', () => {
+      expect(getNdcaCoupleCategories(19, 18)).toEqual(['Adult']);
+    });
+
+    it('should return empty for under-16 couple', () => {
+      expect(getNdcaCoupleCategories(15, 14)).toEqual([]);
+    });
+
+    it('should return Adult + Senior 1 for Senior I couple (36, 31)', () => {
+      expect(getNdcaCoupleCategories(36, 31)).toEqual(['Adult', 'Senior 1']);
+    });
+
+    it('should return Adult + Senior 1 at edge (35, 30)', () => {
+      expect(getNdcaCoupleCategories(35, 30)).toEqual(['Adult', 'Senior 1']);
+    });
+
+    it('should return Adult only when younger partner fails Senior I threshold (35, 29)', () => {
+      expect(getNdcaCoupleCategories(35, 29)).toEqual(['Adult']);
+    });
+
+    it('should return Adult + Senior 1-2 for Senior II couple (46, 41)', () => {
+      expect(getNdcaCoupleCategories(46, 41)).toEqual(['Adult', 'Senior 1', 'Senior 2']);
+    });
+
+    it('should return Adult + Senior 1-3 for Senior III couple (56, 51)', () => {
+      expect(getNdcaCoupleCategories(56, 51)).toEqual(['Adult', 'Senior 1', 'Senior 2', 'Senior 3']);
+    });
+
+    it('should return Adult + Senior 1-4 for Senior IV couple (66, 61)', () => {
+      expect(getNdcaCoupleCategories(66, 61)).toEqual(['Adult', 'Senior 1', 'Senior 2', 'Senior 3', 'Senior 4']);
+    });
+
+    it('should return Adult + Senior 1-4 at edge (65, 60)', () => {
+      expect(getNdcaCoupleCategories(65, 60)).toEqual(['Adult', 'Senior 1', 'Senior 2', 'Senior 3', 'Senior 4']);
+    });
+
+    it('should stop at Senior III when younger partner fails Senior IV threshold (65, 55)', () => {
+      // max=65 >= 55 (Senior III older), min=55 >= 50 (Senior III younger) => Senior III
+      // Senior IV needs min >= 60, but 55 < 60
+      expect(getNdcaCoupleCategories(65, 55)).toEqual(['Adult', 'Senior 1', 'Senior 2', 'Senior 3']);
+    });
+
+    it('should return Adult + Senior 1 for mixed ages (45, 38)', () => {
+      // Senior I: max=45 >= 35, min=38 >= 30 => yes
+      // Senior II: max=45 >= 45, min=38 >= 40 => no (38 < 40)
+      expect(getNdcaCoupleCategories(45, 38)).toEqual(['Adult', 'Senior 1']);
+    });
+  });
+
+  describe('getCoupleEligibleCategories (integration)', () => {
+    it('should return NDCA categories for couple with DOB', async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: {
+          ageCategories: [
+            { name: 'Youth', minAge: 16, maxAge: 18 },
+            { name: 'Adult', minAge: 19, maxAge: 34 },
+            { name: 'Senior 1', minAge: 35, maxAge: 44 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      // Ages 25 and 23 as of 2026-06-01
+      const leader = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2001-01-15',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2003-03-20',
+      });
+
+      const categories = await getCoupleEligibleCategories(leader.id, follower.id, comp.id);
+      expect(categories).toEqual(['Adult']);
+    });
+
+    it('should return empty when DOB is missing', async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: { ageCategories: [{ name: 'Adult', minAge: 19 }] },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      const leader = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student',
+        competitionId: comp.id,
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student',
+        competitionId: comp.id,
+      });
+
+      const categories = await getCoupleEligibleCategories(leader.id, follower.id, comp.id);
+      expect(categories).toEqual([]);
+    });
+
+    it('should return empty when competition has no organization', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+      });
+      const leader = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2001-01-15',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2003-03-20',
+      });
+
+      const categories = await getCoupleEligibleCategories(leader.id, follower.id, comp.id);
+      expect(categories).toEqual([]);
+    });
+
+    it('should use per-person checking for non-NDCA orgs', async () => {
+      const org = await dataService.addOrganization({
+        name: 'Custom Org',
+        rulePresetKey: 'custom',
+        settings: {
+          ageCategories: [
+            { name: 'Open', minAge: 18 },
+            { name: 'Junior', maxAge: 17 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01', organizationId: org.id,
+      });
+      // Both age 20
+      const leader = await dataService.addPerson({
+        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2006-01-01',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2006-06-01',
+      });
+
+      const categories = await getCoupleEligibleCategories(leader.id, follower.id, comp.id);
+      expect(categories).toEqual(['Open']);
+    });
+  });
+
+  describe('validateEntry with age categories', () => {
+    let compId: number;
+    let bib: number;
+
+    beforeEach(async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: {
+          ageCategories: [
+            { name: 'Youth', minAge: 16, maxAge: 18 },
+            { name: 'Adult', minAge: 19, maxAge: 34 },
+            { name: 'Senior 1', minAge: 35, maxAge: 44 },
+            { name: 'Senior 2', minAge: 45, maxAge: 54 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      compId = comp.id;
+      // Adult couple (ages 25, 23)
+      const leader = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student',
+        competitionId: compId, dateOfBirth: '2001-01-15',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student',
+        competitionId: compId, dateOfBirth: '2003-03-20',
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, compId);
+      bib = couple!.bib;
+    });
+
+    it('should accept adult couple entering Adult event', async () => {
+      const result = await validateEntry(compId, bib, { ageCategory: 'Adult' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject adult couple entering Youth event', async () => {
+      const result = await validateEntry(compId, bib, { ageCategory: 'Youth' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('not eligible');
+      expect(result.errors[0]).toContain('Youth');
+    });
+
+    it('should reject adult couple entering Senior event', async () => {
+      const result = await validateEntry(compId, bib, { ageCategory: 'Senior 1' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('not eligible');
+    });
+
+    it('should reject entry for unconfigured age category', async () => {
+      const result = await validateEntry(compId, bib, { ageCategory: 'Senior 4' });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('not configured');
+    });
+  });
+
+  describe('validateEntry with youth dance-up', () => {
+    it('should allow youth couple to enter Adult event', async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: {
+          ageCategories: [
+            { name: 'Youth', minAge: 16, maxAge: 18 },
+            { name: 'Adult', minAge: 19, maxAge: 34 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      // Youth couple (ages 17, 16)
+      const leader = await dataService.addPerson({
+        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2009-03-01',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2010-01-01',
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const result = await validateEntry(comp.id, couple!.bib, { ageCategory: 'Adult' });
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('validateEntry with senior dance-down', () => {
+    it('should allow Senior II couple to enter Senior 1 event', async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: {
+          ageCategories: [
+            { name: 'Adult', minAge: 19, maxAge: 34 },
+            { name: 'Senior 1', minAge: 35, maxAge: 44 },
+            { name: 'Senior 2', minAge: 45, maxAge: 54 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      // Senior II couple (ages 46, 41)
+      const leader = await dataService.addPerson({
+        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '1980-01-01',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '1985-01-01',
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const result = await validateEntry(comp.id, couple!.bib, { ageCategory: 'Senior 1' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject Senior I couple entering Senior 2 event', async () => {
+      const org = await dataService.addOrganization({
+        name: 'NDCA Org',
+        rulePresetKey: 'ndca',
+        settings: {
+          ageCategories: [
+            { name: 'Adult', minAge: 19, maxAge: 34 },
+            { name: 'Senior 1', minAge: 35, maxAge: 44 },
+            { name: 'Senior 2', minAge: 45, maxAge: 54 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01', organizationId: org.id,
+      });
+      // Senior I couple (ages 36, 31)
+      const leader = await dataService.addPerson({
+        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '1990-01-01',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '1995-01-01',
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const result = await validateEntry(comp.id, couple!.bib, { ageCategory: 'Senior 2' });
+      expect(result.valid).toBe(false);
+    });
   });
 
   describe('validateEntry', () => {

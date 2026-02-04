@@ -4,7 +4,7 @@ import { AgeCategory } from '../types';
 
 const router = Router();
 
-const VALID_PRESETS = ['ndca', 'usadance', 'custom'];
+const VALID_PRESETS = ['ndca', 'usadance', 'wdc', 'wdsf', 'custom'];
 
 const NDCA_AGE_CATEGORIES: AgeCategory[] = [
   { name: 'Junior 1', maxAge: 11 },
@@ -42,6 +42,18 @@ const PRESET_DEFAULTS: Record<string, { defaultLevels: string[]; defaultScoringT
     defaultMaxCouplesPerHeat: 6,
     ageCategories: USA_DANCE_AGE_CATEGORIES,
   },
+  wdc: {
+    defaultLevels: ['Bronze', 'Silver', 'Gold', 'Novice', 'Pre-Championship', 'Championship'],
+    defaultScoringType: 'standard',
+    defaultMaxCouplesPerHeat: 7,
+    ageCategories: [],
+  },
+  wdsf: {
+    defaultLevels: ['Bronze', 'Silver', 'Gold', 'Novice', 'Pre-Championship', 'Championship'],
+    defaultScoringType: 'standard',
+    defaultMaxCouplesPerHeat: 7,
+    ageCategories: [],
+  },
 };
 
 // Get all organizations
@@ -78,7 +90,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     if (!VALID_PRESETS.includes(rulePresetKey)) {
-      return res.status(400).json({ error: 'Invalid rulePresetKey. Must be one of: ndca, usadance, custom' });
+      return res.status(400).json({ error: 'Invalid rulePresetKey. Must be one of: ndca, usadance, wdc, wdsf, custom' });
     }
 
     // Apply preset defaults, allowing user-provided settings to override
@@ -104,7 +116,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     const updates = req.body;
 
     if (updates.rulePresetKey && !VALID_PRESETS.includes(updates.rulePresetKey)) {
-      return res.status(400).json({ error: 'Invalid rulePresetKey. Must be one of: ndca, usadance, custom' });
+      return res.status(400).json({ error: 'Invalid rulePresetKey. Must be one of: ndca, usadance, wdc, wdsf, custom' });
     }
 
     const organization = await dataService.updateOrganization(id, updates);

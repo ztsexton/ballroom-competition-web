@@ -9,7 +9,7 @@ export interface ValidationResult {
 /**
  * Calculate age as of a reference date (competition date).
  */
-function calculateAge(dateOfBirth: string, referenceDate: string): number {
+export function calculateAge(dateOfBirth: string, referenceDate: string): number {
   const dob = new Date(dateOfBirth);
   const ref = new Date(referenceDate);
   let age = ref.getFullYear() - dob.getFullYear();
@@ -27,6 +27,100 @@ function fitsAgeCategory(age: number, category: AgeCategory): boolean {
   if (category.minAge !== undefined && age < category.minAge) return false;
   if (category.maxAge !== undefined && age > category.maxAge) return false;
   return true;
+}
+
+/**
+ * NDCA Senior pair thresholds.
+ * Each entry: [seniorLevel, olderPartnerMin, youngerPartnerMin]
+ * "one partner >= X, the other >= Y" where X > Y
+ */
+const SENIOR_THRESHOLDS: Array<[number, number, number]> = [
+  [4, 65, 60],
+  [3, 55, 50],
+  [2, 45, 40],
+  [1, 35, 30],
+];
+
+/**
+ * Compute eligible NDCA age categories for a couple based on both partners' ages.
+ *
+ * Rules from age_ranges.md:
+ * - Youth/Adult determined by the OLDER partner's age
+ * - Senior level determined by pair thresholds (both partners' ages)
+ * - Youth can dance up to Adult
+ * - Seniors can dance down through lower Senior levels and Adult
+ */
+export function getNdcaCoupleCategories(olderAge: number, youngerAge: number): string[] {
+  const categories: string[] = [];
+
+  // Youth: older partner is 16-18
+  if (olderAge >= 16 && olderAge <= 18) {
+    categories.push('Youth', 'Adult');
+    return categories;
+  }
+
+  // Must be at least 16 to compete
+  if (olderAge < 16) return [];
+
+  // Adult: older partner is 19+
+  categories.push('Adult');
+
+  // Senior thresholds: check from highest (IV) down to lowest (I)
+  // max(ages) >= olderThreshold AND min(ages) >= youngerThreshold
+  let maxSenior = 0;
+  for (const [level, olderMin, youngerMin] of SENIOR_THRESHOLDS) {
+    if (olderAge >= olderMin && youngerAge >= youngerMin) {
+      maxSenior = level;
+      break; // We check from highest first, so first match is the max
+    }
+  }
+
+  // Add all eligible senior levels (can dance down)
+  for (let i = 1; i <= maxSenior; i++) {
+    categories.push(`Senior ${i}`);
+  }
+
+  return categories;
+}
+
+/**
+ * Get eligible age categories for a couple given the competition's organization.
+ * For NDCA orgs, uses couple-level pair threshold rules.
+ * For other orgs, falls back to per-person range checking against org categories.
+ */
+export async function getCoupleEligibleCategories(
+  leaderId: number,
+  followerId: number,
+  competitionId: number,
+): Promise<string[]> {
+  const [leader, follower] = await Promise.all([
+    dataService.getPersonById(leaderId),
+    dataService.getPersonById(followerId),
+  ]);
+  if (!leader?.dateOfBirth || !follower?.dateOfBirth) return [];
+
+  const competition = await dataService.getCompetitionById(competitionId);
+  if (!competition || !competition.organizationId) return [];
+
+  const org = await dataService.getOrganizationById(competition.organizationId);
+  if (!org || !org.settings.ageCategories || org.settings.ageCategories.length === 0) return [];
+
+  const leaderAge = calculateAge(leader.dateOfBirth, competition.date);
+  const followerAge = calculateAge(follower.dateOfBirth, competition.date);
+
+  if (org.rulePresetKey === 'ndca') {
+    const olderAge = Math.max(leaderAge, followerAge);
+    const youngerAge = Math.min(leaderAge, followerAge);
+    const ndcaCategories = getNdcaCoupleCategories(olderAge, youngerAge);
+    // Filter to only categories configured on the org
+    const orgCategoryNames = org.settings.ageCategories.map(c => c.name);
+    return ndcaCategories.filter(c => orgCategoryNames.includes(c));
+  }
+
+  // Non-NDCA: both dancers must individually fit the category
+  return org.settings.ageCategories
+    .filter(cat => fitsAgeCategory(leaderAge, cat) && fitsAgeCategory(followerAge, cat))
+    .map(cat => cat.name);
 }
 
 /**
@@ -89,25 +183,20 @@ export async function validateEntry(
       const validCategories = org.settings.ageCategories.map(c => c.name);
       if (!validCategories.includes(eventAttributes.ageCategory)) {
         errors.push(`Age category "${eventAttributes.ageCategory}" is not configured for this organization`);
-      }
-
-      // Check both dancers' ages against the category
-      const category = org.settings.ageCategories.find(c => c.name === eventAttributes.ageCategory);
-      if (category) {
-        const [leader, follower] = await Promise.all([
-          dataService.getPersonById(couple.leaderId),
-          dataService.getPersonById(couple.followerId),
-        ]);
-
-        for (const person of [leader, follower]) {
-          if (person?.dateOfBirth) {
-            const age = calculateAge(person.dateOfBirth, competition.date);
-            if (!fitsAgeCategory(age, category)) {
-              errors.push(
-                `${person.firstName} ${person.lastName} (age ${age}) does not qualify for "${eventAttributes.ageCategory}"`
-              );
-            }
-          }
+      } else {
+        // Use couple-level eligibility check
+        const eligible = await getCoupleEligibleCategories(couple.leaderId, couple.followerId, competitionId);
+        if (!eligible.includes(eventAttributes.ageCategory)) {
+          const [leader, follower] = await Promise.all([
+            dataService.getPersonById(couple.leaderId),
+            dataService.getPersonById(couple.followerId),
+          ]);
+          const leaderAge = leader?.dateOfBirth ? calculateAge(leader.dateOfBirth, competition.date) : '?';
+          const followerAge = follower?.dateOfBirth ? calculateAge(follower.dateOfBirth, competition.date) : '?';
+          const eligibleStr = eligible.length > 0 ? eligible.join(', ') : 'none (date of birth may be missing)';
+          errors.push(
+            `Couple (ages ${leaderAge}, ${followerAge}) is not eligible for "${eventAttributes.ageCategory}". Eligible categories: ${eligibleStr}`
+          );
         }
       }
     }

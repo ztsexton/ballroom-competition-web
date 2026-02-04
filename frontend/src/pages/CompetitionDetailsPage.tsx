@@ -132,9 +132,13 @@ const CompetitionDetailsPage = () => {
             fontWeight: 600,
             background: competition.type === 'NDCA' ? '#e9d8fd' :
               competition.type === 'USA_DANCE' ? '#bee3f8' :
+              competition.type === 'WDC' ? '#d1fae5' :
+              competition.type === 'WDSF' ? '#fef3c7' :
               competition.type === 'STUDIO' ? '#fefcbf' : '#e2e8f0',
             color: competition.type === 'NDCA' ? '#553c9a' :
               competition.type === 'USA_DANCE' ? '#2a4365' :
+              competition.type === 'WDC' ? '#059669' :
+              competition.type === 'WDSF' ? '#d97706' :
               competition.type === 'STUDIO' ? '#744210' : '#4a5568',
           }}>
             {competition.type.replace('_', ' ')}

@@ -126,6 +126,9 @@ ALTER TABLE competitions ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 -- Migration: add is_chairman to judges (for existing deployments)
 ALTER TABLE judges ADD COLUMN IF NOT EXISTS is_chairman BOOLEAN DEFAULT FALSE;
 
+-- Migration: add age_category to events (for existing deployments)
+ALTER TABLE events ADD COLUMN IF NOT EXISTS age_category TEXT;
+
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
   heat_order JSONB NOT NULL DEFAULT '[]',

@@ -24,7 +24,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // Add a new person
 router.post('/', async (req: Request, res: Response) => {
-  const { firstName, lastName, email, role, status, competitionId, studioId } = req.body;
+  const { firstName, lastName, email, role, status, competitionId, studioId, dateOfBirth } = req.body;
 
   if (!firstName || !lastName || !role || !competitionId) {
     return res.status(400).json({ error: 'First name, last name, role, and competitionId are required' });
@@ -42,6 +42,7 @@ router.post('/', async (req: Request, res: Response) => {
     status: status || 'student',
     competitionId,
     studioId,
+    dateOfBirth: dateOfBirth || undefined,
   });
 
   res.status(201).json(newPerson);

@@ -104,6 +104,7 @@ export class PostgresDataService implements IDataService {
       competitionId: row.competition_id,
       scoringType: row.scoring_type || undefined,
       isScholarship: row.is_scholarship || undefined,
+      ageCategory: row.age_category || undefined,
     };
   }
 
@@ -603,7 +604,8 @@ export class PostgresDataService implements IDataService {
     style?: string,
     dances?: string[],
     scoringType?: 'standard' | 'proficiency',
-    isScholarship?: boolean
+    isScholarship?: boolean,
+    ageCategory?: string
   ): Promise<Event> {
     const rounds = scoringType === 'proficiency'
       ? ['final']
@@ -616,13 +618,13 @@ export class PostgresDataService implements IDataService {
 
     const { rows } = await this.pool.query(
       `INSERT INTO events (name, designation, syllabus_type, level, style, dances,
-        heats, competition_id, scoring_type, is_scholarship)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        heats, competition_id, scoring_type, is_scholarship, age_category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         name, designation || null, syllabusType || null, level || null,
         style || null, dances ? JSON.stringify(dances) : null,
         JSON.stringify(heats), competitionId, scoringType || null,
-        isScholarship || false,
+        isScholarship || false, ageCategory || null,
       ]
     );
     return this.eventFromRow(rows[0]);
@@ -640,6 +642,7 @@ export class PostgresDataService implements IDataService {
       name: 'name', designation: 'designation', syllabusType: 'syllabus_type',
       level: 'level', style: 'style', competitionId: 'competition_id',
       scoringType: 'scoring_type', isScholarship: 'is_scholarship',
+      ageCategory: 'age_category',
     };
     const jsonMap: Record<string, string> = {
       dances: 'dances', heats: 'heats',

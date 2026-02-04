@@ -1,4 +1,4 @@
-export type CompetitionType = 'NDCA' | 'USA_DANCE' | 'UNAFFILIATED' | 'STUDIO';
+export type CompetitionType = 'NDCA' | 'USA_DANCE' | 'WDC' | 'WDSF' | 'UNAFFILIATED' | 'STUDIO';
 
 export interface Studio {
   id: number;
@@ -9,7 +9,7 @@ export interface Studio {
   mindbodyToken?: string;
 }
 
-export type RulePresetKey = 'ndca' | 'usadance' | 'custom';
+export type RulePresetKey = 'ndca' | 'usadance' | 'wdc' | 'wdsf' | 'custom';
 
 export interface AgeCategory {
   name: string;
@@ -108,6 +108,7 @@ export interface Competition {
   maxCouplesOnFloor?: number;
   maxCouplesOnFloorByLevel?: Record<string, number>;
   recallRules?: RecallRules;
+  ageCategories?: AgeCategory[];
   registrationOpen?: boolean;
   publiclyVisible?: boolean;
   resultsPublic?: boolean;

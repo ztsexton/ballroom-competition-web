@@ -7,6 +7,8 @@ import { Competition } from '../types';
 const typeColors: Record<string, { bg: string; text: string }> = {
   NDCA: { bg: '#e9d8fd', text: '#553c9a' },
   USA_DANCE: { bg: '#bee3f8', text: '#2a4365' },
+  WDC: { bg: '#d1fae5', text: '#059669' },
+  WDSF: { bg: '#fef3c7', text: '#d97706' },
   STUDIO: { bg: '#fefcbf', text: '#744210' },
   UNAFFILIATED: { bg: '#e2e8f0', text: '#4a5568' },
 };

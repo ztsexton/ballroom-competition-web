@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
 import { organizationsApi } from '../api/client';
-import { Organization, RulePresetKey } from '../types';
+import { Organization, RulePresetKey, AgeCategory } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { AGE_CATEGORY_PRESETS } from '../constants/ageCategories';
 
 const presetColors: Record<RulePresetKey, { bg: string; text: string }> = {
   ndca: { bg: '#fde8e8', text: '#dc2626' },
   usadance: { bg: '#dbeafe', text: '#2563eb' },
+  wdc: { bg: '#d1fae5', text: '#059669' },
+  wdsf: { bg: '#fef3c7', text: '#d97706' },
   custom: { bg: '#e2e8f0', text: '#4a5568' },
 };
 
 const presetLabels: Record<RulePresetKey, string> = {
   ndca: 'NDCA',
   usadance: 'USA Dance',
+  wdc: 'WDC',
+  wdsf: 'WDSF',
   custom: 'Custom',
 };
 
@@ -25,6 +30,8 @@ const OrganizationsPage = () => {
 
   const [formName, setFormName] = useState('');
   const [formPreset, setFormPreset] = useState<RulePresetKey>('custom');
+  const [editingAgeCatsOrgId, setEditingAgeCatsOrgId] = useState<number | null>(null);
+  const [editableAgeCats, setEditableAgeCats] = useState<AgeCategory[]>([]);
 
   useEffect(() => {
     loadOrganizations();
@@ -69,6 +76,25 @@ const OrganizationsPage = () => {
       loadOrganizations();
     } catch {
       setError('Failed to delete organization');
+    }
+  };
+
+  const startEditingAgeCats = (org: Organization) => {
+    setEditingAgeCatsOrgId(org.id);
+    setEditableAgeCats(org.settings.ageCategories ? [...org.settings.ageCategories.map(c => ({ ...c }))] : []);
+  };
+
+  const saveAgeCats = async (orgId: number) => {
+    const org = organizations.find(o => o.id === orgId);
+    if (!org) return;
+    try {
+      await organizationsApi.update(orgId, {
+        settings: { ...org.settings, ageCategories: editableAgeCats },
+      });
+      setEditingAgeCatsOrgId(null);
+      loadOrganizations();
+    } catch {
+      setError('Failed to save age categories');
     }
   };
 
@@ -122,7 +148,7 @@ const OrganizationsPage = () => {
               <div className="form-group">
                 <label>Rule Preset *</label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {(['ndca', 'usadance', 'custom'] as RulePresetKey[]).map(preset => {
+                  {(['ndca', 'usadance', 'wdc', 'wdsf', 'custom'] as RulePresetKey[]).map(preset => {
                     const colors = presetColors[preset];
                     const isActive = formPreset === preset;
                     return (
@@ -149,6 +175,8 @@ const OrganizationsPage = () => {
                 <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
                   {formPreset === 'ndca' && 'NDCA defaults: Bronze through Championship levels, standard scoring, 7 couples/heat.'}
                   {formPreset === 'usadance' && 'USA Dance defaults: Newcomer through Championship levels, standard scoring, 6 couples/heat.'}
+                  {formPreset === 'wdc' && 'WDC defaults: Bronze through Championship levels, standard scoring, 7 couples/heat.'}
+                  {formPreset === 'wdsf' && 'WDSF defaults: Bronze through Championship levels, standard scoring, 7 couples/heat.'}
                   {formPreset === 'custom' && 'Start with a blank slate and configure your own rules.'}
                 </small>
               </div>
@@ -224,14 +252,138 @@ const OrganizationsPage = () => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDelete(org.id, org.name)}
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', background: '#fee', color: '#c00' }}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {editingAgeCatsOrgId !== org.id && (
+                        <button
+                          onClick={() => startEditingAgeCats(org)}
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                        >
+                          Edit Age Categories
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(org.id, org.name)}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', background: '#fee', color: '#c00' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Age category inline editor */}
+                  {editingAgeCatsOrgId === org.id && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: '#f7fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <strong>Age Categories</strong>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {AGE_CATEGORY_PRESETS[org.rulePresetKey] && (
+                            <button
+                              type="button"
+                              onClick={() => setEditableAgeCats(AGE_CATEGORY_PRESETS[org.rulePresetKey].map(c => ({ ...c })))}
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                            >
+                              Reset to {presetLabels[org.rulePresetKey]} Defaults
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditableAgeCats([...editableAgeCats, { name: '' }])}
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            + Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {editableAgeCats.length === 0 ? (
+                        <p style={{ color: '#a0aec0', textAlign: 'center', padding: '0.5rem' }}>No age categories configured</p>
+                      ) : (
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          {editableAgeCats.map((cat, idx) => (
+                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                value={cat.name}
+                                placeholder="Name"
+                                onChange={e => {
+                                  const updated = [...editableAgeCats];
+                                  updated[idx] = { ...updated[idx], name: e.target.value };
+                                  setEditableAgeCats(updated);
+                                }}
+                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                              />
+                              <input
+                                type="number"
+                                value={cat.minAge ?? ''}
+                                placeholder="Min age"
+                                onChange={e => {
+                                  const updated = [...editableAgeCats];
+                                  updated[idx] = { ...updated[idx], minAge: e.target.value ? parseInt(e.target.value) : undefined };
+                                  setEditableAgeCats(updated);
+                                }}
+                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                              />
+                              <input
+                                type="number"
+                                value={cat.maxAge ?? ''}
+                                placeholder="Max age"
+                                onChange={e => {
+                                  const updated = [...editableAgeCats];
+                                  updated[idx] = { ...updated[idx], maxAge: e.target.value ? parseInt(e.target.value) : undefined };
+                                  setEditableAgeCats(updated);
+                                }}
+                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditableAgeCats(editableAgeCats.filter((_, i) => i !== idx))}
+                                style={{
+                                  padding: '0.25rem 0.5rem',
+                                  background: 'none',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '4px',
+                                  color: '#e53e3e',
+                                  cursor: 'pointer',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                X
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => saveAgeCats(org.id)}
+                          className="btn"
+                          style={{ fontSize: '0.875rem', padding: '0.375rem 1rem' }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAgeCatsOrgId(null)}
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.875rem', padding: '0.375rem 1rem' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
