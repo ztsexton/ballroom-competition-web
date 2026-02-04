@@ -37,6 +37,7 @@ import OnDeckPage from './pages/OnDeckPage';
 import LiveCompetitionPage from './pages/LiveCompetitionPage';
 import ProfilePage from './pages/ProfilePage';
 import ParticipantPortalPage from './pages/ParticipantPortalPage';
+import ScrutineerPage from './pages/ScrutineerPage';
 import './App.css';
 
 // Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
@@ -88,6 +89,7 @@ const App = () => {
                       <Route path="settings" element={<CompetitionSettingsPage />} />
                       <Route path="heat-lists" element={<SchedulePage />} />
                       <Route path="run" element={<RunCompetitionPage />} />
+                      <Route path="scrutineer" element={<ScrutineerPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />
                     </Route>
 

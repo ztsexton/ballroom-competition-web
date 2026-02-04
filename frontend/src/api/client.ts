@@ -243,6 +243,27 @@ export const participantApi = {
     api.delete(`/participant/competitions/${competitionId}/entries/${eventId}/${bib}`),
 };
 
+// Scrutineer API (admin-only, schedule-free scoring for paper judging)
+export const scrutineerApi = {
+  getJudgeScores: (eventId: number, round: string) =>
+    api.get<{
+      eventId: number; round: string; bibs: number[];
+      judges: Array<{ id: number; name: string; judgeNumber: number; isChairman?: boolean }>;
+      isRecallRound: boolean; scoringType: 'standard' | 'proficiency';
+      dances: string[];
+      scoresByBib: Record<number, Record<number, number>>;
+      danceScoresByBib?: Record<string, Record<number, Record<number, number>>>;
+    }>(`/scrutineer/events/${eventId}/rounds/${round}/judge-scores`),
+  submitJudgeScores: (
+    eventId: number, round: string, judgeId: number,
+    scores: Array<{ bib: number; score: number }>, dance?: string,
+  ) => api.post(`/scrutineer/events/${eventId}/rounds/${round}/submit-scores`, { judgeId, scores, dance }),
+  compileScores: (eventId: number, round: string) =>
+    api.post<{ success: boolean; results: EventResult[] }>(
+      `/scrutineer/events/${eventId}/rounds/${round}/compile`
+    ),
+};
+
 // Users API
 export const usersApi = {
   getAll: () => api.get<User[]>('/users'),

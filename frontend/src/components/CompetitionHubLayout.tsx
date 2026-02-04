@@ -12,6 +12,7 @@ const TABS = [
   { label: 'Settings', path: 'settings', end: false },
   { label: 'Heat Lists', path: 'heat-lists', end: false },
   { label: 'Run', path: 'run', end: false },
+  { label: 'Scrutineer', path: 'scrutineer', end: false },
   { label: 'Day-Of', path: 'day-of', end: false },
 ];
 

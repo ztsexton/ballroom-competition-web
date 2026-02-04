@@ -151,22 +151,6 @@ const CompetitionDetailsPage = () => {
         {competition.description && (
           <p style={{ color: '#718096', marginTop: '0.75rem' }}>{competition.description}</p>
         )}
-        {competition.levels && competition.levels.length > 0 && (
-          <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-            {competition.levels.map((level, idx) => (
-              <span key={idx} style={{
-                padding: '0.125rem 0.5rem',
-                background: '#f7fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                fontSize: '0.8125rem',
-                color: '#4a5568',
-              }}>
-                {level}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Workflow Checklist */}

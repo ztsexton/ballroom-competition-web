@@ -16,6 +16,11 @@ const dayOfViews = [
     description: 'Individual judge scoring interface for phones and tablets.',
     path: 'judge',
   },
+  {
+    label: 'Scrutineer',
+    description: 'Enter marks and rankings from paper judging sheets. View and compile results.',
+    path: 'scrutineer',
+  },
 ];
 
 const CompetitionDayOfPage = () => {

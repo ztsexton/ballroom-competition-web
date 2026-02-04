@@ -19,6 +19,7 @@ import mindbodyRoutes from './routes/mindbody';
 import usersRoutes from './routes/users';
 import judgingRoutes from './routes/judging';
 import participantRoutes from './routes/participant';
+import scrutineerRoutes from './routes/scrutineer';
 import publicRoutes from './routes/public';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/events', requireAdmin, eventsRoutes);
 app.use('/api/schedules', requireAdmin, schedulesRoutes);
 app.use('/api/invoices', requireAdmin, invoicesRoutes);
 app.use('/api/mindbody', requireAdmin, mindbodyRoutes);
+app.use('/api/scrutineer', requireAdmin, scrutineerRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
