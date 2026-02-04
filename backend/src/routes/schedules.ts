@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scheduleService, ScheduleService } from '../services/schedule';
-import { scoringService } from '../services/scoringService';
+import { scoringService, computeAdvancementBibs } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { getRecallCount } from '../constants/rounds';
 
@@ -114,13 +114,28 @@ router.post('/:competitionId/advance', async (req: Request, res: Response) => {
                 }
 
                 const event = await dataService.getEventById(entry.eventId);
+                const competition = event ? await dataService.getCompetitionById(event.competitionId) : undefined;
+                const rules = competition?.recallRules;
+                const nextRoundName = event
+                  ? event.heats[event.heats.findIndex(h => h.round === entry.round) + 1]?.round
+                  : undefined;
+                const isFinalNext = nextRoundName === 'final';
+                const includeTies = rules?.includeTies ?? true;
+
                 const allRecalled: number[] = [];
                 for (const [idx, bibSubset] of subsetsByIndex) {
                   const results = await scoringService.calculateResults(entry.eventId, entry.round, bibSubset);
                   const perHeatRecall = event
                     ? getRecallCount(event.heats, entry.round, entry.totalFloorHeats, idx) ?? 6
                     : 6;
-                  const topBibs = results.slice(0, perHeatRecall).map(r => r.bib);
+                  // For floor heats advancing to final, apply hardMax per-subset
+                  const perHeatHardMax = isFinalNext
+                    ? Math.ceil((rules?.finalMaxSize ?? 8) / (entry.totalFloorHeats || 1))
+                    : undefined;
+                  const topBibs = computeAdvancementBibs(results, perHeatRecall, {
+                    hardMax: perHeatHardMax,
+                    includeTies,
+                  });
                   allRecalled.push(...topBibs);
                 }
                 await dataService.advanceToNextRound(entry.eventId, entry.round, allRecalled);
@@ -128,6 +143,22 @@ router.post('/:competitionId/advance', async (req: Request, res: Response) => {
               // else: not all sibling heats done yet, skip advancement
             }
           }
+        }
+      }
+    }
+
+    // Guard: prevent starting scoring on a new heat while another is already scoring
+    if (preSchedule) {
+      const currentHeat = preSchedule.heatOrder[preSchedule.currentHeatIndex];
+      const currentStatus = currentHeat ? (preSchedule.heatStatuses[currentHeat.id] || 'pending') : 'pending';
+      if (currentStatus === 'pending' && currentHeat && !currentHeat.isBreak) {
+        const scoringHeat = preSchedule.heatOrder.find((h, idx) =>
+          idx !== preSchedule!.currentHeatIndex && preSchedule!.heatStatuses[h.id] === 'scoring',
+        );
+        if (scoringHeat) {
+          return res.status(409).json({
+            error: 'Another heat is currently being scored. Complete or reset it before starting a new one.',
+          });
         }
       }
     }

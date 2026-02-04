@@ -52,6 +52,17 @@ const JudgesPage = () => {
     }
   };
 
+  const handleToggleChairman = async (judgeId: number, currentlyChairman: boolean) => {
+    try {
+      await judgesApi.update(judgeId, { isChairman: !currentlyChairman });
+      setError('');
+      loadJudges();
+    } catch (error) {
+      console.error('Failed to update chairman:', error);
+      setError('Failed to update chairman');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this judge?')) return;
     
@@ -134,6 +145,7 @@ const JudgesPage = () => {
               <tr>
                 <th>Judge #</th>
                 <th>Name</th>
+                <th>Chairman</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -143,9 +155,25 @@ const JudgesPage = () => {
                   <td><strong>#{judge.judgeNumber}</strong></td>
                   <td>{judge.name}</td>
                   <td>
-                    <button 
-                      onClick={() => handleDelete(judge.id)} 
-                      className="btn btn-danger" 
+                    <button
+                      onClick={() => handleToggleChairman(judge.id, !!judge.isChairman)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '1.1rem',
+                        color: judge.isChairman ? '#d69e2e' : '#cbd5e0',
+                        padding: '0.25rem 0.5rem',
+                      }}
+                      title={judge.isChairman ? 'Remove Chairman' : 'Set as Chairman'}
+                    >
+                      {judge.isChairman ? '★ Chairman' : '☆'}
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleDelete(judge.id)}
+                      className="btn btn-danger"
                       style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                     >
                       Delete
@@ -162,6 +190,7 @@ const JudgesPage = () => {
         <div className="card">
           <h3>Quick Stats</h3>
           <p>Total Judges: <strong>{judges.length}</strong></p>
+          <p>Chairman: <strong>{judges.find(j => j.isChairman)?.name || 'Not assigned'}</strong></p>
         </div>
       )}
     </div>

@@ -169,7 +169,7 @@ const ScoreEventPage = () => {
                     <th>Leader</th>
                     <th>Follower</th>
                     {Array.from({ length: numJudges }, (_, i) => (
-                      <th key={i}>{heatJudges[i] ? `#${heatJudges[i].judgeNumber}: ${heatJudges[i].name}` : `Judge ${i + 1}`}</th>
+                      <th key={i}>{heatJudges[i] ? `#${heatJudges[i].judgeNumber}: ${heatJudges[i].name}${heatJudges[i].isChairman ? ' \u2605' : ''}` : `Judge ${i + 1}`}</th>
                     ))}
                   </tr>
                 </thead>

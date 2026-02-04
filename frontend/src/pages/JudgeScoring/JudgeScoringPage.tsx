@@ -481,7 +481,7 @@ const JudgeScoringPage = () => {
                   width: '40px',
                   height: '40px',
                   borderRadius: '50%',
-                  background: '#667eea',
+                  background: judge.isChairman ? '#d69e2e' : '#667eea',
                   color: 'white',
                   display: 'flex',
                   alignItems: 'center',
@@ -492,7 +492,10 @@ const JudgeScoringPage = () => {
                 }}>
                   {judge.judgeNumber}
                 </span>
-                <span style={{ fontWeight: 500, fontSize: '1.125rem' }}>{judge.name}</span>
+                <span style={{ fontWeight: 500, fontSize: '1.125rem' }}>
+                  {judge.name}
+                  {judge.isChairman && <span style={{ color: '#d69e2e', marginLeft: '0.5rem', fontSize: '0.875rem' }}>{'\u2605'} Chairman</span>}
+                </span>
               </button>
             ))}
             {judges.length === 0 && (

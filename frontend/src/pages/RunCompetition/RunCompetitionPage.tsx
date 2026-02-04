@@ -77,8 +77,9 @@ const RunCompetitionPage = () => {
     try {
       const res = await schedulesApi.advance(competitionId);
       setSchedule(res.data);
-    } catch {
-      setError('Failed to advance');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg || 'Failed to advance');
     }
   };
 

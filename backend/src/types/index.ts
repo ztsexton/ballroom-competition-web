@@ -82,6 +82,12 @@ export interface EntryPayment {
   notes?: string;
 }
 
+export interface RecallRules {
+  finalSize?: number;       // Target final round size (default: 6)
+  finalMaxSize?: number;    // Hard max final size for tie expansion (default: 8)
+  includeTies?: boolean;    // Include full tie group at cut line (default: true)
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -101,6 +107,7 @@ export interface Competition {
   maxCouplesPerHeat?: number;
   maxCouplesOnFloor?: number;
   maxCouplesOnFloorByLevel?: Record<string, number>;
+  recallRules?: RecallRules;
   registrationOpen?: boolean;
   publiclyVisible?: boolean;
   resultsPublic?: boolean;
@@ -137,6 +144,7 @@ export interface Judge {
   name: string;
   judgeNumber: number;
   competitionId: number;
+  isChairman?: boolean;
 }
 
 export interface Heat {
@@ -262,7 +270,7 @@ export interface ActiveHeatInfo {
   heatId: string;
   entries: ActiveHeatEntry[];
   status: EventRunStatus;
-  judges: Array<{ id: number; name: string; judgeNumber: number }>;
+  judges: Array<{ id: number; name: string; judgeNumber: number; isChairman?: boolean }>;
   isBreak?: boolean;
   breakLabel?: string;
   breakDuration?: number;
@@ -288,6 +296,7 @@ export interface ScoringProgress {
     judgeName: string;
     judgeNumber: number;
     hasSubmitted: boolean;
+    isChairman?: boolean;
   }>;
   submittedCount: number;
   totalJudges: number;

@@ -85,8 +85,10 @@ export const judgesApi = {
   getAll: (competitionId?: number) => 
     api.get<Judge[]>('/judges', { params: { competitionId } }),
   getById: (id: number) => api.get<Judge>(`/judges/${id}`),
-  create: (name: string, competitionId: number) => 
+  create: (name: string, competitionId: number) =>
     api.post<Judge>('/judges', { name, competitionId }),
+  update: (id: number, updates: Partial<Judge>) =>
+    api.patch<Judge>(`/judges/${id}`, updates),
   delete: (id: number) => api.delete(`/judges/${id}`),
 };
 

@@ -60,6 +60,7 @@ export interface IDataService {
   getJudges(competitionId?: number): Promise<Judge[]>;
   getJudgeById(id: number): Promise<Judge | undefined>;
   addJudge(name: string, competitionId: number): Promise<Judge>;
+  updateJudge(id: number, updates: Partial<Omit<Judge, 'id'>>): Promise<Judge | null>;
   deleteJudge(id: number): Promise<boolean>;
 
   // Events

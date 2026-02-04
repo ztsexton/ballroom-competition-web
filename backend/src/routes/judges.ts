@@ -34,6 +34,18 @@ router.post('/', async (req: Request, res: Response) => {
   res.status(201).json(newJudge);
 });
 
+// Update judge
+router.patch('/:id', async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  const updated = await dataService.updateJudge(id, req.body);
+
+  if (!updated) {
+    return res.status(404).json({ error: 'Judge not found' });
+  }
+
+  res.json(updated);
+});
+
 // Delete judge
 router.delete('/:id', async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);

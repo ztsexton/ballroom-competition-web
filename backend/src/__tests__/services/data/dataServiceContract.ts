@@ -385,6 +385,46 @@ export function dataServiceContractTests(
       expect(await ds.deleteJudge(judge.id)).toBe(true);
       expect(await ds.getJudgeById(judge.id)).toBeUndefined();
     });
+
+    it('should update a judge name', async () => {
+      const judge = await ds.addJudge('Old Name', compId);
+      const updated = await ds.updateJudge(judge.id, { name: 'New Name' });
+      expect(updated).not.toBeNull();
+      expect(updated!.name).toBe('New Name');
+      expect(updated!.judgeNumber).toBe(judge.judgeNumber);
+    });
+
+    it('should set isChairman on a judge', async () => {
+      const judge = await ds.addJudge('Chair', compId);
+      const updated = await ds.updateJudge(judge.id, { isChairman: true });
+      expect(updated).not.toBeNull();
+      expect(updated!.isChairman).toBe(true);
+    });
+
+    it('should enforce single chairman per competition', async () => {
+      const j1 = await ds.addJudge('Chair 1', compId);
+      const j2 = await ds.addJudge('Chair 2', compId);
+
+      await ds.updateJudge(j1.id, { isChairman: true });
+      await ds.updateJudge(j2.id, { isChairman: true });
+
+      const refreshed1 = await ds.getJudgeById(j1.id);
+      const refreshed2 = await ds.getJudgeById(j2.id);
+      expect(refreshed2!.isChairman).toBe(true);
+      expect(refreshed1!.isChairman).toBeFalsy();
+    });
+
+    it('should unset chairman', async () => {
+      const judge = await ds.addJudge('Chair', compId);
+      await ds.updateJudge(judge.id, { isChairman: true });
+      const updated = await ds.updateJudge(judge.id, { isChairman: false });
+      expect(updated!.isChairman).toBe(false);
+    });
+
+    it('should return null for non-existent judge update', async () => {
+      const result = await ds.updateJudge(99999, { name: 'Ghost' });
+      expect(result).toBeNull();
+    });
   });
 
   // ─── Events ─────────────────────────────────────────────────────

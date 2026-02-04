@@ -87,6 +87,7 @@ export class PostgresDataService implements IDataService {
       name: row.name,
       judgeNumber: row.judge_number,
       competitionId: row.competition_id,
+      isChairman: row.is_chairman || undefined,
     };
   }
 
@@ -520,6 +521,44 @@ export class PostgresDataService implements IDataService {
       `INSERT INTO judges (name, judge_number, competition_id)
        VALUES ($1, $2, $3) RETURNING *`,
       [name, judgeNumber, competitionId]
+    );
+    return this.judgeFromRow(rows[0]);
+  }
+
+  async updateJudge(id: number, updates: Partial<Omit<Judge, 'id'>>): Promise<Judge | null> {
+    const existing = await this.getJudgeById(id);
+    if (!existing) return null;
+
+    if (updates.isChairman === true) {
+      await this.pool.query(
+        'UPDATE judges SET is_chairman = FALSE WHERE competition_id = $1 AND id != $2',
+        [existing.competitionId, id]
+      );
+    }
+
+    const setClauses: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+
+    if (updates.name !== undefined) {
+      setClauses.push(`name = $${paramIdx++}`);
+      values.push(updates.name);
+    }
+    if (updates.judgeNumber !== undefined) {
+      setClauses.push(`judge_number = $${paramIdx++}`);
+      values.push(updates.judgeNumber);
+    }
+    if (updates.isChairman !== undefined) {
+      setClauses.push(`is_chairman = $${paramIdx++}`);
+      values.push(updates.isChairman);
+    }
+
+    if (setClauses.length === 0) return existing;
+
+    values.push(id);
+    const { rows } = await this.pool.query(
+      `UPDATE judges SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
     );
     return this.judgeFromRow(rows[0]);
   }

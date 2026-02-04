@@ -1,5 +1,75 @@
-import { EventResult, Couple } from '../types';
+import { EventResult, Couple, RecallRules } from '../types';
 import { dataService } from './dataService';
+import { ROUND_CAPACITY, RECALL_ROUNDS } from '../constants/rounds';
+
+/**
+ * Extract the sorting metric from an EventResult for tie comparison.
+ * Results are already sorted, so we just need the value to detect ties.
+ */
+function getResultMetric(result: EventResult): number {
+  if (result.totalMarks !== undefined) return result.totalMarks;
+  if (result.totalRank !== undefined) return result.totalRank;
+  if (result.totalScore !== undefined) return result.totalScore;
+  return 0;
+}
+
+/**
+ * Compute which bibs should advance, respecting ties at the cut line.
+ *
+ * Rules (from scoring.md):
+ *   R1: Include all entries whose score equals the cut-line value (tie group).
+ *   R2: Never break ties or truncate the tie group.
+ *   R3/R4: For finals, hard max of 8 (configurable). If tie group would exceed
+ *          the hard max, exclude the entire tie group (advance only those
+ *          strictly better than the cut line).
+ *
+ * @param sortedResults - Results already sorted by their metric (best first)
+ * @param targetCount   - How many entries to aim for
+ * @param options.hardMax      - If set, cap advancement at this number (for finals)
+ * @param options.includeTies  - If false, just slice to targetCount (no tie expansion)
+ */
+export function computeAdvancementBibs(
+  sortedResults: EventResult[],
+  targetCount: number,
+  options?: { hardMax?: number; includeTies?: boolean },
+): number[] {
+  if (sortedResults.length === 0) return [];
+  if (sortedResults.length <= targetCount) {
+    return sortedResults.map(r => r.bib);
+  }
+
+  const includeTies = options?.includeTies ?? true;
+  if (!includeTies) {
+    return sortedResults.slice(0, targetCount).map(r => r.bib);
+  }
+
+  // Find the metric at the cut line (targetCount - 1, 0-indexed)
+  const cutLineMetric = getResultMetric(sortedResults[targetCount - 1]);
+
+  // Extend to include all entries tied at the cut line
+  let advanceCount = targetCount;
+  while (
+    advanceCount < sortedResults.length &&
+    getResultMetric(sortedResults[advanceCount]) === cutLineMetric
+  ) {
+    advanceCount++;
+  }
+
+  // If hardMax is set and we exceed it, exclude the entire tie group at cut line
+  if (options?.hardMax !== undefined && advanceCount > options.hardMax) {
+    // Find where the tie group starts (entries strictly better than cut line)
+    let strictCount = 0;
+    while (
+      strictCount < sortedResults.length &&
+      getResultMetric(sortedResults[strictCount]) !== cutLineMetric
+    ) {
+      strictCount++;
+    }
+    advanceCount = strictCount;
+  }
+
+  return sortedResults.slice(0, advanceCount).map(r => r.bib);
+}
 
 export class ScoringService {
   /**
@@ -22,7 +92,7 @@ export class ScoringService {
 
     const bibs = bibSubset || heat.bibs;
     const scoringType = event.scoringType || 'standard';
-    const isRecallRound = ['quarter-final', 'semi-final'].includes(round);
+    const isRecallRound = RECALL_ROUNDS.includes(round);
     const dances = await this.getDancesForScoring(eventId);
     const isMultiDance = dances.length > 1 && dances[0] !== undefined;
 
@@ -218,9 +288,14 @@ export class ScoringService {
     return results;
   }
 
-  async getTopCouples(eventId: number, round: string, count: number = 6): Promise<number[]> {
+  async getTopCouples(
+    eventId: number,
+    round: string,
+    count: number = 6,
+    options?: { hardMax?: number; includeTies?: boolean },
+  ): Promise<number[]> {
     const results = await this.calculateResults(eventId, round);
-    return results.slice(0, count).map(r => r.bib);
+    return computeAdvancementBibs(results, count, options);
   }
 
   async scoreEvent(
@@ -259,7 +334,14 @@ export class ScoringService {
     const rounds = event.heats.map(h => h.round);
     const currentIndex = rounds.indexOf(round);
     if (currentIndex < rounds.length - 1) {
-      const topBibs = await this.getTopCouples(eventId, round, 6);
+      const nextRound = rounds[currentIndex + 1];
+      const targetCount = ROUND_CAPACITY[nextRound] || 6;
+      const competition = await dataService.getCompetitionById(event.competitionId);
+      const rules = competition?.recallRules;
+      const isFinalNext = nextRound === 'final';
+      const hardMax = isFinalNext ? (rules?.finalMaxSize ?? 8) : undefined;
+      const includeTies = rules?.includeTies ?? true;
+      const topBibs = await this.getTopCouples(eventId, round, targetCount, { hardMax, includeTies });
       await dataService.advanceToNextRound(eventId, round, topBibs);
     }
 
@@ -305,7 +387,7 @@ export class ScoringService {
 
     const bibs = bibSubset || heat.bibs;
     const scoringType = event.scoringType || 'standard';
-    const isRecall = ['quarter-final', 'semi-final'].includes(round);
+    const isRecall = RECALL_ROUNDS.includes(round);
     const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : bibs.length;
 
     const dances = danceFilter ? [danceFilter] : await this.getDancesForScoring(eventId);
@@ -325,7 +407,14 @@ export class ScoringService {
       const rounds = event.heats.map(h => h.round);
       const currentIndex = rounds.indexOf(round);
       if (currentIndex < rounds.length - 1) {
-        const topBibs = await this.getTopCouples(eventId, round, 6);
+        const nextRound = rounds[currentIndex + 1];
+        const targetCount = ROUND_CAPACITY[nextRound] || 6;
+        const competition = await dataService.getCompetitionById(event.competitionId);
+        const rules = competition?.recallRules;
+        const isFinalNext = nextRound === 'final';
+        const hardMax = isFinalNext ? (rules?.finalMaxSize ?? 8) : undefined;
+        const includeTies = rules?.includeTies ?? true;
+        const topBibs = await this.getTopCouples(eventId, round, targetCount, { hardMax, includeTies });
         await dataService.advanceToNextRound(eventId, round, topBibs);
       }
     }

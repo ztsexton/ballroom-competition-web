@@ -548,6 +548,23 @@ export class JsonDataService implements IDataService {
     return newJudge;
   }
 
+  async updateJudge(id: number, updates: Partial<Omit<Judge, 'id'>>): Promise<Judge | null> {
+    const judge = this.data.judges.find(j => j.id === id);
+    if (!judge) return null;
+
+    if (updates.isChairman === true) {
+      for (const j of this.data.judges) {
+        if (j.competitionId === judge.competitionId && j.id !== id) {
+          j.isChairman = undefined;
+        }
+      }
+    }
+
+    Object.assign(judge, updates);
+    this.saveJudges();
+    return judge;
+  }
+
   async deleteJudge(id: number): Promise<boolean> {
     const initialLength = this.data.judges.length;
     this.data.judges = this.data.judges.filter(j => j.id !== id);

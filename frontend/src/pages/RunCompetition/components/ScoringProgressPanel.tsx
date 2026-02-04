@@ -55,7 +55,7 @@ export default function ScoringProgressPanel({
                 fontWeight: 500,
               }}
             >
-              #{judge.judgeNumber}: {judge.judgeName} {judge.hasSubmitted ? '\u2713' : '\u2026'}
+              #{judge.judgeNumber}: {judge.judgeName}{judge.isChairman ? ' \u2605' : ''} {judge.hasSubmitted ? '\u2713' : '\u2026'}
             </span>
           ))}
         </div>
@@ -124,7 +124,7 @@ export default function ScoringProgressPanel({
                         <th>Couple</th>
                         {progress.judges.map(j => (
                           <th key={j.judgeId} style={{ textAlign: 'center' }}>
-                            #{j.judgeNumber}
+                            #{j.judgeNumber}{j.isChairman ? ' \u2605' : ''}
                           </th>
                         ))}
                       </tr>

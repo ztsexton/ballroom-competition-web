@@ -123,6 +123,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS sign_in_methods JSONB NOT NULL DEFAUL
 -- Migration: add organization_id to competitions (for existing deployments)
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 
+-- Migration: add is_chairman to judges (for existing deployments)
+ALTER TABLE judges ADD COLUMN IF NOT EXISTS is_chairman BOOLEAN DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
   heat_order JSONB NOT NULL DEFAULT '[]',

@@ -10,12 +10,13 @@ const JudgeBadge = ({ judge }: { judge: Judge }) => (
     borderRadius: '6px',
     fontSize: '0.9375rem',
     fontWeight: 500,
+    border: judge.isChairman ? '2px solid #d69e2e' : undefined,
   }}>
     <span style={{
       width: '28px',
       height: '28px',
       borderRadius: '50%',
-      background: '#667eea',
+      background: judge.isChairman ? '#d69e2e' : '#667eea',
       color: 'white',
       display: 'flex',
       alignItems: 'center',
@@ -25,7 +26,7 @@ const JudgeBadge = ({ judge }: { judge: Judge }) => (
     }}>
       {judge.judgeNumber}
     </span>
-    {judge.name}
+    {judge.name}{judge.isChairman ? ' \u2605' : ''}
   </span>
 );
 

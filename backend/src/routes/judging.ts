@@ -87,7 +87,7 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
     const judges = await Promise.all(Array.from(allJudgeIds).map(async jId => {
       const judge = await dataService.getJudgeById(jId);
       return judge
-        ? { id: judge.id, name: judge.name, judgeNumber: judge.judgeNumber }
+        ? { id: judge.id, name: judge.name, judgeNumber: judge.judgeNumber, isChairman: judge.isChairman }
         : { id: jId, name: 'Unknown', judgeNumber: 0 };
     }));
     judges.sort((a, b) => a.judgeNumber - b.judgeNumber);
@@ -186,6 +186,7 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
         judgeName: judge?.name || 'Unknown',
         judgeNumber: judge?.judgeNumber || 0,
         hasSubmitted: allEntriesSubmitted,
+        isChairman: judge?.isChairman,
       };
     }));
     judgesList.sort((a, b) => a.judgeNumber - b.judgeNumber);
