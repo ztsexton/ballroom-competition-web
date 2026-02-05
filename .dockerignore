@@ -59,3 +59,6 @@ docker-compose*
 
 # Claude
 .claude/
+
+# Integration tests (not needed in image)
+integration-tests/

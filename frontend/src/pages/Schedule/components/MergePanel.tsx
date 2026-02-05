@@ -1,4 +1,3 @@
-import React from 'react';
 import { Event, CompetitionSchedule, ScheduledHeat } from '../../../types';
 import { getEventById, getHeatCoupleCount } from '../utils';
 

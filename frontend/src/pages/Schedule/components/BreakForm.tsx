@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface BreakFormProps {
   breakLabel: string;
   breakDuration: number | '';

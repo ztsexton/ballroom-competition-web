@@ -24,7 +24,8 @@ import publicRoutes from './routes/public';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const USE_HTTPS = process.env.USE_HTTPS === 'true' || true; // Enable HTTPS by default in dev
+// HTTPS: only enabled if explicitly set to 'true', or if not set and not in production
+const USE_HTTPS = process.env.USE_HTTPS === 'true' || (process.env.USE_HTTPS === undefined && process.env.NODE_ENV !== 'production');
 
 // Middleware
 app.use(helmet());
@@ -72,7 +73,11 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(publicPath));
 
   // SPA fallback - serve index.html for non-API routes
-  app.get('*', (_req, res) => {
+  app.get('*', (req, res, next) => {
+    // Don't serve index.html for API routes - let them 404
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
     res.sendFile(path.join(publicPath, 'index.html'));
   });
 }

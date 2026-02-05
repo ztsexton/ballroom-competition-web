@@ -6,7 +6,6 @@ import {
   getHeatRound,
   getHeatStyle,
   getHeatLevel,
-  getHeatCoupleCount,
   getMergeIncompatibilityReason,
   formatTime,
   statusBadge,
@@ -179,7 +178,6 @@ export default function ScheduleHeatTable({
                     mergeSource={mergeSource}
                     isMergeSource={isMergeSource}
                     isMergeChecked={isMergeChecked}
-                    isMergeCompatible={isMergeCompatible}
                     incompatibilityReason={incompatibilityReason}
                     onMoveEvent={onMoveEvent}
                     onRemoveBreak={onRemoveBreak}
@@ -351,7 +349,6 @@ function HeatActions({
   mergeSource,
   isMergeSource,
   isMergeChecked,
-  isMergeCompatible,
   incompatibilityReason,
   onMoveEvent,
   onRemoveBreak,
@@ -367,7 +364,6 @@ function HeatActions({
   mergeSource: { heatId: string; idx: number } | null;
   isMergeSource: boolean;
   isMergeChecked: boolean;
-  isMergeCompatible: boolean;
   incompatibilityReason: string | null;
   onMoveEvent: (fromIndex: number, toIndex: number) => void;
   onRemoveBreak: (heatIndex: number) => void;

@@ -2,45 +2,34 @@
 # Serves both frontend and backend from a single container
 
 # ============================================
-# Stage 1: Build the frontend
+# Stage 1: Install dependencies and build
 # ============================================
-FROM node:20-alpine AS frontend-builder
+FROM node:20-alpine AS builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copy frontend package files
-COPY frontend/package*.json ./
+# Copy root workspace files
+COPY package.json package-lock.json ./
 
-# Install dependencies
+# Copy workspace package.json files
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+
+# Install all dependencies (both workspaces)
 RUN npm ci
 
-# Copy frontend source
-COPY frontend/ ./
+# Copy source files
+COPY frontend/ ./frontend/
+COPY backend/ ./backend/
 
-# Build frontend (outputs to dist/)
-RUN npm run build
+# Build frontend
+RUN npm run build --workspace=frontend
 
-# ============================================
-# Stage 2: Build the backend
-# ============================================
-FROM node:20-alpine AS backend-builder
-
-WORKDIR /app/backend
-
-# Copy backend package files
-COPY backend/package*.json ./
-
-# Install dependencies (including devDependencies for build)
-RUN npm ci
-
-# Copy backend source
-COPY backend/ ./
-
-# Build TypeScript (outputs to dist/)
-RUN npm run build
+# Build backend
+RUN npm run build --workspace=backend
 
 # ============================================
-# Stage 3: Production runtime
+# Stage 2: Production runtime
 # ============================================
 FROM node:20-alpine AS production
 
@@ -50,21 +39,21 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy backend package files and install production dependencies only
-COPY backend/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+# Copy root workspace files for production install
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
 
-# Copy built backend
-COPY --from=backend-builder /app/backend/dist ./dist
+# Install only backend production dependencies
+RUN npm ci --workspace=backend --omit=dev && npm cache clean --force
+
+# Copy built backend from builder
+COPY --from=builder /app/backend/dist ./dist
 
 # Copy built frontend to be served as static files
-COPY --from=frontend-builder /app/frontend/dist ./public
+COPY --from=builder /app/frontend/dist ./public
 
 # Create data directory for JSON storage (if using json data store)
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
-
-# Copy data directory structure (optional - can mount as volume instead)
-# COPY data/ ./data/
 
 # Set ownership
 RUN chown -R nodejs:nodejs /app
