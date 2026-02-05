@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, AgeCategory } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory } from '../types';
 import { auth } from '../config/firebase';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -223,9 +223,9 @@ export const participantApi = {
   getAgeCategories: (competitionId: number) =>
     api.get<AgeCategory[]>(`/participant/competitions/${competitionId}/age-categories`),
   getProfile: () => api.get<Person[]>('/participant/profile'),
-  register: (competitionId: number, data: { name: string; email?: string; role: string; status?: string }) =>
+  register: (competitionId: number, data: { name: string; email?: string; role: string; status?: string; level?: string }) =>
     api.post<Person>(`/participant/competitions/${competitionId}/register`, data),
-  addPartner: (competitionId: number, data: { name: string; role: string; status?: string }) =>
+  addPartner: (competitionId: number, data: { name: string; role: string; status?: string; level?: string }) =>
     api.post<{ partner: Person; couple: Couple }>(`/participant/competitions/${competitionId}/partner`, data),
   getMyEntries: (competitionId: number) =>
     api.get<{
@@ -241,6 +241,13 @@ export const participantApi = {
   }) => api.post<{ event: Event; created: boolean }>(`/participant/competitions/${competitionId}/entries`, data),
   removeEntry: (competitionId: number, eventId: number, bib: number) =>
     api.delete(`/participant/competitions/${competitionId}/entries/${eventId}/${bib}`),
+  getAllowedLevels: (competitionId: number, bib: number) =>
+    api.get<{
+      validationEnabled: boolean;
+      allowedLevels: string[];
+      coupleLevel: string | null;
+      allLevels: string[];
+    }>(`/participant/competitions/${competitionId}/allowed-levels/${bib}`),
 };
 
 // Scrutineer API (admin-only, schedule-free scoring for paper judging)
@@ -319,6 +326,8 @@ export const publicCompetitionsApi = {
     publicApi.get<PublicCompetition>(`/public/competitions/${id}`),
   getEvents: (id: number) =>
     publicApi.get<PublicEvent[]>(`/public/competitions/${id}/events`),
+  getHeats: (id: number) =>
+    publicApi.get<PublicEventWithHeats[]>(`/public/competitions/${id}/heats`),
   getEventResults: (competitionId: number, eventId: number, round: string) =>
     publicApi.get<EventResult[]>(`/public/competitions/${competitionId}/events/${eventId}/results/${round}`),
   searchByDancer: (competitionId: number, dancerName: string) =>

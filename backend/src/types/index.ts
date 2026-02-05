@@ -88,6 +88,11 @@ export interface RecallRules {
   includeTies?: boolean;    // Include full tie group at cut line (default: true)
 }
 
+export interface EntryValidation {
+  enabled: boolean;
+  levelsAboveAllowed: number;  // How many levels above their declared level they can enter
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -108,10 +113,15 @@ export interface Competition {
   maxCouplesOnFloor?: number;
   maxCouplesOnFloorByLevel?: Record<string, number>;
   recallRules?: RecallRules;
+  entryValidation?: EntryValidation;
   ageCategories?: AgeCategory[];
   registrationOpen?: boolean;
+  registrationOpenAt?: string;  // ISO date string for scheduled open
   publiclyVisible?: boolean;
+  publiclyVisibleAt?: string;   // ISO date string for scheduled visibility
   resultsPublic?: boolean;
+  heatListsPublished?: boolean;
+  heatListsPublishedAt?: string; // ISO date string for scheduled publish
   websiteUrl?: string;
   organizerEmail?: string;
   createdAt: string;
@@ -126,6 +136,7 @@ export interface Person {
   status: 'student' | 'professional';
   dateOfBirth?: string;
   ageCategory?: string;
+  level?: string;  // Declared skill level for entry validation
   competitionId: number;
   studioId?: number; // For studio competitions
   userId?: string; // Firebase UID linking person to logged-in user

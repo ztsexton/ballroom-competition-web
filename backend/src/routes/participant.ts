@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { registerCoupleForEvent, removeEntryFromEvent } from '../services/registrationService';
-import { validateEntry } from '../services/validationService';
+import { validateEntry, getAllowedLevelsForCouple } from '../services/validationService';
 
 const router = Router();
 
@@ -62,7 +62,7 @@ router.post('/competitions/:id/register', async (req: AuthRequest, res: Response
     const competitionId = parseInt(req.params.id);
     const userId = req.user!.uid;
     const userEmail = req.user!.email;
-    const { name, email, role, status } = req.body;
+    const { name, email, role, status, level } = req.body;
 
     if (!name || !role) {
       return res.status(400).json({ error: 'Name and role are required' });
@@ -102,6 +102,7 @@ router.post('/competitions/:id/register', async (req: AuthRequest, res: Response
       email: personEmail || undefined,
       role,
       status: status || 'student',
+      level: level || undefined,
       competitionId,
       userId,
     });
@@ -117,7 +118,7 @@ router.post('/competitions/:id/partner', async (req: AuthRequest, res: Response)
   try {
     const competitionId = parseInt(req.params.id);
     const userId = req.user!.uid;
-    const { name, role, status } = req.body;
+    const { name, role, status, level } = req.body;
 
     if (!name || !role) {
       return res.status(400).json({ error: 'Name and role are required' });
@@ -145,6 +146,7 @@ router.post('/competitions/:id/partner', async (req: AuthRequest, res: Response)
       lastName,
       role,
       status: status || 'student',
+      level: level || undefined,
       competitionId,
     });
 
@@ -335,6 +337,57 @@ router.post('/competitions/:id/validate', async (req: AuthRequest, res: Response
     res.json(result);
   } catch {
     res.status(500).json({ error: 'Failed to validate entry' });
+  }
+});
+
+// GET /participant/competitions/:id/allowed-levels/:bib — get allowed levels for a couple
+router.get('/competitions/:id/allowed-levels/:bib', async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const bib = parseInt(req.params.bib);
+    const userId = req.user!.uid;
+
+    // Validate ownership
+    const userPeople = await dataService.getPersonsByUserId(userId);
+    const myPerson = userPeople.find(p => p.competitionId === competitionId);
+    if (!myPerson) {
+      return res.status(403).json({ error: 'Not registered in this competition' });
+    }
+
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple || (couple.leaderId !== myPerson.id && couple.followerId !== myPerson.id)) {
+      return res.status(403).json({ error: 'This couple does not belong to you' });
+    }
+
+    const comp = await dataService.getCompetitionById(competitionId);
+    if (!comp) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    // If entry validation is disabled, return all levels
+    if (!comp.entryValidation?.enabled) {
+      return res.json({
+        validationEnabled: false,
+        allowedLevels: comp.levels || [],
+        coupleLevel: null,
+        allLevels: comp.levels || [],
+      });
+    }
+
+    const { levels, coupleLevel } = await getAllowedLevelsForCouple(
+      competitionId,
+      couple.leaderId,
+      couple.followerId,
+    );
+
+    res.json({
+      validationEnabled: true,
+      allowedLevels: levels,
+      coupleLevel,
+      allLevels: comp.levels || [],
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to get allowed levels' });
   }
 });
 

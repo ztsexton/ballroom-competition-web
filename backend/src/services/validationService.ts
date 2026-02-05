@@ -4,6 +4,72 @@ import { AgeCategory, Person, Competition } from '../types';
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  allowedLevels?: string[];  // Levels the couple is allowed to enter
+}
+
+/**
+ * Get the allowed levels for a couple based on their declared levels and competition entry validation rules.
+ * Returns all levels if entry validation is disabled.
+ */
+export async function getAllowedLevelsForCouple(
+  competitionId: number,
+  leaderId: number,
+  followerId: number,
+): Promise<{ levels: string[]; coupleLevel: string | null }> {
+  const competition = await dataService.getCompetitionById(competitionId);
+  if (!competition || !competition.levels || competition.levels.length === 0) {
+    return { levels: [], coupleLevel: null };
+  }
+
+  // If entry validation is disabled, all levels are allowed
+  if (!competition.entryValidation?.enabled) {
+    return { levels: competition.levels, coupleLevel: null };
+  }
+
+  const [leader, follower] = await Promise.all([
+    dataService.getPersonById(leaderId),
+    dataService.getPersonById(followerId),
+  ]);
+
+  // Get declared levels from both dancers
+  const leaderLevel = leader?.level;
+  const followerLevel = follower?.level;
+
+  // If neither dancer has a declared level, validation fails
+  if (!leaderLevel && !followerLevel) {
+    return { levels: [], coupleLevel: null };
+  }
+
+  // Use the more restrictive (lower index) level of the two
+  const leaderIdx = leaderLevel ? competition.levels.indexOf(leaderLevel) : -1;
+  const followerIdx = followerLevel ? competition.levels.indexOf(followerLevel) : -1;
+
+  // If one level is invalid/missing, use the other
+  let baseIdx: number;
+  let baseLevel: string;
+  if (leaderIdx === -1 && followerIdx === -1) {
+    return { levels: [], coupleLevel: null };
+  } else if (leaderIdx === -1) {
+    baseIdx = followerIdx;
+    baseLevel = followerLevel!;
+  } else if (followerIdx === -1) {
+    baseIdx = leaderIdx;
+    baseLevel = leaderLevel!;
+  } else {
+    // Use the lower (more restrictive) level
+    baseIdx = Math.min(leaderIdx, followerIdx);
+    baseLevel = competition.levels[baseIdx];
+  }
+
+  // Calculate allowed range: base level + levelsAboveAllowed
+  const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
+  const maxIdx = Math.min(baseIdx + levelsAbove, competition.levels.length - 1);
+
+  // Return levels from baseIdx to maxIdx (inclusive)
+  return {
+    levels: competition.levels.slice(baseIdx, maxIdx + 1),
+    coupleLevel: baseLevel,
+  };
 }
 
 /**
@@ -173,6 +239,25 @@ export async function validateEntry(
   if (eventAttributes.level && competition.levels && competition.levels.length > 0) {
     if (!competition.levels.includes(eventAttributes.level)) {
       errors.push(`Level "${eventAttributes.level}" is not available for this competition`);
+    }
+  }
+
+  // Validate level based on entry validation rules (if enabled)
+  if (eventAttributes.level && competition.entryValidation?.enabled) {
+    const { levels: allowedLevels, coupleLevel } = await getAllowedLevelsForCouple(
+      competitionId,
+      couple.leaderId,
+      couple.followerId,
+    );
+
+    if (allowedLevels.length === 0) {
+      errors.push('Neither dancer has a declared skill level. Please update your profile to enter events.');
+    } else if (!allowedLevels.includes(eventAttributes.level)) {
+      const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
+      errors.push(
+        `Based on your declared level (${coupleLevel}), you can only enter: ${allowedLevels.join(', ')}. ` +
+        `To enter ${eventAttributes.level}, please update your declared level or contact an admin.`
+      );
     }
   }
 

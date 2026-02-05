@@ -5,6 +5,52 @@ import { Competition, Event } from '../types';
 
 const router = Router();
 
+// Check if a scheduled date has passed and apply the setting if so
+async function applyScheduledSettings(comp: Competition): Promise<Competition> {
+  const now = new Date().toISOString();
+  const updates: Partial<Competition> = {};
+
+  // Check publiclyVisibleAt
+  if (!comp.publiclyVisible && comp.publiclyVisibleAt && comp.publiclyVisibleAt <= now) {
+    updates.publiclyVisible = true;
+    updates.publiclyVisibleAt = undefined;
+  }
+
+  // Check registrationOpenAt
+  if (!comp.registrationOpen && comp.registrationOpenAt && comp.registrationOpenAt <= now) {
+    updates.registrationOpen = true;
+    updates.registrationOpenAt = undefined;
+  }
+
+  // Check heatListsPublishedAt
+  if (!comp.heatListsPublished && comp.heatListsPublishedAt && comp.heatListsPublishedAt <= now) {
+    updates.heatListsPublished = true;
+    updates.heatListsPublishedAt = undefined;
+  }
+
+  // If any updates, save them and return updated competition
+  if (Object.keys(updates).length > 0) {
+    const updated = await dataService.updateCompetition(comp.id, updates);
+    return updated || comp;
+  }
+
+  return comp;
+}
+
+// Get effective value considering scheduled date
+// For backwards compatibility, undefined is treated as true (not explicitly hidden)
+function isEffectivelyEnabled(value: boolean | undefined, scheduledAt: string | undefined): boolean {
+  // Explicitly set to true
+  if (value === true) return true;
+  // Explicitly set to false - check if scheduled date has passed
+  if (value === false) {
+    if (scheduledAt && scheduledAt <= new Date().toISOString()) return true;
+    return false;
+  }
+  // undefined (not set) - backwards compatibility: treat as visible
+  return true;
+}
+
 function sanitizeCompetition(comp: Competition) {
   return {
     id: comp.id,
@@ -15,7 +61,8 @@ function sanitizeCompetition(comp: Competition) {
     description: comp.description,
     websiteUrl: comp.websiteUrl,
     organizerEmail: comp.organizerEmail,
-    registrationOpen: comp.registrationOpen || false,
+    registrationOpen: isEffectivelyEnabled(comp.registrationOpen, comp.registrationOpenAt),
+    heatListsPublished: isEffectivelyEnabled(comp.heatListsPublished, comp.heatListsPublishedAt),
   };
 }
 
@@ -42,8 +89,17 @@ router.get('/competitions', async (_req: Request, res: Response) => {
     const competitions = await dataService.getCompetitions();
     const today = new Date().toISOString().split('T')[0];
 
-    // Only show competitions where publiclyVisible is true (or undefined for backwards compat)
-    let filtered = competitions.filter(c => c.publiclyVisible !== false);
+    // Apply scheduled settings and filter by visibility
+    const processed: Competition[] = [];
+    for (const comp of competitions) {
+      const updated = await applyScheduledSettings(comp);
+      // Show if publiclyVisible or scheduled visibility has passed
+      if (isEffectivelyEnabled(updated.publiclyVisible, updated.publiclyVisibleAt)) {
+        processed.push(updated);
+      }
+    }
+
+    let filtered = processed;
     if (scope === 'upcoming') {
       filtered = filtered
         .filter(c => c.date >= today)
@@ -67,8 +123,13 @@ router.get('/competitions', async (_req: Request, res: Response) => {
 router.get('/competitions/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const competition = await dataService.getCompetitionById(id);
-    if (!competition || competition.publiclyVisible === false) {
+    let competition = await dataService.getCompetitionById(id);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    // Apply scheduled settings
+    competition = await applyScheduledSettings(competition);
+    if (!isEffectivelyEnabled(competition.publiclyVisible, competition.publiclyVisibleAt)) {
       return res.status(404).json({ error: 'Competition not found' });
     }
     res.json(sanitizeCompetition(competition));
@@ -93,6 +154,51 @@ router.get('/competitions/:id/events', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Public events error:', error);
     res.status(500).json({ error: 'Failed to load events' });
+  }
+});
+
+// GET /competitions/:id/heats — public heat lists (requires heatListsPublished)
+router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    let competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    // Apply scheduled settings
+    competition = await applyScheduledSettings(competition);
+    if (!isEffectivelyEnabled(competition.publiclyVisible, competition.publiclyVisibleAt)) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    if (!isEffectivelyEnabled(competition.heatListsPublished, competition.heatListsPublishedAt)) {
+      return res.status(403).json({ error: 'Heat lists are not yet published for this competition' });
+    }
+
+    const eventsMap = await dataService.getEvents(competitionId);
+    const couples = await dataService.getCouples(competitionId);
+    const couplesByBib = new Map(couples.map(c => [c.bib, c]));
+
+    // Return events with heat details (bibs + couple names)
+    const events = Object.values(eventsMap).map(event => ({
+      ...sanitizeEvent(event),
+      heats: event.heats.map(heat => ({
+        round: heat.round,
+        couples: heat.bibs.map(bib => {
+          const couple = couplesByBib.get(bib);
+          return {
+            bib,
+            leaderName: couple?.leaderName || '',
+            followerName: couple?.followerName || '',
+          };
+        }),
+      })),
+    }));
+
+    res.json(events);
+  } catch (error) {
+    console.error('Public heat lists error:', error);
+    res.status(500).json({ error: 'Failed to load heat lists' });
   }
 });
 

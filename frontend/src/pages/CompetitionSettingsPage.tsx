@@ -617,6 +617,75 @@ const CompetitionSettingsPage = () => {
         </div>
       </Section>
 
+      {/* ─── Entry Validation ─── */}
+      <Section title="Entry Validation" defaultOpen={false} savedKey="entry" savedMap={savedMap}>
+        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+          Restrict which levels participants can enter based on their declared skill level.
+          Admins can always override these restrictions when entering participants manually.
+        </p>
+
+        <Toggle
+          value={!!comp.entryValidation?.enabled}
+          onChange={v => {
+            const validation = { ...(comp.entryValidation || { enabled: false, levelsAboveAllowed: 1 }), enabled: v };
+            saveField('entryValidation', validation, 'entry');
+          }}
+          label={`Entry Level Restrictions ${comp.entryValidation?.enabled ? 'Enabled' : 'Disabled'}`}
+        />
+
+        {comp.entryValidation?.enabled && (
+          <div className="form-group" style={{ marginTop: '1rem' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.875rem' }}>Levels Above Allowed</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={comp.entryValidation?.levelsAboveAllowed ?? 1}
+              onChange={e => {
+                const val = e.target.value ? parseInt(e.target.value) : 0;
+                const validation = { ...(comp.entryValidation || { enabled: true, levelsAboveAllowed: 1 }), levelsAboveAllowed: val };
+                saveField('entryValidation', validation, 'entry');
+              }}
+              style={{ width: '80px', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+            />
+            <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+              How many levels above their declared level a participant can enter.
+              For example, if set to 2, a Bronze 3 dancer can enter Bronze 3, Bronze 4, and Silver 1.
+            </small>
+
+            {levels.length > 0 && (
+              <div style={{
+                marginTop: '1rem',
+                background: '#f0f4f8',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                padding: '0.75rem',
+              }}>
+                <strong style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#718096' }}>
+                  Example
+                </strong>
+                <p style={{ fontSize: '0.8125rem', color: '#4a5568', marginTop: '0.375rem', marginBottom: '0.25rem' }}>
+                  A participant declaring <strong>{levels[0]}</strong> can enter:
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                  {levels.slice(0, 1 + (comp.entryValidation?.levelsAboveAllowed ?? 1)).map((lvl, i) => (
+                    <span key={i} style={{
+                      background: 'white',
+                      border: '1px solid #cbd5e0',
+                      borderRadius: '4px',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                    }}>
+                      {lvl}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
+
       {/* ─── Age Categories ─── */}
       <Section title="Age Categories" defaultOpen={false} savedKey="age" savedMap={savedMap}>
         <div>
@@ -908,22 +977,109 @@ const CompetitionSettingsPage = () => {
 
       {/* ─── Visibility & Access ─── */}
       <Section title="Visibility & Access" savedKey="visibility" savedMap={savedMap}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <Toggle
-            value={comp.publiclyVisible !== false}
-            onChange={v => saveField('publiclyVisible', v, 'visibility')}
-            label={`Public Visibility ${comp.publiclyVisible !== false ? 'On' : 'Off'}`}
-          />
-          <Toggle
-            value={!!comp.registrationOpen}
-            onChange={v => saveField('registrationOpen', v, 'visibility')}
-            label={`Participant Registration ${comp.registrationOpen ? 'Open' : 'Closed'}`}
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Public Visibility */}
+          <div>
+            <Toggle
+              value={comp.publiclyVisible !== false}
+              onChange={v => saveField('publiclyVisible', v, 'visibility')}
+              label={`Public Visibility ${comp.publiclyVisible !== false ? 'On' : 'Off'}`}
+            />
+            {!comp.publiclyVisible && (
+              <div style={{ marginLeft: '3.25rem', marginTop: '0.375rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                  Schedule visibility for:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={comp.publiclyVisibleAt || ''}
+                  onChange={e => saveField('publiclyVisibleAt', e.target.value || null, 'visibility')}
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}
+                />
+                {comp.publiclyVisibleAt && (
+                  <button
+                    type="button"
+                    onClick={() => saveField('publiclyVisibleAt', null, 'visibility')}
+                    style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Registration */}
+          <div>
+            <Toggle
+              value={!!comp.registrationOpen}
+              onChange={v => saveField('registrationOpen', v, 'visibility')}
+              label={`Participant Registration ${comp.registrationOpen ? 'Open' : 'Closed'}`}
+            />
+            {!comp.registrationOpen && (
+              <div style={{ marginLeft: '3.25rem', marginTop: '0.375rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                  Schedule registration to open:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={comp.registrationOpenAt || ''}
+                  onChange={e => saveField('registrationOpenAt', e.target.value || null, 'visibility')}
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}
+                />
+                {comp.registrationOpenAt && (
+                  <button
+                    type="button"
+                    onClick={() => saveField('registrationOpenAt', null, 'visibility')}
+                    style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Results */}
           <Toggle
             value={comp.resultsPublic !== false}
             onChange={v => saveField('resultsPublic', v, 'visibility')}
             label={`Public Results ${comp.resultsPublic !== false ? 'On' : 'Off'}`}
           />
+
+          {/* Heat Lists */}
+          <div>
+            <Toggle
+              value={!!comp.heatListsPublished}
+              onChange={v => saveField('heatListsPublished', v, 'visibility')}
+              label={`Heat Lists ${comp.heatListsPublished ? 'Published' : 'Draft'}`}
+            />
+            {!comp.heatListsPublished && (
+              <div style={{ marginLeft: '3.25rem', marginTop: '0.375rem' }}>
+                <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.375rem' }}>
+                  Heat lists are only visible to admins until published.
+                </p>
+                <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                  Schedule publish for:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={comp.heatListsPublishedAt || ''}
+                  onChange={e => saveField('heatListsPublishedAt', e.target.value || null, 'visibility')}
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}
+                />
+                {comp.heatListsPublishedAt && (
+                  <button
+                    type="button"
+                    onClick={() => saveField('heatListsPublishedAt', null, 'visibility')}
+                    style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </Section>
     </div>

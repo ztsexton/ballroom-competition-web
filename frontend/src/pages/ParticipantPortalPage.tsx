@@ -47,6 +47,7 @@ const ParticipantPortalPage = () => {
   const [regName, setRegName] = useState('');
   const [regRole, setRegRole] = useState<'leader' | 'follower' | 'both'>('leader');
   const [regStatus, setRegStatus] = useState<'student' | 'professional'>('student');
+  const [regDeclaredLevel, setRegDeclaredLevel] = useState('');
 
   // Partners & couples
   const [myCouples, setMyCouples] = useState<Couple[]>([]);
@@ -67,6 +68,9 @@ const ParticipantPortalPage = () => {
   const [regScoringType, setRegScoringType] = useState('');
   const [regAgeCategory, setRegAgeCategory] = useState('');
   const [availableAgeCategories, setAvailableAgeCategories] = useState<AgeCategory[]>([]);
+  const [allowedLevels, setAllowedLevels] = useState<string[]>([]);
+  const [coupleLevel, setCoupleLevel] = useState<string | null>(null);
+  const [validationEnabled, setValidationEnabled] = useState(false);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -97,6 +101,27 @@ const ParticipantPortalPage = () => {
         .catch(() => setAvailableAgeCategories([]));
     }
   }, [selectedComp]);
+
+  // Load allowed levels when couple is selected
+  useEffect(() => {
+    if (selectedComp && regBib) {
+      participantApi.getAllowedLevels(selectedComp.id, regBib)
+        .then(res => {
+          setAllowedLevels(res.data.allowedLevels);
+          setCoupleLevel(res.data.coupleLevel);
+          setValidationEnabled(res.data.validationEnabled);
+          // Clear level selection if it's not allowed
+          if (res.data.validationEnabled && regLevel && !res.data.allowedLevels.includes(regLevel)) {
+            setRegLevel('');
+          }
+        })
+        .catch(() => {
+          setAllowedLevels(selectedComp.levels || DEFAULT_LEVELS);
+          setValidationEnabled(false);
+          setCoupleLevel(null);
+        });
+    }
+  }, [selectedComp, regBib]);
 
   // Pre-fill name from auth user
   useEffect(() => {
@@ -131,6 +156,7 @@ const ParticipantPortalPage = () => {
         email: user?.email || undefined,
         role: regRole,
         status: regStatus,
+        level: regDeclaredLevel || undefined,
       });
       setMyPerson(res.data);
       setSuccess('Registered successfully!');
@@ -320,6 +346,22 @@ const ParticipantPortalPage = () => {
                 ))}
               </div>
             </div>
+            {levels.length > 0 && selectedComp?.entryValidation?.enabled && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Your Skill Level</label>
+                <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
+                  This determines which event levels you can enter.
+                </p>
+                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                  {levels.map(lvl => (
+                    <button key={lvl} type="button" style={toggleBtnStyle(regDeclaredLevel === lvl)}
+                      onClick={() => setRegDeclaredLevel(regDeclaredLevel === lvl ? '' : lvl)}>
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <button className="btn" onClick={handleRegister} disabled={loading || !regName.trim()}>
               Register
             </button>
@@ -335,17 +377,32 @@ const ParticipantPortalPage = () => {
               <h3 style={{ margin: '0 0 0.25rem' }}>
                 Registered as {myPerson.firstName} {myPerson.lastName}
               </h3>
-              <span style={{
-                display: 'inline-block',
-                padding: '0.125rem 0.5rem',
-                background: '#e9d8fd',
-                color: '#553c9a',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-              }}>
-                {myPerson.role} &middot; {myPerson.status}
-              </span>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '0.125rem 0.5rem',
+                  background: '#e9d8fd',
+                  color: '#553c9a',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}>
+                  {myPerson.role} &middot; {myPerson.status}
+                </span>
+                {myPerson.level && (
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '0.125rem 0.5rem',
+                    background: '#bee3f8',
+                    color: '#2c5282',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                  }}>
+                    {myPerson.level}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -462,14 +519,29 @@ const ParticipantPortalPage = () => {
 
                   <div>
                     <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Level</label>
+                    {validationEnabled && coupleLevel && (
+                      <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
+                        Based on your declared level ({coupleLevel}), you can enter these levels:
+                      </p>
+                    )}
+                    {validationEnabled && !coupleLevel && (
+                      <p style={{ fontSize: '0.8rem', color: '#e53e3e', marginBottom: '0.5rem' }}>
+                        Please update your declared skill level to see available levels.
+                      </p>
+                    )}
                     <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-                      {levels.map(opt => (
+                      {(validationEnabled ? allowedLevels : levels).map(opt => (
                         <button key={opt} type="button" style={toggleBtnStyle(regLevel === opt)}
                           onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
                           {opt}
                         </button>
                       ))}
                     </div>
+                    {validationEnabled && levels.length > allowedLevels.length && (
+                      <p style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.375rem' }}>
+                        Contact an admin to enter levels outside your range.
+                      </p>
+                    )}
                   </div>
 
                   {availableAgeCategories.length > 0 && (
