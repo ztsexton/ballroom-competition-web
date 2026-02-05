@@ -13,8 +13,13 @@ const httpsConfig = fs.existsSync(certPath) && fs.existsSync(keyPath)
     }
   : undefined;
 
+// Base path for deployment (e.g., '/ballroomcomp/' for zachsexton.com/ballroomcomp)
+// Set via VITE_BASE_PATH env var at build time, defaults to '/'
+const basePath = process.env.VITE_BASE_PATH || '/';
+
 export default defineConfig({
   plugins: [react()],
+  base: basePath,
   test: {
     environment: 'jsdom',
     globals: true,

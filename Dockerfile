@@ -8,6 +8,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Frontend Firebase config (required at build time - baked into JS bundle)
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_STORAGE_BUCKET
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ARG VITE_FIREBASE_APP_ID
+
+# Base path for subpath deployment (e.g., '/ballroomcomp/' for domain.com/ballroomcomp)
+# Must include trailing slash
+ARG VITE_BASE_PATH=/
+
 # Copy root workspace files
 COPY package.json package-lock.json ./
 
@@ -22,7 +34,14 @@ RUN npm ci
 COPY frontend/ ./frontend/
 COPY backend/ ./backend/
 
-# Build frontend
+# Build frontend (uses ARGs as env vars during build)
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
+ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+ENV VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
+ENV VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN npm run build --workspace=frontend
 
 # Build backend
@@ -61,11 +80,14 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
-# Environment variables
+# Environment variables (runtime)
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV USE_HTTPS=false
-# In Kubernetes, TLS is typically terminated at the ingress/load balancer
+# Backend Firebase credentials provided at runtime via:
+# - FIREBASE_SERVICE_ACCOUNT (JSON string)
+# - GOOGLE_APPLICATION_CREDENTIALS (file path)
+# - Or automatic on GCP
 
 # Expose port
 EXPOSE 3001

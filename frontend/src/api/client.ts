@@ -2,7 +2,18 @@ import axios from 'axios';
 import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory } from '../types';
 import { auth } from '../config/firebase';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
+// Derive API URL from base path (handles subpath deployments like /ballroomcomp)
+// VITE_API_URL can override if API is hosted separately
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Use import.meta.env.BASE_URL which Vite sets from the `base` config
+  const basePath = import.meta.env.BASE_URL || '/';
+  // Ensure no double slashes: /ballroomcomp/ + api = /ballroomcomp/api
+  return `${basePath.replace(/\/$/, '')}/api`;
+};
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

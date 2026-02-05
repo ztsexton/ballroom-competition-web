@@ -48,9 +48,12 @@ const ConditionalNavigation = () => {
   return <Navigation />;
 };
 
+// Get base path for router (handles subpath deployments like /ballroomcomp)
+const basePath = import.meta.env.BASE_URL || '/';
+
 const App = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basePath.replace(/\/$/, '')}>
       <AuthProvider>
         <Routes>
           {/* Public routes — no auth required */}
