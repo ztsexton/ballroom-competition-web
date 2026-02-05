@@ -3,9 +3,18 @@ import { eventsApi, couplesApi, scrutineerApi } from '../api/client';
 import { Event, Couple, EventResult } from '../types';
 import { useCompetition } from '../context/CompetitionContext';
 import { useAuth } from '../context/AuthContext';
+import { InputMethod, CoupleInfo } from './JudgeScoring/types';
+import InputMethodToggle from './JudgeScoring/components/InputMethodToggle';
+import RecallForm from './JudgeScoring/components/RecallForm';
+import RankingForm from './JudgeScoring/components/RankingForm';
+import TapToRankForm from './JudgeScoring/components/TapToRankForm';
+import PickerRankForm from './JudgeScoring/components/PickerRankForm';
+import ProficiencyForm from './JudgeScoring/components/ProficiencyForm';
+import QuickScoreForm from './JudgeScoring/components/QuickScoreForm';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
-const RECALL_ROUNDS = ['semi-final', 'quarter-final', '1/8-final', '1/16-final', '1/32-final'];
+
+type ScrutineerInputMode = 'grid' | 'per-judge';
 
 interface JudgeInfo {
   id: number;
@@ -37,6 +46,17 @@ const ScrutineerPage = () => {
   const [results, setResults] = useState<EventResult[] | null>(null);
   const [compiling, setCompiling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Input mode preferences (persisted in localStorage)
+  const [inputMode, setInputMode] = useState<ScrutineerInputMode>(() => {
+    const saved = localStorage.getItem('scrutineer-input-mode');
+    return (saved === 'per-judge' ? 'per-judge' : 'grid') as ScrutineerInputMode;
+  });
+  const [activeJudgeId, setActiveJudgeId] = useState<number | null>(null);
+  const [inputMethod, setInputMethod] = useState<InputMethod>(() => {
+    const saved = localStorage.getItem('scrutineer-input-method');
+    return (['tap', 'picker', 'keyboard', 'quickscore'].includes(saved || '') ? saved : 'keyboard') as InputMethod;
+  });
 
   useEffect(() => {
     if (activeCompetition) loadData();
@@ -99,11 +119,73 @@ const ScrutineerPage = () => {
         }
       }
       setScores(loaded);
+      // Set initial active judge for per-judge mode
+      if (data.judges.length > 0) {
+        setActiveJudgeId(prev => {
+          // Keep current judge if they're still in the list
+          if (prev && data.judges.some(j => j.id === prev)) return prev;
+          return data.judges[0].id;
+        });
+      }
     } catch {
       setError('Failed to load scores for this round');
     } finally {
       setGridLoading(false);
     }
+  };
+
+  const handleInputModeChange = (mode: ScrutineerInputMode) => {
+    setInputMode(mode);
+    localStorage.setItem('scrutineer-input-mode', mode);
+  };
+
+  const handleInputMethodChange = (method: InputMethod) => {
+    setInputMethod(method);
+    localStorage.setItem('scrutineer-input-method', method);
+  };
+
+  // Extract scores for a single judge as Record<bib, score> (for form components)
+  const getJudgeScoresMap = (judgeId: number): Record<number, number> => {
+    const map: Record<number, number> = {};
+    for (const bib of gridBibs) {
+      const key = activeDance ? `${judgeId}-${activeDance}-${bib}` : `${judgeId}-${bib}`;
+      if (scores[key] !== undefined) {
+        map[bib] = scores[key];
+      }
+    }
+    return map;
+  };
+
+  // Build CoupleInfo[] for form components
+  const getCoupleInfoList = (): CoupleInfo[] =>
+    gridBibs.map(bib => {
+      const couple = getCoupleForBib(bib);
+      return { bib, leaderName: couple?.leaderName || '—', followerName: couple?.followerName || '—' };
+    });
+
+  // Handle score updates from per-judge form components
+  const handlePerJudgeChange = (judgeId: number, bib: number, value: string) => {
+    handleScoreChange(judgeId, bib, value);
+  };
+
+  const handlePerJudgeScoresChange = (judgeId: number, newScores: Record<number, number>) => {
+    setScores(prev => {
+      const updated = { ...prev };
+      for (const bib of gridBibs) {
+        const key = activeDance ? `${judgeId}-${activeDance}-${bib}` : `${judgeId}-${bib}`;
+        if (newScores[bib] !== undefined) {
+          updated[key] = newScores[bib];
+        } else {
+          delete updated[key];
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handlePerJudgeToggle = (judgeId: number, bib: number) => {
+    const key = activeDance ? `${judgeId}-${activeDance}-${bib}` : `${judgeId}-${bib}`;
+    setScores(prev => ({ ...prev, [key]: prev[key] === 1 ? 0 : 1 }));
   };
 
   const closeScoringGrid = () => {
@@ -238,14 +320,41 @@ const ScrutineerPage = () => {
     return (
       <div className="container">
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <button onClick={closeScoringGrid} className="btn btn-secondary" style={{ marginRight: '1rem', fontSize: '0.875rem' }}>
                 &larr; Back to Events
               </button>
               <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>{selectedEvent.name}</span>
-              <span style={{ marginLeft: '0.75rem', color: '#718096', textTransform: 'capitalize' }}>{selectedRound}</span>
             </div>
+          </div>
+
+          {/* Round tabs */}
+          <div style={{
+            display: 'flex', gap: '0.25rem', marginBottom: '1rem',
+            borderBottom: '2px solid #e2e8f0', paddingBottom: '0',
+          }}>
+            {selectedEvent.heats.map(heat => (
+              <button
+                key={heat.round}
+                onClick={() => { if (heat.round !== selectedRound) openScoringGrid(selectedEvent!, heat.round); }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  background: 'none',
+                  cursor: heat.round === selectedRound ? 'default' : 'pointer',
+                  fontWeight: heat.round === selectedRound ? 600 : 400,
+                  color: heat.round === selectedRound ? '#667eea' : '#4a5568',
+                  borderBottom: heat.round === selectedRound ? '3px solid #667eea' : '3px solid transparent',
+                  marginBottom: '-2px',
+                  textTransform: 'capitalize',
+                  fontSize: '0.9375rem',
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+              >
+                {heat.round}
+              </button>
+            ))}
           </div>
 
           {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
@@ -271,10 +380,11 @@ const ScrutineerPage = () => {
             </span>
           </div>
 
-          {/* Multi-dance tabs */}
-          {gridDances.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
-              {gridDances.map(dance => (
+          {/* Entry mode toggle */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            {/* Multi-dance tabs */}
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              {gridDances.length > 0 && gridDances.map(dance => (
                 <button
                   key={dance}
                   onClick={() => setActiveDance(dance)}
@@ -285,13 +395,151 @@ const ScrutineerPage = () => {
                 </button>
               ))}
             </div>
-          )}
+
+            {/* Grid / Per-Judge toggle */}
+            <div style={{
+              display: 'flex', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden',
+            }}>
+              {([['grid', 'Grid'], ['per-judge', 'Per-Judge']] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => handleInputModeChange(mode)}
+                  style={{
+                    padding: '0.375rem 0.75rem',
+                    border: 'none',
+                    background: inputMode === mode ? '#667eea' : 'transparent',
+                    color: inputMode === mode ? 'white' : '#4a5568',
+                    fontWeight: inputMode === mode ? 700 : 500,
+                    fontSize: '0.8125rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {gridLoading ? (
             <div className="loading">Loading scores...</div>
           ) : gridBibs.length === 0 ? (
             <p style={{ color: '#718096', textAlign: 'center', padding: '2rem' }}>No couples in this round.</p>
+          ) : inputMode === 'per-judge' ? (
+            /* ── Per-Judge Mode ── */
+            <>
+              {/* Judge selector tabs */}
+              <div style={{
+                display: 'flex', gap: '0.25rem', marginBottom: '0.75rem',
+                overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+              }}>
+                {gridJudges.map(judge => {
+                  const active = activeJudgeId === judge.id;
+                  return (
+                    <button
+                      key={judge.id}
+                      onClick={() => setActiveJudgeId(judge.id)}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        border: active ? '2px solid #667eea' : '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        background: active ? '#eef2ff' : 'white',
+                        color: active ? '#667eea' : '#4a5568',
+                        fontWeight: active ? 600 : 400,
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      #{judge.judgeNumber}: {judge.name}{judge.isChairman ? ' \u2605' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeJudgeId && (() => {
+                const judgeScoresMap = getJudgeScoresMap(activeJudgeId);
+                const coupleInfoList = getCoupleInfoList();
+
+                // Determine effective input method for this scoring type
+                const effectiveMethod = (() => {
+                  if (isRecallRound && !isProficiency) return 'recall' as const;
+                  if (isProficiency) {
+                    return (['quickscore', 'keyboard'].includes(inputMethod) ? inputMethod : 'keyboard');
+                  }
+                  return (['tap', 'picker', 'keyboard'].includes(inputMethod) ? inputMethod : 'keyboard');
+                })();
+
+                return (
+                  <>
+                    {/* Input method toggle (not for recall) */}
+                    {!(isRecallRound && !isProficiency) && (
+                      <InputMethodToggle
+                        mode={isProficiency ? 'proficiency' : 'ranking'}
+                        selectedMethod={effectiveMethod}
+                        onMethodChange={handleInputMethodChange}
+                      />
+                    )}
+
+                    {/* Render the appropriate form */}
+                    {isRecallRound && !isProficiency ? (
+                      <RecallForm
+                        couples={coupleInfoList}
+                        scores={judgeScoresMap}
+                        onToggle={(bib) => handlePerJudgeToggle(activeJudgeId, bib)}
+                      />
+                    ) : isProficiency ? (
+                      effectiveMethod === 'quickscore' ? (
+                        <QuickScoreForm
+                          couples={coupleInfoList}
+                          scores={judgeScoresMap}
+                          onChange={(bib, val) => handlePerJudgeChange(activeJudgeId, bib, val)}
+                        />
+                      ) : (
+                        <ProficiencyForm
+                          couples={coupleInfoList}
+                          scores={judgeScoresMap}
+                          onChange={(bib, val) => handlePerJudgeChange(activeJudgeId, bib, val)}
+                        />
+                      )
+                    ) : effectiveMethod === 'tap' ? (
+                      <TapToRankForm
+                        couples={coupleInfoList}
+                        scores={judgeScoresMap}
+                        onScoresChange={(s) => handlePerJudgeScoresChange(activeJudgeId, s)}
+                      />
+                    ) : effectiveMethod === 'picker' ? (
+                      <PickerRankForm
+                        couples={coupleInfoList}
+                        scores={judgeScoresMap}
+                        onScoresChange={(s) => handlePerJudgeScoresChange(activeJudgeId, s)}
+                      />
+                    ) : (
+                      <RankingForm
+                        couples={coupleInfoList}
+                        scores={judgeScoresMap}
+                        onChange={(bib, val) => handlePerJudgeChange(activeJudgeId, bib, val)}
+                      />
+                    )}
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                      <button onClick={() => handleSaveJudge(activeJudgeId)} disabled={saving} className="btn btn-secondary">
+                        {saving ? 'Saving...' : `Save Judge #${gridJudges.find(j => j.id === activeJudgeId)?.judgeNumber || ''}`}
+                      </button>
+                      <button onClick={handleSaveAll} disabled={saving} className="btn btn-secondary">
+                        {saving ? 'Saving...' : 'Save All Judges'}
+                      </button>
+                      <button onClick={handleCompile} disabled={compiling || saving} className="btn">
+                        {compiling ? 'Compiling...' : 'Compile & Calculate Results'}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </>
           ) : (
+            /* ── Grid Mode ── */
             <>
               <div style={{ overflowX: 'auto' }}>
                 <table>
@@ -453,15 +701,21 @@ const ScrutineerPage = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.375rem' }}>
                     {sectionEvents.map(evt => {
                       const bibCount = evt.heats[0]?.bibs.length || 0;
+                      const defaultRound = evt.heats[evt.heats.length - 1]?.round;
                       return (
                         <div
                           key={evt.id}
+                          onClick={() => defaultRound && openScoringGrid(evt, defaultRound)}
                           style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                             padding: '0.625rem 0.75rem',
                             border: '1px solid #e2e8f0', borderRadius: '4px',
                             background: 'white',
+                            cursor: 'pointer',
+                            transition: 'background 0.1s',
                           }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f7fafc')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'white')}
                         >
                           <div style={{ flex: 1 }}>
                             <span style={{ fontWeight: 500 }}>{evt.name}</span>
@@ -474,7 +728,7 @@ const ScrutineerPage = () => {
                             {evt.heats.map(heat => (
                               <button
                                 key={heat.round}
-                                onClick={() => openScoringGrid(evt, heat.round)}
+                                onClick={e => { e.stopPropagation(); openScoringGrid(evt, heat.round); }}
                                 className="btn btn-secondary"
                                 style={{ fontSize: '0.8125rem', padding: '0.25rem 0.625rem', textTransform: 'capitalize' }}
                               >
