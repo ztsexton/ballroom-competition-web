@@ -66,6 +66,17 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Serve static frontend files in production
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, '../public');
+  app.use(express.static(publicPath));
+
+  // SPA fallback - serve index.html for non-API routes
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+}
+
 // Only start server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
   if (USE_HTTPS) {

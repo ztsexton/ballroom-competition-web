@@ -1,43 +1,61 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-dist/
-build/
+# Dependencies
+node_modules/
+**/node_modules/
 
-# Virtual environments
-venv/
-env/
-ENV/
+# Build outputs (we build inside Docker)
+**/dist/
+**/build/
 
-# IDE
+# Development files
+.git/
+.github/
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Git
-.git/
-.gitignore
-
-# GitHub
-.github/
-
-# Documentation
-*.md
-!README.md
-
-# Tests
-tests/
-test_*
-
-# Data (optional - remove these lines if you want data in the image)
-data/scorer_data.pkl
-results/*.csv
-
-# OS
 .DS_Store
 Thumbs.db
+
+# Environment files (secrets should be injected via K8s secrets/configmaps)
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Local certificates (TLS handled by ingress in K8s)
+.cert/
+
+# Test files
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/coverage/
+**/.nyc_output/
+
+# Documentation (not needed in image)
+*.md
+docs/
+
+# Sample data
+sample/
+results/
+
+# Python artifacts (legacy)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker/
+
+# Claude
+.claude/
