@@ -39,6 +39,7 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "https://*.googleusercontent.com", "https://*.google.com"],
     },
   },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
 }));
 app.use(cors());
 app.use(express.json());
