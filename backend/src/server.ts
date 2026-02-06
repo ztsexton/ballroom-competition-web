@@ -28,7 +28,18 @@ const PORT = process.env.PORT || 3001;
 const USE_HTTPS = process.env.USE_HTTPS === 'true' || (process.env.USE_HTTPS === undefined && process.env.NODE_ENV !== 'production');
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://apis.google.com", "https://accounts.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      frameSrc: ["'self'", "https://accounts.google.com", "https://*.firebaseapp.com"],
+      connectSrc: ["'self'", "https://*.googleapis.com", "https://*.firebaseio.com", "https://*.firebaseapp.com"],
+      imgSrc: ["'self'", "data:", "https://*.googleusercontent.com", "https://*.google.com"],
+    },
+  },
+}));
 app.use(cors());
 app.use(express.json());
 
