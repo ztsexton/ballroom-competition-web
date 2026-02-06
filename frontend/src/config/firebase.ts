@@ -19,7 +19,7 @@ const missingKeys = requiredKeys.filter(
 if (missingKeys.length > 0) {
   console.error(
     `Missing Firebase configuration: ${missingKeys.join(', ')}. ` +
-    'Please check your .env.local file and ensure all VITE_FIREBASE_* variables are set.'
+    'For Vite/React, these VITE_FIREBASE_* values must be present at build time (e.g. via .env.* files or Docker build args).'
   );
 }
 
