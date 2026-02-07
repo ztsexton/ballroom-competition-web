@@ -23,6 +23,7 @@ import judgingRoutes from './routes/judging';
 import participantRoutes from './routes/participant';
 import scrutineerRoutes from './routes/scrutineer';
 import publicRoutes from './routes/public';
+import databaseRoutes from './routes/database';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +51,9 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Database routes (no auth - needed for initial migration before users exist)
+app.use('/api/database', databaseRoutes);
 
 // Public routes (no auth required)
 app.use('/api/public', publicRoutes);
