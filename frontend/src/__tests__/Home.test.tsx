@@ -18,12 +18,19 @@ vi.mock('../api/client', () => ({
   },
 }));
 
+// Router wrapper with v7 future flags to suppress deprecation warnings
+const RouterWrapper = ({ children }: { children: React.ReactNode }) => (
+  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    {children}
+  </BrowserRouter>
+);
+
 describe('Home Page', () => {
   it('should display welcome message', async () => {
     render(
-      <BrowserRouter>
+      <RouterWrapper>
         <Home />
-      </BrowserRouter>
+      </RouterWrapper>
     );
 
     expect(await screen.findByText(/Ballroom Scorer/i)).toBeInTheDocument();
@@ -31,9 +38,9 @@ describe('Home Page', () => {
 
   it('should show empty state when no competitions exist', async () => {
     render(
-      <BrowserRouter>
+      <RouterWrapper>
         <Home />
-      </BrowserRouter>
+      </RouterWrapper>
     );
 
     expect(await screen.findByText(/No competitions yet/i)).toBeInTheDocument();
@@ -41,9 +48,9 @@ describe('Home Page', () => {
 
   it('should display new competition button with correct link', async () => {
     render(
-      <BrowserRouter>
+      <RouterWrapper>
         <Home />
-      </BrowserRouter>
+      </RouterWrapper>
     );
 
     await screen.findByText(/Ballroom Scorer/i);

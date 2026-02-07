@@ -5,39 +5,46 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 import PublicLayout from './components/PublicLayout';
 import CompetitionHubLayout from './components/CompetitionHubLayout';
-import LoginPage from './pages/LoginPage';
 import Home from './pages/Home';
-import PublicHomePage from './pages/PublicHomePage';
-import PublicResultsPage from './pages/PublicResultsPage';
-import PublicHeatListsPage from './pages/PublicHeatListsPage';
-import PaymentPage from './pages/PaymentPage';
-import PricingPage from './pages/PricingPage';
-import FaqPage from './pages/FaqPage';
-import PeoplePage from './pages/PeoplePage';
-import CouplesPage from './pages/CouplesPage';
-import JudgesPage from './pages/JudgesPage';
-import EventsPage from './pages/EventsPage';
-import EventFormPage from './pages/EventFormPage';
-import ScoreEventPage from './pages/ScoreEventPage';
-import ResultsPage from './pages/ResultsPage';
-import CompetitionsPage from './pages/CompetitionsPage';
-import CompetitionDetailsPage from './pages/CompetitionDetailsPage';
-import CompetitionEntriesPage from './pages/CompetitionEntriesPage';
-import CompetitionDayOfPage from './pages/CompetitionDayOfPage';
-import StudioPage from './pages/StudioPage';
-import OrganizationsPage from './pages/OrganizationsPage';
-import UsersPage from './pages/UsersPage';
-import SchedulePage from './pages/Schedule';
-import CompetitionSettingsPage from './pages/CompetitionSettingsPage';
-import RunCompetitionPage from './pages/RunCompetition';
-import JudgeScoringPage from './pages/JudgeScoring';
-import EventEntriesPage from './pages/EventEntriesPage';
-import InvoicesPage from './pages/InvoicesPage';
-import OnDeckPage from './pages/OnDeckPage';
-import LiveCompetitionPage from './pages/LiveCompetitionPage';
-import ProfilePage from './pages/ProfilePage';
-import ParticipantPortalPage from './pages/ParticipantPortalPage';
-import ScrutineerPage from './pages/ScrutineerPage';
+import { LoginPage, ProfilePage } from './pages/auth';
+import {
+  PublicHomePage,
+  PublicResultsPage,
+  PublicHeatListsPage,
+  PaymentPage,
+  PricingPage,
+  FaqPage,
+} from './pages/public';
+import {
+  PeoplePage,
+  CouplesPage,
+  JudgesPage,
+  ParticipantPortalPage,
+  InvoicesPage,
+} from './pages/participants';
+import {
+  EventsPage,
+  EventFormPage,
+  EventEntriesPage,
+  ResultsPage,
+  ScoreEventPage,
+} from './pages/events';
+import {
+  CompetitionsPage,
+  CompetitionDetailsPage,
+  CompetitionEntriesPage,
+  CompetitionSettingsPage,
+  CompetitionDayOfPage,
+} from './pages/competitions';
+import { OrganizationsPage, StudioPage, UsersPage } from './pages/admin';
+import {
+  LiveCompetitionPage,
+  OnDeckPage,
+  ScrutineerPage,
+  JudgeScoringPage,
+  RunCompetitionPage,
+  SchedulePage,
+} from './pages/dayof';
 import './App.css';
 
 // Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
@@ -53,7 +60,10 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const App = () => {
   return (
-    <BrowserRouter basename={basePath.replace(/\/$/, '')}>
+    <BrowserRouter
+      basename={basePath.replace(/\/$/, '')}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <AuthProvider>
         <Routes>
           {/* Public routes — no auth required */}

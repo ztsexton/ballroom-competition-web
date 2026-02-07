@@ -106,6 +106,7 @@ export interface Competition {
   timingSettings?: TimingSettings;
   defaultScoringType?: 'standard' | 'proficiency';
   levels?: string[];
+  levelMode?: 'combined' | 'integrated'; // combined: separate Open/Syllabus toggle; integrated: Open levels in the list
   pricing?: CompetitionPricing;
   currency?: string;
   entryPayments?: Record<string, EntryPayment>;

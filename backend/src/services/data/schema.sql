@@ -79,8 +79,9 @@ CREATE TABLE IF NOT EXISTS scores (
   event_id INTEGER NOT NULL,
   round TEXT NOT NULL,
   bib INTEGER NOT NULL,
+  dance TEXT NOT NULL DEFAULT '',
   scores JSONB NOT NULL DEFAULT '[]',
-  PRIMARY KEY (event_id, round, bib)
+  PRIMARY KEY (event_id, round, bib, dance)
 );
 
 CREATE TABLE IF NOT EXISTS judge_scores (
@@ -88,8 +89,9 @@ CREATE TABLE IF NOT EXISTS judge_scores (
   round TEXT NOT NULL,
   bib INTEGER NOT NULL,
   judge_id INTEGER NOT NULL,
+  dance TEXT NOT NULL DEFAULT '',
   score INTEGER NOT NULL,
-  PRIMARY KEY (event_id, round, bib, judge_id)
+  PRIMARY KEY (event_id, round, bib, judge_id, dance)
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -128,6 +130,17 @@ ALTER TABLE judges ADD COLUMN IF NOT EXISTS is_chairman BOOLEAN DEFAULT FALSE;
 
 -- Migration: add age_category to events (for existing deployments)
 ALTER TABLE events ADD COLUMN IF NOT EXISTS age_category TEXT;
+
+-- Migration: add timing_settings and registration_open to competitions
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS timing_settings JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS registration_open BOOLEAN DEFAULT FALSE;
+
+-- Migration: add user_id to people (for linking to Firebase users)
+ALTER TABLE people ADD COLUMN IF NOT EXISTS user_id TEXT;
+
+-- Migration: add dance column to scores and judge_scores for multi-dance events
+-- Note: These require recreating the table if migrating from old schema without dance column
+-- For fresh installs, dance column is already in the CREATE TABLE above
 
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,

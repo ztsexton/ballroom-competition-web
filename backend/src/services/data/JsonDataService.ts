@@ -19,6 +19,13 @@ const SCHEDULES_FILE = path.join(DATA_DIR, 'schedules.json');
 
 const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
+// Suppress error logging during tests (files may be in flux during concurrent test runs)
+const logError = (message: string, error: unknown) => {
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(message, error);
+  }
+};
+
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -61,7 +68,7 @@ export class JsonDataService implements IDataService {
         return data.competitions || [];
       }
     } catch (error) {
-      console.error('Error loading competitions:', error);
+      logError('Error loading competitions:', error);
     }
     return [];
   }
@@ -73,7 +80,7 @@ export class JsonDataService implements IDataService {
         return data.studios || [];
       }
     } catch (error) {
-      console.error('Error loading studios:', error);
+      logError('Error loading studios:', error);
     }
     return [];
   }
@@ -85,7 +92,7 @@ export class JsonDataService implements IDataService {
         return data.organizations || [];
       }
     } catch (error) {
-      console.error('Error loading organizations:', error);
+      logError('Error loading organizations:', error);
     }
     return [];
   }
@@ -97,7 +104,7 @@ export class JsonDataService implements IDataService {
         return data.people || [];
       }
     } catch (error) {
-      console.error('Error loading people:', error);
+      logError('Error loading people:', error);
     }
     return [];
   }
@@ -108,7 +115,7 @@ export class JsonDataService implements IDataService {
         return JSON.parse(fs.readFileSync(COUPLES_FILE, 'utf-8'));
       }
     } catch (error) {
-      console.error('Error loading couples:', error);
+      logError('Error loading couples:', error);
     }
     return [];
   }
@@ -120,7 +127,7 @@ export class JsonDataService implements IDataService {
         return data.judges || [];
       }
     } catch (error) {
-      console.error('Error loading judges:', error);
+      logError('Error loading judges:', error);
     }
     return [];
   }
@@ -132,7 +139,7 @@ export class JsonDataService implements IDataService {
         return data.events || {};
       }
     } catch (error) {
-      console.error('Error loading events:', error);
+      logError('Error loading events:', error);
     }
     return {};
   }
@@ -144,7 +151,7 @@ export class JsonDataService implements IDataService {
         return data.scores || {};
       }
     } catch (error) {
-      console.error('Error loading scores:', error);
+      logError('Error loading scores:', error);
     }
     return {};
   }
@@ -156,7 +163,7 @@ export class JsonDataService implements IDataService {
         return data.judgeScores || {};
       }
     } catch (error) {
-      console.error('Error loading judge scores:', error);
+      logError('Error loading judge scores:', error);
     }
     return {};
   }
@@ -168,7 +175,7 @@ export class JsonDataService implements IDataService {
         return data.users || [];
       }
     } catch (error) {
-      console.error('Error loading users:', error);
+      logError('Error loading users:', error);
     }
     return [];
   }
@@ -186,7 +193,7 @@ export class JsonDataService implements IDataService {
         return schedules;
       }
     } catch (error) {
-      console.error('Error loading schedules:', error);
+      logError('Error loading schedules:', error);
     }
     return {};
   }

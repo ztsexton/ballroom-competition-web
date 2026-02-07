@@ -45,10 +45,13 @@ function initializeFirebase(): admin.app.App {
 
   // Option 3: Running on GCP (Cloud Run, GKE, etc.) - uses metadata server
   // Option 4: Development fallback - requires `gcloud auth application-default login`
-  console.warn(
-    'No Firebase credentials provided. Using application default credentials. ' +
-    'This works on GCP or with `gcloud auth application-default login` locally.'
-  );
+  // Only show warning if not in test environment
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn(
+      'No Firebase credentials provided. Using application default credentials. ' +
+      'This works on GCP or with `gcloud auth application-default login` locally.'
+    );
+  }
 
   return admin.initializeApp({
     projectId,

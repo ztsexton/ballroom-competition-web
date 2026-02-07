@@ -87,7 +87,7 @@ export class PostgresDataService implements IDataService {
       name: row.name,
       judgeNumber: row.judge_number,
       competitionId: row.competition_id,
-      isChairman: row.is_chairman || undefined,
+      isChairman: row.is_chairman ?? undefined,
     };
   }
 
