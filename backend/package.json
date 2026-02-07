@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp src/services/data/schema.sql dist/services/data/",
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
