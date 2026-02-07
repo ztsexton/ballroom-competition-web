@@ -59,7 +59,8 @@ router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: R
 
   try {
     // Read the seed.sql file
-    const seedPath = path.join(__dirname, '../../../sample/seed.sql');
+    // In production: __dirname is /app/dist/routes, seed.sql is at /app/sample/seed.sql
+    const seedPath = path.join(__dirname, '../../sample/seed.sql');
 
     if (!fs.existsSync(seedPath)) {
       return res.status(404).json({ success: false, message: 'Seed file not found' });
