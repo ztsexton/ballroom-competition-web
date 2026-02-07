@@ -37,8 +37,9 @@ Thumbs.db
 *.md
 docs/
 
-# Sample data
-sample/
+# Sample data (keep seed.sql for test competition seeding)
+sample/*
+!sample/seed.sql
 results/
 
 # Python artifacts (legacy)
