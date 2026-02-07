@@ -3,6 +3,7 @@ import { dataService } from '../services/dataService';
 import { calculateInvoices } from '../services/invoiceService';
 import { generateInvoicePDF } from '../services/pdfService';
 import { sendInvoiceEmail, isEmailConfigured } from '../services/emailService';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -63,7 +64,7 @@ router.get('/:competitionId/pdf/:personId', async (req: Request, res: Response) 
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${safeName}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
-    console.error('PDF generation error:', err);
+    logger.error({ err }, 'PDF generation error');
     res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
@@ -102,7 +103,7 @@ router.post('/:competitionId/email/:personId', async (req: Request, res: Respons
     await sendInvoiceEmail(person.email, invoice.personName, competition.name, pdfBuffer);
     res.json({ success: true, sentTo: person.email });
   } catch (err) {
-    console.error('Email send error:', err);
+    logger.error({ err }, 'Email send error');
     res.status(500).json({ error: 'Failed to send email' });
   }
 });

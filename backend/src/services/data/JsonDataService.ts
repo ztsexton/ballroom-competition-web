@@ -3,6 +3,7 @@ import path from 'path';
 import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
+import logger from '../../utils/logger';
 
 const DATA_DIR = process.env.NODE_ENV === 'test'
   ? path.join(__dirname, '../../../data-test')
@@ -21,9 +22,7 @@ const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
 // Suppress error logging during tests (files may be in flux during concurrent test runs)
 const logError = (message: string, error: unknown) => {
-  if (process.env.NODE_ENV !== 'test') {
-    console.error(message, error);
-  }
+  logger.error({ err: error }, message);
 };
 
 // Ensure data directory exists

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { auth } from '../config/firebase';
 import { dataService } from '../services/dataService';
+import logger from '../utils/logger';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -69,7 +70,7 @@ export const authenticate = async (
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    logger.error({ err: error }, 'Authentication error');
     res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 };

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { Competition, Event } from '../types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -114,7 +115,7 @@ router.get('/competitions', async (_req: Request, res: Response) => {
 
     res.json(filtered.map(sanitizeCompetition));
   } catch (error) {
-    console.error('Public competitions error:', error);
+    logger.error({ err: error }, 'Public competitions error');
     res.status(500).json({ error: 'Failed to load competitions' });
   }
 });
@@ -134,7 +135,7 @@ router.get('/competitions/:id', async (req: Request, res: Response) => {
     }
     res.json(sanitizeCompetition(competition));
   } catch (error) {
-    console.error('Public competition error:', error);
+    logger.error({ err: error }, 'Public competition error');
     res.status(500).json({ error: 'Failed to load competition' });
   }
 });
@@ -152,7 +153,7 @@ router.get('/competitions/:id/events', async (req: Request, res: Response) => {
     const events = Object.values(eventsMap).map(sanitizeEvent);
     res.json(events);
   } catch (error) {
-    console.error('Public events error:', error);
+    logger.error({ err: error }, 'Public events error');
     res.status(500).json({ error: 'Failed to load events' });
   }
 });
@@ -197,7 +198,7 @@ router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
 
     res.json(events);
   } catch (error) {
-    console.error('Public heat lists error:', error);
+    logger.error({ err: error }, 'Public heat lists error');
     res.status(500).json({ error: 'Failed to load heat lists' });
   }
 });
@@ -228,7 +229,7 @@ router.get('/competitions/:id/events/:eventId/results/:round', async (req: Reque
     const results = await scoringService.calculateResults(eventId, round);
     res.json(results);
   } catch (error) {
-    console.error('Public results error:', error);
+    logger.error({ err: error }, 'Public results error');
     res.status(500).json({ error: 'Failed to load results' });
   }
 });
@@ -277,7 +278,7 @@ router.get('/competitions/:id/search', async (req: Request, res: Response) => {
 
     res.json(results);
   } catch (error) {
-    console.error('Public search error:', error);
+    logger.error({ err: error }, 'Public search error');
     res.status(500).json({ error: 'Failed to search events' });
   }
 });

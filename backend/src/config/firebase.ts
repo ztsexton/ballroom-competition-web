@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import logger from '../utils/logger';
 
 /**
  * Firebase Admin SDK initialization
@@ -29,7 +30,7 @@ function initializeFirebase(): admin.app.App {
         projectId: serviceAccount.project_id || projectId,
       });
     } catch (e) {
-      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e);
+      logger.error({ err: e }, 'Failed to parse FIREBASE_SERVICE_ACCOUNT');
       throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT JSON');
     }
   }
@@ -45,13 +46,7 @@ function initializeFirebase(): admin.app.App {
 
   // Option 3: Running on GCP (Cloud Run, GKE, etc.) - uses metadata server
   // Option 4: Development fallback - requires `gcloud auth application-default login`
-  // Only show warning if not in test environment
-  if (process.env.NODE_ENV !== 'test') {
-    console.warn(
-      'No Firebase credentials provided. Using application default credentials. ' +
-      'This works on GCP or with `gcloud auth application-default login` locally.'
-    );
-  }
+  logger.warn('No Firebase credentials provided, using application default credentials');
 
   return admin.initializeApp({
     projectId,

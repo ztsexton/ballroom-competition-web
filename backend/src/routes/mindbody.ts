@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import * as mindbodyService from '../services/mindbodyService';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.post('/studios/:studioId/connect', async (req: Request, res: Response) =>
     await dataService.updateStudio(studioId, { mindbodySiteId: siteId, mindbodyToken: token });
     res.json({ connected: true, siteId });
   } catch (err: any) {
-    console.error('MindBody connect error:', err);
+    logger.error({ err }, 'MindBody connect error');
     res.status(502).json({ error: err.message || 'Failed to authenticate with MindBody' });
   }
 });
@@ -72,7 +73,7 @@ router.get('/studios/:studioId/clients', async (req: Request, res: Response) => 
     );
     res.json(result);
   } catch (err: any) {
-    console.error('MindBody getClients error:', err);
+    logger.error({ err }, 'MindBody getClients error');
     res.status(502).json({ error: err.message || 'Failed to fetch clients from MindBody' });
   }
 });

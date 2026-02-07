@@ -1,6 +1,7 @@
 // Load .env file in development (optional - container env vars are injected by orchestrator)
 try { require('dotenv/config'); } catch { /* dotenv not available in production */ }
 import express from 'express';
+import logger from './utils/logger';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -76,7 +77,7 @@ app.use('/api/scrutineer', requireAdmin, scrutineerRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Error:', err);
+  logger.error({ err }, 'Unhandled error');
   res.status(500).json({ error: 'Internal server error' });
 });
 
@@ -104,11 +105,11 @@ if (process.env.NODE_ENV !== 'test') {
     };
 
     https.createServer(httpsOptions, app).listen(PORT, () => {
-      console.log(`Backend server running on https://localhost:${PORT}`);
+      logger.info({ port: PORT, https: true }, 'Backend server started');
     });
   } else {
     app.listen(PORT, () => {
-      console.log(`Backend server running on http://localhost:${PORT}`);
+      logger.info({ port: PORT, https: false }, 'Backend server started');
     });
   }
 }
