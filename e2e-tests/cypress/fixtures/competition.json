@@ -1,0 +1,39 @@
+{
+  "testCompetition": {
+    "name": "E2E Test Competition",
+    "date": "2026-06-15",
+    "location": "Test City, TS",
+    "type": "STUDIO",
+    "defaultScoringType": "standard",
+    "levels": ["Newcomer", "Bronze", "Silver", "Gold", "Novice", "Pre-Championship", "Championship"]
+  },
+  "settings": {
+    "general": {
+      "name": "Updated Test Competition",
+      "date": "2026-07-20",
+      "location": "New Test City, NTC",
+      "description": "Updated test description for the competition"
+    },
+    "contact": {
+      "websiteUrl": "https://test-competition.example.com",
+      "organizerEmail": "test@example-organizer.com"
+    },
+    "rules": {
+      "defaultScoringType": "proficiency",
+      "maxCouplesPerHeat": 12,
+      "levelMode": "integrated",
+      "customLevel": "Platinum Elite"
+    },
+    "floor": {
+      "maxCouplesOnFloor": 8,
+      "levelOverride": 6
+    },
+    "recall": {
+      "targetFinalSize": 8,
+      "finalMaxSize": 10
+    },
+    "billing": {
+      "currency": "EUR"
+    }
+  }
+}

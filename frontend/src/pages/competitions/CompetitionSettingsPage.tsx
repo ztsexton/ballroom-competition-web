@@ -134,7 +134,7 @@ const CompetitionSettingsPage = () => {
   const [orgName, setOrgName] = useState('');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
 
-  // Initialize from competition
+  // Initialize from competition - also sync when data changes (e.g., after save)
   useEffect(() => {
     if (!activeCompetition) return;
     setName(activeCompetition.name || '');
@@ -144,14 +144,26 @@ const CompetitionSettingsPage = () => {
     setWebsiteUrl(activeCompetition.websiteUrl || '');
     setOrganizerEmail(activeCompetition.organizerEmail || '');
     setLevels(activeCompetition.levels || [...DEFAULT_LEVELS]);
+    setAgeCategories(activeCompetition.ageCategories || []);
+  }, [
+    activeCompetition?.id,
+    activeCompetition?.name,
+    activeCompetition?.date,
+    activeCompetition?.location,
+    activeCompetition?.description,
+    activeCompetition?.websiteUrl,
+    activeCompetition?.organizerEmail,
+    activeCompetition?.levels,
+    activeCompetition?.ageCategories,
+  ]);
 
-    // Load organizations list
+  // Load organizations list (only on competition change)
+  useEffect(() => {
+    if (!activeCompetition) return;
+
     organizationsApi.getAll()
       .then(res => setOrganizations(res.data))
       .catch(() => setOrganizations([]));
-
-    // Load age categories from competition
-    setAgeCategories(activeCompetition.ageCategories || []);
 
     // Load org name for display
     if (activeCompetition.organizationId) {
@@ -161,7 +173,7 @@ const CompetitionSettingsPage = () => {
     } else {
       setOrgName('');
     }
-  }, [activeCompetition?.id]);
+  }, [activeCompetition?.id, activeCompetition?.organizationId]);
 
   const saveField = async (field: string, value: unknown, section: string) => {
     try {

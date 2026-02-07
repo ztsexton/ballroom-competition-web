@@ -55,3 +55,8 @@ Thumbs.db
 
 # Node.js
 node_modules/
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+integration-tests/cypress-screenshots/

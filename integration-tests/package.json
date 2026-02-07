@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "vitest --run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "vitest --run e2e.test.ts"
   },
   "devDependencies": {
+    "@types/node": "^20.10.0",
     "testcontainers": "^10.7.1",
     "vitest": "^1.1.0"
   }
