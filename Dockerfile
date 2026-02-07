@@ -71,6 +71,9 @@ COPY --from=builder /app/backend/dist ./dist
 # Copy built frontend to be served as static files
 COPY --from=builder /app/frontend/dist ./public
 
+# Copy sample data for test competition seeding
+COPY sample/seed.sql ./sample/seed.sql
+
 # Create data directory for JSON storage (if using json data store)
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
 

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ballroom-competition-web
+  namespace: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ballroom-competition-web
+  template:
+    metadata:
+      labels:
+        app: ballroom-competition-web
+    spec:
+      containers:
+        - name: web
+          image: zot.zachsexton.com/ballroom-competition-web:master-27fdda3
+          imagePullPolicy: Always
+          env:
+            - name: PORT
+              value: "3001"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: USE_HTTPS
+              value: "false"
+            - name: DATA_STORE
+              value: "postgres"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ballroom-db-pguser-ballroom
+                  key: uri
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ballroom-db-pguser-ballroom
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ballroom-db-pguser-ballroom
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: ballroom-db-pguser-ballroom
+                  key: dbname
+          envFrom:
+            - secretRef:
+                name: ballroom-competition-web-firebase
+          ports:
+            - containerPort: 3001
+              name: http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      imagePullSecrets:
+        - name: zot-registry-credentials

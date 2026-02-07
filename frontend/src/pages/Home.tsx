@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { competitionsApi } from '../api/client';
+import { competitionsApi, databaseApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Competition } from '../types';
 
@@ -18,6 +18,30 @@ const Home = () => {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [seeding, setSeeding] = useState(false);
+  const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSeedTestCompetition = async () => {
+    if (!confirm('This will create a test competition "Galaxy Ballroom Classic 2026" with sample data. Continue?')) {
+      return;
+    }
+
+    setSeeding(true);
+    setSeedMessage(null);
+
+    try {
+      const res = await databaseApi.seed();
+      setSeedMessage({ type: 'success', text: res.data.message });
+      // Refresh competitions list
+      const compsRes = await competitionsApi.getAll();
+      setCompetitions(compsRes.data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create test competition';
+      setSeedMessage({ type: 'error', text: message });
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -154,6 +178,39 @@ const Home = () => {
                 </Link>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Developer Tools */}
+      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+        <h3 style={{ margin: '0 0 0.75rem', color: '#4a5568' }}>Developer Tools</h3>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Create Test Competition</div>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>
+              Seed "Galaxy Ballroom Classic 2026" with sample studios, people, couples, events, and entries for demos and testing.
+            </p>
+          </div>
+          <button
+            className="btn"
+            onClick={handleSeedTestCompetition}
+            disabled={seeding}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {seeding ? 'Creating...' : 'Create Test Competition'}
+          </button>
+        </div>
+        {seedMessage && (
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '6px',
+            background: seedMessage.type === 'success' ? '#c6f6d5' : '#fed7d7',
+            color: seedMessage.type === 'success' ? '#276749' : '#c53030',
+            fontSize: '0.875rem',
+          }}>
+            {seedMessage.text}
           </div>
         )}
       </div>

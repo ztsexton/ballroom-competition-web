@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
+import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -41,6 +44,41 @@ router.post('/migrate', async (_req: Request, res: Response) => {
     logger.info('Running database migration via API');
     const result = await runMigrations(pool);
     res.status(result.success ? 200 : 500).json(result);
+  } finally {
+    await pool.end();
+  }
+});
+
+// POST /api/database/seed — seed test competition data (admin only)
+router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  const pool = getPool();
+
+  if (!pool) {
+    return res.status(400).json({ success: false, message: 'Postgres not configured' });
+  }
+
+  try {
+    // Read the seed.sql file
+    const seedPath = path.join(__dirname, '../../../sample/seed.sql');
+
+    if (!fs.existsSync(seedPath)) {
+      return res.status(404).json({ success: false, message: 'Seed file not found' });
+    }
+
+    const seedSql = fs.readFileSync(seedPath, 'utf-8');
+
+    logger.info({ user: req.user?.email }, 'Seeding test competition data');
+
+    await pool.query(seedSql);
+
+    logger.info('Test competition data seeded successfully');
+    res.json({ success: true, message: 'Test competition "Galaxy Ballroom Classic 2026" created successfully' });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to seed test data');
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to seed test data'
+    });
   } finally {
     await pool.end();
   }

@@ -321,6 +321,11 @@ export const mindbodyApi = {
     api.post<{ imported: number; people: Person[] }>(`/mindbody/studios/${studioId}/import`, { competitionId, clients }),
 };
 
+// Database API (admin only)
+export const databaseApi = {
+  seed: () => api.post<{ success: boolean; message: string }>('/database/seed'),
+};
+
 // Public API client (no auth token)
 const publicApi = axios.create({
   baseURL: API_BASE_URL,
