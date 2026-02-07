@@ -1,4 +1,5 @@
-import 'dotenv/config';
+// Load .env file in development (optional - container env vars are injected by orchestrator)
+try { require('dotenv/config'); } catch { /* dotenv not available in production */ }
 import express from 'express';
 import https from 'https';
 import fs from 'fs';
