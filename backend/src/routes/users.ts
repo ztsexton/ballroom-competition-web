@@ -1,6 +1,6 @@
 import express from 'express';
 import { dataService } from '../services/dataService';
-import { requireAdmin, AuthRequest } from '../middleware/auth';
+import { requireAdmin, AuthRequest, clearUserCache } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -26,6 +26,9 @@ router.patch('/:uid/admin', requireAdmin, async (req: AuthRequest, res) => {
     res.status(404).json({ error: 'User not found' });
     return;
   }
+
+  // Invalidate auth middleware cache so the change takes effect immediately
+  clearUserCache(uid);
 
   res.json(user);
 });

@@ -142,6 +142,18 @@ ALTER TABLE people ADD COLUMN IF NOT EXISTS user_id TEXT;
 -- Note: These require recreating the table if migrating from old schema without dance column
 -- For fresh installs, dance column is already in the CREATE TABLE above
 
+-- Performance indexes for filtered queries
+CREATE INDEX IF NOT EXISTS idx_people_competition_id ON people(competition_id);
+CREATE INDEX IF NOT EXISTS idx_people_user_id ON people(user_id);
+CREATE INDEX IF NOT EXISTS idx_couples_competition_id ON couples(competition_id);
+CREATE INDEX IF NOT EXISTS idx_couples_leader_id ON couples(leader_id);
+CREATE INDEX IF NOT EXISTS idx_couples_follower_id ON couples(follower_id);
+CREATE INDEX IF NOT EXISTS idx_judges_competition_id ON judges(competition_id);
+CREATE INDEX IF NOT EXISTS idx_events_competition_id ON events(competition_id);
+CREATE INDEX IF NOT EXISTS idx_scores_event_round ON scores(event_id, round);
+CREATE INDEX IF NOT EXISTS idx_judge_scores_event_round_judge ON judge_scores(event_id, round, judge_id);
+CREATE INDEX IF NOT EXISTS idx_competitions_organization_id ON competitions(organization_id);
+
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
   heat_order JSONB NOT NULL DEFAULT '[]',

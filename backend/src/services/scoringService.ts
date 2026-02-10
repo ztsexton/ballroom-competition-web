@@ -120,9 +120,10 @@ export class ScoringService {
     dance?: string,
   ): Promise<EventResult[]> {
     const results: EventResult[] = [];
+    const couplesMap = await dataService.getCouplesByBibs(bibs);
 
     for (const bib of bibs) {
-      const couple = await dataService.getCoupleByBib(bib);
+      const couple = couplesMap.get(bib);
       if (!couple) continue;
 
       const scores = await dataService.getScores(eventId, round, bib, dance);
@@ -237,8 +238,9 @@ export class ScoringService {
       const overallResults = multiDancePlacement(perDancePlacements, perDanceJudgeRanks);
 
       const results: EventResult[] = [];
+      const couplesMap = await dataService.getCouplesByBibs(overallResults.map(r => r.bib));
       for (const r of overallResults) {
-        const couple = await dataService.getCoupleByBib(r.bib);
+        const couple = couplesMap.get(r.bib);
         if (!couple) continue;
 
         const placements = perDancePlacements.get(r.bib) || [];
@@ -277,8 +279,9 @@ export class ScoringService {
     }
 
     const results: EventResult[] = [];
+    const profCouplesMap = await dataService.getCouplesByBibs(bibs);
     for (const bib of bibs) {
-      const couple = await dataService.getCoupleByBib(bib);
+      const couple = profCouplesMap.get(bib);
       if (!couple) continue;
 
       const placements = dancePlacements[bib];
@@ -314,9 +317,10 @@ export class ScoringService {
     dances: string[],
   ): Promise<EventResult[]> {
     const results: EventResult[] = [];
+    const couplesMap = await dataService.getCouplesByBibs(bibs);
 
     for (const bib of bibs) {
-      const couple = await dataService.getCoupleByBib(bib);
+      const couple = couplesMap.get(bib);
       if (!couple) continue;
 
       let totalMarks = 0;

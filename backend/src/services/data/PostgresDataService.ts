@@ -471,6 +471,25 @@ export class PostgresDataService implements IDataService {
     return rows.length > 0 ? this.coupleFromRow(rows[0]) : undefined;
   }
 
+  async getCouplesByBibs(bibs: number[]): Promise<Map<number, Couple>> {
+    if (bibs.length === 0) return new Map();
+    const { rows } = await this.pool.query(
+      'SELECT * FROM couples WHERE bib = ANY($1)', [bibs]
+    );
+    const map = new Map<number, Couple>();
+    for (const row of rows) {
+      map.set(row.bib, {
+        bib: row.bib,
+        leaderId: row.leader_id,
+        followerId: row.follower_id,
+        leaderName: row.leader_name,
+        followerName: row.follower_name,
+        competitionId: row.competition_id,
+      });
+    }
+    return map;
+  }
+
   async addCouple(leaderId: number, followerId: number, competitionId: number): Promise<Couple | null> {
     const leader = await this.getPersonById(leaderId);
     const follower = await this.getPersonById(followerId);
@@ -509,6 +528,24 @@ export class PostgresDataService implements IDataService {
   async getJudgeById(id: number): Promise<Judge | undefined> {
     const { rows } = await this.pool.query('SELECT * FROM judges WHERE id = $1', [id]);
     return rows.length > 0 ? this.judgeFromRow(rows[0]) : undefined;
+  }
+
+  async getJudgesByIds(ids: number[]): Promise<Map<number, Judge>> {
+    if (ids.length === 0) return new Map();
+    const { rows } = await this.pool.query(
+      'SELECT * FROM judges WHERE id = ANY($1)', [ids]
+    );
+    const map = new Map<number, Judge>();
+    for (const row of rows) {
+      map.set(row.id, {
+        id: row.id,
+        name: row.name,
+        judgeNumber: row.judge_number,
+        competitionId: row.competition_id,
+        isChairman: row.is_chairman || false,
+      });
+    }
+    return map;
   }
 
   async addJudge(name: string, competitionId: number): Promise<Judge> {
@@ -591,6 +628,31 @@ export class PostgresDataService implements IDataService {
   async getEventById(id: number): Promise<Event | undefined> {
     const { rows } = await this.pool.query('SELECT * FROM events WHERE id = $1', [id]);
     return rows.length > 0 ? this.eventFromRow(rows[0]) : undefined;
+  }
+
+  async getEventsByIds(ids: number[]): Promise<Map<number, Event>> {
+    if (ids.length === 0) return new Map();
+    const { rows } = await this.pool.query(
+      'SELECT * FROM events WHERE id = ANY($1)', [ids]
+    );
+    const map = new Map<number, Event>();
+    for (const row of rows) {
+      map.set(row.id, {
+        id: row.id,
+        name: row.name,
+        designation: row.designation || undefined,
+        syllabusType: row.syllabus_type || undefined,
+        level: row.level || undefined,
+        style: row.style || undefined,
+        dances: row.dances || undefined,
+        heats: row.heats || [],
+        competitionId: row.competition_id,
+        scoringType: row.scoring_type || undefined,
+        isScholarship: row.is_scholarship || false,
+        ageCategory: row.age_category || undefined,
+      });
+    }
+    return map;
   }
 
   async addEvent(
@@ -707,6 +769,13 @@ export class PostgresDataService implements IDataService {
         [eventId, round]
       );
     }
+  }
+
+  async hasAnyScores(eventId: number): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      'SELECT 1 FROM scores WHERE event_id = $1 LIMIT 1', [eventId]
+    );
+    return rows.length > 0;
   }
 
   // ─── Judge Scores ───────────────────────────────────────────────
@@ -939,6 +1008,8 @@ export class PostgresDataService implements IDataService {
   }
 
   // ─── Testing ────────────────────────────────────────────────────
+
+  clearCache(): void {}
 
   async resetAllData(): Promise<void> {
     await this.pool.query('TRUNCATE judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, organizations, users RESTART IDENTITY CASCADE');

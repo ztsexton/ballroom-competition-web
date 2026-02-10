@@ -492,6 +492,17 @@ export class JsonDataService implements IDataService {
     return this.data.couples.find(c => c.bib === bib);
   }
 
+  async getCouplesByBibs(bibs: number[]): Promise<Map<number, Couple>> {
+    const bibSet = new Set(bibs);
+    const map = new Map<number, Couple>();
+    for (const couple of this.data.couples) {
+      if (bibSet.has(couple.bib)) {
+        map.set(couple.bib, couple);
+      }
+    }
+    return map;
+  }
+
   async addCouple(leaderId: number, followerId: number, competitionId: number): Promise<Couple | null> {
     const leader = await this.getPersonById(leaderId);
     const follower = await this.getPersonById(followerId);
@@ -535,6 +546,17 @@ export class JsonDataService implements IDataService {
 
   async getJudgeById(id: number): Promise<Judge | undefined> {
     return this.data.judges.find(j => j.id === id);
+  }
+
+  async getJudgesByIds(ids: number[]): Promise<Map<number, Judge>> {
+    const idSet = new Set(ids);
+    const map = new Map<number, Judge>();
+    for (const judge of this.data.judges) {
+      if (idSet.has(judge.id)) {
+        map.set(judge.id, judge);
+      }
+    }
+    return map;
   }
 
   async addJudge(name: string, competitionId: number): Promise<Judge> {
@@ -597,6 +619,17 @@ export class JsonDataService implements IDataService {
 
   async getEventById(id: number): Promise<Event | undefined> {
     return this.data.events[id];
+  }
+
+  async getEventsByIds(ids: number[]): Promise<Map<number, Event>> {
+    const idSet = new Set(ids);
+    const map = new Map<number, Event>();
+    for (const event of Object.values(this.data.events)) {
+      if (idSet.has(event.id)) {
+        map.set(event.id, event);
+      }
+    }
+    return map;
   }
 
   async addEvent(
@@ -693,6 +726,15 @@ export class JsonDataService implements IDataService {
       delete this.data.scores[key];
     });
     this.saveEvents();
+  }
+
+  async hasAnyScores(eventId: number): Promise<boolean> {
+    for (const key of Object.keys(this.data.scores)) {
+      if (key.startsWith(`${eventId}:`) && this.data.scores[key].length > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Judge scores methods
@@ -885,6 +927,8 @@ export class JsonDataService implements IDataService {
     }
     return false;
   }
+
+  clearCache(): void {}
 
   async resetAllData(): Promise<void> {
     this.data = {

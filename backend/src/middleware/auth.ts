@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { auth } from '../config/firebase';
 import { dataService } from '../services/dataService';
 import logger from '../utils/logger';
+import { User } from '../types';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -10,6 +11,24 @@ export interface AuthRequest extends Request {
     name?: string;
     isAdmin?: boolean;
   };
+}
+
+// In-memory user cache to avoid upsertUser on every request
+const userCache = new Map<string, { user: User; fetchedAt: number }>();
+const USER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCachedUser(uid: string): User | undefined {
+  const entry = userCache.get(uid);
+  if (!entry) return undefined;
+  if (Date.now() - entry.fetchedAt > USER_CACHE_TTL_MS) {
+    userCache.delete(uid);
+    return undefined;
+  }
+  return entry.user;
+}
+
+export function clearUserCache(uid: string): void {
+  userCache.delete(uid);
 }
 
 export const authenticate = async (
@@ -43,22 +62,28 @@ export const authenticate = async (
     // Verify the token with Firebase Admin
     const decodedToken = await auth.verifyIdToken(token);
 
-    // Save/update user in database
-    const providerMap: Record<string, string> = {
-      'google.com': 'google',
-      'password': 'email',
-      'facebook.com': 'facebook',
-    };
-    const signInMethod = providerMap[decodedToken.firebase?.sign_in_provider]
-      || decodedToken.firebase?.sign_in_provider || 'google';
+    // Check cache first to avoid DB write on every request
+    let user = getCachedUser(decodedToken.uid);
 
-    const user = await dataService.upsertUser(
-      decodedToken.uid,
-      decodedToken.email || '',
-      decodedToken.name,
-      decodedToken.picture,
-      signInMethod
-    );
+    if (!user) {
+      // Cache miss: upsert and cache
+      const providerMap: Record<string, string> = {
+        'google.com': 'google',
+        'password': 'email',
+        'facebook.com': 'facebook',
+      };
+      const signInMethod = providerMap[decodedToken.firebase?.sign_in_provider]
+        || decodedToken.firebase?.sign_in_provider || 'google';
+
+      user = await dataService.upsertUser(
+        decodedToken.uid,
+        decodedToken.email || '',
+        decodedToken.name,
+        decodedToken.picture,
+        signInMethod
+      );
+      userCache.set(decodedToken.uid, { user, fetchedAt: Date.now() });
+    }
 
     // Attach user info to request
     req.user = {

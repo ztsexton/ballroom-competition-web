@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, googleProvider } from '../config/firebase';
@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userLoading, setUserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (user) {
       setUserLoading(true);
       try {
@@ -52,13 +52,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setCurrentUser(null);
       setUserLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     refreshUser();
-  }, [user]);
+  }, [refreshUser]);
 
-  const login = async () => {
+  const login = useCallback(async () => {
     try {
       setError(null);
       await signInWithPopup(auth, googleProvider);
@@ -71,9 +71,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setError(errorMessage);
       console.error('Login error:', err);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       setError(null);
       await firebaseSignOut(auth);
@@ -83,21 +83,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setError(errorMessage);
       console.error('Logout error:', err);
     }
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user: user ?? null,
+    currentUser,
+    isAdmin: currentUser?.isAdmin || false,
+    loading: firebaseLoading || userLoading,
+    error: error || hookError?.message || null,
+    login,
+    logout,
+    refreshUser,
+  }), [user, currentUser, firebaseLoading, userLoading, error, hookError, login, logout, refreshUser]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user: user ?? null,
-        currentUser,
-        isAdmin: currentUser?.isAdmin || false,
-        loading: firebaseLoading || userLoading,
-        error: error || hookError?.message || null,
-        login,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

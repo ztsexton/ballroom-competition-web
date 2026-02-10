@@ -53,12 +53,14 @@ export interface IDataService {
   // Couples
   getCouples(competitionId?: number): Promise<Couple[]>;
   getCoupleByBib(bib: number): Promise<Couple | undefined>;
+  getCouplesByBibs(bibs: number[]): Promise<Map<number, Couple>>;
   addCouple(leaderId: number, followerId: number, competitionId: number): Promise<Couple | null>;
   deleteCouple(bib: number): Promise<boolean>;
 
   // Judges
   getJudges(competitionId?: number): Promise<Judge[]>;
   getJudgeById(id: number): Promise<Judge | undefined>;
+  getJudgesByIds(ids: number[]): Promise<Map<number, Judge>>;
   addJudge(name: string, competitionId: number): Promise<Judge>;
   updateJudge(id: number, updates: Partial<Omit<Judge, 'id'>>): Promise<Judge | null>;
   deleteJudge(id: number): Promise<boolean>;
@@ -66,6 +68,7 @@ export interface IDataService {
   // Events
   getEvents(competitionId?: number): Promise<Record<number, Event>>;
   getEventById(id: number): Promise<Event | undefined>;
+  getEventsByIds(ids: number[]): Promise<Map<number, Event>>;
   addEvent(
     name: string,
     bibs: number[],
@@ -87,6 +90,7 @@ export interface IDataService {
   getScores(eventId: number, round: string, bib: number, dance?: string): Promise<number[]>;
   setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void>;
   clearScores(eventId: number, round: string, dance?: string): Promise<void>;
+  hasAnyScores(eventId: number): Promise<boolean>;
 
   // Judge Scores (dance parameter is optional — used for multi-dance events)
   getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>>;
@@ -116,6 +120,9 @@ export interface IDataService {
   getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined>;
   saveSchedule(schedule: CompetitionSchedule): Promise<CompetitionSchedule>;
   deleteSchedule(competitionId: number): Promise<boolean>;
+
+  // Cache management (no-op for non-caching implementations)
+  clearCache(): void;
 
   // Testing
   resetAllData(): Promise<void>;

@@ -3,7 +3,7 @@ import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { scheduleService, ScheduleService } from '../services/schedule';
-import { ActiveHeatInfo, ActiveHeatEntry, ScoringProgress, ScoringProgressEntry } from '../types';
+import { ActiveHeatInfo, ActiveHeatEntry, ScoringProgress, ScoringProgressEntry, Event, Heat } from '../types';
 import { RECALL_ROUNDS, getRecallCount } from '../constants/rounds';
 
 const router = Router();
@@ -37,27 +37,41 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
       return res.json(info);
     }
 
-    // Build entries array and collect all judge IDs
-    const entries: ActiveHeatEntry[] = [];
+    // Batch-prefetch all events for this heat
+    const eventIds = currentHeat.entries.map(e => e.eventId);
+    const eventsMap = await dataService.getEventsByIds(eventIds);
+
+    // Collect all bibs and judge IDs in one pass
+    const allBibs: number[] = [];
     const allJudgeIds = new Set<number>();
+    const entryMeta: Array<{ entry: typeof currentHeat.entries[0]; event: Event; heat: Heat; bibs: number[] }> = [];
 
     for (const entry of currentHeat.entries) {
-      const event = await dataService.getEventById(entry.eventId);
+      const event = eventsMap.get(entry.eventId);
       if (!event) continue;
 
       const heat = event.heats.find(h => h.round === entry.round);
       if (!heat) continue;
 
       heat.judges.forEach(j => allJudgeIds.add(j));
-
-      // Use bibSubset if this is a floor-split heat, otherwise all bibs
       const bibs = entry.bibSubset || heat.bibs;
-      const couples = await Promise.all(bibs.map(async bib => {
-        const couple = await dataService.getCoupleByBib(bib);
+      allBibs.push(...bibs);
+      entryMeta.push({ entry, event, heat, bibs });
+    }
+
+    // Batch-prefetch all couples and judges (3 queries total instead of 35+)
+    const couplesMap = await dataService.getCouplesByBibs(allBibs);
+    const judgesMap = await dataService.getJudgesByIds(Array.from(allJudgeIds));
+
+    // Build entries array using prefetched data
+    const entries: ActiveHeatEntry[] = [];
+    for (const { entry, event, heat, bibs } of entryMeta) {
+      const couples = bibs.map(bib => {
+        const couple = couplesMap.get(bib);
         return couple
           ? { bib, leaderName: couple.leaderName, followerName: couple.followerName }
           : { bib, leaderName: 'Unknown', followerName: 'Unknown' };
-      }));
+      });
 
       const recallCount = getRecallCount(
         event.heats,
@@ -83,13 +97,13 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
       });
     }
 
-    // Resolve judge details
-    const judges = await Promise.all(Array.from(allJudgeIds).map(async jId => {
-      const judge = await dataService.getJudgeById(jId);
+    // Resolve judge details from prefetched data
+    const judges = Array.from(allJudgeIds).map(jId => {
+      const judge = judgesMap.get(jId);
       return judge
         ? { id: judge.id, name: judge.name, judgeNumber: judge.judgeNumber, isChairman: judge.isChairman }
         : { id: jId, name: 'Unknown', judgeNumber: 0 };
-    }));
+    });
     judges.sort((a, b) => a.judgeNumber - b.judgeNumber);
 
     // Get dance info — floor-split heats have a specific dance per heat entry
@@ -129,12 +143,16 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
       return res.status(400).json({ error: 'Current heat is a break, no scoring progress' });
     }
 
-    // Collect all judge IDs from all entries
+    // Batch-prefetch events for this heat
+    const progressEventIds = currentHeat.entries.map(e => e.eventId);
+    const progressEventsMap = await dataService.getEventsByIds(progressEventIds);
+
+    // Collect all judge IDs in one pass
     const allJudgeIds = new Set<number>();
     const progressEntries: ScoringProgressEntry[] = [];
 
     for (const entry of currentHeat.entries) {
-      const event = await dataService.getEventById(entry.eventId);
+      const event = progressEventsMap.get(entry.eventId);
       if (!event) continue;
 
       const heat = event.heats.find(h => h.round === entry.round);
@@ -170,9 +188,12 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
       });
     }
 
+    // Batch-prefetch judges
+    const progressJudgesMap = await dataService.getJudgesByIds(Array.from(allJudgeIds));
+
     // A judge hasSubmitted only when they've submitted for ALL entries
     const judgesList = await Promise.all(Array.from(allJudgeIds).map(async jId => {
-      const judge = await dataService.getJudgeById(jId);
+      const judge = progressJudgesMap.get(jId);
       let allEntriesSubmitted = true;
       for (const entry of currentHeat.entries) {
         const submissionStatus = await dataService.getJudgeSubmissionStatus(entry.eventId, entry.round);

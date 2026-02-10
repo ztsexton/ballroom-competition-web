@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { Competition } from '../types';
 import { competitionsApi } from '../api/client';
 import { useAuth } from './AuthContext';
@@ -31,7 +31,7 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadCompetitions = async () => {
+  const loadCompetitions = useCallback(async () => {
     try {
       const response = await competitionsApi.getAll();
       setCompetitions(response.data);
@@ -58,7 +58,7 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isAdmin) {
@@ -68,31 +68,31 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
       setActiveCompetitionState(null);
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, loadCompetitions]);
 
-  const setActiveCompetition = (competition: Competition | null) => {
+  const setActiveCompetition = useCallback((competition: Competition | null) => {
     setActiveCompetitionState(competition);
     if (competition) {
       localStorage.setItem('activeCompetitionId', competition.id.toString());
     } else {
       localStorage.removeItem('activeCompetitionId');
     }
-  };
+  }, []);
 
-  const refreshCompetitions = async () => {
+  const refreshCompetitions = useCallback(async () => {
     await loadCompetitions();
-  };
+  }, [loadCompetitions]);
+
+  const value = useMemo(() => ({
+    activeCompetition,
+    competitions,
+    setActiveCompetition,
+    loading,
+    refreshCompetitions,
+  }), [activeCompetition, competitions, setActiveCompetition, loading, refreshCompetitions]);
 
   return (
-    <CompetitionContext.Provider
-      value={{
-        activeCompetition,
-        competitions,
-        setActiveCompetition,
-        loading,
-        refreshCompetitions,
-      }}
-    >
+    <CompetitionContext.Provider value={value}>
       {children}
     </CompetitionContext.Provider>
   );

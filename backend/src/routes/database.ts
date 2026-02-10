@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
+import { dataService } from '../services/dataService';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -59,10 +60,15 @@ router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: R
 
   try {
     // Read the seed.sql file
-    // In production: __dirname is /app/dist/routes, seed.sql is at /app/sample/seed.sql
-    const seedPath = path.join(__dirname, '../../sample/seed.sql');
+    // Production (dist/routes): ../../sample/seed.sql -> /app/sample/seed.sql
+    // Local dev (src/routes):    ../../../sample/seed.sql -> project-root/sample/seed.sql
+    const possiblePaths = [
+      path.join(__dirname, '../../sample/seed.sql'),
+      path.join(__dirname, '../../../sample/seed.sql'),
+    ];
+    const seedPath = possiblePaths.find(p => fs.existsSync(p));
 
-    if (!fs.existsSync(seedPath)) {
+    if (!seedPath) {
       return res.status(404).json({ success: false, message: 'Seed file not found' });
     }
 
@@ -71,6 +77,9 @@ router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: R
     logger.info({ user: req.user?.email }, 'Seeding test competition data');
 
     await pool.query(seedSql);
+
+    // Raw SQL bypasses the data service — clear cached data so new records are visible
+    dataService.clearCache();
 
     logger.info('Test competition data seeded successfully');
     res.json({ success: true, message: 'Test competition "Galaxy Ballroom Classic 2026" created successfully' });

@@ -117,14 +117,7 @@ router.post('/:id/entries', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Couple is already entered in this event' });
     }
 
-    let hasScores = false;
-    for (const heat of event.heats) {
-      for (const b of heat.bibs) {
-        const scores = await dataService.getScores(id, heat.round, b);
-        if (scores.length > 0) { hasScores = true; break; }
-      }
-      if (hasScores) break;
-    }
+    const hasScores = await dataService.hasAnyScores(id);
     if (hasScores) {
       return res.status(409).json({ error: 'Cannot add couple: event has existing scores' });
     }
@@ -156,14 +149,7 @@ router.delete('/:id/entries/:bib', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Couple is not in this event' });
     }
 
-    let hasScores = false;
-    for (const heat of event.heats) {
-      for (const b of heat.bibs) {
-        const scores = await dataService.getScores(id, heat.round, b);
-        if (scores.length > 0) { hasScores = true; break; }
-      }
-      if (hasScores) break;
-    }
+    const hasScores = await dataService.hasAnyScores(id);
     if (hasScores) {
       return res.status(409).json({ error: 'Cannot remove couple: event has existing scores' });
     }
@@ -210,17 +196,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
   const structuralChange = bibsChanged || judgesChanged || scoringTypeChanged;
 
   // Check if scores exist
-  let hasExistingScores = false;
-  for (const heat of existing.heats) {
-    for (const bib of heat.bibs) {
-      const scores = await dataService.getScores(id, heat.round, bib);
-      if (scores.length > 0) {
-        hasExistingScores = true;
-        break;
-      }
-    }
-    if (hasExistingScores) break;
-  }
+  const hasExistingScores = await dataService.hasAnyScores(id);
 
   // If structural change + existing scores + no confirmation, return warning
   if (structuralChange && hasExistingScores && !confirmClear) {
