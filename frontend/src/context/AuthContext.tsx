@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   return (
     <AuthContext.Provider
       value={{
-        user: user || null,
+        user: user ?? null,
         currentUser,
         isAdmin: currentUser?.isAdmin || false,
         loading: firebaseLoading || userLoading,

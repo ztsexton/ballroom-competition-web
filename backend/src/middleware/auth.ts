@@ -17,7 +17,7 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  // Skip authentication in test environment
+  // Skip authentication in unit test environment (integration tests use the Firebase Auth Emulator)
   if (process.env.NODE_ENV === 'test') {
     req.user = {
       uid: 'test-user-id',

@@ -7,29 +7,24 @@ describe('Docker Container Integration', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    // Build and start the container from the Dockerfile (in parent directory)
-    container = await GenericContainer.fromDockerfile('../')
-      .withBuildArgs({})
-      .build('ballroom-scorer-test', { deleteOnExit: true })
-      .then((image) =>
-        image
-          .withExposedPorts(3001)
-          .withEnvironment({
-            NODE_ENV: 'production',
-            PORT: '3001',
-            USE_HTTPS: 'false',
-            DATA_STORE: 'json',
-          })
-          .withWaitStrategy(Wait.forHttp('/api/health', 3001).forStatusCode(200))
-          .start()
-      );
+    // Use pre-built image from globalSetup (no slow fromDockerfile build)
+    container = await new GenericContainer('ballroom-scorer-test')
+      .withExposedPorts(3001)
+      .withEnvironment({
+        NODE_ENV: 'production',
+        PORT: '3001',
+        USE_HTTPS: 'false',
+        DATA_STORE: 'json',
+      })
+      .withWaitStrategy(Wait.forHttp('/api/health', 3001).forStatusCode(200))
+      .start();
 
     const host = container.getHost();
     const port = container.getMappedPort(3001);
     baseUrl = `http://${host}:${port}`;
 
     console.log(`Container started at ${baseUrl}`);
-  }, 300000); // 5 minute timeout for building
+  }, 120000); // 2 minute timeout (image already built)
 
   afterAll(async () => {
     if (container) {

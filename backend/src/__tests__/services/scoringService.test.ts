@@ -27,13 +27,15 @@ describe('ScoringService', () => {
       // Act: Calculate results
       const results = await scoringService.calculateResults(event.id, 'final');
 
-      // Assert: couple1 should be first with total rank 4
+      // Assert: couple1 should be first (skating: 2/3 judges ranked 1st = majority)
       expect(results).toHaveLength(2);
       expect(results[0].bib).toBe(couple1!.bib);
-      expect(results[0].totalRank).toBe(4);
+      expect(results[0].totalRank).toBe(1);
+      expect(results[0].place).toBe(1);
       expect(results[0].isRecall).toBe(false);
       expect(results[1].bib).toBe(couple2!.bib);
-      expect(results[1].totalRank).toBe(5);
+      expect(results[1].totalRank).toBe(2);
+      expect(results[1].place).toBe(2);
     });
 
     it('should calculate results for a recall round correctly', async () => {

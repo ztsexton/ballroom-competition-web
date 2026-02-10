@@ -192,6 +192,7 @@ export interface EventResult {
   bib: number;
   leaderName: string;
   followerName: string;
+  place?: number;
   totalRank?: number;
   totalMarks?: number;
   totalScore?: number;

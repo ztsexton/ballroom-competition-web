@@ -1,6 +1,7 @@
 import { EventResult, Couple, RecallRules } from '../types';
 import { dataService } from './dataService';
 import { ROUND_CAPACITY, RECALL_ROUNDS } from '../constants/rounds';
+import { skatingPlacement, multiDancePlacement } from './skatingSystem';
 
 /**
  * Extract the sorting metric from an EventResult for tie comparison.
@@ -160,6 +161,22 @@ export class ScoringService {
       }
     }
 
+    // Apply skating system for standard finals (Rules 5-8)
+    if (!isRecallRound && scoringType !== 'proficiency' && results.length > 0) {
+      const judgeRanks = new Map<number, number[]>();
+      for (const r of results) {
+        judgeRanks.set(r.bib, r.scores);
+      }
+      const skatingResults = skatingPlacement(judgeRanks);
+      for (const sr of skatingResults) {
+        const result = results.find(r => r.bib === sr.bib);
+        if (result) {
+          result.place = sr.placement;
+          result.totalRank = sr.placement;
+        }
+      }
+    }
+
     // Sort results
     if (scoringType === 'proficiency') {
       results.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
@@ -173,9 +190,8 @@ export class ScoringService {
   }
 
   /**
-   * Multi-dance final: for each dance, calculate placements using the skating method
-   * (sum of judge ranks per dance → placement). Then sum placements across all dances
-   * for the overall ranking (Rule 10). Lower total is better.
+   * Multi-dance final: for each dance, calculate placements using the skating system
+   * (Rules 5-8). Then determine overall ranking using Rules 9-11.
    */
   private async calculateMultiDanceResults(
     eventId: number,
@@ -184,39 +200,82 @@ export class ScoringService {
     dances: string[],
     scoringType: string,
   ): Promise<EventResult[]> {
-    // Per-dance placements: bib → placement per dance
+    const event = await dataService.getEventById(eventId);
+    const eventDances = event?.dances || [];
+
+    if (scoringType !== 'proficiency') {
+      // Standard scoring: apply skating system (Rules 5-11)
+      const perDancePlacements = new Map<number, number[]>();
+      const perDanceJudgeRanks: Array<Map<number, number[]>> = [];
+
+      for (const bib of bibs) {
+        perDancePlacements.set(bib, []);
+      }
+
+      for (const dance of dances) {
+        const activeBibs = eventDances.includes(dance) ? bibs : [];
+        const judgeRanks = new Map<number, number[]>();
+
+        for (const bib of activeBibs) {
+          const scores = await dataService.getScores(eventId, round, bib, dance);
+          if (scores.length > 0) {
+            judgeRanks.set(bib, scores);
+          }
+        }
+
+        perDanceJudgeRanks.push(judgeRanks);
+
+        if (judgeRanks.size > 0) {
+          const skatingResults = skatingPlacement(judgeRanks);
+          for (const sr of skatingResults) {
+            perDancePlacements.get(sr.bib)?.push(sr.placement);
+          }
+        }
+      }
+
+      // Apply Rules 9-11 for overall ranking
+      const overallResults = multiDancePlacement(perDancePlacements, perDanceJudgeRanks);
+
+      const results: EventResult[] = [];
+      for (const r of overallResults) {
+        const couple = await dataService.getCoupleByBib(r.bib);
+        if (!couple) continue;
+
+        const placements = perDancePlacements.get(r.bib) || [];
+        results.push({
+          bib: r.bib,
+          leaderName: couple.leaderName,
+          followerName: couple.followerName,
+          place: r.placement,
+          totalRank: r.placement,
+          scores: placements,
+          danceScores: dances.map((dance, i) => ({
+            dance,
+            placement: placements[i] || 0,
+          })),
+          isRecall: false,
+        });
+      }
+
+      return results.sort((a, b) => (a.totalRank || 0) - (b.totalRank || 0));
+    }
+
+    // Proficiency scoring: use index-based placement
     const dancePlacements: Record<number, number[]> = {};
     for (const bib of bibs) {
       dancePlacements[bib] = [];
     }
 
     for (const dance of dances) {
-      // Get the bibs that participate in this dance
-      const event = await dataService.getEventById(eventId);
-      const eventDances = event?.dances || [];
-      // All bibs from this event participate in dances included in the event's dance list
       const activeBibs = eventDances.includes(dance) ? bibs : [];
-
-      if (scoringType === 'proficiency') {
-        const danceResults = await this.calculateSingleDanceResults(
-          eventId, round, activeBibs, scoringType, false, dance,
-        );
-        // Assign placements based on sort order
-        for (let i = 0; i < danceResults.length; i++) {
-          dancePlacements[danceResults[i].bib].push(i + 1);
-        }
-        // Bibs not in this dance get no placement (skip)
-      } else {
-        const danceResults = await this.calculateSingleDanceResults(
-          eventId, round, activeBibs, scoringType, false, dance,
-        );
-        for (let i = 0; i < danceResults.length; i++) {
-          dancePlacements[danceResults[i].bib].push(i + 1);
-        }
+      const danceResults = await this.calculateSingleDanceResults(
+        eventId, round, activeBibs, scoringType, false, dance,
+      );
+      for (let i = 0; i < danceResults.length; i++) {
+        dancePlacements[danceResults[i].bib].push(i + 1);
       }
     }
 
-    // Combine: sum of placements across dances
     const results: EventResult[] = [];
     for (const bib of bibs) {
       const couple = await dataService.getCoupleByBib(bib);
@@ -231,7 +290,7 @@ export class ScoringService {
         leaderName: couple.leaderName,
         followerName: couple.followerName,
         totalRank,
-        scores: placements, // Store per-dance placements as the scores array
+        scores: placements,
         danceScores: dances.map((dance, i) => ({
           dance,
           placement: placements[i],
@@ -240,9 +299,7 @@ export class ScoringService {
       });
     }
 
-    // Sort by total placement (lower is better)
     results.sort((a, b) => (a.totalRank || 0) - (b.totalRank || 0));
-
     return results;
   }
 

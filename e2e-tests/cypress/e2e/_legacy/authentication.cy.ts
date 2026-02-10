@@ -5,9 +5,19 @@
  *
  * Critical for security and user access control.
  * Tests login, logout, session persistence, and role-based access.
+ *
+ * NOTE: These tests are skipped when AUTH_DISABLED=true (e.g., in Docker/CI)
+ * because the backend bypasses authentication in that mode.
  */
 
-describe('Authentication', () => {
+describe('Authentication', function () {
+  before(function () {
+    // Skip all auth tests when running with auth disabled
+    if (Cypress.env('AUTH_DISABLED') === 'true') {
+      this.skip();
+    }
+  });
+
   beforeEach(() => {
     cy.clearLocalStorage();
     cy.clearCookies();

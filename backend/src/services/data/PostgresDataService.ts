@@ -6,7 +6,7 @@ import {
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 
-const ADMIN_EMAIL = 'zsexton2011@gmail.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'zsexton2011@gmail.com';
 
 export class PostgresDataService implements IDataService {
   constructor(private pool: Pool) {}
@@ -848,7 +848,7 @@ export class PostgresDataService implements IDataService {
            WHEN users.sign_in_methods @> $9::jsonb THEN users.sign_in_methods
            ELSE users.sign_in_methods || $9::jsonb
          END,
-         is_admin = $5,
+         is_admin = users.is_admin OR $5,
          last_login_at = $6
        RETURNING *`,
       [uid, email, displayName || null, photoURL || null, isAdmin, now, firstName, lastName, methods]
