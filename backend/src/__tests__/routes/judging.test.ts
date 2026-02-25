@@ -43,6 +43,78 @@ describe('Judging API', () => {
     });
   });
 
+  describe('GET /api/judging/competition/:competitionId/active-heat - break heat', () => {
+    it('should return break heat info', async () => {
+      const { comp } = await setupCompetitionWithSchedule();
+
+      // Add a break after the first heat (position 1)
+      const { addBreak } = await import('../../services/schedule/scheduleModification');
+      await addBreak(comp.id, 'Intermission', 10, 1);
+
+      // Advance past the first heat (pending→scoring→completed) to reach the break
+      await scheduleService.advanceHeat(comp.id);
+      await scheduleService.advanceHeat(comp.id);
+
+      const response = await request(app)
+        .get(`/api/judging/competition/${comp.id}/active-heat`)
+        .expect(200);
+
+      expect(response.body.isBreak).toBe(true);
+      expect(response.body.breakLabel).toBe('Intermission');
+      expect(response.body.entries).toEqual([]);
+    });
+  });
+
+  describe('GET /api/judging/competition/:competitionId/scoring-progress - break heat', () => {
+    it('should return 400 when current heat is a break', async () => {
+      const { comp } = await setupCompetitionWithSchedule();
+
+      // Add a break after the first heat (position 1)
+      const { addBreak } = await import('../../services/schedule/scheduleModification');
+      await addBreak(comp.id, 'Break', 5, 1);
+
+      // Advance to the break
+      await scheduleService.advanceHeat(comp.id);
+      await scheduleService.advanceHeat(comp.id);
+
+      await request(app)
+        .get(`/api/judging/competition/${comp.id}/scoring-progress`)
+        .expect(400);
+    });
+  });
+
+  describe('POST /api/judging/competition/:competitionId/submit-scores - validation', () => {
+    it('should return 400 when event/round is not in current heat', async () => {
+      const { comp, judge } = await setupCompetitionWithSchedule();
+      await scheduleService.advanceHeat(comp.id);
+
+      await request(app)
+        .post(`/api/judging/competition/${comp.id}/submit-scores`)
+        .send({
+          judgeId: judge.id,
+          eventId: 99999,
+          round: 'final',
+          scores: [{ bib: 1, score: 1 }],
+        })
+        .expect(400);
+    });
+
+    it('should return 400 when heat is not in scoring status', async () => {
+      const { comp, judge, event } = await setupCompetitionWithSchedule();
+      // Don't advance to scoring — heat is still pending
+
+      await request(app)
+        .post(`/api/judging/competition/${comp.id}/submit-scores`)
+        .send({
+          judgeId: judge.id,
+          eventId: event.id,
+          round: event.heats[0].round,
+          scores: [{ bib: 1, score: 1 }],
+        })
+        .expect(400);
+    });
+  });
+
   describe('GET /api/judging/competition/:competitionId/scoring-progress', () => {
     it('should return judge submission status', async () => {
       const { comp } = await setupCompetitionWithSchedule();

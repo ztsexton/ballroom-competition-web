@@ -114,6 +114,86 @@ describe('Couples API', () => {
     });
   });
 
+  describe('POST /api/couples - addCouple returns null', () => {
+    it('should return 400 when leader/follower are invalid', async () => {
+      const response = await request(app)
+        .post('/api/couples')
+        .send({ leaderId: 9999, followerId: 9998, competitionId: 1 })
+        .expect(400);
+
+      expect(response.body.error).toContain('Invalid');
+    });
+  });
+
+  describe('GET /api/couples/:bib/eligible-categories', () => {
+    it('should return 400 when competitionId is missing', async () => {
+      const { couple } = await createCouple();
+
+      const response = await request(app)
+        .get(`/api/couples/${couple.bib}/eligible-categories`)
+        .expect(400);
+
+      expect(response.body.error).toContain('competitionId');
+    });
+
+    it('should return 404 for non-existent couple', async () => {
+      await request(app)
+        .get('/api/couples/999/eligible-categories?competitionId=1')
+        .expect(404);
+    });
+
+    it('should return categories when couple exists with DOB', async () => {
+      const org = await dataService.addOrganization({
+        name: 'Test Org',
+        rulePresetKey: 'custom',
+        settings: {
+          ageCategories: [
+            { name: 'Adult', minAge: 18 },
+          ],
+        },
+      });
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01', organizationId: org.id,
+      });
+      const leader = await dataService.addPerson({
+        firstName: 'L', lastName: 'A', role: 'leader', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2000-01-01',
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'F', lastName: 'B', role: 'follower', status: 'student',
+        competitionId: comp.id, dateOfBirth: '2000-06-01',
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const response = await request(app)
+        .get(`/api/couples/${couple!.bib}/eligible-categories?competitionId=${comp.id}`)
+        .expect(200);
+
+      expect(response.body.categories).toBeDefined();
+      expect(response.body.leaderAge).toBeDefined();
+      expect(response.body.followerAge).toBeDefined();
+    });
+
+    it('should return categories without ages when DOB is missing', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01',
+      });
+      const leader = await dataService.addPerson({
+        firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId: comp.id,
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const response = await request(app)
+        .get(`/api/couples/${couple!.bib}/eligible-categories?competitionId=${comp.id}`)
+        .expect(200);
+
+      expect(response.body.categories).toBeDefined();
+    });
+  });
+
   describe('DELETE /api/couples/:bib', () => {
     it('should delete couple', async () => {
       const { couple } = await createCouple();

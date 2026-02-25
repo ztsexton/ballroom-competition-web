@@ -310,4 +310,214 @@ describe('Events API', () => {
         .expect(404);
     });
   });
+
+  describe('POST /api/events/register', () => {
+    it('should register a couple for an event', async () => {
+      const comp = await dataService.addCompetition({ name: 'Comp', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const res = await request(app)
+        .post('/api/events/register')
+        .send({ competitionId: comp.id, bib: couple!.bib, style: 'Smooth', dances: ['Waltz'] })
+        .expect(201);
+
+      expect(res.body.created).toBe(true);
+      expect(res.body.event).toBeDefined();
+    });
+
+    it('should return 400 when competitionId is missing', async () => {
+      await request(app)
+        .post('/api/events/register')
+        .send({ bib: 1 })
+        .expect(400);
+    });
+
+    it('should return 400 when bib is missing', async () => {
+      await request(app)
+        .post('/api/events/register')
+        .send({ competitionId: 1 })
+        .expect(400);
+    });
+
+    it('should return 404 when couple not found', async () => {
+      await request(app)
+        .post('/api/events/register')
+        .send({ competitionId: 1, bib: 999 })
+        .expect(404);
+    });
+  });
+
+  describe('GET /api/events/:id/entries', () => {
+    it('should return entries for an event', async () => {
+      const competitionId = 1;
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [], competitionId);
+
+      const res = await request(app)
+        .get(`/api/events/${event.id}/entries`)
+        .expect(200);
+
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].bib).toBe(couple!.bib);
+    });
+
+    it('should return 404 for non-existent event', async () => {
+      await request(app).get('/api/events/999/entries').expect(404);
+    });
+  });
+
+  describe('POST /api/events/:id/entries', () => {
+    it('should add a couple to an event', async () => {
+      const competitionId = 1;
+      const leader1 = await dataService.addPerson({ firstName: 'L1', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower1 = await dataService.addPerson({ firstName: 'F1', lastName: 'A', role: 'follower', status: 'student', competitionId });
+      const couple1 = await dataService.addCouple(leader1.id, follower1.id, competitionId);
+
+      const leader2 = await dataService.addPerson({ firstName: 'L2', lastName: 'B', role: 'leader', status: 'student', competitionId });
+      const follower2 = await dataService.addPerson({ firstName: 'F2', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple2 = await dataService.addCouple(leader2.id, follower2.id, competitionId);
+
+      const event = await dataService.addEvent('Waltz', [couple1!.bib], [], competitionId);
+
+      const res = await request(app)
+        .post(`/api/events/${event.id}/entries`)
+        .send({ bib: couple2!.bib })
+        .expect(200);
+
+      expect(res.body.heats[0].bibs).toContain(couple2!.bib);
+    });
+
+    it('should return 404 for non-existent event', async () => {
+      await request(app)
+        .post('/api/events/999/entries')
+        .send({ bib: 1 })
+        .expect(404);
+    });
+
+    it('should return 409 for duplicate entry', async () => {
+      const competitionId = 1;
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [], competitionId);
+
+      await request(app)
+        .post(`/api/events/${event.id}/entries`)
+        .send({ bib: couple!.bib })
+        .expect(409);
+    });
+  });
+
+  describe('DELETE /api/events/:id/entries/:bib', () => {
+    it('should remove a couple from an event', async () => {
+      const competitionId = 1;
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [], competitionId);
+
+      await request(app)
+        .delete(`/api/events/${event.id}/entries/${couple!.bib}`)
+        .expect(200);
+    });
+
+    it('should return 404 for non-existent event', async () => {
+      await request(app).delete('/api/events/999/entries/1').expect(404);
+    });
+
+    it('should return 404 when couple not in event', async () => {
+      const competitionId = 1;
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
+      const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      await request(app)
+        .delete(`/api/events/${event.id}/entries/${couple!.bib}`)
+        .expect(404);
+    });
+  });
+
+  describe('DELETE /api/events/:id', () => {
+    it('should delete an event', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      await request(app)
+        .delete(`/api/events/${event.id}`)
+        .expect(204);
+    });
+
+    it('should return 404 for non-existent event', async () => {
+      await request(app).delete('/api/events/999').expect(404);
+    });
+  });
+
+  describe('GET /api/events/:id/results/:round', () => {
+    it('should return results for a round', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      const res = await request(app)
+        .get(`/api/events/${event.id}/results/final`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('should return 404 for non-existent event', async () => {
+      await request(app).get('/api/events/999/results/final').expect(404);
+    });
+
+    it('should return detailed results with detail=true', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      const res = await request(app)
+        .get(`/api/events/${event.id}/results/final?detail=true`)
+        .expect(200);
+
+      expect(res.body.eventName).toBe('Waltz');
+      expect(res.body.round).toBe('final');
+      expect(res.body.judges).toBeDefined();
+      expect(res.body.results).toBeDefined();
+    });
+  });
+
+  describe('POST /api/events/:id/scores/:round', () => {
+    it('should return 400 when scores is not an array', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      await request(app)
+        .post(`/api/events/${event.id}/scores/final`)
+        .send({ scores: 'not-array' })
+        .expect(400);
+    });
+
+    it('should return 400 when scores is missing', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      await request(app)
+        .post(`/api/events/${event.id}/scores/final`)
+        .send({})
+        .expect(400);
+    });
+  });
+
+  describe('DELETE /api/events/:id/scores/:round', () => {
+    it('should clear scores for a round', async () => {
+      const competitionId = 1;
+      const event = await dataService.addEvent('Waltz', [], [], competitionId);
+
+      await request(app)
+        .delete(`/api/events/${event.id}/scores/final`)
+        .expect(200);
+    });
+  });
 });

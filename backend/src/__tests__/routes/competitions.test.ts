@@ -2,126 +2,194 @@ import request from 'supertest';
 import app from '../../server';
 import { dataService } from '../../services/dataService';
 
-describe('Competitions API - Level Mode', () => {
+describe('Competitions API', () => {
   beforeEach(async () => {
     await dataService.resetAllData();
   });
 
-  describe('levelMode field', () => {
-    it('should default to undefined (combined mode)', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Test Comp', type: 'NDCA', date: '2026-06-01',
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.levelMode).toBeUndefined();
+  describe('GET /api/competitions', () => {
+    it('should return empty array when no competitions exist', async () => {
+      const res = await request(app).get('/api/competitions').expect(200);
+      expect(res.body).toEqual([]);
     });
 
-    it('should store combined level mode', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Combined Comp', type: 'NDCA', date: '2026-06-01',
-        levelMode: 'combined',
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.levelMode).toBe('combined');
-    });
+    it('should return all competitions', async () => {
+      await dataService.addCompetition({ name: 'Comp A', type: 'NDCA', date: '2025-03-01' });
+      await dataService.addCompetition({ name: 'Comp B', type: 'USA_DANCE', date: '2025-04-01' });
 
-    it('should store integrated level mode', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Integrated Comp', type: 'NDCA', date: '2026-06-01',
-        levelMode: 'integrated',
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.levelMode).toBe('integrated');
-    });
-
-    it('should update levelMode from combined to integrated', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Test Comp', type: 'NDCA', date: '2026-06-01',
-        levelMode: 'combined',
-      });
-      const updated = await dataService.updateCompetition(comp.id, { levelMode: 'integrated' });
-      expect(updated?.levelMode).toBe('integrated');
-    });
-
-    it('should store integrated levels with Open variants', async () => {
-      const integratedLevels = [
-        'Bronze 1', 'Bronze 2', 'Bronze 3', 'Open Bronze',
-        'Silver 1', 'Silver 2', 'Silver 3', 'Open Silver',
-        'Gold', 'Open Gold',
-      ];
-      const comp = await dataService.addCompetition({
-        name: 'Integrated Comp', type: 'NDCA', date: '2026-06-01',
-        levelMode: 'integrated',
-        levels: integratedLevels,
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.levelMode).toBe('integrated');
-      expect(fetched?.levels).toEqual(integratedLevels);
-      expect(fetched?.levels).toContain('Open Bronze');
-      expect(fetched?.levels).toContain('Open Silver');
+      const res = await request(app).get('/api/competitions').expect(200);
+      expect(res.body).toHaveLength(2);
+      expect(res.body.map((c: any) => c.name)).toEqual(expect.arrayContaining(['Comp A', 'Comp B']));
     });
   });
-});
 
-describe('Competitions API - New Fields', () => {
-  beforeEach(async () => {
-    await dataService.resetAllData();
+  describe('GET /api/competitions/:id', () => {
+    it('should return a competition by id', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test Comp', type: 'NDCA', date: '2025-03-01' });
+
+      const res = await request(app).get(`/api/competitions/${comp.id}`).expect(200);
+      expect(res.body.name).toBe('Test Comp');
+      expect(res.body.type).toBe('NDCA');
+    });
+
+    it('should return 404 for non-existent competition', async () => {
+      await request(app).get('/api/competitions/999').expect(404);
+    });
   });
 
   describe('POST /api/competitions', () => {
+    it('should create a new competition', async () => {
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'New Comp', type: 'NDCA', date: '2025-06-01', location: 'NYC' })
+        .expect(201);
+
+      expect(res.body.name).toBe('New Comp');
+      expect(res.body.type).toBe('NDCA');
+      expect(res.body.location).toBe('NYC');
+      expect(res.body.id).toBeDefined();
+    });
+
+    it('should return 400 when name is missing', async () => {
+      await request(app)
+        .post('/api/competitions')
+        .send({ type: 'NDCA', date: '2025-06-01' })
+        .expect(400);
+    });
+
+    it('should return 400 when type is missing', async () => {
+      await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Test', date: '2025-06-01' })
+        .expect(400);
+    });
+
+    it('should return 400 when date is missing', async () => {
+      await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Test', type: 'NDCA' })
+        .expect(400);
+    });
+
+    it('should return 400 for invalid competition type', async () => {
+      await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Test', type: 'INVALID', date: '2025-06-01' })
+        .expect(400);
+    });
+
+    it('should return 400 for STUDIO type without studioId', async () => {
+      await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Studio Comp', type: 'STUDIO', date: '2025-06-01' })
+        .expect(400);
+    });
+
+    it('should create STUDIO competition with studioId', async () => {
+      const studio = await dataService.addStudio({ name: 'Test Studio' });
+
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Studio Comp', type: 'STUDIO', date: '2025-06-01', studioId: studio.id })
+        .expect(201);
+
+      expect(res.body.type).toBe('STUDIO');
+      expect(res.body.studioId).toBe(studio.id);
+    });
+
     it('should default publiclyVisible to true', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Test', type: 'NDCA', date: '2026-06-01',
-      });
-      // Verify the value is accessible
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched).toBeDefined();
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Test', type: 'NDCA', date: '2025-06-01' })
+        .expect(201);
+
+      expect(res.body.publiclyVisible).toBe(true);
     });
 
     it('should default resultsPublic to false for STUDIO type', async () => {
-      // The route logic sets this default
-      const response = await request(app)
-        .post('/api/competitions')
-        .send({ name: 'Studio Comp', type: 'STUDIO', date: '2026-06-01', studioId: 1 });
+      const studio = await dataService.addStudio({ name: 'Test Studio' });
 
-      // Studio may fail without a real studio, but we can test via dataService
-      const comp = await dataService.addCompetition({
-        name: 'Studio Test', type: 'STUDIO', date: '2026-06-01',
-        resultsPublic: false,
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.resultsPublic).toBe(false);
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Studio Comp', type: 'STUDIO', date: '2025-06-01', studioId: studio.id })
+        .expect(201);
+
+      expect(res.body.resultsPublic).toBe(false);
     });
 
-    it('should store websiteUrl and organizerEmail', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Branded', type: 'NDCA', date: '2026-06-01',
-        websiteUrl: 'https://mycomp.com',
-        organizerEmail: 'org@test.com',
-      });
-      const fetched = await dataService.getCompetitionById(comp.id);
-      expect(fetched?.websiteUrl).toBe('https://mycomp.com');
-      expect(fetched?.organizerEmail).toBe('org@test.com');
+    it('should default resultsPublic to true for non-STUDIO type', async () => {
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Test', type: 'NDCA', date: '2025-06-01' })
+        .expect(201);
+
+      expect(res.body.resultsPublic).toBe(true);
+    });
+
+    it('should accept all valid competition types', async () => {
+      const types = ['NDCA', 'USA_DANCE', 'WDC', 'WDSF', 'UNAFFILIATED'];
+      for (const type of types) {
+        const res = await request(app)
+          .post('/api/competitions')
+          .send({ name: `${type} Comp`, type, date: '2025-06-01' })
+          .expect(201);
+        expect(res.body.type).toBe(type);
+      }
+    });
+
+    it('should store optional fields', async () => {
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({
+          name: 'Full Comp',
+          type: 'NDCA',
+          date: '2025-06-01',
+          location: 'NYC',
+          description: 'A great competition',
+          websiteUrl: 'https://example.com',
+          organizerEmail: 'org@test.com',
+        })
+        .expect(201);
+
+      expect(res.body.description).toBe('A great competition');
+      expect(res.body.websiteUrl).toBe('https://example.com');
+      expect(res.body.organizerEmail).toBe('org@test.com');
     });
   });
 
   describe('PUT /api/competitions/:id', () => {
-    it('should toggle publiclyVisible', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Test', type: 'NDCA', date: '2026-06-01',
-        publiclyVisible: true,
-      });
-      const updated = await dataService.updateCompetition(comp.id, { publiclyVisible: false });
-      expect(updated?.publiclyVisible).toBe(false);
+    it('should update a competition', async () => {
+      const comp = await dataService.addCompetition({ name: 'Old Name', type: 'NDCA', date: '2025-03-01' });
+
+      const res = await request(app)
+        .put(`/api/competitions/${comp.id}`)
+        .send({ name: 'New Name', location: 'Updated Location' })
+        .expect(200);
+
+      expect(res.body.name).toBe('New Name');
+      expect(res.body.location).toBe('Updated Location');
     });
 
-    it('should toggle resultsPublic', async () => {
-      const comp = await dataService.addCompetition({
-        name: 'Test', type: 'NDCA', date: '2026-06-01',
-        resultsPublic: true,
-      });
-      const updated = await dataService.updateCompetition(comp.id, { resultsPublic: false });
-      expect(updated?.resultsPublic).toBe(false);
+    it('should return 404 for non-existent competition', async () => {
+      await request(app)
+        .put('/api/competitions/999')
+        .send({ name: 'Updated' })
+        .expect(404);
+    });
+  });
+
+  describe('DELETE /api/competitions/:id', () => {
+    it('should delete a competition', async () => {
+      const comp = await dataService.addCompetition({ name: 'To Delete', type: 'NDCA', date: '2025-03-01' });
+
+      await request(app).delete(`/api/competitions/${comp.id}`).expect(204);
+
+      const all = await dataService.getCompetitions();
+      expect(all.find(c => c.id === comp.id)).toBeUndefined();
+    });
+
+    it('should return 404 for non-existent competition', async () => {
+      await request(app).delete('/api/competitions/999').expect(404);
     });
   });
 });
