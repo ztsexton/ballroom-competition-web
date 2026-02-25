@@ -800,12 +800,44 @@ export class PostgresDataService implements IDataService {
     return rows.length > 0 ? rows[0].scores : [];
   }
 
+  async getScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, number[]>> {
+    const result: Record<number, number[]> = {};
+    if (bibs.length === 0) return result;
+    const d = dance || '';
+    const { rows } = await this.pool.query(
+      'SELECT bib, scores FROM scores WHERE event_id = $1 AND round = $2 AND dance = $3 AND bib = ANY($4)',
+      [eventId, round, d, bibs]
+    );
+    for (const row of rows) {
+      result[row.bib] = row.scores;
+    }
+    return result;
+  }
+
   async setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void> {
     const d = dance || '';
     await this.pool.query(
       `INSERT INTO scores (event_id, round, bib, dance, scores) VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (event_id, round, bib, dance) DO UPDATE SET scores = $5`,
       [eventId, round, bib, d, JSON.stringify(scores)]
+    );
+  }
+
+  async setScoresBatch(eventId: number, round: string, entries: Array<{ bib: number; scores: number[] }>, dance?: string): Promise<void> {
+    if (entries.length === 0) return;
+    const d = dance || '';
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let paramIdx = 1;
+    for (const { bib, scores } of entries) {
+      placeholders.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+      values.push(eventId, round, bib, d, JSON.stringify(scores));
+    }
+    await this.pool.query(
+      `INSERT INTO scores (event_id, round, bib, dance, scores)
+       VALUES ${placeholders.join(', ')}
+       ON CONFLICT (event_id, round, bib, dance) DO UPDATE SET scores = EXCLUDED.scores`,
+      values
     );
   }
 
@@ -845,20 +877,41 @@ export class PostgresDataService implements IDataService {
     return result;
   }
 
+  async getJudgeScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, Record<number, number>>> {
+    const result: Record<number, Record<number, number>> = {};
+    if (bibs.length === 0) return result;
+    const d = dance || '';
+    const { rows } = await this.pool.query(
+      'SELECT bib, judge_id, score FROM judge_scores WHERE event_id = $1 AND round = $2 AND dance = $3 AND bib = ANY($4)',
+      [eventId, round, d, bibs]
+    );
+    for (const row of rows) {
+      if (!result[row.bib]) result[row.bib] = {};
+      result[row.bib][row.judge_id] = row.score;
+    }
+    return result;
+  }
+
   async setJudgeScoresBatch(
     eventId: number, round: string, judgeId: number,
     entries: Array<{ bib: number; score: number }>,
     dance?: string
   ): Promise<void> {
+    if (entries.length === 0) return;
     const d = dance || '';
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let paramIdx = 1;
     for (const { bib, score } of entries) {
-      await this.pool.query(
-        `INSERT INTO judge_scores (event_id, round, bib, judge_id, dance, score)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (event_id, round, bib, judge_id, dance) DO UPDATE SET score = $6`,
-        [eventId, round, bib, judgeId, d, score]
-      );
+      placeholders.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+      values.push(eventId, round, bib, judgeId, d, score);
     }
+    await this.pool.query(
+      `INSERT INTO judge_scores (event_id, round, bib, judge_id, dance, score)
+       VALUES ${placeholders.join(', ')}
+       ON CONFLICT (event_id, round, bib, judge_id, dance) DO UPDATE SET score = EXCLUDED.score`,
+      values
+    );
   }
 
   async clearJudgeScores(eventId: number, round: string, dance?: string): Promise<void> {
@@ -912,6 +965,40 @@ export class PostgresDataService implements IDataService {
         [eventId, round, judgeId, d, heat.bibs]
       );
       status[judgeId] = parseInt(rows[0].cnt) === heat.bibs.length;
+    }
+    return status;
+  }
+
+  async getJudgeSubmissionStatusBatch(
+    entries: Array<{ eventId: number; round: string; dance?: string; bibs: number[] }>,
+    judgeIds: number[]
+  ): Promise<Record<number, boolean>> {
+    const status: Record<number, boolean> = {};
+    for (const jId of judgeIds) status[jId] = true;
+
+    if (entries.length === 0 || judgeIds.length === 0) return status;
+
+    for (const entry of entries) {
+      if (entry.bibs.length === 0) {
+        for (const jId of judgeIds) status[jId] = false;
+        continue;
+      }
+
+      const d = entry.dance || '';
+      const { rows } = await this.pool.query(
+        `SELECT judge_id, COUNT(*) as cnt FROM judge_scores
+         WHERE event_id = $1 AND round = $2 AND dance = $3 AND bib = ANY($4) AND judge_id = ANY($5)
+         GROUP BY judge_id`,
+        [entry.eventId, entry.round, d, entry.bibs, judgeIds]
+      );
+      const countByJudge: Record<number, number> = {};
+      for (const row of rows) countByJudge[row.judge_id] = parseInt(row.cnt);
+
+      for (const jId of judgeIds) {
+        if ((countByJudge[jId] || 0) < entry.bibs.length) {
+          status[jId] = false;
+        }
+      }
     }
     return status;
   }

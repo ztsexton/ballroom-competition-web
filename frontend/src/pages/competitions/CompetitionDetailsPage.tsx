@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { peopleApi, couplesApi, judgesApi, eventsApi, schedulesApi, studiosApi, organizationsApi } from '../../api/client';
+import { competitionsApi, studiosApi, organizationsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { Studio, Organization } from '../../types';
 
@@ -34,33 +34,17 @@ const CompetitionDetailsPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [peopleRes, couplesRes, judgesRes, eventsRes] = await Promise.all([
-        peopleApi.getAll(competitionId),
-        couplesApi.getAll(competitionId),
-        judgesApi.getAll(competitionId),
-        eventsApi.getAll(competitionId),
-      ]);
-
-      let scheduleHeats = 0;
-      let currentHeatIndex = 0;
-      let scheduleExists = false;
-      try {
-        const schedRes = await schedulesApi.get(competitionId);
-        scheduleHeats = schedRes.data.heatOrder.length;
-        currentHeatIndex = schedRes.data.currentHeatIndex;
-        scheduleExists = true;
-      } catch {
-        // no schedule yet
-      }
+      const summaryRes = await competitionsApi.getSummary(competitionId);
+      const { counts: c, schedule: s } = summaryRes.data;
 
       setCounts({
-        people: peopleRes.data.length,
-        couples: couplesRes.data.length,
-        judges: judgesRes.data.length,
-        events: Object.keys(eventsRes.data).length,
-        scheduleHeats,
-        currentHeatIndex,
-        scheduleExists,
+        people: c.people,
+        couples: c.couples,
+        judges: c.judges,
+        events: c.events,
+        scheduleHeats: s.scheduleHeats,
+        currentHeatIndex: s.currentHeatIndex,
+        scheduleExists: s.scheduleExists,
       });
 
       if (activeCompetition?.type === 'STUDIO' && activeCompetition.studioId) {

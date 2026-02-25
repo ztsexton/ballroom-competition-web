@@ -191,3 +191,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 
 -- Migration: add current_dance to schedules (for existing deployments)
 ALTER TABLE schedules ADD COLUMN IF NOT EXISTS current_dance TEXT;
+
+-- Performance indexes for batch scoring queries
+CREATE INDEX IF NOT EXISTS idx_judge_scores_event_round_bib ON judge_scores(event_id, round, bib);
+CREATE INDEX IF NOT EXISTS idx_people_comp_email_lower ON people(competition_id, (LOWER(email)));

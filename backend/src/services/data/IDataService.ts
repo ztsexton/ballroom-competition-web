@@ -88,12 +88,15 @@ export interface IDataService {
 
   // Scores (dance parameter is optional — used for multi-dance events)
   getScores(eventId: number, round: string, bib: number, dance?: string): Promise<number[]>;
+  getScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, number[]>>;
   setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void>;
+  setScoresBatch(eventId: number, round: string, entries: Array<{ bib: number; scores: number[] }>, dance?: string): Promise<void>;
   clearScores(eventId: number, round: string, dance?: string): Promise<void>;
   hasAnyScores(eventId: number): Promise<boolean>;
 
   // Judge Scores (dance parameter is optional — used for multi-dance events)
   getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>>;
+  getJudgeScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, Record<number, number>>>;
   setJudgeScoresBatch(
     eventId: number,
     round: string,
@@ -107,6 +110,10 @@ export interface IDataService {
   // Heat management
   rebuildHeats(bibs: number[], judgeIds: number[], scoringType: 'standard' | 'proficiency'): Heat[];
   getJudgeSubmissionStatus(eventId: number, round: string, dance?: string): Promise<Record<number, boolean>>;
+  getJudgeSubmissionStatusBatch(
+    entries: Array<{ eventId: number; round: string; dance?: string; bibs: number[] }>,
+    judgeIds: number[]
+  ): Promise<Record<number, boolean>>;
   advanceToNextRound(eventId: number, currentRound: string, topBibs: number[]): Promise<boolean>;
 
   // Users

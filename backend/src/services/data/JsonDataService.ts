@@ -708,9 +708,27 @@ export class JsonDataService implements IDataService {
     return this.data.scores[key] || [];
   }
 
+  async getScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, number[]>> {
+    const result: Record<number, number[]> = {};
+    for (const bib of bibs) {
+      const key = getScoreKey(eventId, round, bib, dance);
+      const scores = this.data.scores[key];
+      if (scores) result[bib] = scores;
+    }
+    return result;
+  }
+
   async setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void> {
     const key = getScoreKey(eventId, round, bib, dance);
     this.data.scores[key] = scores;
+    this.saveEvents();
+  }
+
+  async setScoresBatch(eventId: number, round: string, entries: Array<{ bib: number; scores: number[] }>, dance?: string): Promise<void> {
+    for (const { bib, scores } of entries) {
+      const key = getScoreKey(eventId, round, bib, dance);
+      this.data.scores[key] = scores;
+    }
     this.saveEvents();
   }
 
@@ -741,6 +759,18 @@ export class JsonDataService implements IDataService {
   async getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>> {
     const key = getScoreKey(eventId, round, bib, dance);
     return this.data.judgeScores[key] || {};
+  }
+
+  async getJudgeScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, Record<number, number>>> {
+    const result: Record<number, Record<number, number>> = {};
+    for (const bib of bibs) {
+      const key = getScoreKey(eventId, round, bib, dance);
+      const judgeScores = this.data.judgeScores[key];
+      if (judgeScores && Object.keys(judgeScores).length > 0) {
+        result[bib] = judgeScores;
+      }
+    }
+    return result;
   }
 
   async setJudgeScoresBatch(eventId: number, round: string, judgeId: number, entries: Array<{ bib: number; score: number }>, dance?: string): Promise<void> {
@@ -805,6 +835,33 @@ export class JsonDataService implements IDataService {
         const key = getScoreKey(eventId, round, bib, dance);
         return this.data.judgeScores[key]?.[judgeId] !== undefined;
       });
+    }
+    return status;
+  }
+
+  async getJudgeSubmissionStatusBatch(
+    entries: Array<{ eventId: number; round: string; dance?: string; bibs: number[] }>,
+    judgeIds: number[]
+  ): Promise<Record<number, boolean>> {
+    const status: Record<number, boolean> = {};
+    for (const jId of judgeIds) status[jId] = true;
+
+    if (entries.length === 0 || judgeIds.length === 0) return status;
+
+    for (const entry of entries) {
+      if (entry.bibs.length === 0) {
+        for (const jId of judgeIds) status[jId] = false;
+        continue;
+      }
+
+      for (const jId of judgeIds) {
+        if (!status[jId]) continue;
+        const allScored = entry.bibs.every(bib => {
+          const key = getScoreKey(entry.eventId, entry.round, bib, entry.dance);
+          return this.data.judgeScores[key]?.[jId] !== undefined;
+        });
+        if (!allScored) status[jId] = false;
+      }
     }
     return status;
   }

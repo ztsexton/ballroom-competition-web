@@ -166,15 +166,15 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
       const danceProgress: Record<string, Record<number, Record<number, number>>> = {};
 
       for (const dance of eventDances) {
+        const roundScores = await dataService.getJudgeScoresForRound(entry.eventId, entry.round, bibs, dance);
         if (dance) {
           danceProgress[dance] = {};
-        }
-        for (const bib of bibs) {
-          const judgeScores = await dataService.getJudgeScores(entry.eventId, entry.round, bib, dance);
-          if (dance) {
-            danceProgress[dance][bib] = judgeScores;
-          } else {
-            scoresByBib[bib] = judgeScores;
+          for (const bib of bibs) {
+            danceProgress[dance][bib] = roundScores[bib] || {};
+          }
+        } else {
+          for (const bib of bibs) {
+            scoresByBib[bib] = roundScores[bib] || {};
           }
         }
       }
@@ -192,24 +192,29 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
     const progressJudgesMap = await dataService.getJudgesByIds(Array.from(allJudgeIds));
 
     // A judge hasSubmitted only when they've submitted for ALL entries
-    const judgesList = await Promise.all(Array.from(allJudgeIds).map(async jId => {
+    const batchEntries = currentHeat.entries.map(e => {
+      const event = progressEventsMap.get(e.eventId);
+      const heat = event?.heats.find(h => h.round === e.round);
+      return {
+        eventId: e.eventId,
+        round: e.round,
+        dance: e.dance,
+        bibs: e.bibSubset || heat?.bibs || [],
+      };
+    });
+    const judgeIdArray = Array.from(allJudgeIds);
+    const batchStatus = await dataService.getJudgeSubmissionStatusBatch(batchEntries, judgeIdArray);
+
+    const judgesList = judgeIdArray.map(jId => {
       const judge = progressJudgesMap.get(jId);
-      let allEntriesSubmitted = true;
-      for (const entry of currentHeat.entries) {
-        const submissionStatus = await dataService.getJudgeSubmissionStatus(entry.eventId, entry.round);
-        if (!submissionStatus[jId]) {
-          allEntriesSubmitted = false;
-          break;
-        }
-      }
       return {
         judgeId: jId,
         judgeName: judge?.name || 'Unknown',
         judgeNumber: judge?.judgeNumber || 0,
-        hasSubmitted: allEntriesSubmitted,
+        hasSubmitted: batchStatus[jId] ?? false,
         isChairman: judge?.isChairman,
       };
-    }));
+    });
     judgesList.sort((a, b) => a.judgeNumber - b.judgeNumber);
 
     const progress: ScoringProgress = {

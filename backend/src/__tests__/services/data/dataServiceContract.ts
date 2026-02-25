@@ -773,6 +773,130 @@ export function dataServiceContractTests(
     });
   });
 
+  // ─── Batch Score Methods ───────────────────────────────────────
+
+  describe('getScoresForRound', () => {
+    let compId: number;
+    let eventId: number;
+
+    beforeEach(async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      compId = comp.id;
+      const event = await ds.addEvent('Batch Score Event', [1, 2, 3], [], compId);
+      eventId = event.id;
+    });
+
+    it('should return scores for multiple bibs in one call', async () => {
+      await ds.setScores(eventId, 'final', 1, [3, 2, 1]);
+      await ds.setScores(eventId, 'final', 2, [1, 3, 2]);
+
+      const result = await ds.getScoresForRound(eventId, 'final', [1, 2, 3]);
+      expect(result[1]).toEqual([3, 2, 1]);
+      expect(result[2]).toEqual([1, 3, 2]);
+      expect(result[3]).toBeUndefined();
+    });
+
+    it('should return empty object for empty bibs', async () => {
+      const result = await ds.getScoresForRound(eventId, 'final', []);
+      expect(result).toEqual({});
+    });
+
+    it('should filter by dance parameter', async () => {
+      await ds.setScores(eventId, 'final', 1, [5], 'Waltz');
+      await ds.setScores(eventId, 'final', 1, [3], 'Tango');
+
+      const waltzScores = await ds.getScoresForRound(eventId, 'final', [1], 'Waltz');
+      expect(waltzScores[1]).toEqual([5]);
+
+      const tangoScores = await ds.getScoresForRound(eventId, 'final', [1], 'Tango');
+      expect(tangoScores[1]).toEqual([3]);
+    });
+  });
+
+  describe('getJudgeScoresForRound', () => {
+    let compId: number;
+    let eventId: number;
+    let judgeId: number;
+
+    beforeEach(async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      compId = comp.id;
+      const judge = await ds.addJudge('Judge', comp.id);
+      judgeId = judge.id;
+      const event = await ds.addEvent('Batch JS Event', [1, 2], [judge.id], compId);
+      eventId = event.id;
+    });
+
+    it('should return judge scores for multiple bibs', async () => {
+      await ds.setJudgeScoresBatch(eventId, 'final', judgeId, [
+        { bib: 1, score: 3 },
+        { bib: 2, score: 1 },
+      ]);
+
+      const result = await ds.getJudgeScoresForRound(eventId, 'final', [1, 2]);
+      expect(result[1][judgeId]).toBe(3);
+      expect(result[2][judgeId]).toBe(1);
+    });
+
+    it('should return empty object for empty bibs', async () => {
+      const result = await ds.getJudgeScoresForRound(eventId, 'final', []);
+      expect(result).toEqual({});
+    });
+
+    it('should handle bibs with no scores', async () => {
+      await ds.setJudgeScoresBatch(eventId, 'final', judgeId, [{ bib: 1, score: 5 }]);
+
+      const result = await ds.getJudgeScoresForRound(eventId, 'final', [1, 2]);
+      expect(result[1][judgeId]).toBe(5);
+      expect(result[2]).toBeUndefined();
+    });
+
+    it('should filter by dance parameter', async () => {
+      await ds.setJudgeScoresBatch(eventId, 'final', judgeId, [{ bib: 1, score: 5 }], 'Waltz');
+      await ds.setJudgeScoresBatch(eventId, 'final', judgeId, [{ bib: 1, score: 2 }], 'Tango');
+
+      const waltz = await ds.getJudgeScoresForRound(eventId, 'final', [1], 'Waltz');
+      expect(waltz[1][judgeId]).toBe(5);
+
+      const tango = await ds.getJudgeScoresForRound(eventId, 'final', [1], 'Tango');
+      expect(tango[1][judgeId]).toBe(2);
+    });
+  });
+
+  describe('getJudgeSubmissionStatusBatch', () => {
+    it('should check submission across multiple entries', async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      const j1 = await ds.addJudge('J1', comp.id);
+      const j2 = await ds.addJudge('J2', comp.id);
+      const e1 = await ds.addEvent('E1', [1, 2], [j1.id, j2.id], comp.id);
+      const e2 = await ds.addEvent('E2', [3, 4], [j1.id, j2.id], comp.id);
+
+      // J1 scores all bibs in both events
+      await ds.setJudgeScoresBatch(e1.id, 'final', j1.id, [{ bib: 1, score: 2 }, { bib: 2, score: 1 }]);
+      await ds.setJudgeScoresBatch(e2.id, 'final', j1.id, [{ bib: 3, score: 2 }, { bib: 4, score: 1 }]);
+
+      // J2 only scores event 1
+      await ds.setJudgeScoresBatch(e1.id, 'final', j2.id, [{ bib: 1, score: 1 }, { bib: 2, score: 2 }]);
+
+      const status = await ds.getJudgeSubmissionStatusBatch(
+        [
+          { eventId: e1.id, round: 'final', bibs: [1, 2] },
+          { eventId: e2.id, round: 'final', bibs: [3, 4] },
+        ],
+        [j1.id, j2.id]
+      );
+      expect(status[j1.id]).toBe(true);
+      expect(status[j2.id]).toBe(false);
+    });
+
+    it('should return true for all judges with empty entries', async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      const j1 = await ds.addJudge('J1', comp.id);
+      const status = await ds.getJudgeSubmissionStatusBatch([], [j1.id]);
+      expect(status[j1.id]).toBe(true);
+    });
+  });
+
   // ─── resetAllData ───────────────────────────────────────────────
 
   describe('resetAllData', () => {

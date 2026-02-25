@@ -99,8 +99,14 @@ router.get('/:bib/events', async (req: Request, res: Response) => {
 router.delete('/:bib', async (req: Request, res: Response) => {
   const bib = parseInt(req.params.bib);
 
-  // Check if couple is in any event
-  const events = await dataService.getEvents();
+  // Fetch the couple first to scope event check to its competition
+  const couple = await dataService.getCoupleByBib(bib);
+  if (!couple) {
+    return res.status(404).json({ error: 'Couple not found' });
+  }
+
+  // Check if couple is in any event within its competition
+  const events = await dataService.getEvents(couple.competitionId);
   const inEvent = Object.values(events).some(event =>
     event.heats.some(heat => heat.bibs.includes(bib))
   );

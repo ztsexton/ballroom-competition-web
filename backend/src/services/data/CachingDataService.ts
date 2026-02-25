@@ -388,8 +388,16 @@ export class CachingDataService implements IDataService {
     return this.inner.getScores(eventId, round, bib, dance);
   }
 
+  async getScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, number[]>> {
+    return this.inner.getScoresForRound(eventId, round, bibs, dance);
+  }
+
   async setScores(eventId: number, round: string, bib: number, scores: number[], dance?: string): Promise<void> {
     return this.inner.setScores(eventId, round, bib, scores, dance);
+  }
+
+  async setScoresBatch(eventId: number, round: string, entries: Array<{ bib: number; scores: number[] }>, dance?: string): Promise<void> {
+    return this.inner.setScoresBatch(eventId, round, entries, dance);
   }
 
   async clearScores(eventId: number, round: string, dance?: string): Promise<void> {
@@ -400,6 +408,10 @@ export class CachingDataService implements IDataService {
 
   async getJudgeScores(eventId: number, round: string, bib: number, dance?: string): Promise<Record<number, number>> {
     return this.inner.getJudgeScores(eventId, round, bib, dance);
+  }
+
+  async getJudgeScoresForRound(eventId: number, round: string, bibs: number[], dance?: string): Promise<Record<number, Record<number, number>>> {
+    return this.inner.getJudgeScoresForRound(eventId, round, bibs, dance);
   }
 
   async setJudgeScoresBatch(
@@ -425,6 +437,13 @@ export class CachingDataService implements IDataService {
 
   async getJudgeSubmissionStatus(eventId: number, round: string, dance?: string): Promise<Record<number, boolean>> {
     return this.inner.getJudgeSubmissionStatus(eventId, round, dance);
+  }
+
+  async getJudgeSubmissionStatusBatch(
+    entries: Array<{ eventId: number; round: string; dance?: string; bibs: number[] }>,
+    judgeIds: number[]
+  ): Promise<Record<number, boolean>> {
+    return this.inner.getJudgeSubmissionStatusBatch(entries, judgeIds);
   }
 
   async advanceToNextRound(eventId: number, currentRound: string, topBibs: number[]): Promise<boolean> {

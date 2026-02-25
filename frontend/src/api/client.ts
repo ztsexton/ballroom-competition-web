@@ -41,7 +41,12 @@ api.interceptors.request.use(
 export const competitionsApi = {
   getAll: () => api.get<Competition[]>('/competitions'),
   getById: (id: number) => api.get<Competition>(`/competitions/${id}`),
-  create: (competition: Omit<Competition, 'id' | 'createdAt'>) => 
+  getSummary: (id: number) => api.get<{
+    competition: Competition;
+    counts: { people: number; couples: number; judges: number; events: number; totalEntries: number };
+    schedule: { scheduleHeats: number; currentHeatIndex: number; scheduleExists: boolean };
+  }>(`/competitions/${id}/summary`),
+  create: (competition: Omit<Competition, 'id' | 'createdAt'>) =>
     api.post<Competition>('/competitions', competition),
   update: (id: number, updates: Partial<Omit<Competition, 'id' | 'createdAt'>>) =>
     api.put<Competition>(`/competitions/${id}`, updates),

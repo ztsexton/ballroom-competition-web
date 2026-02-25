@@ -121,12 +121,13 @@ export class ScoringService {
   ): Promise<EventResult[]> {
     const results: EventResult[] = [];
     const couplesMap = await dataService.getCouplesByBibs(bibs);
+    const allScores = await dataService.getScoresForRound(eventId, round, bibs, dance);
 
     for (const bib of bibs) {
       const couple = couplesMap.get(bib);
       if (!couple) continue;
 
-      const scores = await dataService.getScores(eventId, round, bib, dance);
+      const scores = allScores[bib] || [];
       if (scores.length === 0) continue;
 
       if (scoringType === 'proficiency') {
@@ -221,9 +222,10 @@ export class ScoringService {
       for (const dance of dances) {
         const activeBibs = eventDances.includes(dance) ? bibs : [];
         const judgeRanks = new Map<number, number[]>();
+        const danceScores = await dataService.getScoresForRound(eventId, round, activeBibs, dance);
 
         for (const bib of activeBibs) {
-          const scores = await dataService.getScores(eventId, round, bib, dance);
+          const scores = danceScores[bib] || [];
           if (scores.length > 0) {
             judgeRanks.set(bib, scores);
           }
@@ -336,6 +338,12 @@ export class ScoringService {
     const results: EventResult[] = [];
     const couplesMap = await dataService.getCouplesByBibs(bibs);
 
+    // Prefetch all dance scores in batch
+    const danceScoresMap: Record<string, Record<number, number[]>> = {};
+    for (const dance of dances) {
+      danceScoresMap[dance] = await dataService.getScoresForRound(eventId, round, bibs, dance);
+    }
+
     for (const bib of bibs) {
       const couple = couplesMap.get(bib);
       if (!couple) continue;
@@ -345,7 +353,7 @@ export class ScoringService {
       const danceDetails: DanceDetail[] = [];
 
       for (const dance of dances) {
-        const scores = await dataService.getScores(eventId, round, bib, dance);
+        const scores = danceScoresMap[dance][bib] || [];
         const danceMarks = scores.reduce((sum, s) => sum + s, 0);
         totalMarks += danceMarks;
         allScores.push(...scores);
@@ -458,16 +466,16 @@ export class ScoringService {
 
     await dataService.setJudgeScoresBatch(eventId, round, judgeId, scores, dance);
 
-    // For multi-dance events, check all dances; for single-dance, check the one
+    // Check all dances in one batch call instead of per-dance loop
     const dances = await this.getDancesForScoring(eventId);
-    let allSubmitted = true;
-    for (const d of dances) {
-      const submissionStatus = await dataService.getJudgeSubmissionStatus(eventId, round, d);
-      if (!heat.judges.every(jId => submissionStatus[jId])) {
-        allSubmitted = false;
-        break;
-      }
-    }
+    const batchEntries = dances.map(d => ({
+      eventId,
+      round,
+      dance: d,
+      bibs: heat.bibs,
+    }));
+    const batchStatus = await dataService.getJudgeSubmissionStatusBatch(batchEntries, heat.judges);
+    const allSubmitted = heat.judges.every(jId => batchStatus[jId]);
 
     return { success: true, allSubmitted };
   }
@@ -487,13 +495,16 @@ export class ScoringService {
     const dances = danceFilter ? [danceFilter] : await this.getDancesForScoring(eventId);
 
     for (const dance of dances) {
+      const allJudgeScores = await dataService.getJudgeScoresForRound(eventId, round, bibs, dance);
+      const scoreEntries: Array<{ bib: number; scores: number[] }> = [];
       for (const bib of bibs) {
-        const judgeScores = await dataService.getJudgeScores(eventId, round, bib, dance);
+        const judgeScores = allJudgeScores[bib] || {};
         const compiled = heat.judges.map(judgeId =>
           judgeScores[judgeId] !== undefined ? judgeScores[judgeId] : defaultScore,
         );
-        await dataService.setScores(eventId, round, bib, compiled, dance);
+        scoreEntries.push({ bib, scores: compiled });
       }
+      await dataService.setScoresBatch(eventId, round, scoreEntries, dance);
     }
 
     // Skip auto-advancement when bibSubset is provided (caller handles it)
