@@ -218,6 +218,19 @@ export interface InvoiceSummary {
   invoices: PersonInvoice[];
 }
 
+export interface SkatingDetail {
+  cumulativeCounts: number[];
+  cumulativeSums: number[];
+}
+
+export interface DanceDetail {
+  dance: string;
+  scores: number[];
+  totalMarks?: number;
+  placement?: number;
+  skatingDetail?: SkatingDetail;
+}
+
 export interface EventResult {
   bib: number;
   leaderName: string;
@@ -230,6 +243,19 @@ export interface EventResult {
   scores: number[];
   danceScores?: Array<{ dance: string; placement: number }>;
   isRecall: boolean;
+  skatingDetail?: SkatingDetail;
+  danceDetails?: DanceDetail[];
+  recalled?: boolean;
+}
+
+export interface DetailedResultsResponse {
+  judges: Array<{ id: number; judgeNumber: number; name: string }>;
+  eventName: string;
+  round: string;
+  dances?: string[];
+  style?: string;
+  level?: string;
+  results: EventResult[];
 }
 
 export type EventRunStatus = 'pending' | 'scoring' | 'completed';

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
-import { Competition, Event } from '../types';
+import { Competition, Event, DetailedResultsResponse } from '../types';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -227,7 +227,33 @@ router.get('/competitions/:id/events/:eventId/results/:round', async (req: Reque
     }
 
     const results = await scoringService.calculateResults(eventId, round);
-    res.json(results);
+    const detail = req.query.detail === 'true';
+
+    if (!detail) {
+      return res.json(results);
+    }
+
+    await scoringService.enrichRecallStatus(results, eventId, round);
+
+    const eventObj = await dataService.getEventById(eventId);
+    const heat = eventObj?.heats.find(h => h.round === round);
+    const judgeIds = heat?.judges || [];
+    const judgesMap = await dataService.getJudgesByIds(judgeIds);
+    const judges = judgeIds.map(id => {
+      const j = judgesMap.get(id);
+      return { id, judgeNumber: j?.judgeNumber ?? 0, name: j?.name ?? '' };
+    });
+
+    const response: DetailedResultsResponse = {
+      judges,
+      eventName: eventObj?.name || '',
+      round,
+      dances: eventObj?.dances,
+      style: eventObj?.style,
+      level: eventObj?.level,
+      results,
+    };
+    res.json(response);
   } catch (error) {
     logger.error({ err: error }, 'Public results error');
     res.status(500).json({ error: 'Failed to load results' });

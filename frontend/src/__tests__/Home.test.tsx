@@ -11,6 +11,17 @@ vi.mock('../context/AuthContext', () => ({
   })),
 }));
 
+// Mock the competition context
+vi.mock('../context/CompetitionContext', () => ({
+  useCompetition: vi.fn(() => ({
+    activeCompetition: null,
+    competitions: [],
+    setActiveCompetition: vi.fn(),
+    loading: false,
+    refreshCompetitions: vi.fn(() => Promise.resolve()),
+  })),
+}));
+
 // Mock the API client
 vi.mock('../api/client', () => ({
   competitionsApi: {

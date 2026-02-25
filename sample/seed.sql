@@ -5,15 +5,31 @@
 
 BEGIN;
 
+-- Clean up any existing seed data (competition id=1) so re-seeding works
+DELETE FROM competitions WHERE id = 1;
+DELETE FROM studios WHERE id IN (1, 2);
+
 -- Studios
-INSERT INTO studios (id, name, location, contact_info) VALUES (1, 'Starlight Dance Academy', 'Chicago, IL', 'info@starlightdance.com') ON CONFLICT (id) DO NOTHING;
-INSERT INTO studios (id, name, location, contact_info) VALUES (2, 'Golden Ballroom Studio', 'New York, NY', 'hello@goldenballroom.com') ON CONFLICT (id) DO NOTHING;
+INSERT INTO studios (id, name, location, contact_info) VALUES (1, 'Starlight Dance Academy', 'Chicago, IL', 'info@starlightdance.com') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, location = EXCLUDED.location, contact_info = EXCLUDED.contact_info;
+INSERT INTO studios (id, name, location, contact_info) VALUES (2, 'Golden Ballroom Studio', 'New York, NY', 'hello@goldenballroom.com') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, location = EXCLUDED.location, contact_info = EXCLUDED.contact_info;
 SELECT setval('studios_id_seq', 2);
 
 -- Competition
 INSERT INTO competitions (id, name, type, date, location, studio_id, description, judge_settings, default_scoring_type, levels, pricing, entry_payments, created_at)
   VALUES (1, 'Galaxy Ballroom Classic 2026', 'STUDIO', '2026-03-15', 'Grand Hyatt Chicago', 1, 'A comprehensive sample competition showcasing every supported event combination. Includes Pro-Am and Amateur divisions across all styles, levels, and scoring types.', '{"defaultCount":5,"levelOverrides":{"Newcomer":3,"Bronze":3,"Championship":7,"Pre-Championship":5}}', 'standard', '["Newcomer","Bronze","Silver","Gold","Novice","Pre-Championship","Championship"]', '{"singleDance":[{"minEntries":1,"pricePerEntry":95},{"minEntries":6,"pricePerEntry":85},{"minEntries":11,"pricePerEntry":75}],"multiDance":{"mode":"flat","flatTiers":[{"minEntries":1,"pricePerEntry":135},{"minEntries":6,"pricePerEntry":120}],"perDanceCountTiers":{}},"scholarship":[{"minEntries":1,"pricePerEntry":175}]}', '{}', '2026-03-15T09:00:00.000Z')
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    type = EXCLUDED.type,
+    date = EXCLUDED.date,
+    location = EXCLUDED.location,
+    studio_id = EXCLUDED.studio_id,
+    description = EXCLUDED.description,
+    judge_settings = EXCLUDED.judge_settings,
+    default_scoring_type = EXCLUDED.default_scoring_type,
+    levels = EXCLUDED.levels,
+    pricing = EXCLUDED.pricing,
+    entry_payments = EXCLUDED.entry_payments,
+    created_at = EXCLUDED.created_at;
 SELECT setval('competitions_id_seq', 1);
 
 -- People

@@ -11,6 +11,9 @@ import TapToRankForm from './JudgeScoring/components/TapToRankForm';
 import PickerRankForm from './JudgeScoring/components/PickerRankForm';
 import ProficiencyForm from './JudgeScoring/components/ProficiencyForm';
 import QuickScoreForm from './JudgeScoring/components/QuickScoreForm';
+import { JudgeGrid } from '../../components/results/JudgeGrid';
+import { SkatingBreakdown } from '../../components/results/SkatingBreakdown';
+import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
 
@@ -624,38 +627,56 @@ const ScrutineerPage = () => {
 
           {/* Inline results after compilation */}
           {results && results.length > 0 && (
-            <div style={{ marginTop: '2rem' }}>
-              <h3 style={{ marginBottom: '0.75rem' }}>Results — {selectedEvent.name} ({selectedRound})</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Place</th>
-                    <th>Bib</th>
-                    <th>Leader</th>
-                    <th>Follower</th>
-                    {isRecallRound ? <th>Marks</th> : isProficiency ? <th>Score</th> : <th>Rank</th>}
-                    <th>Scores</th>
-                    {isRecallRound && <th>Recalled</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((r, idx) => (
-                    <tr key={r.bib} style={{ background: r.isRecall ? '#f0fff4' : undefined }}>
-                      <td><strong>{idx + 1}</strong></td>
-                      <td>#{r.bib}</td>
-                      <td>{r.leaderName}</td>
-                      <td>{r.followerName}</td>
-                      {isRecallRound
-                        ? <td>{r.totalMarks}</td>
-                        : isProficiency
-                          ? <td>{r.totalScore?.toFixed(1)}</td>
-                          : <td>{r.totalRank}</td>}
-                      <td>{r.scores.join(', ')}</td>
-                      {isRecallRound && <td>{r.isRecall ? 'Yes' : 'No'}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h3 style={{ marginBottom: '0' }}>Results — {selectedEvent.name} ({selectedRound})</h3>
+
+              {/* Judge Grid */}
+              {gridJudges.length > 0 && (
+                gridDances.length > 1 ? (
+                  gridDances.map(dance => (
+                    <div key={dance}>
+                      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem', textTransform: 'capitalize' }}>{dance}</h4>
+                      <JudgeGrid results={results} judges={gridJudges} isRecall={isRecallRound} dance={dance} />
+                    </div>
+                  ))
+                ) : (
+                  <JudgeGrid results={results} judges={gridJudges} isRecall={isRecallRound} />
+                )
+              )}
+
+              {/* Skating breakdown for standard finals */}
+              {!isRecallRound && !isProficiency && results.some(r => r.skatingDetail) && gridDances.length <= 1 && (
+                <div>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem' }}>Skating System Breakdown</h4>
+                  <SkatingBreakdown results={results} numJudges={gridJudges.length} />
+                </div>
+              )}
+
+              {/* Per-dance skating for multi-dance finals */}
+              {!isRecallRound && !isProficiency && gridDances.length > 1 && results.some(r => r.danceDetails?.some(d => d.skatingDetail)) && (
+                gridDances.map(dance => {
+                  const danceResults = results.map(r => {
+                    const dd = r.danceDetails?.find(d => d.dance === dance);
+                    if (!dd?.skatingDetail) return null;
+                    return { ...r, skatingDetail: dd.skatingDetail, place: dd.placement };
+                  }).filter(Boolean) as EventResult[];
+                  if (danceResults.length === 0) return null;
+                  return (
+                    <div key={`skating-${dance}`}>
+                      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem', textTransform: 'capitalize' }}>Skating: {dance}</h4>
+                      <SkatingBreakdown results={danceResults} numJudges={gridJudges.length} />
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Multi-dance summary */}
+              {gridDances.length > 1 && !isRecallRound && (
+                <div>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem' }}>Overall Placement</h4>
+                  <MultiDanceSummary results={results} dances={gridDances} />
+                </div>
+              )}
             </div>
           )}
         </div>

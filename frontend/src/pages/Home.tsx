@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { competitionsApi, databaseApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useCompetition } from '../context/CompetitionContext';
 import { Competition } from '../types';
 
 const typeColors: Record<string, { bg: string; text: string }> = {
@@ -15,6 +16,7 @@ const typeColors: Record<string, { bg: string; text: string }> = {
 
 const Home = () => {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -32,11 +34,13 @@ const Home = () => {
     try {
       const res = await databaseApi.seed();
       setSeedMessage({ type: 'success', text: res.data.message });
-      // Refresh competitions list
+      // Refresh both local list and global CompetitionContext
       const compsRes = await competitionsApi.getAll();
       setCompetitions(compsRes.data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create test competition';
+      await refreshCompetitions();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create test competition';
       setSeedMessage({ type: 'error', text: message });
     } finally {
       setSeeding(false);

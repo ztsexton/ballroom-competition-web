@@ -154,13 +154,40 @@ CREATE INDEX IF NOT EXISTS idx_scores_event_round ON scores(event_id, round);
 CREATE INDEX IF NOT EXISTS idx_judge_scores_event_round_judge ON judge_scores(event_id, round, judge_id);
 CREATE INDEX IF NOT EXISTS idx_competitions_organization_id ON competitions(organization_id);
 
+-- Migration: add competition fields for visibility, public settings, and floor management
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS publicly_visible BOOLEAN;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS publicly_visible_at TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS results_public BOOLEAN;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS heat_lists_published BOOLEAN;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS heat_lists_published_at TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS registration_open_at TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS website_url TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS organizer_email TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS max_couples_per_heat INTEGER;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS max_couples_on_floor INTEGER;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS max_couples_on_floor_by_level JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS recall_rules JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS entry_validation JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS age_categories JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS currency TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS level_mode TEXT;
+
+-- Migration: add date_of_birth and age_category to people
+ALTER TABLE people ADD COLUMN IF NOT EXISTS date_of_birth TEXT;
+ALTER TABLE people ADD COLUMN IF NOT EXISTS age_category TEXT;
+ALTER TABLE people ADD COLUMN IF NOT EXISTS level TEXT;
+
 CREATE TABLE IF NOT EXISTS schedules (
   competition_id INTEGER PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
   heat_order JSONB NOT NULL DEFAULT '[]',
   style_order JSONB NOT NULL DEFAULT '[]',
   level_order JSONB NOT NULL DEFAULT '[]',
   current_heat_index INTEGER NOT NULL DEFAULT 0,
+  current_dance TEXT,
   heat_statuses JSONB NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Migration: add current_dance to schedules (for existing deployments)
+ALTER TABLE schedules ADD COLUMN IF NOT EXISTS current_dance TEXT;

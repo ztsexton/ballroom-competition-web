@@ -27,9 +27,25 @@ export class PostgresDataService implements IDataService {
       timingSettings: row.timing_settings || undefined,
       defaultScoringType: row.default_scoring_type || undefined,
       levels: row.levels || undefined,
+      levelMode: row.level_mode || undefined,
       pricing: row.pricing || undefined,
+      currency: row.currency || undefined,
       entryPayments: row.entry_payments || undefined,
-      registrationOpen: row.registration_open || undefined,
+      maxCouplesPerHeat: row.max_couples_per_heat ?? undefined,
+      maxCouplesOnFloor: row.max_couples_on_floor ?? undefined,
+      maxCouplesOnFloorByLevel: row.max_couples_on_floor_by_level || undefined,
+      recallRules: row.recall_rules || undefined,
+      entryValidation: row.entry_validation || undefined,
+      ageCategories: row.age_categories || undefined,
+      registrationOpen: row.registration_open ?? undefined,
+      registrationOpenAt: row.registration_open_at || undefined,
+      publiclyVisible: row.publicly_visible ?? undefined,
+      publiclyVisibleAt: row.publicly_visible_at || undefined,
+      resultsPublic: row.results_public ?? undefined,
+      heatListsPublished: row.heat_lists_published ?? undefined,
+      heatListsPublishedAt: row.heat_lists_published_at || undefined,
+      websiteUrl: row.website_url || undefined,
+      organizerEmail: row.organizer_email || undefined,
       createdAt: row.created_at,
     };
   }
@@ -64,6 +80,9 @@ export class PostgresDataService implements IDataService {
       email: row.email || undefined,
       role: row.role,
       status: row.status,
+      dateOfBirth: row.date_of_birth || undefined,
+      ageCategory: row.age_category || undefined,
+      level: row.level || undefined,
       competitionId: row.competition_id,
       studioId: row.studio_id || undefined,
       userId: row.user_id || undefined,
@@ -135,6 +154,7 @@ export class PostgresDataService implements IDataService {
       styleOrder: row.style_order || [],
       levelOrder: row.level_order || [],
       currentHeatIndex: row.current_heat_index,
+      currentDance: row.current_dance || undefined,
       heatStatuses: row.heat_statuses || {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -157,8 +177,15 @@ export class PostgresDataService implements IDataService {
     const now = new Date().toISOString();
     const { rows } = await this.pool.query(
       `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
-        judge_settings, timing_settings, default_scoring_type, levels, pricing, entry_payments, registration_open, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
+        entry_payments, max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
+        recall_rules, entry_validation, age_categories,
+        registration_open, registration_open_at,
+        publicly_visible, publicly_visible_at, results_public,
+        heat_lists_published, heat_lists_published_at,
+        website_url, organizer_email, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
@@ -169,9 +196,25 @@ export class PostgresDataService implements IDataService {
         competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
         competition.defaultScoringType || null,
         competition.levels ? JSON.stringify(competition.levels) : null,
+        competition.levelMode || null,
         competition.pricing ? JSON.stringify(competition.pricing) : null,
+        competition.currency || null,
         JSON.stringify(competition.entryPayments || {}),
-        competition.registrationOpen || false,
+        competition.maxCouplesPerHeat ?? null,
+        competition.maxCouplesOnFloor ?? null,
+        competition.maxCouplesOnFloorByLevel ? JSON.stringify(competition.maxCouplesOnFloorByLevel) : null,
+        competition.recallRules ? JSON.stringify(competition.recallRules) : null,
+        competition.entryValidation ? JSON.stringify(competition.entryValidation) : null,
+        competition.ageCategories ? JSON.stringify(competition.ageCategories) : null,
+        competition.registrationOpen ?? false,
+        competition.registrationOpenAt || null,
+        competition.publiclyVisible ?? null,
+        competition.publiclyVisibleAt || null,
+        competition.resultsPublic ?? null,
+        competition.heatListsPublished ?? null,
+        competition.heatListsPublishedAt || null,
+        competition.websiteUrl || null,
+        competition.organizerEmail || null,
         now,
       ]
     );
@@ -190,12 +233,21 @@ export class PostgresDataService implements IDataService {
       name: 'name', type: 'type', date: 'date', location: 'location',
       studioId: 'studio_id', organizationId: 'organization_id',
       description: 'description',
-      defaultScoringType: 'default_scoring_type',
-      registrationOpen: 'registration_open',
+      defaultScoringType: 'default_scoring_type', levelMode: 'level_mode',
+      currency: 'currency',
+      maxCouplesPerHeat: 'max_couples_per_heat', maxCouplesOnFloor: 'max_couples_on_floor',
+      registrationOpen: 'registration_open', registrationOpenAt: 'registration_open_at',
+      publiclyVisible: 'publicly_visible', publiclyVisibleAt: 'publicly_visible_at',
+      resultsPublic: 'results_public',
+      heatListsPublished: 'heat_lists_published', heatListsPublishedAt: 'heat_lists_published_at',
+      websiteUrl: 'website_url', organizerEmail: 'organizer_email',
     };
     const jsonFields: Record<string, string> = {
       judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
       levels: 'levels', pricing: 'pricing', entryPayments: 'entry_payments',
+      maxCouplesOnFloorByLevel: 'max_couples_on_floor_by_level',
+      recallRules: 'recall_rules', entryValidation: 'entry_validation',
+      ageCategories: 'age_categories',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {

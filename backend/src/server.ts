@@ -1,5 +1,5 @@
-// Load .env file in development (optional - container env vars are injected by orchestrator)
-try { require('dotenv/config'); } catch { /* dotenv not available in production */ }
+// dotenv is loaded via --require flag in dev script (must load before imports for DATA_STORE)
+// In production, env vars are injected by the orchestrator
 import express from 'express';
 import logger from './utils/logger';
 import https from 'https';
@@ -46,6 +46,22 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json());
+
+// Request logging (dev only)
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api', (req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      logger.info({
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        ms: Date.now() - start,
+      }, 'API request');
+    });
+    next();
+  });
+}
 
 // Health check (no auth required)
 app.get('/api/health', (_req, res) => {

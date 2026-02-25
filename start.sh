@@ -21,9 +21,12 @@ fi
 
 # Function to handle cleanup on script exit
 cleanup() {
+    # Disable trap to prevent re-entry from kill signals
+    trap - SIGINT SIGTERM
     echo ""
     echo "🛑 Shutting down servers..."
-    kill 0
+    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
     exit 0
 }
 

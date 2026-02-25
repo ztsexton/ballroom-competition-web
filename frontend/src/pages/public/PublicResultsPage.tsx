@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
-import { PublicCompetition, PublicEvent, PublicEventSearchResult, EventResult, Person } from '../../types';
+import { PublicCompetition, PublicEvent, PublicEventSearchResult, DetailedResultsResponse, Person } from '../../types';
 import { publicCompetitionsApi, participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -52,6 +53,8 @@ function CompetitionList() {
   );
 }
 
+const RECALL_ROUNDS = ['quarter-final', 'semi-final'];
+
 /* ── Event results table (inline expand) ── */
 function EventResultsTable({ competitionId, eventId, rounds }: {
   competitionId: number;
@@ -59,18 +62,23 @@ function EventResultsTable({ competitionId, eventId, rounds }: {
   rounds: string[];
 }) {
   const [activeRound, setActiveRound] = useState(rounds[rounds.length - 1] || 'final');
-  const [results, setResults] = useState<EventResult[]>([]);
+  const [detailed, setDetailed] = useState<DetailedResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchResults = useCallback((round: string) => {
     setLoading(true);
-    publicCompetitionsApi.getEventResults(competitionId, eventId, round)
-      .then((r) => setResults(r.data))
-      .catch(() => setResults([]))
+    publicCompetitionsApi.getDetailedEventResults(competitionId, eventId, round)
+      .then((r) => setDetailed(r.data))
+      .catch(() => setDetailed(null))
       .finally(() => setLoading(false));
   }, [competitionId, eventId]);
 
   useEffect(() => { fetchResults(activeRound); }, [activeRound, fetchResults]);
+
+  const results = detailed?.results || [];
+  const dances = detailed?.dances || [];
+  const isMultiDance = dances.length > 1;
+  const isRecall = RECALL_ROUNDS.includes(activeRound);
 
   return (
     <div style={{ padding: '0.75rem 0' }}>
@@ -103,28 +111,58 @@ function EventResultsTable({ competitionId, eventId, rounds }: {
       ) : results.length === 0 ? (
         <div style={{ color: '#a0aec0', fontSize: '0.875rem' }}>No results available for this round.</div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Place</th>
-              <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Bib</th>
-              <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Leader</th>
-              <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Follower</th>
-              <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem' }}>Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r, i) => (
-              <tr key={r.bib} style={{ borderBottom: '1px solid #edf2f7', background: i % 2 === 0 ? '#fafafa' : 'white' }}>
-                <td style={{ padding: '0.4rem 0.5rem' }}>{r.place ?? '-'}</td>
-                <td style={{ padding: '0.4rem 0.5rem' }}>{r.bib}</td>
-                <td style={{ padding: '0.4rem 0.5rem' }}>{r.leaderName}</td>
-                <td style={{ padding: '0.4rem 0.5rem' }}>{r.followerName}</td>
-                <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>{r.score ?? '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Multi-dance summary table for finals */}
+          {isMultiDance && !isRecall && (
+            <MultiDanceSummary results={results} dances={dances} />
+          )}
+
+          {/* Standard results table */}
+          {(!isMultiDance || isRecall) && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>
+                    {isRecall ? '#' : 'Place'}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Bib</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Leader</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Follower</th>
+                  <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem' }}>
+                    {isRecall ? 'Marks' : 'Result'}
+                  </th>
+                  {isRecall && (
+                    <th style={{ textAlign: 'center', padding: '0.4rem 0.5rem' }}>Recalled</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr
+                    key={r.bib}
+                    style={{
+                      borderBottom: '1px solid #edf2f7',
+                      background: r.recalled ? '#f0fff4' : i % 2 === 0 ? '#fafafa' : 'white',
+                    }}
+                  >
+                    <td style={{ padding: '0.4rem 0.5rem' }}>{isRecall ? i + 1 : (r.place ?? '-')}</td>
+                    <td style={{ padding: '0.4rem 0.5rem' }}>{r.bib}</td>
+                    <td style={{ padding: '0.4rem 0.5rem' }}>{r.leaderName}</td>
+                    <td style={{ padding: '0.4rem 0.5rem' }}>{r.followerName}</td>
+                    <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>
+                      {isRecall ? (r.totalMarks ?? '-') : (r.place ?? r.totalScore?.toFixed(1) ?? '-')}
+                    </td>
+                    {isRecall && (
+                      <td style={{ padding: '0.4rem 0.5rem', textAlign: 'center', color: r.recalled ? '#276749' : '#a0aec0' }}>
+                        {r.recalled === true ? '\u2713' : ''}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       )}
     </div>
   );

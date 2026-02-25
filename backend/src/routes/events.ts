@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { registerCoupleForEvent } from '../services/registrationService';
-import { Event } from '../types';
+import { Event, DetailedResultsResponse } from '../types';
 
 const router = Router();
 
@@ -248,6 +248,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 router.get('/:id/results/:round', async (req: Request, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
+  const detail = req.query.detail === 'true';
 
   const event = await dataService.getEventById(eventId);
   if (!event) {
@@ -255,7 +256,31 @@ router.get('/:id/results/:round', async (req: Request, res: Response) => {
   }
 
   const results = await scoringService.calculateResults(eventId, round);
-  res.json(results);
+
+  if (!detail) {
+    return res.json(results);
+  }
+
+  await scoringService.enrichRecallStatus(results, eventId, round);
+
+  const heat = event.heats.find(h => h.round === round);
+  const judgeIds = heat?.judges || [];
+  const judgesMap = await dataService.getJudgesByIds(judgeIds);
+  const judges = judgeIds.map(id => {
+    const j = judgesMap.get(id);
+    return { id, judgeNumber: j?.judgeNumber ?? 0, name: j?.name ?? '' };
+  });
+
+  const response: DetailedResultsResponse = {
+    judges,
+    eventName: event.name,
+    round,
+    dances: event.dances,
+    style: event.style,
+    level: event.level,
+    results,
+  };
+  res.json(response);
 });
 
 // Submit scores for a round

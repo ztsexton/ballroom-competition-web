@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -130,6 +130,8 @@ export const eventsApi = {
   delete: (id: number) => api.delete(`/events/${id}`),
   getResults: (id: number, round: string) =>
     api.get<EventResult[]>(`/events/${id}/results/${round}`),
+  getDetailedResults: (id: number, round: string) =>
+    api.get<DetailedResultsResponse>(`/events/${id}/results/${round}?detail=true`),
   submitScores: (
     id: number,
     round: string,
@@ -346,6 +348,8 @@ export const publicCompetitionsApi = {
     publicApi.get<PublicEventWithHeats[]>(`/public/competitions/${id}/heats`),
   getEventResults: (competitionId: number, eventId: number, round: string) =>
     publicApi.get<EventResult[]>(`/public/competitions/${competitionId}/events/${eventId}/results/${round}`),
+  getDetailedEventResults: (competitionId: number, eventId: number, round: string) =>
+    publicApi.get<DetailedResultsResponse>(`/public/competitions/${competitionId}/events/${eventId}/results/${round}?detail=true`),
   searchByDancer: (competitionId: number, dancerName: string) =>
     publicApi.get<PublicEventSearchResult[]>(`/public/competitions/${competitionId}/search`, { params: { dancerName } }),
 };

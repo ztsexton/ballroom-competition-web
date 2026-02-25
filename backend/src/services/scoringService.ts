@@ -1,4 +1,4 @@
-import { EventResult, Couple, RecallRules } from '../types';
+import { EventResult, Couple, RecallRules, SkatingDetail, DanceDetail } from '../types';
 import { dataService } from './dataService';
 import { ROUND_CAPACITY, RECALL_ROUNDS } from '../constants/rounds';
 import { skatingPlacement, multiDancePlacement } from './skatingSystem';
@@ -174,6 +174,10 @@ export class ScoringService {
         if (result) {
           result.place = sr.placement;
           result.totalRank = sr.placement;
+          result.skatingDetail = {
+            cumulativeCounts: sr.cumulativeCounts,
+            cumulativeSums: sr.cumulativeSums,
+          };
         }
       }
     }
@@ -208,6 +212,7 @@ export class ScoringService {
       // Standard scoring: apply skating system (Rules 5-11)
       const perDancePlacements = new Map<number, number[]>();
       const perDanceJudgeRanks: Array<Map<number, number[]>> = [];
+      const perDanceSkatingDetails: Array<Map<number, SkatingDetail>> = [];
 
       for (const bib of bibs) {
         perDancePlacements.set(bib, []);
@@ -225,13 +230,19 @@ export class ScoringService {
         }
 
         perDanceJudgeRanks.push(judgeRanks);
+        const danceSkatingDetails = new Map<number, SkatingDetail>();
 
         if (judgeRanks.size > 0) {
           const skatingResults = skatingPlacement(judgeRanks);
           for (const sr of skatingResults) {
             perDancePlacements.get(sr.bib)?.push(sr.placement);
+            danceSkatingDetails.set(sr.bib, {
+              cumulativeCounts: sr.cumulativeCounts,
+              cumulativeSums: sr.cumulativeSums,
+            });
           }
         }
+        perDanceSkatingDetails.push(danceSkatingDetails);
       }
 
       // Apply Rules 9-11 for overall ranking
@@ -254,6 +265,12 @@ export class ScoringService {
           danceScores: dances.map((dance, i) => ({
             dance,
             placement: placements[i] || 0,
+          })),
+          danceDetails: dances.map((dance, i) => ({
+            dance,
+            scores: perDanceJudgeRanks[i]?.get(r.bib) || [],
+            placement: placements[i] || 0,
+            skatingDetail: perDanceSkatingDetails[i]?.get(r.bib),
           })),
           isRecall: false,
         });
@@ -325,12 +342,14 @@ export class ScoringService {
 
       let totalMarks = 0;
       const allScores: number[] = [];
+      const danceDetails: DanceDetail[] = [];
 
       for (const dance of dances) {
         const scores = await dataService.getScores(eventId, round, bib, dance);
         const danceMarks = scores.reduce((sum, s) => sum + s, 0);
         totalMarks += danceMarks;
         allScores.push(...scores);
+        danceDetails.push({ dance, scores, totalMarks: danceMarks });
       }
 
       if (allScores.length === 0) continue;
@@ -341,12 +360,26 @@ export class ScoringService {
         followerName: couple.followerName,
         totalMarks,
         scores: allScores,
+        danceDetails,
         isRecall: true,
       });
     }
 
     results.sort((a, b) => (b.totalMarks || 0) - (a.totalMarks || 0));
     return results;
+  }
+
+  async enrichRecallStatus(results: EventResult[], eventId: number, round: string): Promise<void> {
+    const event = await dataService.getEventById(eventId);
+    if (!event) return;
+    const rounds = event.heats.map(h => h.round);
+    const currentIndex = rounds.indexOf(round);
+    if (currentIndex < 0 || currentIndex >= rounds.length - 1) return;
+    const nextHeat = event.heats[currentIndex + 1];
+    const advancedBibs = new Set(nextHeat.bibs);
+    for (const r of results) {
+      r.recalled = advancedBibs.has(r.bib);
+    }
   }
 
   async getTopCouples(

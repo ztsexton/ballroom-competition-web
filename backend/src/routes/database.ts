@@ -81,8 +81,15 @@ router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: R
     // Raw SQL bypasses the data service — clear cached data so new records are visible
     dataService.clearCache();
 
-    logger.info('Test competition data seeded successfully');
-    res.json({ success: true, message: 'Test competition "Galaxy Ballroom Classic 2026" created successfully' });
+    // Verify the competition was actually inserted
+    const { rows } = await pool.query('SELECT id, name FROM competitions WHERE id = 1');
+    if (rows.length === 0) {
+      logger.error('Seed SQL ran but competition id=1 was not found in database');
+      return res.status(500).json({ success: false, message: 'Seed completed but competition was not created. The INSERT may have been skipped.' });
+    }
+
+    logger.info({ competitionName: rows[0].name }, 'Test competition data seeded successfully');
+    res.json({ success: true, message: `Test competition "${rows[0].name}" created successfully` });
   } catch (error) {
     logger.error({ err: error }, 'Failed to seed test data');
     res.status(500).json({
