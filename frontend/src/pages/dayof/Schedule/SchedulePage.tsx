@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi } from '../../../api/client';
 import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry } from '../../../types';
@@ -48,6 +48,11 @@ const SchedulePage = () => {
   // Merge mode
   const [mergeSource, setMergeSource] = useState<{ heatId: string; idx: number } | null>(null);
   const [mergeSelected, setMergeSelected] = useState<Set<string>>(new Set());
+
+  // Move animation state
+  const [movedHeat, setMovedHeat] = useState<{ id: string; key: number } | null>(null);
+  const moveCounterRef = useRef(0);
+  const movedTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Break insertion state
   const [showBreakForm, setShowBreakForm] = useState(false);
@@ -154,6 +159,13 @@ const SchedulePage = () => {
     try {
       const res = await schedulesApi.reorder(competitionId, fromIndex, toIndex);
       setSchedule(res.data);
+      const targetHeat = res.data.heatOrder[toIndex];
+      if (targetHeat) {
+        moveCounterRef.current++;
+        clearTimeout(movedTimerRef.current);
+        setMovedHeat({ id: targetHeat.id, key: moveCounterRef.current });
+        movedTimerRef.current = setTimeout(() => setMovedHeat(null), 900);
+      }
     } catch {
       setError('Failed to reorder event');
     }
@@ -455,6 +467,7 @@ const SchedulePage = () => {
               expandedHeats={expandedHeats}
               dragIndex={dragIndex}
               dragOverIndex={dragOverIndex}
+              movedHeat={movedHeat}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}

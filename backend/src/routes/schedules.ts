@@ -377,6 +377,81 @@ router.post('/:competitionId/heat/:heatId/split-floor', async (req: Request, res
   }
 });
 
+// Resplit pending heats for a partially-scored event
+router.post('/:competitionId/heat/resplit', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { eventId, round, groupCount } = req.body;
+
+    if (!eventId || !round || !groupCount || groupCount < 2) {
+      return res.status(400).json({ error: 'eventId, round, and groupCount (≥2) are required' });
+    }
+
+    const schedule = await scheduleService.resplitPendingHeats(competitionId, eventId, round, groupCount);
+    if (!schedule) {
+      return res.status(400).json({ error: 'Cannot resplit: no pending heats found, invalid parameters, or event not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to resplit heats' });
+  }
+});
+
+// Reassign bibs in a pending floor heat
+router.patch('/:competitionId/heat/:heatId/bibs', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+    const { bibSubset } = req.body;
+
+    if (!Array.isArray(bibSubset) || bibSubset.length === 0) {
+      return res.status(400).json({ error: 'bibSubset array is required' });
+    }
+
+    let schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) return res.status(404).json({ error: 'Schedule not found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
+
+    const heat = schedule.heatOrder.find(h => h.id === heatId);
+    if (!heat) return res.status(404).json({ error: 'Heat not found' });
+    if (heat.isBreak) return res.status(400).json({ error: 'Cannot reassign bibs on a break' });
+
+    const status = schedule.heatStatuses[heatId] || 'pending';
+    if (status !== 'pending') {
+      return res.status(409).json({ error: 'Can only reassign bibs on pending heats' });
+    }
+
+    // Must be a floor heat
+    const entry = heat.entries[0];
+    if (!entry || !entry.bibSubset) {
+      return res.status(400).json({ error: 'Heat is not a floor heat (no bibSubset)' });
+    }
+
+    // Validate all bibs are in the event's round
+    const event = await dataService.getEventById(entry.eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const roundHeat = event.heats.find(h => h.round === entry.round);
+    if (!roundHeat) return res.status(404).json({ error: 'Round not found in event' });
+
+    const validBibs = new Set(roundHeat.bibs);
+    const invalidBibs = bibSubset.filter((b: number) => !validBibs.has(b));
+    if (invalidBibs.length > 0) {
+      return res.status(400).json({ error: `Invalid bibs not in event round: ${invalidBibs.join(', ')}` });
+    }
+
+    entry.bibSubset = bibSubset;
+    schedule.updatedAt = new Date().toISOString();
+    await dataService.saveSchedule(schedule);
+
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reassign bibs' });
+  }
+});
+
 // Unsplit floor heats back into a single heat
 router.post('/:competitionId/heat/:heatId/unsplit', async (req: Request, res: Response) => {
   try {

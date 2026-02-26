@@ -187,6 +187,7 @@ export interface Event {
   scoringType?: 'standard' | 'proficiency';
   isScholarship?: boolean;
   ageCategory?: string;
+  scratchedBibs?: number[];
 }
 
 export interface Score {

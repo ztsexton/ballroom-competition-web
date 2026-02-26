@@ -9,6 +9,7 @@ import {
   splitRoundIntoFloorHeats,
   unsplitFloorHeats,
   splitHeatEntry,
+  resplitPendingHeats,
 } from '../../services/schedule/scheduleModification';
 
 describe('Schedule Modification', () => {
@@ -455,6 +456,97 @@ describe('Schedule Modification', () => {
       ]);
 
       expect(await splitHeatEntry(comp.id, 'heat-1', 999, 'final')).toBeNull();
+    });
+  });
+
+  describe('resplitPendingHeats', () => {
+    it('should split pending single-heat into floor heats', async () => {
+      const { comp, event1, bibs } = await setupWithSchedule();
+
+      const result = await resplitPendingHeats(comp.id, event1.id, 'final', 2);
+      expect(result).not.toBeNull();
+
+      const floorHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event1.id && e.bibSubset));
+      expect(floorHeats).toHaveLength(2);
+
+      // Total bibs across floor heats should equal original
+      const allBibs = floorHeats.flatMap(h => h.entries[0].bibSubset || []);
+      expect(allBibs.sort()).toEqual(bibs.slice(0, 3).sort());
+    });
+
+    it('should only affect pending heats, leave completed alone', async () => {
+      const { comp, event1 } = await setupWithSchedule();
+
+      // Mark heat-1 as completed
+      const schedule = await dataService.getSchedule(comp.id);
+      schedule!.heatStatuses['heat-1'] = 'completed';
+      await dataService.saveSchedule(schedule!);
+
+      const result = await resplitPendingHeats(comp.id, event1.id, 'final', 2);
+      // No pending heats to resplit
+      expect(result).toBeNull();
+    });
+
+    it('should return null for no pending heats', async () => {
+      const { comp, event1 } = await setupWithSchedule();
+
+      // Mark heat-1 as scoring
+      const schedule = await dataService.getSchedule(comp.id);
+      schedule!.heatStatuses['heat-1'] = 'scoring';
+      await dataService.saveSchedule(schedule!);
+
+      expect(await resplitPendingHeats(comp.id, event1.id, 'final', 2)).toBeNull();
+    });
+
+    it('should return null for invalid groupCount', async () => {
+      const { comp, event1 } = await setupWithSchedule();
+      expect(await resplitPendingHeats(comp.id, event1.id, 'final', 1)).toBeNull();
+    });
+
+    it('should return null for non-existent event', async () => {
+      const { comp } = await setupWithSchedule();
+      expect(await resplitPendingHeats(comp.id, 999, 'final', 2)).toBeNull();
+    });
+
+    it('should handle multi-dance events', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Multi', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 10,
+      });
+
+      const bibs: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(couple!.bib);
+      }
+
+      const event = await dataService.addEvent(
+        'Multi Dance', bibs, [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz', 'Tango'], 'standard',
+      );
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'md-1', entries: [{ eventId: event.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'md-1': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: [],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const result = await resplitPendingHeats(comp.id, event.id, 'final', 2);
+      expect(result).not.toBeNull();
+
+      // 2 dances × 2 groups = 4 floor heats
+      const floorHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id && e.bibSubset));
+      expect(floorHeats).toHaveLength(4);
     });
   });
 });

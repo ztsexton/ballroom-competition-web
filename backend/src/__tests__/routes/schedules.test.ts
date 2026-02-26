@@ -896,4 +896,166 @@ describe('Schedules API', () => {
         .expect(400);
     });
   });
+
+  describe('POST /:competitionId/heat/resplit', () => {
+    it('should resplit pending heats', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 10 });
+      const bibs = await createCouples(comp.id, 6);
+      const event = await dataService.addEvent('Waltz', bibs, [], comp.id);
+
+      // Generate schedule
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      // Resplit into 2 groups
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/heat/resplit`)
+        .send({ eventId: event.id, round: 'final', groupCount: 2 })
+        .expect(200);
+
+      const floorHeats = res.body.heatOrder.filter(
+        (h: any) => !h.isBreak && h.entries.some((e: any) => e.eventId === event.id && e.bibSubset)
+      );
+      expect(floorHeats).toHaveLength(2);
+    });
+
+    it('should return 400 for invalid params', async () => {
+      const comp = await setupCompetition();
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/heat/resplit`)
+        .send({ eventId: 1, round: 'final' })
+        .expect(400);
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/heat/resplit`)
+        .send({ eventId: 1, round: 'final', groupCount: 1 })
+        .expect(400);
+    });
+
+    it('should return 400 when no pending heats exist', async () => {
+      const comp = await setupCompetition();
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/heat/resplit`)
+        .send({ eventId: 999, round: 'final', groupCount: 2 })
+        .expect(400);
+    });
+  });
+
+  describe('PATCH /:competitionId/heat/:heatId/bibs', () => {
+    it('should reassign bibs on a pending floor heat', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 10 });
+      const bibs = await createCouples(comp.id, 6);
+      const event = await dataService.addEvent('Waltz', bibs, [], comp.id);
+
+      // Generate + split into floor heats
+      const genRes = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heatId = genRes.body.heatOrder[0].id;
+
+      // Split into 2 floor heats
+      const splitRes = await request(app)
+        .post(`/api/schedules/${comp.id}/heat/${heatId}/split-floor`)
+        .send({ groupCount: 2 })
+        .expect(200);
+
+      // Find first floor heat
+      const floorHeat = splitRes.body.heatOrder.find(
+        (h: any) => !h.isBreak && h.entries.some((e: any) => e.bibSubset)
+      );
+
+      // Reassign bibs
+      const res = await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/${floorHeat.id}/bibs`)
+        .send({ bibSubset: bibs.slice(0, 4) })
+        .expect(200);
+
+      const updatedHeat = res.body.heatOrder.find((h: any) => h.id === floorHeat.id);
+      expect(updatedHeat.entries[0].bibSubset).toEqual(bibs.slice(0, 4));
+    });
+
+    it('should return 409 for non-pending heat', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 10 });
+      const bibs = await createCouples(comp.id, 6);
+      const event = await dataService.addEvent('Waltz', bibs, [], comp.id);
+
+      const genRes = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heatId = genRes.body.heatOrder[0].id;
+
+      // Split into floor heats
+      const splitRes = await request(app)
+        .post(`/api/schedules/${comp.id}/heat/${heatId}/split-floor`)
+        .send({ groupCount: 2 })
+        .expect(200);
+
+      const floorHeat = splitRes.body.heatOrder.find(
+        (h: any) => !h.isBreak && h.entries.some((e: any) => e.bibSubset)
+      );
+
+      // Mark as scoring
+      const schedule = await dataService.getSchedule(comp.id);
+      schedule!.heatStatuses[floorHeat.id] = 'scoring';
+      await dataService.saveSchedule(schedule!);
+
+      await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/${floorHeat.id}/bibs`)
+        .send({ bibSubset: bibs.slice(0, 4) })
+        .expect(409);
+    });
+
+    it('should return 400 for invalid bibs not in event round', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 10 });
+      const bibs = await createCouples(comp.id, 6);
+      const event = await dataService.addEvent('Waltz', bibs, [], comp.id);
+
+      const genRes = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heatId = genRes.body.heatOrder[0].id;
+
+      const splitRes = await request(app)
+        .post(`/api/schedules/${comp.id}/heat/${heatId}/split-floor`)
+        .send({ groupCount: 2 })
+        .expect(200);
+
+      const floorHeat = splitRes.body.heatOrder.find(
+        (h: any) => !h.isBreak && h.entries.some((e: any) => e.bibSubset)
+      );
+
+      await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/${floorHeat.id}/bibs`)
+        .send({ bibSubset: [99999] })
+        .expect(400);
+    });
+
+    it('should return 400 for non-floor-heat', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 10 });
+      const bibs = await createCouples(comp.id, 3);
+      await dataService.addEvent('Waltz', bibs, [], comp.id);
+
+      const genRes = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heatId = genRes.body.heatOrder[0].id;
+
+      await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/${heatId}/bibs`)
+        .send({ bibSubset: bibs })
+        .expect(400);
+    });
+  });
 });

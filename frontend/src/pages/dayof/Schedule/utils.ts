@@ -102,20 +102,13 @@ export function getMergeIncompatibilityReason(
 }
 
 export function statusBadge(status: string) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    pending: { bg: '#e2e8f0', color: '#4a5568' },
-    scoring: { bg: '#fefcbf', color: '#975a16' },
-    completed: { bg: '#c6f6d5', color: '#276749' },
+  const styles: Record<string, string> = {
+    pending: 'bg-gray-200 text-gray-700',
+    scoring: 'bg-yellow-100 text-yellow-800',
+    completed: 'bg-green-100 text-green-800',
   };
-  const c = colors[status] || colors.pending;
+  const cls = styles[status] || styles.pending;
   return React.createElement('span', {
-    style: {
-      padding: '0.125rem 0.5rem',
-      borderRadius: '9999px',
-      fontSize: '0.75rem',
-      fontWeight: 600,
-      background: c.bg,
-      color: c.color,
-    },
+    className: `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`,
   }, status);
 }

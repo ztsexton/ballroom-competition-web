@@ -68,6 +68,7 @@ function sanitizeCompetition(comp: Competition) {
 }
 
 function sanitizeEvent(event: Event) {
+  const scratched = new Set(event.scratchedBibs || []);
   return {
     id: event.id,
     name: event.name,
@@ -79,7 +80,7 @@ function sanitizeEvent(event: Event) {
     scoringType: event.scoringType,
     isScholarship: event.isScholarship,
     rounds: event.heats.map(h => h.round),
-    coupleCount: event.heats[0]?.bibs.length ?? 0,
+    coupleCount: (event.heats[0]?.bibs || []).filter(b => !scratched.has(b)).length,
   };
 }
 
@@ -180,21 +181,26 @@ router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
     const couples = await dataService.getCouples(competitionId);
     const couplesByBib = new Map(couples.map(c => [c.bib, c]));
 
-    // Return events with heat details (bibs + couple names)
-    const events = Object.values(eventsMap).map(event => ({
-      ...sanitizeEvent(event),
-      heats: event.heats.map(heat => ({
-        round: heat.round,
-        couples: heat.bibs.map(bib => {
-          const couple = couplesByBib.get(bib);
-          return {
-            bib,
-            leaderName: couple?.leaderName || '',
-            followerName: couple?.followerName || '',
-          };
-        }),
-      })),
-    }));
+    // Return events with heat details (bibs + couple names), excluding scratched
+    const events = Object.values(eventsMap).map(event => {
+      const eventScratched = new Set(event.scratchedBibs || []);
+      return {
+        ...sanitizeEvent(event),
+        heats: event.heats.map(heat => ({
+          round: heat.round,
+          couples: heat.bibs
+            .filter(bib => !eventScratched.has(bib))
+            .map(bib => {
+              const couple = couplesByBib.get(bib);
+              return {
+                bib,
+                leaderName: couple?.leaderName || '',
+                followerName: couple?.followerName || '',
+              };
+            }),
+        })),
+      };
+    });
 
     res.json(events);
   } catch (error) {

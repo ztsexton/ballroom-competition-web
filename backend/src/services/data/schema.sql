@@ -208,3 +208,6 @@ CREATE TABLE IF NOT EXISTS competition_admins (
   PRIMARY KEY (competition_id, user_uid)
 );
 CREATE INDEX IF NOT EXISTS idx_competition_admins_user ON competition_admins(user_uid);
+
+-- Migration: add scratched_bibs to events (for day-of scratch/withdraw)
+ALTER TABLE events ADD COLUMN IF NOT EXISTS scratched_bibs JSONB DEFAULT '[]';

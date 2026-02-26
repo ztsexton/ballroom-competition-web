@@ -125,6 +125,7 @@ export class PostgresDataService implements IDataService {
       scoringType: row.scoring_type || undefined,
       isScholarship: row.is_scholarship || undefined,
       ageCategory: row.age_category || undefined,
+      scratchedBibs: row.scratched_bibs && row.scratched_bibs.length > 0 ? row.scratched_bibs : undefined,
     };
   }
 
@@ -698,20 +699,7 @@ export class PostgresDataService implements IDataService {
     );
     const map = new Map<number, Event>();
     for (const row of rows) {
-      map.set(row.id, {
-        id: row.id,
-        name: row.name,
-        designation: row.designation || undefined,
-        syllabusType: row.syllabus_type || undefined,
-        level: row.level || undefined,
-        style: row.style || undefined,
-        dances: row.dances || undefined,
-        heats: row.heats || [],
-        competitionId: row.competition_id,
-        scoringType: row.scoring_type || undefined,
-        isScholarship: row.is_scholarship || false,
-        ageCategory: row.age_category || undefined,
-      });
+      map.set(row.id, this.eventFromRow(row));
     }
     return map;
   }
@@ -768,7 +756,7 @@ export class PostgresDataService implements IDataService {
       ageCategory: 'age_category',
     };
     const jsonMap: Record<string, string> = {
-      dances: 'dances', heats: 'heats',
+      dances: 'dances', heats: 'heats', scratchedBibs: 'scratched_bibs',
     };
 
     for (const [key, col] of Object.entries(scalarMap)) {

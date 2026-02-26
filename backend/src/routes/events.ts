@@ -182,6 +182,170 @@ router.delete('/:id/entries/:bib', requireAnyAdmin, async (req: AuthRequest, res
   }
 });
 
+// Scratch (withdraw) a couple from an event
+router.post('/:id/scratch', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { bib } = req.body;
+
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+
+    // Check bib is in the event
+    const allBibs = event.heats.flatMap(h => h.bibs);
+    if (!allBibs.includes(bib)) {
+      return res.status(404).json({ error: 'Bib not found in this event' });
+    }
+
+    const scratchedBibs = event.scratchedBibs || [];
+    if (scratchedBibs.includes(bib)) {
+      return res.status(409).json({ error: 'Couple is already scratched from this event' });
+    }
+
+    const updated = await dataService.updateEvent(id, {
+      scratchedBibs: [...scratchedBibs, bib],
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to scratch couple' });
+  }
+});
+
+// Unscratch (reinstate) a couple in an event
+router.delete('/:id/scratch/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const bib = parseInt(req.params.bib);
+
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+
+    const scratchedBibs = event.scratchedBibs || [];
+    if (!scratchedBibs.includes(bib)) {
+      return res.status(404).json({ error: 'Couple is not scratched from this event' });
+    }
+
+    const updated = await dataService.updateEvent(id, {
+      scratchedBibs: scratchedBibs.filter(b => b !== bib),
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unscratch couple' });
+  }
+});
+
+// Late entry — add a couple to an event that already has scores
+router.post('/:id/late-entry', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { bib } = req.body;
+
+    const event = await dataService.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+
+    // Check bib belongs to the competition
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple || couple.competitionId !== event.competitionId) {
+      return res.status(404).json({ error: 'Couple not found in this competition' });
+    }
+
+    // Check not already in event
+    const existingBibs = event.heats[0]?.bibs || [];
+    if (existingBibs.includes(bib)) {
+      return res.status(409).json({ error: 'Couple is already entered in this event' });
+    }
+
+    // Add bib to first round always
+    const updatedHeats = event.heats.map((heat, index) => {
+      if (index === 0) {
+        // Always add to first round
+        return { ...heat, bibs: [...heat.bibs, bib] };
+      }
+      // For subsequent rounds: add only if round has no scores AND has populated bibs
+      // (populated bibs means advancement has happened for the prior round)
+      if (heat.bibs.length > 0) {
+        // Check if this round has any scores
+        // We can't easily async here, so we'll check after
+        return heat;
+      }
+      return heat;
+    });
+
+    // Check which subsequent rounds have scores and add bib to unscored ones with bibs
+    for (let i = 1; i < updatedHeats.length; i++) {
+      const heat = updatedHeats[i];
+      if (heat.bibs.length > 0) {
+        const hasScores = await dataService.getScoresForRound(id, heat.round, heat.bibs);
+        const hasAnyScores = Object.values(hasScores).some(s => s.length > 0);
+        if (!hasAnyScores) {
+          updatedHeats[i] = { ...heat, bibs: [...heat.bibs, bib] };
+        }
+      }
+    }
+
+    await dataService.updateEvent(id, { heats: updatedHeats });
+
+    // Update schedule floor heats if they exist
+    const schedule = await dataService.getSchedule(event.competitionId);
+    if (schedule) {
+      let scheduleChanged = false;
+      for (const scheduledHeat of schedule.heatOrder) {
+        if (scheduledHeat.isBreak) continue;
+        for (const entry of scheduledHeat.entries) {
+          if (entry.eventId !== id) continue;
+          if (!entry.bibSubset) continue;
+          // Only add to pending floor heats — find the smallest one
+          const status = schedule.heatStatuses[scheduledHeat.id];
+          if (status !== 'pending') continue;
+          // Find all pending floor heats for this event/round
+          const siblingHeats = schedule.heatOrder.filter(h =>
+            !h.isBreak &&
+            schedule.heatStatuses[h.id] === 'pending' &&
+            h.entries.some(e => e.eventId === id && e.round === entry.round && e.bibSubset)
+          );
+          if (siblingHeats.length > 0) {
+            // Add to the smallest pending floor heat
+            let smallest = siblingHeats[0];
+            for (const sh of siblingHeats) {
+              const shEntry = sh.entries.find(e => e.eventId === id && e.round === entry.round)!;
+              const smEntry = smallest.entries.find(e => e.eventId === id && e.round === entry.round)!;
+              if ((shEntry.bibSubset?.length || 0) < (smEntry.bibSubset?.length || 0)) {
+                smallest = sh;
+              }
+            }
+            const smEntry = smallest.entries.find(e => e.eventId === id && e.round === entry.round)!;
+            smEntry.bibSubset = [...(smEntry.bibSubset || []), bib];
+            scheduleChanged = true;
+          }
+          break; // Only process once per event
+        }
+        if (scheduleChanged) break;
+      }
+      if (scheduleChanged) {
+        schedule.updatedAt = new Date().toISOString();
+        await dataService.saveSchedule(schedule);
+      }
+    }
+
+    const updatedEvent = await dataService.getEventById(id);
+    res.json(updatedEvent);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add late entry' });
+  }
+});
+
 // Update event
 router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);

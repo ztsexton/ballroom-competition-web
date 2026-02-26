@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Event, CompetitionSchedule, ScheduledHeat } from '../../../../types';
 import {
   getEventById,
@@ -19,6 +19,7 @@ interface ScheduleHeatTableProps {
   expandedHeats: Record<string, boolean>;
   dragIndex: number | null;
   dragOverIndex: number | null;
+  movedHeat: { id: string; key: number } | null;
   onDragStart: (idx: number) => void;
   onDragOver: (e: React.DragEvent, idx: number) => void;
   onDragEnd: () => void;
@@ -38,6 +39,7 @@ export default function ScheduleHeatTable({
   expandedHeats,
   dragIndex,
   dragOverIndex,
+  movedHeat,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -48,199 +50,228 @@ export default function ScheduleHeatTable({
   onSplitEntry,
   onStartMerge,
 }: ScheduleHeatTableProps) {
+  const movedRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  useEffect(() => {
+    if (movedHeat && movedRowRef.current) {
+      const el = movedRowRef.current;
+      el.classList.remove('row-flash');
+      void el.offsetWidth; // force reflow to re-trigger animation
+      el.classList.add('row-flash');
+      const cleanup = () => el.classList.remove('row-flash');
+      el.addEventListener('animationend', cleanup, { once: true });
+      return () => el.removeEventListener('animationend', cleanup);
+    }
+  }, [movedHeat]);
+
   return (
-    <table className="mt-4">
-      <thead>
-        <tr>
-          <th className="w-8"></th>
-          <th>#</th>
-          <th>Event Name</th>
-          <th>Round</th>
-          <th>Style</th>
-          <th>Level</th>
-          <th>Time</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {schedule.heatOrder.map((scheduledHeat, idx) => {
-          const isBreak = scheduledHeat.isBreak;
-          const isCurrent = idx === schedule.currentHeatIndex;
-          const isDragging = dragIndex === idx;
-          const isDragOver = dragOverIndex === idx;
-          const status = schedule.heatStatuses[scheduledHeat.id] || 'pending';
-          const isMultiEntry = !isBreak && scheduledHeat.entries.length > 1;
-          const isExpanded = !!expandedHeats[scheduledHeat.id];
-          const isMergeTarget = mergeSource !== null && mergeSource.heatId !== scheduledHeat.id && !isBreak;
-          const isMergeSource = mergeSource !== null && mergeSource.heatId === scheduledHeat.id;
-          const isMergeChecked = mergeSelected.has(scheduledHeat.id);
-          const sourceHeatObj = mergeSource ? schedule.heatOrder.find(h => h.id === mergeSource.heatId) : null;
-          const incompatibilityReason = isMergeTarget && sourceHeatObj
-            ? getMergeIncompatibilityReason(sourceHeatObj, scheduledHeat, events)
-            : null;
-          const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
+    <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200">
+      <style>{`
+        @keyframes row-flash-anim {
+          0%, 15% { background-color: rgb(253 224 71); box-shadow: inset 0 0 0 1px rgb(234 179 8); }
+          100% { background-color: transparent; box-shadow: none; }
+        }
+        .row-flash { animation: row-flash-anim 800ms ease-out; }
+      `}</style>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 border-b border-gray-200">
+            <th className="w-8 px-2 py-2.5"></th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-10">#</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Event</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Round</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Style</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Level</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Time</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Status</th>
+            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide w-36">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {schedule.heatOrder.map((scheduledHeat, idx) => {
+            const isBreak = scheduledHeat.isBreak;
+            const isCurrent = idx === schedule.currentHeatIndex;
+            const isDragging = dragIndex === idx;
+            const isDragOver = dragOverIndex === idx;
+            const status = schedule.heatStatuses[scheduledHeat.id] || 'pending';
+            const isMultiEntry = !isBreak && scheduledHeat.entries.length > 1;
+            const isExpanded = !!expandedHeats[scheduledHeat.id];
+            const isMergeTarget = mergeSource !== null && mergeSource.heatId !== scheduledHeat.id && !isBreak;
+            const isMergeSource = mergeSource !== null && mergeSource.heatId === scheduledHeat.id;
+            const isMergeChecked = mergeSelected.has(scheduledHeat.id);
+            const sourceHeatObj = mergeSource ? schedule.heatOrder.find(h => h.id === mergeSource.heatId) : null;
+            const incompatibilityReason = isMergeTarget && sourceHeatObj
+              ? getMergeIncompatibilityReason(sourceHeatObj, scheduledHeat, events)
+              : null;
+            const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
 
-          const rowBg = isBreak
-            ? (isDragOver ? 'bg-gray-200' : 'bg-yellow-50')
-            : isMergeSource
-              ? 'bg-blue-50'
-              : isMergeChecked
-                ? 'bg-green-50'
-                : isDragOver
-                  ? 'bg-gray-200'
-                  : isCurrent
-                    ? 'bg-blue-50'
-                    : '';
+            const rowBg = isBreak
+              ? (isDragOver ? 'bg-gray-200' : 'bg-amber-50/60')
+              : isMergeSource
+                ? 'bg-blue-50'
+                : isMergeChecked
+                  ? 'bg-green-50'
+                  : isDragOver
+                    ? 'bg-gray-200'
+                    : isCurrent
+                      ? 'bg-blue-50'
+                      : idx % 2 === 1
+                        ? 'bg-gray-50/50'
+                        : 'bg-white';
 
-          const rowOpacity = isDragging
-            ? 'opacity-40'
-            : (mergeSource && !isMergeTarget && !isMergeSource)
+            const rowOpacity = isDragging
               ? 'opacity-40'
-              : '';
+              : (mergeSource && !isMergeTarget && !isMergeSource)
+                ? 'opacity-40'
+                : '';
 
-          return (
-            <React.Fragment key={scheduledHeat.id + '-' + idx}>
-              <tr
-                draggable={!mergeSource}
-                onDragStart={() => onDragStart(idx)}
-                onDragOver={(e) => onDragOver(e, idx)}
-                onDragEnd={onDragEnd}
-                onClick={mergeSource && isMergeCompatible ? () => onToggleMergeSelection(scheduledHeat.id) : undefined}
-                className={[
-                  'transition-[background,opacity] duration-150',
-                  rowBg,
-                  rowOpacity,
-                  isBreak ? 'italic' : '',
-                  mergeSource && isMergeTarget ? 'cursor-pointer' : '',
-                ].filter(Boolean).join(' ')}
-                style={{
-                  borderLeft: isMergeSource ? '3px solid var(--color-blue-500, #4299e1)' : undefined,
-                  borderTop: isDragOver && dragIndex !== null && idx < dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
-                  borderBottom: isDragOver && dragIndex !== null && idx > dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
-                }}
-              >
-                <td className={`${mergeSource ? 'cursor-default' : 'cursor-grab'} text-center text-gray-400 select-none align-top`}>
-                  {mergeSource && !isBreak ? (
-                    isMergeSource ? null : (
-                      <input
-                        type="checkbox"
-                        checked={isMergeChecked}
-                        disabled={!isMergeCompatible}
-                        onChange={(e) => { e.stopPropagation(); onToggleMergeSelection(scheduledHeat.id); }}
-                        className={isMergeCompatible ? 'cursor-pointer' : 'cursor-not-allowed'}
-                        title={incompatibilityReason || undefined}
-                      />
-                    )
-                  ) : (
-                    '\u2630'
-                  )}
-                </td>
-                <td className="align-top"><strong>{idx + 1}</strong></td>
-                {isBreak ? (
-                  <td colSpan={5}>
-                    <span>
-                      {scheduledHeat.breakLabel || 'Break'}
-                      {scheduledHeat.breakDuration && (
-                        <span className="text-gray-400 ml-2">
-                          ({scheduledHeat.breakDuration} min)
-                        </span>
-                      )}
-                      {scheduledHeat.estimatedStartTime && (
-                        <span className="text-gray-500 ml-3 text-[0.8125rem]">
-                          {formatTime(scheduledHeat.estimatedStartTime)}
-                        </span>
-                      )}
-                    </span>
+            return (
+              <React.Fragment key={scheduledHeat.id + '-' + idx}>
+                <tr
+                  ref={scheduledHeat.id === movedHeat?.id ? movedRowRef : undefined}
+                  draggable={!mergeSource}
+                  onDragStart={() => onDragStart(idx)}
+                  onDragOver={(e) => onDragOver(e, idx)}
+                  onDragEnd={onDragEnd}
+                  onClick={mergeSource && isMergeCompatible ? () => onToggleMergeSelection(scheduledHeat.id) : undefined}
+                  className={[
+                    'group transition-colors duration-100',
+                    rowBg,
+                    rowOpacity,
+                    isBreak ? 'italic border-y border-dashed border-amber-200' : 'hover:bg-blue-50/40',
+                    isCurrent && !isBreak ? 'border-l-[3px] border-l-blue-500' : '',
+                    mergeSource && isMergeTarget ? 'cursor-pointer' : '',
+                  ].filter(Boolean).join(' ')}
+                  style={{
+                    borderLeft: isMergeSource ? '3px solid var(--color-blue-500, #4299e1)' : undefined,
+                    borderTop: isDragOver && dragIndex !== null && idx < dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
+                    borderBottom: isDragOver && dragIndex !== null && idx > dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
+                  }}
+                >
+                  <td className={`${mergeSource ? 'cursor-default' : 'cursor-grab'} px-2 py-2 text-center text-gray-400 select-none align-top`}>
+                    {mergeSource && !isBreak ? (
+                      isMergeSource ? null : (
+                        <input
+                          type="checkbox"
+                          checked={isMergeChecked}
+                          disabled={!isMergeCompatible}
+                          onChange={(e) => { e.stopPropagation(); onToggleMergeSelection(scheduledHeat.id); }}
+                          className={isMergeCompatible ? 'cursor-pointer' : 'cursor-not-allowed'}
+                          title={incompatibilityReason || undefined}
+                        />
+                      )
+                    ) : (
+                      '\u2630'
+                    )}
                   </td>
-                ) : (
-                  <>
-                    <td className="align-top">
-                      {isMultiEntry ? (
-                        <MultiEntryCell
-                          scheduledHeat={scheduledHeat}
-                          events={events}
-                          isExpanded={isExpanded}
-                          mergeSource={mergeSource}
-                          onToggleExpanded={onToggleExpanded}
-                        />
-                      ) : (
-                        <SingleEntryCell
-                          scheduledHeat={scheduledHeat}
-                          events={events}
-                          mergeSource={mergeSource}
-                        />
-                      )}
-                    </td>
-                    <td className="capitalize align-top">{getHeatRound(scheduledHeat)}</td>
-                    <td className="align-top">{getHeatStyle(scheduledHeat, events)}</td>
-                    <td className="align-top">{getHeatLevel(scheduledHeat, events)}</td>
-                    <td className="align-top text-[0.8125rem] text-gray-600 whitespace-nowrap">
-                      {scheduledHeat.estimatedStartTime ? formatTime(scheduledHeat.estimatedStartTime) : ''}
-                    </td>
-                  </>
-                )}
-                <td className="align-top">{statusBadge(status)}</td>
-                <td className="align-top">
-                  <HeatActions
-                    idx={idx}
-                    scheduledHeat={scheduledHeat}
-                    totalHeats={schedule.heatOrder.length}
-                    isBreak={!!isBreak}
-                    isMultiEntry={isMultiEntry}
-                    isExpanded={isExpanded}
-                    mergeSource={mergeSource}
-                    isMergeSource={isMergeSource}
-                    isMergeChecked={isMergeChecked}
-                    incompatibilityReason={incompatibilityReason}
-                    onMoveEvent={onMoveEvent}
-                    onRemoveBreak={onRemoveBreak}
-                    onStartMerge={onStartMerge}
-                    onToggleExpanded={onToggleExpanded}
-                  />
-                </td>
-              </tr>
-              {/* Expanded sub-rows for multi-entry heats */}
-              {isMultiEntry && isExpanded && !mergeSource && scheduledHeat.entries.map(entry => {
-                const event = getEventById(events, entry.eventId);
-                const allBibs = new Set<number>();
-                event?.heats.forEach(h => h.bibs.forEach(b => allBibs.add(b)));
-                const coupleCount = allBibs.size;
-                return (
-                  <tr
-                    key={`${scheduledHeat.id}-${entry.eventId}-${entry.round}`}
-                    className="bg-gray-50"
-                  >
-                    <td></td>
-                    <td></td>
-                    <td className="pl-7 text-sm">
-                      {event?.name || `Event #${entry.eventId}`}
-                      <span className="text-gray-400 ml-2">
-                        ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
+                  <td className="px-3 py-2 align-top"><strong>{idx + 1}</strong></td>
+                  {isBreak ? (
+                    <td colSpan={5} className="px-3 py-2">
+                      <span className="text-amber-800">
+                        {scheduledHeat.breakLabel || 'Break'}
+                        {scheduledHeat.breakDuration && (
+                          <span className="text-amber-600 ml-2">
+                            ({scheduledHeat.breakDuration} min)
+                          </span>
+                        )}
+                        {scheduledHeat.estimatedStartTime && (
+                          <span className="text-amber-700/70 ml-3 text-[0.8125rem]">
+                            {formatTime(scheduledHeat.estimatedStartTime)}
+                          </span>
+                        )}
                       </span>
                     </td>
-                    <td className="capitalize text-sm">{entry.round}</td>
-                    <td className="text-sm">{event?.style || '\u2014'}</td>
-                    <td className="text-sm">{event?.level || '\u2014'}</td>
-                    <td></td>
-                    <td></td>
-                    <td>
-                      <button
-                        onClick={() => onSplitEntry(scheduledHeat.id, entry.eventId, entry.round)}
-                        className="py-0.5 px-2 text-xs cursor-pointer text-red-700 border border-red-200 rounded bg-red-50"
-                        title="Split this entry into its own heat"
-                      >
-                        Split out
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
-      </tbody>
-    </table>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2 align-top">
+                        {isMultiEntry ? (
+                          <MultiEntryCell
+                            scheduledHeat={scheduledHeat}
+                            events={events}
+                            isExpanded={isExpanded}
+                            mergeSource={mergeSource}
+                            onToggleExpanded={onToggleExpanded}
+                          />
+                        ) : (
+                          <SingleEntryCell
+                            scheduledHeat={scheduledHeat}
+                            events={events}
+                            mergeSource={mergeSource}
+                          />
+                        )}
+                      </td>
+                      <td className="px-3 py-2 capitalize align-top">{getHeatRound(scheduledHeat)}</td>
+                      <td className="px-3 py-2 align-top">{getHeatStyle(scheduledHeat, events)}</td>
+                      <td className="px-3 py-2 align-top">{getHeatLevel(scheduledHeat, events)}</td>
+                      <td className="px-3 py-2 align-top text-[0.8125rem] text-gray-600 whitespace-nowrap">
+                        {scheduledHeat.estimatedStartTime ? formatTime(scheduledHeat.estimatedStartTime) : ''}
+                      </td>
+                    </>
+                  )}
+                  <td className="px-3 py-2 align-top">{statusBadge(status)}</td>
+                  <td className="px-3 py-2 align-top">
+                    <HeatActions
+                      idx={idx}
+                      scheduledHeat={scheduledHeat}
+                      totalHeats={schedule.heatOrder.length}
+                      isBreak={!!isBreak}
+                      isMultiEntry={isMultiEntry}
+                      isExpanded={isExpanded}
+                      mergeSource={mergeSource}
+                      isMergeSource={isMergeSource}
+                      isMergeChecked={isMergeChecked}
+                      incompatibilityReason={incompatibilityReason}
+                      onMoveEvent={onMoveEvent}
+                      onRemoveBreak={onRemoveBreak}
+                      onStartMerge={onStartMerge}
+                      onToggleExpanded={onToggleExpanded}
+                    />
+                  </td>
+                </tr>
+                {/* Expanded sub-rows for multi-entry heats */}
+                {isMultiEntry && isExpanded && !mergeSource && scheduledHeat.entries.map(entry => {
+                  const event = getEventById(events, entry.eventId);
+                  const allBibs = new Set<number>();
+                  event?.heats.forEach(h => h.bibs.forEach(b => allBibs.add(b)));
+                  const coupleCount = allBibs.size;
+                  return (
+                    <tr
+                      key={`${scheduledHeat.id}-${entry.eventId}-${entry.round}`}
+                      className="bg-gray-50/80 border-l-2 border-l-purple-300"
+                    >
+                      <td className="px-2 py-2"></td>
+                      <td className="px-3 py-2"></td>
+                      <td className="px-3 py-2 pl-7 text-sm">
+                        {event?.name || `Event #${entry.eventId}`}
+                        <span className="text-gray-400 ml-2">
+                          ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 capitalize text-sm">{entry.round}</td>
+                      <td className="px-3 py-2 text-sm">{event?.style || '\u2014'}</td>
+                      <td className="px-3 py-2 text-sm">{event?.level || '\u2014'}</td>
+                      <td className="px-3 py-2"></td>
+                      <td className="px-3 py-2"></td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => onSplitEntry(scheduledHeat.id, entry.eventId, entry.round)}
+                            className="px-2 py-0.5 text-xs cursor-pointer text-red-700 border border-red-200 rounded bg-red-50 hover:bg-red-100"
+                            title="Split this entry into its own heat"
+                          >
+                            Split out
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -357,48 +388,56 @@ function HeatActions({
   if (mergeSource) {
     if (isMergeSource) {
       return (
-        <span className="py-0.5 px-1.5 rounded text-[0.6875rem] font-bold bg-blue-200 text-blue-700 tracking-wide">
-          SOURCE
-        </span>
+        <div className="flex justify-end">
+          <span className="py-0.5 px-1.5 rounded text-[0.6875rem] font-bold bg-blue-200 text-blue-700 tracking-wide">
+            SOURCE
+          </span>
+        </div>
       );
     }
     if (isMergeChecked) {
       return (
-        <span className="text-xs text-green-800 font-semibold">
-          ✓ selected
-        </span>
+        <div className="flex justify-end">
+          <span className="text-xs text-green-800 font-semibold">
+            ✓ selected
+          </span>
+        </div>
       );
     }
     if (incompatibilityReason) {
       return (
-        <span className="text-[0.6875rem] text-gray-400 italic">
-          {incompatibilityReason}
-        </span>
+        <div className="flex justify-end">
+          <span className="text-[0.6875rem] text-gray-400 italic">
+            {incompatibilityReason}
+          </span>
+        </div>
       );
     }
     return null;
   }
 
   return (
-    <div className="flex gap-1 flex-wrap">
-      <button
-        onClick={() => onMoveEvent(idx, idx - 1)}
-        disabled={idx === 0}
-        className={`py-0.5 px-1.5 ${idx === 0 ? 'cursor-default opacity-30' : 'cursor-pointer'}`}
-      >
-        ▲
-      </button>
-      <button
-        onClick={() => onMoveEvent(idx, idx + 1)}
-        disabled={idx === totalHeats - 1}
-        className={`py-0.5 px-1.5 ${idx === totalHeats - 1 ? 'cursor-default opacity-30' : 'cursor-pointer'}`}
-      >
-        ▼
-      </button>
+    <div className="flex items-center gap-1.5 justify-end">
+      <span className="inline-flex rounded border border-gray-200 divide-x divide-gray-200">
+        <button
+          onClick={() => onMoveEvent(idx, idx - 1)}
+          disabled={idx === 0}
+          className="px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 cursor-pointer disabled:cursor-default"
+        >
+          ▲
+        </button>
+        <button
+          onClick={() => onMoveEvent(idx, idx + 1)}
+          disabled={idx === totalHeats - 1}
+          className="px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 cursor-pointer disabled:cursor-default"
+        >
+          ▼
+        </button>
+      </span>
       {isBreak && (
         <button
           onClick={() => onRemoveBreak(idx)}
-          className="py-0.5 px-1.5 text-danger-600 cursor-pointer"
+          className="px-2 py-0.5 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
           title="Remove break"
         >
           ✕
@@ -407,7 +446,7 @@ function HeatActions({
       {!isBreak && (
         <button
           onClick={() => onStartMerge(scheduledHeat.id, idx)}
-          className="py-0.5 px-1.5 text-xs cursor-pointer"
+          className="px-2 py-0.5 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
           title="Merge this heat with others"
         >
           Merge
@@ -416,7 +455,7 @@ function HeatActions({
       {isMultiEntry && (
         <button
           onClick={() => onToggleExpanded(scheduledHeat.id)}
-          className="py-0.5 px-1.5 text-xs cursor-pointer"
+          className="px-2 py-0.5 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
           title={isExpanded ? 'Collapse entries' : 'Expand to view/split entries'}
         >
           {isExpanded ? 'Collapse' : 'Edit'}

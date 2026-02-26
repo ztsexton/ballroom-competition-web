@@ -520,4 +520,174 @@ describe('Events API', () => {
         .expect(200);
     });
   });
+
+  describe('Scratch/Withdraw', () => {
+    const setupScratchEvent = async () => {
+      const comp = await dataService.addCompetition({ name: 'Comp', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const bibs: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const l = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const f = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const c = await dataService.addCouple(l.id, f.id, comp.id);
+        bibs.push(c!.bib);
+      }
+      const event = await dataService.addEvent('Waltz', bibs, [], comp.id);
+      return { comp, bibs, event };
+    };
+
+    it('POST /events/:id/scratch should scratch a couple', async () => {
+      const { event, bibs } = await setupScratchEvent();
+
+      const res = await request(app)
+        .post(`/api/events/${event.id}/scratch`)
+        .send({ bib: bibs[0] })
+        .expect(200);
+
+      expect(res.body.scratchedBibs).toContain(bibs[0]);
+    });
+
+    it('POST /events/:id/scratch should return 404 if bib not in event', async () => {
+      const { event } = await setupScratchEvent();
+
+      await request(app)
+        .post(`/api/events/${event.id}/scratch`)
+        .send({ bib: 99999 })
+        .expect(404);
+    });
+
+    it('POST /events/:id/scratch should return 409 if already scratched', async () => {
+      const { event, bibs } = await setupScratchEvent();
+
+      await request(app)
+        .post(`/api/events/${event.id}/scratch`)
+        .send({ bib: bibs[0] })
+        .expect(200);
+
+      await request(app)
+        .post(`/api/events/${event.id}/scratch`)
+        .send({ bib: bibs[0] })
+        .expect(409);
+    });
+
+    it('POST /events/:id/scratch should return 404 if event not found', async () => {
+      await request(app)
+        .post('/api/events/99999/scratch')
+        .send({ bib: 1 })
+        .expect(404);
+    });
+
+    it('DELETE /events/:id/scratch/:bib should unscratch a couple', async () => {
+      const { event, bibs } = await setupScratchEvent();
+
+      // Scratch first
+      await request(app)
+        .post(`/api/events/${event.id}/scratch`)
+        .send({ bib: bibs[0] })
+        .expect(200);
+
+      // Unscratch
+      const res = await request(app)
+        .delete(`/api/events/${event.id}/scratch/${bibs[0]}`)
+        .expect(200);
+
+      expect(res.body.scratchedBibs || []).not.toContain(bibs[0]);
+    });
+
+    it('DELETE /events/:id/scratch/:bib should return 404 if not scratched', async () => {
+      const { event, bibs } = await setupScratchEvent();
+
+      await request(app)
+        .delete(`/api/events/${event.id}/scratch/${bibs[0]}`)
+        .expect(404);
+    });
+  });
+
+  describe('Late Entry', () => {
+    const setupLateEntry = async () => {
+      const comp = await dataService.addCompetition({ name: 'Comp', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const bibs: number[] = [];
+      for (let i = 0; i < 4; i++) {
+        const l = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const f = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const c = await dataService.addCouple(l.id, f.id, comp.id);
+        bibs.push(c!.bib);
+      }
+      // Create event with first 3 bibs
+      const event = await dataService.addEvent('Waltz', bibs.slice(0, 3), [], comp.id);
+      return { comp, bibs, event };
+    };
+
+    it('POST /events/:id/late-entry should add couple to event with existing scores', async () => {
+      const { event, bibs } = await setupLateEntry();
+
+      // Add scores so normal entry would be blocked
+      await dataService.setScores(event.id, 'final', bibs[0], [1]);
+
+      const res = await request(app)
+        .post(`/api/events/${event.id}/late-entry`)
+        .send({ bib: bibs[3] })
+        .expect(200);
+
+      expect(res.body.heats[0].bibs).toContain(bibs[3]);
+    });
+
+    it('POST /events/:id/late-entry should return 409 if already in event', async () => {
+      const { event, bibs } = await setupLateEntry();
+
+      await request(app)
+        .post(`/api/events/${event.id}/late-entry`)
+        .send({ bib: bibs[0] })
+        .expect(409);
+    });
+
+    it('POST /events/:id/late-entry should return 404 if couple not in competition', async () => {
+      const { event } = await setupLateEntry();
+
+      await request(app)
+        .post(`/api/events/${event.id}/late-entry`)
+        .send({ bib: 99999 })
+        .expect(404);
+    });
+
+    it('POST /events/:id/late-entry should add to unscored future rounds with bibs', async () => {
+      const { comp, bibs } = await setupLateEntry();
+
+      // Create a multi-round event (10 couples → semi + final)
+      const manyBibs: number[] = [];
+      for (let i = 0; i < 10; i++) {
+        const l = await dataService.addPerson({ firstName: `ML${i}`, lastName: 'Y', role: 'leader', status: 'student', competitionId: comp.id });
+        const f = await dataService.addPerson({ firstName: `MF${i}`, lastName: 'Y', role: 'follower', status: 'student', competitionId: comp.id });
+        const c = await dataService.addCouple(l.id, f.id, comp.id);
+        manyBibs.push(c!.bib);
+      }
+
+      const event = await dataService.addEvent('Tango', manyBibs, [], comp.id);
+      expect(event.heats).toHaveLength(2); // semi-final + final
+
+      // Score semi-final
+      for (const bib of manyBibs) {
+        await dataService.setScores(event.id, 'semi-final', bib, [1]);
+      }
+
+      // Advance to final (put some bibs in final)
+      await dataService.advanceToNextRound(event.id, 'semi-final', manyBibs.slice(0, 6));
+
+      // Late entry — new couple
+      const newL = await dataService.addPerson({ firstName: 'NewL', lastName: 'Z', role: 'leader', status: 'student', competitionId: comp.id });
+      const newF = await dataService.addPerson({ firstName: 'NewF', lastName: 'Z', role: 'follower', status: 'student', competitionId: comp.id });
+      const newC = await dataService.addCouple(newL.id, newF.id, comp.id);
+
+      const res = await request(app)
+        .post(`/api/events/${event.id}/late-entry`)
+        .send({ bib: newC!.bib })
+        .expect(200);
+
+      // Added to first round (semi-final)
+      expect(res.body.heats[0].bibs).toContain(newC!.bib);
+
+      // Final has bibs (advancement happened) and no scores yet → added
+      const finalHeat = res.body.heats[1];
+      expect(finalHeat.bibs).toContain(newC!.bib);
+    });
+  });
 });

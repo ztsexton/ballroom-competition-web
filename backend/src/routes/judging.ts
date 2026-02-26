@@ -54,7 +54,8 @@ router.get('/competition/:competitionId/active-heat', async (req: Request, res: 
       if (!heat) continue;
 
       heat.judges.forEach(j => allJudgeIds.add(j));
-      const bibs = entry.bibSubset || heat.bibs;
+      const scratched = new Set(event.scratchedBibs || []);
+      const bibs = (entry.bibSubset || heat.bibs).filter(b => !scratched.has(b));
       allBibs.push(...bibs);
       entryMeta.push({ entry, event, heat, bibs });
     }
@@ -160,7 +161,8 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
 
       heat.judges.forEach(j => allJudgeIds.add(j));
 
-      const bibs = entry.bibSubset || heat.bibs;
+      const scratched = new Set(event.scratchedBibs || []);
+      const bibs = (entry.bibSubset || heat.bibs).filter(b => !scratched.has(b));
       const eventDances = entry.dance ? [entry.dance] : (event.dances && event.dances.length > 1 ? event.dances : [undefined]);
       const scoresByBib: Record<number, Record<number, number>> = {};
       const danceProgress: Record<string, Record<number, Record<number, number>>> = {};
@@ -195,11 +197,12 @@ router.get('/competition/:competitionId/scoring-progress', async (req: Request, 
     const batchEntries = currentHeat.entries.map(e => {
       const event = progressEventsMap.get(e.eventId);
       const heat = event?.heats.find(h => h.round === e.round);
+      const eventScratched = new Set(event?.scratchedBibs || []);
       return {
         eventId: e.eventId,
         round: e.round,
         dance: e.dance,
-        bibs: e.bibSubset || heat?.bibs || [],
+        bibs: (e.bibSubset || heat?.bibs || []).filter(b => !eventScratched.has(b)),
       };
     });
     const judgeIdArray = Array.from(allJudgeIds);

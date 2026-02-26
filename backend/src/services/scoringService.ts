@@ -91,7 +91,8 @@ export class ScoringService {
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return [];
 
-    const bibs = bibSubset || heat.bibs;
+    const scratched = new Set(event.scratchedBibs || []);
+    const bibs = (bibSubset || heat.bibs).filter(b => !scratched.has(b));
     const scoringType = event.scoringType || 'standard';
     const isRecallRound = RECALL_ROUNDS.includes(round);
     const dances = await this.getDancesForScoring(eventId);
@@ -414,9 +415,11 @@ export class ScoringService {
     // Clear existing scores for this round
     await dataService.clearScores(eventId, round);
 
-    // Group scores by bib
+    // Group scores by bib, excluding scratched
+    const scratched = new Set(event.scratchedBibs || []);
+    const activeBibs = heat.bibs.filter(b => !scratched.has(b));
     const scoresByBib: Record<number, number[]> = {};
-    for (const bib of heat.bibs) {
+    for (const bib of activeBibs) {
       scoresByBib[bib] = [];
     }
 
@@ -467,12 +470,14 @@ export class ScoringService {
     await dataService.setJudgeScoresBatch(eventId, round, judgeId, scores, dance);
 
     // Check all dances in one batch call instead of per-dance loop
+    const scratched = new Set(event.scratchedBibs || []);
+    const activeBibs = heat.bibs.filter(b => !scratched.has(b));
     const dances = await this.getDancesForScoring(eventId);
     const batchEntries = dances.map(d => ({
       eventId,
       round,
       dance: d,
-      bibs: heat.bibs,
+      bibs: activeBibs,
     }));
     const batchStatus = await dataService.getJudgeSubmissionStatusBatch(batchEntries, heat.judges);
     const allSubmitted = heat.judges.every(jId => batchStatus[jId]);
@@ -487,7 +492,8 @@ export class ScoringService {
     const heat = event.heats.find(h => h.round === round);
     if (!heat) return false;
 
-    const bibs = bibSubset || heat.bibs;
+    const scratched = new Set(event.scratchedBibs || []);
+    const bibs = (bibSubset || heat.bibs).filter(b => !scratched.has(b));
     const scoringType = event.scoringType || 'standard';
     const isRecall = RECALL_ROUNDS.includes(round);
     const defaultScore = scoringType === 'proficiency' ? 0 : isRecall ? 0 : bibs.length;

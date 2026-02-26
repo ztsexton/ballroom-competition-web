@@ -421,6 +421,119 @@ export async function unsplitFloorHeats(
   return await recalculateTimingIfConfigured(competitionId, schedule);
 }
 
+export async function resplitPendingHeats(
+  competitionId: number,
+  eventId: number,
+  round: string,
+  groupCount: number,
+): Promise<CompetitionSchedule | null> {
+  const schedule = await dataService.getSchedule(competitionId);
+  if (!schedule) return null;
+
+  const event = await dataService.getEventById(eventId);
+  if (!event) return null;
+  if (groupCount < 2) return null;
+
+  const heatData = event.heats.find(h => h.round === round);
+  if (!heatData) return null;
+
+  const bibs = heatData.bibs;
+  if (bibs.length === 0 || groupCount > bibs.length) return null;
+
+  // Find all pending schedule heats for this event/round
+  const pendingIndices: number[] = [];
+  for (let i = 0; i < schedule.heatOrder.length; i++) {
+    const h = schedule.heatOrder[i];
+    if (h.isBreak) continue;
+    if (schedule.heatStatuses[h.id] !== 'pending') continue;
+    if (h.entries.some(e => e.eventId === eventId && e.round === round)) {
+      pendingIndices.push(i);
+    }
+  }
+
+  if (pendingIndices.length === 0) return null;
+
+  // Collect dances from existing entries
+  const isMultiDance = event.dances && event.dances.length > 1;
+
+  // Track the earliest pending position
+  const earliestPos = pendingIndices[0];
+
+  // Remove all pending heats for this event/round
+  const removedIds = new Set<string>();
+  for (const idx of pendingIndices) {
+    removedIds.add(schedule.heatOrder[idx].id);
+  }
+  // Remove and clean up statuses
+  schedule.heatOrder = schedule.heatOrder.filter(h => !removedIds.has(h.id));
+  for (const id of removedIds) {
+    delete schedule.heatStatuses[id];
+  }
+
+  // Build new split heats
+  const chunks = splitBibsEvenly(bibs, groupCount);
+  const totalFloorHeats = chunks.length;
+  const newHeats: ScheduledHeat[] = [];
+
+  if (isMultiDance) {
+    for (const dance of event.dances!) {
+      for (let i = 0; i < chunks.length; i++) {
+        const newHeat: ScheduledHeat = {
+          id: generateHeatId(),
+          entries: [{
+            eventId,
+            round,
+            bibSubset: chunks[i],
+            floorHeatIndex: i,
+            totalFloorHeats,
+            dance,
+          }],
+        };
+        newHeats.push(newHeat);
+      }
+    }
+  } else {
+    for (let i = 0; i < chunks.length; i++) {
+      const newHeat: ScheduledHeat = {
+        id: generateHeatId(),
+        entries: [{
+          eventId,
+          round,
+          bibSubset: chunks[i],
+          floorHeatIndex: i,
+          totalFloorHeats,
+        }],
+      };
+      newHeats.push(newHeat);
+    }
+  }
+
+  // Insert at the earliest removed position
+  const insertAt = Math.min(earliestPos, schedule.heatOrder.length);
+  schedule.heatOrder.splice(insertAt, 0, ...newHeats);
+  for (const nh of newHeats) {
+    schedule.heatStatuses[nh.id] = 'pending';
+  }
+
+  // Adjust currentHeatIndex: we removed N heats and added M new ones
+  // All at/after earliestPos
+  if (schedule.currentHeatIndex >= earliestPos + pendingIndices.length) {
+    // Current heat was after all removed heats
+    schedule.currentHeatIndex += newHeats.length - pendingIndices.length;
+  } else if (schedule.currentHeatIndex >= earliestPos) {
+    // Current heat was among removed heats — point to first new heat
+    schedule.currentHeatIndex = insertAt;
+  }
+
+  if (schedule.currentHeatIndex >= schedule.heatOrder.length) {
+    schedule.currentHeatIndex = Math.max(0, schedule.heatOrder.length - 1);
+  }
+
+  schedule.updatedAt = new Date().toISOString();
+  await dataService.saveSchedule(schedule);
+  return await recalculateTimingIfConfigured(competitionId, schedule);
+}
+
 export async function splitHeatEntry(
   competitionId: number,
   heatId: string,
