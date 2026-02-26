@@ -531,11 +531,7 @@ The project uses HTTPS in development via `mkcert`. See [doc/setup/HTTPS_SETUP.m
 
 ### Database Migration
 
-When using PostgreSQL (`DATA_STORE=postgres`), run migrations after starting the backend:
-```bash
-curl -X POST https://localhost:3001/api/database/migrate
-```
-Migrations are idempotent (safe to run multiple times).
+When using PostgreSQL (`DATA_STORE=postgres`), migrations run automatically on server startup. They are idempotent (safe to run every time). You can also trigger them manually via `POST /api/database/migrate`.
 
 ### Making Changes
 

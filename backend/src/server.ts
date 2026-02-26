@@ -6,6 +6,7 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
+import { runMigrations } from './services/migrationService';
 import helmet from 'helmet';
 import { authenticate, requireAdmin } from './middleware/auth';
 import competitionsRoutes from './routes/competitions';
@@ -118,6 +119,21 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Run Postgres migrations on startup (idempotent — safe to run every time)
+async function autoMigrate() {
+  if (process.env.DATA_STORE !== 'postgres') return;
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const result = await runMigrations(pool);
+    if (!result.success) {
+      logger.error('Auto-migration failed — the server will continue but some features may not work');
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
 // Only start server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
   if (USE_HTTPS) {
@@ -128,10 +144,12 @@ if (process.env.NODE_ENV !== 'test') {
 
     https.createServer(httpsOptions, app).listen(PORT, () => {
       logger.info({ port: PORT, https: true }, 'Backend server started');
+      autoMigrate();
     });
   } else {
     app.listen(PORT, () => {
       logger.info({ port: PORT, https: false }, 'Backend server started');
+      autoMigrate();
     });
   }
 }
