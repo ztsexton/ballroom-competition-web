@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { CompetitionProvider } from './context/CompetitionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
@@ -64,6 +65,7 @@ const App = () => {
       basename={basePath.replace(/\/$/, '')}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
+      <ThemeProvider>
       <AuthProvider>
         <Routes>
           {/* Public routes — no auth required */}
@@ -134,6 +136,7 @@ const App = () => {
           />
         </Routes>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 };

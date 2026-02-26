@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { themes, themeKeys } from '../../themes';
 import { usersApi } from '../../api/client';
 
 const ProfilePage = () => {
   const { user, currentUser, refreshUser } = useAuth();
+  const { theme: currentTheme, setTheme } = useTheme();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -52,52 +55,29 @@ const ProfilePage = () => {
     }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '0.5rem 0.75rem',
-    border: '1px solid #cbd5e0',
-    borderRadius: '4px',
-    fontSize: '0.9rem',
-  };
-
-  const labelStyle = {
-    display: 'block',
-    fontSize: '0.85rem',
-    fontWeight: 600 as const,
-    color: '#4a5568',
-    marginBottom: '0.25rem',
-  };
-
   return (
-    <div className="container" style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '3rem' }}>
-      <h2 style={{ marginBottom: '1.5rem' }}>My Profile</h2>
+    <div className="max-w-[600px] mx-auto px-8 pb-12">
+      <h2 className="text-xl font-bold text-gray-800 mb-6">My Profile</h2>
 
       {/* Read-only info */}
-      <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="bg-white rounded-lg shadow p-5 mb-6">
+        <div className="flex items-center gap-4">
           {user?.photoURL && (
             <img
               src={user.photoURL}
               alt=""
-              style={{ width: 56, height: 56, borderRadius: '50%' }}
+              className="w-14 h-14 rounded-full"
             />
           )}
           <div>
-            <div style={{ fontWeight: 600 }}>{user?.displayName || user?.email}</div>
-            <div style={{ fontSize: '0.875rem', color: '#718096' }}>{currentUser?.email}</div>
+            <div className="font-semibold text-gray-800">{user?.displayName || user?.email}</div>
+            <div className="text-sm text-gray-500">{currentUser?.email}</div>
             {currentUser?.signInMethods && currentUser.signInMethods.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.35rem' }}>
+              <div className="flex gap-1.5 mt-1.5">
                 {currentUser.signInMethods.map(method => (
                   <span
                     key={method}
-                    style={{
-                      fontSize: '0.7rem',
-                      padding: '0.1rem 0.45rem',
-                      borderRadius: '9999px',
-                      background: '#ebf4ff',
-                      color: '#3182ce',
-                      textTransform: 'capitalize',
-                    }}
+                    className="text-[0.7rem] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 capitalize"
                   >
                     {method}
                   </span>
@@ -108,87 +88,95 @@ const ProfilePage = () => {
         </div>
       </div>
 
+      {/* Appearance */}
+      <div className="bg-white rounded-lg shadow p-5 mb-6">
+        <h3 className="text-sm font-semibold text-gray-600 mb-3">Appearance</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {themeKeys.map(key => {
+            const t = themes[key];
+            const selected = key === currentTheme;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTheme(key)}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors ${
+                  selected
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <span
+                  className="w-8 h-8 rounded-full shrink-0"
+                  style={{ backgroundColor: t.swatch }}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">{t.label}</span>
+                  <span className="block text-xs text-gray-500">{t.description}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Editable form */}
       <form onSubmit={handleSubmit}>
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="bg-white rounded-lg shadow p-5">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label style={labelStyle}>First Name</label>
-              <input name="firstName" value={formData.firstName} onChange={handleChange} style={inputStyle} />
+              <label className="block text-sm font-semibold text-gray-600 mb-1">First Name</label>
+              <input name="firstName" value={formData.firstName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
             </div>
             <div>
-              <label style={labelStyle}>Last Name</label>
-              <input name="lastName" value={formData.lastName} onChange={handleChange} style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: '1rem' }}>
-            <label style={labelStyle}>Phone</label>
-            <input name="phone" value={formData.phone} onChange={handleChange} style={inputStyle} type="tel" />
-          </div>
-
-          <div style={{ marginTop: '1rem' }}>
-            <label style={labelStyle}>Studio / Team</label>
-            <input name="studioTeamName" value={formData.studioTeamName} onChange={handleChange} style={inputStyle} />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-            <div>
-              <label style={labelStyle}>City</label>
-              <input name="city" value={formData.city} onChange={handleChange} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>State / Region</label>
-              <input name="stateRegion" value={formData.stateRegion} onChange={handleChange} style={inputStyle} />
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Last Name</label>
+              <input name="lastName" value={formData.lastName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
             </div>
           </div>
 
-          <div style={{ marginTop: '1rem' }}>
-            <label style={labelStyle}>Country</label>
-            <input name="country" value={formData.country} onChange={handleChange} style={inputStyle} />
+          <div className="mt-4">
+            <label className="block text-sm font-semibold text-gray-600 mb-1">Phone</label>
+            <input name="phone" value={formData.phone} onChange={handleChange} type="tel" className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-semibold text-gray-600 mb-1">Studio / Team</label>
+            <input name="studioTeamName" value={formData.studioTeamName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">City</label>
+              <input name="city" value={formData.city} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">State / Region</label>
+              <input name="stateRegion" value={formData.stateRegion} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-semibold text-gray-600 mb-1">Country</label>
+            <input name="country" value={formData.country} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
           </div>
 
           {error && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.5rem 0.75rem',
-              background: '#fed7d7',
-              color: '#c53030',
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-            }}>
+            <div className="mt-4 px-3 py-2 bg-red-100 text-red-700 rounded text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.5rem 0.75rem',
-              background: '#c6f6d5',
-              color: '#276749',
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-            }}>
+            <div className="mt-4 px-3 py-2 bg-green-100 text-green-800 rounded text-sm">
               Profile saved.
             </div>
           )}
 
-          <div style={{ marginTop: '1.25rem' }}>
+          <div className="mt-5">
             <button
               type="submit"
               disabled={saving}
-              className="btn"
-              style={{
-                padding: '0.5rem 1.5rem',
-                backgroundColor: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-                fontSize: '0.9rem',
-              }}
+              className={`px-6 py-2 bg-primary-500 text-white border-none rounded cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {saving ? 'Saving...' : 'Save Profile'}
             </button>
