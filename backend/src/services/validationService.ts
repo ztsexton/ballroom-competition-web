@@ -110,7 +110,7 @@ const SENIOR_THRESHOLDS: Array<[number, number, number]> = [
 /**
  * Compute eligible NDCA age categories for a couple based on both partners' ages.
  *
- * Rules from age_ranges.md:
+ * Rules from doc/spec/age_ranges.md:
  * - Youth/Adult determined by the OLDER partner's age
  * - Senior level determined by pair thresholds (both partners' ages)
  * - Youth can dance up to Adult

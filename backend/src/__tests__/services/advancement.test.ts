@@ -333,7 +333,7 @@ describe('computeAdvancementBibs', () => {
       expect(bibs).toEqual([101]);
     });
 
-    it('should handle R4 example from scoring.md', () => {
+    it('should handle R4 example from doc/spec/scoring.md', () => {
       // "N_final = 6, If 3 entries tie at the cut line and only 5 are strictly above it
       //  → final size = 8"
       const results = [

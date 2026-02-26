@@ -265,7 +265,7 @@ CMD ["node", "dist/server.js"]
 If you encounter issues during migration:
 
 1. Check the main [README.md](README.md) for setup instructions
-2. Review [QUICKSTART.md](QUICKSTART.md) for common issues
+2. Review [doc/setup/QUICKSTART.md](../doc/setup/QUICKSTART.md) for common issues
 3. Open a GitHub issue with:
    - Python version you're migrating from
    - Node.js version you're using

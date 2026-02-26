@@ -4,19 +4,28 @@ This file provides context and guidelines for working with the Ballroom Competit
 
 ## Project Overview
 
-**Ballroom Competition Scorer** is a modern web application for managing ballroom dance competitions, scoring, and results. Built with React, Node.js, and TypeScript, it handles:
+**Ballroom Competition Scorer** is a full-featured web application for managing ballroom dance competitions, scoring, and results. Built with React, Node.js, and TypeScript, it handles:
 
+- Competition management with multiple competition types (NDCA, USA Dance, WDC, WDSF, Studio, Unaffiliated)
 - People management (dancers as leaders, followers, or both)
 - Couples and judges management
 - Event creation with automatic round generation
 - Scoring system using the skating method (recall rounds and final ranking)
-- Real-time results calculation and display
+- Real-time results calculation and display via SSE
+- Day-of competition operations (heat runner, judge scoring, scrutineering)
+- Scheduling with back-to-back conflict detection
+- Invoice generation and PDF export
+- Public-facing results, heat lists, and registration
+- Participant self-service portal
 
 ### Key Features
 - **Automatic Round Generation**: Based on couple count (1-6: Final only, 7-14: Semi+Final, 15+: Quarter+Semi+Final)
-- **JSON File Storage**: No database required, data persists in `backend/data/`
+- **Dual Data Storage**: JSON file storage (no database required) or PostgreSQL via `DATA_STORE` env var
+- **Firebase Authentication**: Google sign-in with role-based access (site admin, competition admin)
+- **Competition Admin Roles**: Users can be designated as admins for specific competitions without full site admin access
 - **Type Safety**: Full TypeScript coverage across frontend and backend
-- **REST API**: Clean API design enabling future mobile apps
+- **REST API**: Clean API design with 16 route modules and 80+ endpoints
+- **Tailwind CSS**: Utility-first styling across all frontend components
 
 ---
 
@@ -24,81 +33,210 @@ This file provides context and guidelines for working with the Ballroom Competit
 
 ### Monorepo Structure
 ```
-ballroom-competition-web/
+competition-software/
 ├── backend/           # Node.js + Express + TypeScript API
 ├── frontend/          # React + Vite + TypeScript SPA
-├── data/              # Shared JSON data storage
 └── package.json       # Root workspace configuration
 ```
 
 ### Backend Architecture ([backend/](backend/))
 
-**Stack**: Node.js 18+, Express, TypeScript, Jest, Supertest
+**Stack**: Node.js 18+, Express, TypeScript, Jest, Supertest, Firebase Admin SDK
 
 ```
 backend/src/
-├── __tests__/         # Test files (mirrors src structure)
-│   ├── routes/        # API endpoint tests
-│   └── services/      # Business logic tests
-├── routes/            # API route handlers (thin controllers)
-│   ├── people.ts      # People CRUD endpoints
-│   ├── couples.ts     # Couples CRUD endpoints
-│   ├── judges.ts      # Judges CRUD endpoints
-│   └── events.ts      # Events & scoring endpoints
-├── services/          # Business logic layer
-│   ├── dataService.ts    # JSON file persistence
-│   └── scoringService.ts # Scoring calculations (skating system)
-├── types/             # Shared TypeScript type definitions
-│   └── index.ts
-└── server.ts          # Express app initialization
+├── __tests__/              # Test files (mirrors src structure)
+│   ├── routes/             # API endpoint tests (15 files)
+│   ├── services/           # Business logic tests (14 files)
+│   │   └── data/           # Data service tests (2 files)
+│   ├── constants/          # Constants tests
+│   └── performance.test.ts
+├── config/
+│   └── firebase.ts         # Firebase Admin SDK initialization
+├── constants/
+│   ├── rounds.ts           # Round generation rules
+│   └── levels.ts           # Proficiency level definitions
+├── middleware/
+│   └── auth.ts             # authenticate, requireAdmin, requireAnyAdmin, assertCompetitionAccess
+├── routes/                 # API route handlers (16 files)
+│   ├── competitions.ts     # Competition CRUD + admin management
+│   ├── people.ts           # People CRUD (competition-scoped)
+│   ├── couples.ts          # Couples CRUD (competition-scoped)
+│   ├── judges.ts           # Judges CRUD (competition-scoped)
+│   ├── events.ts           # Events, scoring, results
+│   ├── schedules.ts        # Schedule generation & heat management
+│   ├── invoices.ts         # Invoice computation & PDF/email
+│   ├── scrutineer.ts       # Paper judging & score compilation
+│   ├── judging.ts          # Live judge scoring during competition
+│   ├── participant.ts      # Self-service registration portal
+│   ├── users.ts            # User management & admin-competitions
+│   ├── studios.ts          # Studio CRUD (site admin only)
+│   ├── organizations.ts    # Organization CRUD (site admin only)
+│   ├── mindbody.ts         # MindBody integration
+│   ├── public.ts           # Public endpoints (no auth)
+│   └── database.ts         # Health check & schema migration
+├── services/               # Business logic layer
+│   ├── dataService.ts      # Data service factory (creates appropriate implementation)
+│   ├── scoringService.ts   # Scoring calculations (recall, final, multi-dance)
+│   ├── skatingSystem.ts    # Skating method algorithm (majority rule, tie-breaking)
+│   ├── registrationService.ts  # Couple registration / find-or-create
+│   ├── validationService.ts    # NDCA age rules, level validation
+│   ├── invoiceService.ts   # Invoice calculation
+│   ├── pdfService.ts       # PDF generation
+│   ├── emailService.ts     # Email delivery
+│   ├── sseService.ts       # Server-sent events for real-time updates
+│   ├── timingService.ts    # Heat timing calculations
+│   ├── mindbodyService.ts  # MindBody API client
+│   ├── migrationService.ts # Schema migration runner
+│   ├── data/               # Data access layer
+│   │   ├── IDataService.ts         # Interface (contract for all implementations)
+│   │   ├── PostgresDataService.ts  # PostgreSQL implementation
+│   │   ├── JsonDataService.ts      # JSON file implementation
+│   │   ├── CachingDataService.ts   # Caching wrapper (decorates any IDataService)
+│   │   ├── createDataService.ts    # Factory function
+│   │   ├── schema.sql              # PostgreSQL schema + migrations
+│   │   └── helpers.ts
+│   └── schedule/           # Schedule management subsystem
+│       ├── index.ts                # ScheduleService (main facade)
+│       ├── scheduleGenerator.ts    # Schedule generation algorithm
+│       ├── heatNavigation.ts       # Advance/back/jump state machine
+│       ├── heatStatus.ts           # Heat status tracking
+│       ├── scheduleModification.ts # Reorder/insert/break operations
+│       ├── backToBack.ts           # Back-to-back conflict detection
+│       ├── judgeAssignment.ts      # Judge panel assignment
+│       └── helpers.ts
+├── types/
+│   └── index.ts            # All TypeScript interfaces
+├── utils/
+│   └── logger.ts           # Pino logger
+└── server.ts               # Express app initialization & route mounting
 ```
 
 **Key Principles**:
 - **Routes** are thin controllers that validate input and call services
 - **Services** contain all business logic and are framework-agnostic
-- **Data layer** is abstracted in `dataService.ts` for potential future migration
-- Tests are co-located in `__tests__/` with parallel structure
+- **Data layer** is abstracted via `IDataService` interface with JSON, PostgreSQL, and Caching implementations
+- Tests are co-located in `__tests__/` with parallel structure (33 test files, 715+ tests)
+
+### Authentication & Authorization
+
+The backend uses a three-tier auth model defined in `middleware/auth.ts`:
+
+1. **No auth**: `/api/health`, `/api/database`, `/api/public` — open endpoints
+2. **Authenticated**: `/api/users`, `/api/judging`, `/api/participant` — any logged-in user
+3. **Competition-scoped**: `/api/competitions`, `/api/people`, `/api/couples`, `/api/judges`, `/api/events`, `/api/schedules`, `/api/invoices`, `/api/scrutineer` — access checks at handler level via `requireAnyAdmin` + `assertCompetitionAccess`
+4. **Site-admin-only**: `/api/studios`, `/api/organizations`, `/api/mindbody` — `requireAdmin` middleware at mount level
+
+Key middleware:
+- `authenticate` — verifies Firebase token, upserts user, attaches `req.user`
+- `requireAdmin` — passes only if `req.user.isAdmin`
+- `requireAnyAdmin` — passes if site admin OR competition admin for any competition
+- `assertCompetitionAccess(req, res, competitionId)` — passes if site admin OR competition admin for a specific competition; sends 403 if denied
 
 ### Frontend Architecture ([frontend/](frontend/))
 
-**Stack**: React 18, TypeScript, Vite, React Router, Axios, Vitest
+**Stack**: React 18, TypeScript, Vite, React Router, Axios, Vitest, Tailwind CSS v4, Firebase Auth
 
 ```
 frontend/src/
-├── __tests__/         # Component and integration tests
-├── api/               # API client layer
-│   └── client.ts      # Axios wrapper with base URL
-├── components/        # Reusable UI components
-│   └── Navigation.tsx
-├── pages/             # Page-level components (route targets)
-│   ├── Home.tsx
-│   ├── PeoplePage.tsx
-│   ├── CouplesPage.tsx
-│   ├── JudgesPage.tsx
-│   ├── EventsPage.tsx
-│   ├── NewEventPage.tsx
-│   ├── ScoringPage.tsx
-│   └── ResultsPage.tsx
-├── context/           # React Context for global state
-├── types/             # TypeScript type definitions
-│   └── index.ts       # Should mirror backend types
-├── App.tsx            # Main app with routing
-└── main.tsx           # Entry point
+├── __tests__/              # Component and integration tests (5 files)
+├── api/
+│   └── client.ts           # Axios wrapper with auth token injection
+├── components/             # Reusable UI components
+│   ├── Navigation.tsx      # Main nav bar (uses isAnyAdmin)
+│   ├── ProtectedRoute.tsx  # Auth-gated route wrapper
+│   ├── PublicLayout.tsx    # Layout for public pages
+│   ├── CompetitionHubLayout.tsx  # Layout for competition-scoped pages
+│   ├── Skeleton.tsx        # Loading skeleton component
+│   ├── CompetitionTypeBadge.tsx  # Competition type badge
+│   ├── StatusBadge.tsx     # Status indicator badge
+│   └── results/            # Results display components
+│       ├── JudgeGrid.tsx
+│       ├── SkatingBreakdown.tsx
+│       └── MultiDanceSummary.tsx
+├── config/
+│   └── firebase.ts         # Firebase client SDK initialization
+├── context/                # React Context providers
+│   ├── AuthContext.tsx      # User auth state, isAdmin, isAnyAdmin, isCompetitionAdmin
+│   ├── CompetitionContext.tsx  # Active competition state
+│   └── ThemeContext.tsx     # Theme switching (4 color themes)
+├── pages/
+│   ├── Home.tsx             # Dashboard with competition list
+│   ├── admin/               # Site administration
+│   │   ├── AdminDashboardPage.tsx  # Admin hub (Users/Studios/Orgs cards + competitions)
+│   │   ├── UsersPage.tsx
+│   │   ├── StudioPage.tsx
+│   │   └── OrganizationsPage.tsx
+│   ├── auth/
+│   │   ├── LoginPage.tsx
+│   │   └── ProfilePage.tsx
+│   ├── competitions/        # Competition management
+│   │   ├── CompetitionsPage.tsx
+│   │   ├── CompetitionDetailsPage.tsx
+│   │   ├── CompetitionSettingsPage.tsx  # Includes competition admin management
+│   │   ├── CompetitionEntriesPage.tsx
+│   │   └── CompetitionDayOfPage.tsx
+│   ├── participants/        # People & couples within a competition
+│   │   ├── PeoplePage.tsx
+│   │   ├── CouplesPage.tsx
+│   │   ├── JudgesPage.tsx
+│   │   ├── InvoicesPage.tsx
+│   │   └── ParticipantPortalPage.tsx
+│   ├── events/              # Event management & results
+│   │   ├── EventsPage.tsx
+│   │   ├── EventFormPage.tsx
+│   │   ├── EventEntriesPage.tsx
+│   │   ├── ScoreEventPage.tsx
+│   │   └── ResultsPage.tsx
+│   ├── dayof/               # Day-of competition operations
+│   │   ├── RunCompetition/
+│   │   │   ├── RunCompetitionPage.tsx
+│   │   │   └── components/ (HeatSidebar, ResetModal, ScoringProgressPanel)
+│   │   ├── JudgeScoring/
+│   │   │   ├── JudgeScoringPage.tsx
+│   │   │   └── components/ (RecallForm, RankingForm, TapToRankForm, etc.)
+│   │   ├── Schedule/
+│   │   │   ├── SchedulePage.tsx
+│   │   │   └── components/ (ScheduleHeatTable, ScheduleConfigForm, etc.)
+│   │   ├── ScrutineerPage.tsx
+│   │   ├── OnDeckPage.tsx
+│   │   └── LiveCompetitionPage.tsx
+│   └── public/              # Public-facing pages (no auth)
+│       ├── PublicHomePage.tsx
+│       ├── PublicResultsPage.tsx
+│       ├── PublicHeatListsPage.tsx
+│       ├── PricingPage.tsx
+│       ├── FaqPage.tsx
+│       └── PaymentPage.tsx
+├── types/
+│   └── index.ts             # Mirrors backend types
+├── App.tsx                  # Main app with routing
+├── App.css                  # Tailwind CSS entry (@import "tailwindcss")
+└── main.tsx                 # Entry point
 ```
 
 **Key Principles**:
 - **Pages** are route-level components that compose smaller components
 - **Components** are reusable, presentational, and accept props
-- **API client** centralizes HTTP requests and error handling
-- **Types** should be kept in sync with backend types (consider sharing via npm workspace)
+- **API client** centralizes HTTP requests with automatic auth token injection
+- **Context providers** manage global state (auth, active competition, theme)
+- **Types** should be kept in sync with backend types
+- **Tailwind CSS** is used for all styling — no CSS modules or styled-components
 
 ### Data Storage
 
-JSON files in [backend/data/](backend/data/):
-- `people.json` - Registered dancers with roles (leader/follower)
-- `couples.json` - Couple pairings with bib numbers
-- `judges.json` - Competition judges
-- `events.json` - Events with heats, rounds, scores, and results
+The app supports two data backends, selected via `DATA_STORE` env var:
+
+**JSON files** (default, `DATA_STORE=json` or unset):
+- Stored in `backend/data/`
+- No database setup required
+- Good for development and small competitions
+
+**PostgreSQL** (`DATA_STORE=postgres`):
+- Schema defined in `backend/src/services/data/schema.sql`
+- Migrations run via `POST /api/database/migrate`
+- Uses `CachingDataService` wrapper for performance
+- Required for production use
 
 ---
 
@@ -127,10 +265,11 @@ JSON files in [backend/data/](backend/data/):
 ### Code Organization
 
 **Separation of Concerns**:
-- **Routes**: Handle HTTP concerns (request/response, status codes, validation)
+- **Routes**: Handle HTTP concerns (request/response, status codes, validation, auth checks)
 - **Services**: Pure business logic, no HTTP dependencies
 - **Components**: UI rendering, no direct API calls (use api client)
 - **Pages**: Orchestrate API calls, pass data to components
+- **Context**: Global state management (auth, competition, theme)
 
 **Single Responsibility**:
 - Each file should have ONE clear purpose
@@ -155,11 +294,13 @@ JSON files in [backend/data/](backend/data/):
 - Validate input at API boundaries (routes)
 - Send clear, user-friendly error messages
 - Log errors server-side for debugging
+- Auth middleware is fault-tolerant (gracefully denies if `competition_admins` table doesn't exist)
 
 **Frontend**:
 - Handle loading states and errors in API calls
 - Display user-friendly error messages (no stack traces)
 - Gracefully degrade on failure (don't crash the app)
+- `AuthContext` uses `Promise.allSettled` so a single API failure doesn't break auth
 
 ### API Design
 
@@ -204,6 +345,8 @@ JSON files in [backend/data/](backend/data/):
 
 **Test File Naming**: `*.test.ts` (e.g., `events.test.ts`, `scoringService.test.ts`)
 
+**Current State**: 33 test files, 715+ tests
+
 **What to Test**:
 - ✅ API endpoints (request → response, status codes, error cases)
 - ✅ Business logic (scoring calculations, data transformations)
@@ -241,7 +384,9 @@ npm run test:coverage   # With coverage report
 
 **Test Location**: [frontend/src/__tests__/](frontend/src/__tests__/)
 
-**Test File Naming**: `*.test.tsx` (e.g., `Home.test.tsx`, `PeoplePage.test.tsx`)
+**Test File Naming**: `*.test.tsx` (e.g., `Home.test.tsx`, `ResultsPage.test.tsx`)
+
+**Current State**: 5 test files, 22 tests
 
 **What to Test**:
 - ✅ Component rendering (does it show expected content?)
@@ -251,23 +396,32 @@ npm run test:coverage   # With coverage report
 
 **Example Test Pattern**:
 ```typescript
-describe('PeoplePage', () => {
-  it('should display list of people', async () => {
-    render(<PeoplePage />);
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
 
-    // Wait for data to load
-    expect(await screen.findByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+vi.mock('../api/client', () => ({
+  eventsApi: {
+    getAll: vi.fn(() => Promise.resolve({ data: {} })),
+  },
+}));
+
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    isAdmin: true,
+    isAnyAdmin: true,
+    loading: false,
+  }),
+}));
+
+describe('Home Page', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('should add new person on form submit', async () => {
-    const user = userEvent.setup();
-    render(<PeoplePage />);
-
-    await user.type(screen.getByLabelText(/name/i), 'New Person');
-    await user.click(screen.getByRole('button', { name: /add/i }));
-
-    expect(await screen.findByText('New Person')).toBeInTheDocument();
+  it('should display content after loading', async () => {
+    render(<Home />);
+    expect(await screen.findByText(/Welcome/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /create/i })).toBeInTheDocument();
   });
 });
 ```
@@ -294,6 +448,7 @@ npm run test:ui         # Visual UI mode
 - ✅ Test API endpoints end-to-end with supertest
 - ✅ Test edge cases and error conditions
 - ✅ Keep tests focused on behavior, not implementation
+- ✅ In test environment, auth middleware auto-assigns admin user (`test-user-id`)
 
 **Frontend Best Practices**:
 - ✅ Use `beforeEach` to clear mocks between tests
@@ -301,46 +456,18 @@ npm run test:ui         # Visual UI mode
 - ✅ Query by role/label/text (user-visible), not by class/id (implementation)
 - ✅ Wait for one element to appear, then query others synchronously
 - ✅ Mock API calls at the module level, not component level
-
-**Example: Improved Frontend Test Pattern**:
-```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-vi.mock('../api/client', () => ({
-  eventsApi: {
-    getAll: vi.fn(() => Promise.resolve({ data: {} })),
-  },
-}));
-
-describe('Home Page', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();  // Reset mocks for isolation
-  });
-
-  it('should display content after loading', async () => {
-    render(<Home />);
-
-    // Wait for async content to appear
-    expect(await screen.findByText(/Welcome/i)).toBeInTheDocument();
-
-    // Then query other elements synchronously
-    expect(screen.getByRole('link', { name: /create/i })).toBeInTheDocument();
-  });
-});
-```
+- ✅ Always mock `useAuth` with `isAnyAdmin` in addition to `isAdmin`
+- ✅ Mock `useCompetition` when testing competition-scoped pages
 
 ### Common Testing Issues & Solutions
 
 **Issue**: Jest doesn't exit after tests complete (hangs)
 - **Cause**: Server is started when importing the app module
-- **Solution**: Only start server if module is run directly, not imported:
+- **Solution**: Only start server if not in test environment:
   ```typescript
-  // In server.ts
-  if (require.main === module) {
-    app.listen(PORT, () => console.log('Server started'));
+  if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT);
   }
-  export default app;
   ```
 
 **Issue**: Vitest can't find `toBeInTheDocument` matcher
@@ -350,18 +477,17 @@ describe('Home Page', () => {
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/setupTests.ts'  // Add this
+    setupFiles: './src/setupTests.ts'
   }
   ```
 
-**Issue**: Tests run in watch mode in CI, preventing exit
-- **Cause**: Frontend `npm test` defaults to watch mode
-- **Solution**: Update [frontend/package.json](frontend/package.json):
-  ```json
-  "scripts": {
-    "test": "vitest --run",        // CI mode
-    "test:watch": "vitest"         // Dev mode
-  }
+**Issue**: Frontend tests fail with missing `isAnyAdmin`
+- **Cause**: `useAuth` mock doesn't include `isAnyAdmin` — pages that check `isAnyAdmin` get `undefined`
+- **Solution**: Always include `isAnyAdmin` in auth mocks:
+  ```typescript
+  vi.mock('../context/AuthContext', () => ({
+    useAuth: () => ({ isAdmin: true, isAnyAdmin: true, loading: false }),
+  }));
   ```
 
 ---
@@ -370,9 +496,14 @@ describe('Home Page', () => {
 
 ### Starting the Application
 
+**Quick Start** (single command):
+```bash
+./start.sh    # Starts both frontend and backend
+```
+
 **Development Mode** (two terminals):
 ```bash
-# Terminal 1: Backend (http://localhost:3001)
+# Terminal 1: Backend (https://localhost:3001)
 cd backend
 npm run dev
 
@@ -396,7 +527,15 @@ npm run preview
 
 ### HTTPS Setup
 
-The project uses HTTPS in development via `mkcert`. See [HTTPS_SETUP.md](HTTPS_SETUP.md) for details.
+The project uses HTTPS in development via `mkcert`. See [doc/setup/HTTPS_SETUP.md](doc/setup/HTTPS_SETUP.md) for details.
+
+### Database Migration
+
+When using PostgreSQL (`DATA_STORE=postgres`), run migrations after starting the backend:
+```bash
+curl -X POST https://localhost:3001/api/database/migrate
+```
+Migrations are idempotent (safe to run multiple times).
 
 ### Making Changes
 
@@ -411,88 +550,19 @@ The project uses HTTPS in development via `mkcert`. See [HTTPS_SETUP.md](HTTPS_S
 
 **Backend (API Endpoint)**:
 1. Define types in [backend/src/types/index.ts](backend/src/types/index.ts)
-2. Add service logic in [backend/src/services/](backend/src/services/)
-3. Create route handler in [backend/src/routes/](backend/src/routes/)
-4. Write tests in [backend/src/__tests__/](backend/src/__tests__/)
-5. Update API documentation in [README.md](README.md)
+2. Add data service methods to `IDataService` interface and all implementations
+3. Add service logic in [backend/src/services/](backend/src/services/)
+4. Create route handler in [backend/src/routes/](backend/src/routes/) with appropriate auth checks
+5. Mount route in [backend/src/server.ts](backend/src/server.ts)
+6. Write tests in [backend/src/__tests__/](backend/src/__tests__/)
 
 **Frontend (New Page)**:
 1. Define types in [frontend/src/types/index.ts](frontend/src/types/index.ts)
 2. Create page component in [frontend/src/pages/](frontend/src/pages/)
 3. Add API calls in [frontend/src/api/client.ts](frontend/src/api/client.ts)
 4. Add route in [frontend/src/App.tsx](frontend/src/App.tsx)
-5. Update navigation in [frontend/src/components/Navigation.tsx](frontend/src/components/Navigation.tsx)
+5. Update navigation in [frontend/src/components/Navigation.tsx](frontend/src/components/Navigation.tsx) if needed
 6. Write tests in [frontend/src/__tests__/](frontend/src/__tests__/)
-
----
-
-## Common Patterns
-
-### Backend: Creating a REST API Endpoint
-
-```typescript
-// 1. Define type in types/index.ts
-export interface Thing {
-  id: string;
-  name: string;
-}
-
-// 2. Add data service method in services/dataService.ts
-export function getThings(): Thing[] {
-  return readJSONFile<Thing[]>('things.json') || [];
-}
-
-// 3. Create route handler in routes/things.ts
-import express from 'express';
-import { getThings } from '../services/dataService';
-
-const router = express.Router();
-
-router.get('/', (req, res) => {
-  const things = getThings();
-  res.json(things);
-});
-
-export default router;
-
-// 4. Register in server.ts
-app.use('/api/things', thingsRouter);
-```
-
-### Frontend: Fetching and Displaying Data
-
-```typescript
-// 1. Add API call in api/client.ts
-export async function getThings(): Promise<Thing[]> {
-  const response = await client.get('/api/things');
-  return response.data;
-}
-
-// 2. Create page component
-export function ThingsPage() {
-  const [things, setThings] = useState<Thing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getThings()
-      .then(setThings)
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  return (
-    <div>
-      {things.map(thing => (
-        <div key={thing.id}>{thing.name}</div>
-      ))}
-    </div>
-  );
-}
-```
 
 ---
 
@@ -504,44 +574,33 @@ The application uses the **skating system** for ballroom competition scoring:
 
 - **Recall Rounds** (Quarter/Semi): Judges mark couples they want to advance (boolean marks)
 - **Final Rounds**: Judges rank couples from 1st to Nth place
-- **Advancement**: Top N couples advance based on mark count
-- **Results**: Calculated using skating method algorithm in [backend/src/services/scoringService.ts](backend/src/services/scoringService.ts)
+- **Proficiency Events**: Judges score on a numeric scale
+- **Advancement**: Top N couples advance based on mark count (rules R1-R4 in [doc/spec/scoring.md](doc/spec/scoring.md))
+- **Results**: Calculated using skating method algorithm in [backend/src/services/skatingSystem.ts](backend/src/services/skatingSystem.ts)
+- **Multi-dance**: Per-dance results aggregated into overall placement
 
 ### Data Relationships
 
 ```
-Person (leader/follower)
-  ↓
-Couple (leader_id + follower_id → bib_number)
-  ↓
-Event (couples[], judges[], rounds[])
-  ↓
-Round (type: quarter/semi/final, scores{})
-  ↓
-Score (couple_bib → marks{judge_id: mark/rank})
+Competition
+  ├── People (leaders, followers)
+  ├── Couples (leader + follower → bib number)
+  ├── Judges (with judge numbers)
+  ├── Events (couples[], judges[], rounds[])
+  │     └── Heats (round, bibs[], judges[], scores{})
+  ├── Schedule (heat order, statuses, timing)
+  ├── CompetitionAdmins (user UIDs with admin role)
+  └── Invoices (computed from entries + fee structure)
 ```
-
----
-
-## Future Enhancements
-
-Potential areas for expansion (not immediate priorities):
-
-- Multi-dance events (Waltz, Tango, Foxtrot in one event)
-- PDF/CSV export of results
-- Advanced filtering and search
-- Event templates
-- Judge assignment management
-- Real-time scoring updates (WebSockets)
 
 ---
 
 ## Questions or Issues?
 
-- Check existing documentation: [README.md](README.md), [QUICKSTART.md](QUICKSTART.md), [MIGRATION.md](MIGRATION.md)
+- Check existing documentation: [README.md](README.md), [doc/setup/QUICKSTART.md](doc/setup/QUICKSTART.md), [doc/MIGRATION.md](doc/MIGRATION.md), [doc/deployment/DEPLOYMENT.md](doc/deployment/DEPLOYMENT.md)
 - Review related test files for usage examples
 - Look at existing routes/pages for patterns to follow
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-25

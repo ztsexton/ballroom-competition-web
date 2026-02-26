@@ -57,8 +57,8 @@ competition-software/
 │   └── .gitignore
 │
 ├── README.md                        # Main documentation
-├── QUICKSTART.md                   # Quick start guide
-└── MIGRATION.md                    # Migration guide
+├── doc/setup/QUICKSTART.md         # Quick start guide
+└── doc/MIGRATION.md                # Migration guide
 ```
 
 ## Technologies Used

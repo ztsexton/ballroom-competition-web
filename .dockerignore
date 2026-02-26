@@ -35,7 +35,7 @@ Thumbs.db
 
 # Documentation (not needed in image)
 *.md
-docs/
+doc/
 
 # Sample data (keep seed.sql for test competition seeding)
 sample/*

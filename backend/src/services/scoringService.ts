@@ -17,7 +17,7 @@ function getResultMetric(result: EventResult): number {
 /**
  * Compute which bibs should advance, respecting ties at the cut line.
  *
- * Rules (from scoring.md):
+ * Rules (from doc/spec/scoring.md):
  *   R1: Include all entries whose score equals the cut-line value (tie group).
  *   R2: Never break ties or truncate the tie group.
  *   R3/R4: For finals, hard max of 8 (configurable). If tie group would exceed
