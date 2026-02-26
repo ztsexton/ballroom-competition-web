@@ -156,17 +156,26 @@ const SchedulePage = () => {
 
   const handleMoveEvent = async (fromIndex: number, toIndex: number) => {
     if (!competitionId || !schedule) return;
+    if (toIndex < 0 || toIndex >= schedule.heatOrder.length) return;
+
+    // Optimistic update: swap locally for instant feedback
+    const prevSchedule = schedule;
+    const newHeatOrder = [...schedule.heatOrder];
+    [newHeatOrder[fromIndex], newHeatOrder[toIndex]] = [newHeatOrder[toIndex], newHeatOrder[fromIndex]];
+    const optimistic = { ...schedule, heatOrder: newHeatOrder };
+    setSchedule(optimistic);
+
+    const movedHeatId = newHeatOrder[toIndex].id;
+    moveCounterRef.current++;
+    clearTimeout(movedTimerRef.current);
+    setMovedHeat({ id: movedHeatId, key: moveCounterRef.current });
+    movedTimerRef.current = setTimeout(() => setMovedHeat(null), 900);
+
     try {
       const res = await schedulesApi.reorder(competitionId, fromIndex, toIndex);
       setSchedule(res.data);
-      const targetHeat = res.data.heatOrder[toIndex];
-      if (targetHeat) {
-        moveCounterRef.current++;
-        clearTimeout(movedTimerRef.current);
-        setMovedHeat({ id: targetHeat.id, key: moveCounterRef.current });
-        movedTimerRef.current = setTimeout(() => setMovedHeat(null), 900);
-      }
     } catch {
+      setSchedule(prevSchedule);
       setError('Failed to reorder event');
     }
   };
