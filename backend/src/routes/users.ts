@@ -81,4 +81,26 @@ router.patch('/me', async (req: AuthRequest, res) => {
   res.json(user);
 });
 
+// Get current user's competition admin status
+router.get('/me/admin-competitions', async (req: AuthRequest, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const competitionIds = await dataService.getCompetitionsByAdmin(req.user.uid);
+    res.json({
+      competitionIds,
+      isCompetitionAdmin: competitionIds.length > 0,
+    });
+  } catch {
+    // Table may not exist if migration hasn't run yet
+    res.json({
+      competitionIds: [],
+      isCompetitionAdmin: false,
+    });
+  }
+});
+
 export default router;

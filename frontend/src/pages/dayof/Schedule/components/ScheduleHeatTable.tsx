@@ -49,10 +49,10 @@ export default function ScheduleHeatTable({
   onStartMerge,
 }: ScheduleHeatTableProps) {
   return (
-    <table style={{ marginTop: '1rem' }}>
+    <table className="mt-4">
       <thead>
         <tr>
-          <th style={{ width: '2rem' }}></th>
+          <th className="w-8"></th>
           <th>#</th>
           <th>Event Name</th>
           <th>Round</th>
@@ -81,6 +81,24 @@ export default function ScheduleHeatTable({
             : null;
           const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
 
+          const rowBg = isBreak
+            ? (isDragOver ? 'bg-gray-200' : 'bg-yellow-50')
+            : isMergeSource
+              ? 'bg-blue-50'
+              : isMergeChecked
+                ? 'bg-green-50'
+                : isDragOver
+                  ? 'bg-gray-200'
+                  : isCurrent
+                    ? 'bg-blue-50'
+                    : '';
+
+          const rowOpacity = isDragging
+            ? 'opacity-40'
+            : (mergeSource && !isMergeTarget && !isMergeSource)
+              ? 'opacity-40'
+              : '';
+
           return (
             <React.Fragment key={scheduledHeat.id + '-' + idx}>
               <tr
@@ -89,24 +107,20 @@ export default function ScheduleHeatTable({
                 onDragOver={(e) => onDragOver(e, idx)}
                 onDragEnd={onDragEnd}
                 onClick={mergeSource && isMergeCompatible ? () => onToggleMergeSelection(scheduledHeat.id) : undefined}
+                className={[
+                  'transition-[background,opacity] duration-150',
+                  rowBg,
+                  rowOpacity,
+                  isBreak ? 'italic' : '',
+                  mergeSource && isMergeTarget ? 'cursor-pointer' : '',
+                ].filter(Boolean).join(' ')}
                 style={{
-                  background: isBreak
-                    ? (isDragOver ? '#e2e8f0' : '#fefce8')
-                    : isMergeSource
-                      ? '#ebf8ff'
-                      : isMergeChecked
-                        ? '#f0fff4'
-                        : (isDragOver ? '#e2e8f0' : isCurrent ? '#ebf8ff' : undefined),
-                  opacity: isDragging ? 0.4 : (mergeSource && !isMergeTarget && !isMergeSource ? 0.4 : 1),
-                  borderLeft: isMergeSource ? '3px solid #4299e1' : undefined,
-                  borderTop: isDragOver && dragIndex !== null && idx < dragIndex ? '2px solid #667eea' : undefined,
-                  borderBottom: isDragOver && dragIndex !== null && idx > dragIndex ? '2px solid #667eea' : undefined,
-                  transition: 'background 0.15s, opacity 0.15s',
-                  fontStyle: isBreak ? 'italic' : undefined,
-                  cursor: mergeSource && isMergeTarget ? 'pointer' : undefined,
+                  borderLeft: isMergeSource ? '3px solid var(--color-blue-500, #4299e1)' : undefined,
+                  borderTop: isDragOver && dragIndex !== null && idx < dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
+                  borderBottom: isDragOver && dragIndex !== null && idx > dragIndex ? '2px solid var(--color-primary-500, #667eea)' : undefined,
                 }}
               >
-                <td style={{ cursor: mergeSource ? 'default' : 'grab', textAlign: 'center', color: '#a0aec0', userSelect: 'none', verticalAlign: 'top' }}>
+                <td className={`${mergeSource ? 'cursor-default' : 'cursor-grab'} text-center text-gray-400 select-none align-top`}>
                   {mergeSource && !isBreak ? (
                     isMergeSource ? null : (
                       <input
@@ -114,7 +128,7 @@ export default function ScheduleHeatTable({
                         checked={isMergeChecked}
                         disabled={!isMergeCompatible}
                         onChange={(e) => { e.stopPropagation(); onToggleMergeSelection(scheduledHeat.id); }}
-                        style={{ cursor: isMergeCompatible ? 'pointer' : 'not-allowed' }}
+                        className={isMergeCompatible ? 'cursor-pointer' : 'cursor-not-allowed'}
                         title={incompatibilityReason || undefined}
                       />
                     )
@@ -122,18 +136,18 @@ export default function ScheduleHeatTable({
                     '\u2630'
                   )}
                 </td>
-                <td style={{ verticalAlign: 'top' }}><strong>{idx + 1}</strong></td>
+                <td className="align-top"><strong>{idx + 1}</strong></td>
                 {isBreak ? (
                   <td colSpan={5}>
                     <span>
                       {scheduledHeat.breakLabel || 'Break'}
                       {scheduledHeat.breakDuration && (
-                        <span style={{ color: '#a0aec0', marginLeft: '0.5rem' }}>
+                        <span className="text-gray-400 ml-2">
                           ({scheduledHeat.breakDuration} min)
                         </span>
                       )}
                       {scheduledHeat.estimatedStartTime && (
-                        <span style={{ color: '#718096', marginLeft: '0.75rem', fontSize: '0.8125rem' }}>
+                        <span className="text-gray-500 ml-3 text-[0.8125rem]">
                           {formatTime(scheduledHeat.estimatedStartTime)}
                         </span>
                       )}
@@ -141,7 +155,7 @@ export default function ScheduleHeatTable({
                   </td>
                 ) : (
                   <>
-                    <td style={{ verticalAlign: 'top' }}>
+                    <td className="align-top">
                       {isMultiEntry ? (
                         <MultiEntryCell
                           scheduledHeat={scheduledHeat}
@@ -158,16 +172,16 @@ export default function ScheduleHeatTable({
                         />
                       )}
                     </td>
-                    <td style={{ textTransform: 'capitalize', verticalAlign: 'top' }}>{getHeatRound(scheduledHeat)}</td>
-                    <td style={{ verticalAlign: 'top' }}>{getHeatStyle(scheduledHeat, events)}</td>
-                    <td style={{ verticalAlign: 'top' }}>{getHeatLevel(scheduledHeat, events)}</td>
-                    <td style={{ verticalAlign: 'top', fontSize: '0.8125rem', color: '#4a5568', whiteSpace: 'nowrap' }}>
+                    <td className="capitalize align-top">{getHeatRound(scheduledHeat)}</td>
+                    <td className="align-top">{getHeatStyle(scheduledHeat, events)}</td>
+                    <td className="align-top">{getHeatLevel(scheduledHeat, events)}</td>
+                    <td className="align-top text-[0.8125rem] text-gray-600 whitespace-nowrap">
                       {scheduledHeat.estimatedStartTime ? formatTime(scheduledHeat.estimatedStartTime) : ''}
                     </td>
                   </>
                 )}
-                <td style={{ verticalAlign: 'top' }}>{statusBadge(status)}</td>
-                <td style={{ verticalAlign: 'top' }}>
+                <td className="align-top">{statusBadge(status)}</td>
+                <td className="align-top">
                   <HeatActions
                     idx={idx}
                     scheduledHeat={scheduledHeat}
@@ -195,33 +209,25 @@ export default function ScheduleHeatTable({
                 return (
                   <tr
                     key={`${scheduledHeat.id}-${entry.eventId}-${entry.round}`}
-                    style={{ background: '#f7fafc' }}
+                    className="bg-gray-50"
                   >
                     <td></td>
                     <td></td>
-                    <td style={{ paddingLeft: '1.75rem', fontSize: '0.875rem' }}>
+                    <td className="pl-7 text-sm">
                       {event?.name || `Event #${entry.eventId}`}
-                      <span style={{ color: '#a0aec0', marginLeft: '0.5rem' }}>
+                      <span className="text-gray-400 ml-2">
                         ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
                       </span>
                     </td>
-                    <td style={{ textTransform: 'capitalize', fontSize: '0.875rem' }}>{entry.round}</td>
-                    <td style={{ fontSize: '0.875rem' }}>{event?.style || '\u2014'}</td>
-                    <td style={{ fontSize: '0.875rem' }}>{event?.level || '\u2014'}</td>
+                    <td className="capitalize text-sm">{entry.round}</td>
+                    <td className="text-sm">{event?.style || '\u2014'}</td>
+                    <td className="text-sm">{event?.level || '\u2014'}</td>
                     <td></td>
                     <td></td>
                     <td>
                       <button
                         onClick={() => onSplitEntry(scheduledHeat.id, entry.eventId, entry.round)}
-                        style={{
-                          padding: '0.125rem 0.5rem',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          color: '#c53030',
-                          border: '1px solid #feb2b2',
-                          borderRadius: '4px',
-                          background: '#fff5f5',
-                        }}
+                        className="py-0.5 px-2 text-xs cursor-pointer text-red-700 border border-red-200 rounded bg-red-50"
                         title="Split this entry into its own heat"
                       >
                         Split out
@@ -252,50 +258,28 @@ function MultiEntryCell({
   onToggleExpanded: (heatId: string) => void;
 }) {
   return (
-    <div style={{ borderLeft: '3px solid #805ad5', paddingLeft: '0.625rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.375rem' }}>
+    <div className="border-l-[3px] border-l-purple-600 pl-2.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
         <span
           onClick={(e) => { e.stopPropagation(); onToggleExpanded(scheduledHeat.id); }}
-          style={{ cursor: 'pointer', fontSize: '0.625rem', userSelect: 'none', width: '0.75rem' }}
+          className="cursor-pointer text-[0.625rem] select-none w-3"
         >
           {isExpanded ? '\u25bc' : '\u25b6'}
         </span>
-        <span style={{
-          padding: '0.125rem 0.375rem',
-          borderRadius: '9999px',
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          background: '#e9d8fd',
-          color: '#553c9a',
-        }}>
+        <span className="py-0.5 px-1.5 rounded-full text-[0.6875rem] font-semibold bg-purple-200 text-purple-800">
           {scheduledHeat.entries.length} combined
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <div className="flex flex-col gap-1">
         {scheduledHeat.entries.map((entry) => {
           const event = getEventById(events, entry.eventId);
           return (
-            <div key={`${entry.eventId}-${entry.round}`} style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: '0.5rem',
-              fontSize: '0.875rem',
-              lineHeight: '1.3',
-            }}>
-              <span style={{
-                flexShrink: 0,
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: '#805ad5',
-                display: 'inline-block',
-                position: 'relative',
-                top: '-1px',
-              }} />
+            <div key={`${entry.eventId}-${entry.round}`} className="flex items-baseline gap-2 text-sm leading-[1.3]">
+              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-purple-600 inline-block relative -top-px" />
               <span>
                 {event?.name || `Event #${entry.eventId}`}
                 {mergeSource && event?.dances && event.dances.length > 0 && (
-                  <span style={{ color: '#a0aec0', marginLeft: '0.375rem', fontSize: '0.75rem' }}>
+                  <span className="text-gray-400 ml-1.5 text-xs">
                     ({event.dances.join(', ')})
                   </span>
                 )}
@@ -326,12 +310,12 @@ function SingleEntryCell({
     <div>
       <span>
         {getHeatLabel(scheduledHeat, events)}
-        <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+        <span className="text-gray-400 ml-2 text-[0.8125rem]">
           ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
         </span>
       </span>
       {mergeSource && event?.dances && event.dances.length > 0 && (
-        <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.125rem' }}>
+        <div className="text-xs text-gray-500 mt-0.5">
           {event.dances.join(', ')}
         </div>
       )}
@@ -373,29 +357,21 @@ function HeatActions({
   if (mergeSource) {
     if (isMergeSource) {
       return (
-        <span style={{
-          padding: '0.125rem 0.375rem',
-          borderRadius: '4px',
-          fontSize: '0.6875rem',
-          fontWeight: 700,
-          background: '#bee3f8',
-          color: '#2b6cb0',
-          letterSpacing: '0.025em',
-        }}>
+        <span className="py-0.5 px-1.5 rounded text-[0.6875rem] font-bold bg-blue-200 text-blue-700 tracking-wide">
           SOURCE
         </span>
       );
     }
     if (isMergeChecked) {
       return (
-        <span style={{ fontSize: '0.75rem', color: '#276749', fontWeight: 600 }}>
+        <span className="text-xs text-green-800 font-semibold">
           ✓ selected
         </span>
       );
     }
     if (incompatibilityReason) {
       return (
-        <span style={{ fontSize: '0.6875rem', color: '#a0aec0', fontStyle: 'italic' }}>
+        <span className="text-[0.6875rem] text-gray-400 italic">
           {incompatibilityReason}
         </span>
       );
@@ -404,25 +380,25 @@ function HeatActions({
   }
 
   return (
-    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+    <div className="flex gap-1 flex-wrap">
       <button
         onClick={() => onMoveEvent(idx, idx - 1)}
         disabled={idx === 0}
-        style={{ padding: '0.125rem 0.375rem', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
+        className={`py-0.5 px-1.5 ${idx === 0 ? 'cursor-default opacity-30' : 'cursor-pointer'}`}
       >
         ▲
       </button>
       <button
         onClick={() => onMoveEvent(idx, idx + 1)}
         disabled={idx === totalHeats - 1}
-        style={{ padding: '0.125rem 0.375rem', cursor: idx === totalHeats - 1 ? 'default' : 'pointer', opacity: idx === totalHeats - 1 ? 0.3 : 1 }}
+        className={`py-0.5 px-1.5 ${idx === totalHeats - 1 ? 'cursor-default opacity-30' : 'cursor-pointer'}`}
       >
         ▼
       </button>
       {isBreak && (
         <button
           onClick={() => onRemoveBreak(idx)}
-          style={{ padding: '0.125rem 0.375rem', color: '#e53e3e', cursor: 'pointer' }}
+          className="py-0.5 px-1.5 text-danger-600 cursor-pointer"
           title="Remove break"
         >
           ✕
@@ -431,7 +407,7 @@ function HeatActions({
       {!isBreak && (
         <button
           onClick={() => onStartMerge(scheduledHeat.id, idx)}
-          style={{ padding: '0.125rem 0.375rem', fontSize: '0.75rem', cursor: 'pointer' }}
+          className="py-0.5 px-1.5 text-xs cursor-pointer"
           title="Merge this heat with others"
         >
           Merge
@@ -440,7 +416,7 @@ function HeatActions({
       {isMultiEntry && (
         <button
           onClick={() => onToggleExpanded(scheduledHeat.id)}
-          style={{ padding: '0.125rem 0.375rem', fontSize: '0.75rem', cursor: 'pointer' }}
+          className="py-0.5 px-1.5 text-xs cursor-pointer"
           title={isExpanded ? 'Collapse entries' : 'Expand to view/split entries'}
         >
           {isExpanded ? 'Collapse' : 'Edit'}

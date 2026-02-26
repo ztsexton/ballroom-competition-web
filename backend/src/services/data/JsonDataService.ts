@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Heat, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
+import { AppData, Person, Couple, Judge, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 import logger from '../../utils/logger';
@@ -17,6 +17,7 @@ const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ORGANIZATIONS_FILE = path.join(DATA_DIR, 'organizations.json');
 const SCHEDULES_FILE = path.join(DATA_DIR, 'schedules.json');
+const COMPETITION_ADMINS_FILE = path.join(DATA_DIR, 'competition_admins.json');
 
 const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
@@ -32,9 +33,11 @@ if (!fs.existsSync(DATA_DIR)) {
 
 export class JsonDataService implements IDataService {
   private data: AppData;
+  private competitionAdmins: CompetitionAdmin[];
 
   constructor() {
     this.data = this.loadAllData();
+    this.competitionAdmins = this.loadCompetitionAdmins();
   }
 
   private loadAllData(): AppData {
@@ -263,6 +266,23 @@ export class JsonDataService implements IDataService {
     fs.writeFileSync(SCHEDULES_FILE, JSON.stringify(data, null, 2));
   }
 
+  private loadCompetitionAdmins(): CompetitionAdmin[] {
+    try {
+      if (fs.existsSync(COMPETITION_ADMINS_FILE)) {
+        const data = JSON.parse(fs.readFileSync(COMPETITION_ADMINS_FILE, 'utf-8'));
+        return data.competitionAdmins || [];
+      }
+    } catch (error) {
+      logError('Error loading competition admins:', error);
+    }
+    return [];
+  }
+
+  private saveCompetitionAdmins(): void {
+    const data = { competitionAdmins: this.competitionAdmins };
+    fs.writeFileSync(COMPETITION_ADMINS_FILE, JSON.stringify(data, null, 2));
+  }
+
   // Competition methods
   async getCompetitions(): Promise<Competition[]> {
     return this.data.competitions;
@@ -280,6 +300,12 @@ export class JsonDataService implements IDataService {
     };
     this.data.competitions.push(newCompetition);
     this.saveCompetitions();
+
+    // Auto-add creator as competition admin
+    if (competition.createdBy) {
+      await this.addCompetitionAdmin(newCompetition.id, competition.createdBy);
+    }
+
     return newCompetition;
   }
 
@@ -985,6 +1011,53 @@ export class JsonDataService implements IDataService {
     return false;
   }
 
+  // Competition Admins
+  async getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]> {
+    return this.competitionAdmins.filter(a => a.competitionId === competitionId);
+  }
+
+  async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
+    return this.competitionAdmins
+      .filter(a => a.userUid === userUid)
+      .map(a => a.competitionId);
+  }
+
+  async addCompetitionAdmin(competitionId: number, userUid: string, role: string = 'admin'): Promise<CompetitionAdmin> {
+    const existing = this.competitionAdmins.find(
+      a => a.competitionId === competitionId && a.userUid === userUid
+    );
+    if (existing) {
+      existing.role = role;
+      this.saveCompetitionAdmins();
+      return existing;
+    }
+    const admin: CompetitionAdmin = {
+      competitionId,
+      userUid,
+      role,
+      createdAt: new Date().toISOString(),
+    };
+    this.competitionAdmins.push(admin);
+    this.saveCompetitionAdmins();
+    return admin;
+  }
+
+  async removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    const idx = this.competitionAdmins.findIndex(
+      a => a.competitionId === competitionId && a.userUid === userUid
+    );
+    if (idx === -1) return false;
+    this.competitionAdmins.splice(idx, 1);
+    this.saveCompetitionAdmins();
+    return true;
+  }
+
+  async isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    return this.competitionAdmins.some(
+      a => a.competitionId === competitionId && a.userUid === userUid
+    );
+  }
+
   clearCache(): void {}
 
   async resetAllData(): Promise<void> {
@@ -1008,6 +1081,7 @@ export class JsonDataService implements IDataService {
       nextJudgeId: 1,
       nextEventId: 1,
     };
+    this.competitionAdmins = [];
     this.saveCompetitions();
     this.saveStudios();
     this.saveOrganizations();
@@ -1017,5 +1091,6 @@ export class JsonDataService implements IDataService {
     this.saveEvents();
     this.saveUsers();
     this.saveSchedules();
+    this.saveCompetitionAdmins();
   }
 }

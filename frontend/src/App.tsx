@@ -37,7 +37,7 @@ import {
   CompetitionSettingsPage,
   CompetitionDayOfPage,
 } from './pages/competitions';
-import { OrganizationsPage, StudioPage, UsersPage } from './pages/admin';
+import { OrganizationsPage, StudioPage, UsersPage, AdminDashboardPage } from './pages/admin';
 import {
   LiveCompetitionPage,
   OnDeckPage,
@@ -93,6 +93,7 @@ const App = () => {
                     <Route path="/dashboard" element={<Home />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/portal" element={<ParticipantPortalPage />} />
+                    <Route path="/admin" element={<AdminDashboardPage />} />
                     <Route path="/competitions" element={<CompetitionsPage />} />
 
                     {/* Competition Hub — tabbed layout */}

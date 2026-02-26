@@ -1,11 +1,23 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { dataService } from '../services/dataService';
 import { calculateInvoices } from '../services/invoiceService';
 import { generateInvoicePDF } from '../services/pdfService';
 import { sendInvoiceEmail, isEmailConfigured } from '../services/emailService';
 import logger from '../utils/logger';
+import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
 const router = Router();
+
+// All invoice routes require at least competition-admin access
+router.use(requireAnyAdmin);
+
+// Check competition access for all routes with :competitionId
+router.use('/:competitionId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (isNaN(competitionId)) return next();
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  next();
+});
 
 // GET /api/invoices/:competitionId — compute and return full invoice summary
 router.get('/:competitionId', async (req: Request, res: Response) => {

@@ -1,5 +1,6 @@
 import {
   Competition,
+  CompetitionAdmin,
   Studio,
   Organization,
   Person,
@@ -122,6 +123,13 @@ export interface IDataService {
   upsertUser(uid: string, email: string, displayName?: string, photoURL?: string, signInMethod?: string): Promise<User>;
   updateUserProfile(uid: string, updates: UserProfileUpdate): Promise<User | null>;
   updateUserAdmin(uid: string, isAdmin: boolean): Promise<User | null>;
+
+  // Competition Admins
+  getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]>;
+  getCompetitionsByAdmin(userUid: string): Promise<number[]>;
+  addCompetitionAdmin(competitionId: number, userUid: string, role?: string): Promise<CompetitionAdmin>;
+  removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
+  isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
 
   // Schedules
   getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined>;

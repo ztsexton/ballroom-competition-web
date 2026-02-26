@@ -1,8 +1,8 @@
 const PricingPage = () => (
-  <div className="container">
-    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-      <h2>Pricing</h2>
-      <p style={{ color: '#718096', marginTop: '1rem', fontSize: '1.1rem' }}>
+  <div className="max-w-7xl mx-auto p-8">
+    <div className="bg-white rounded-lg shadow text-center py-12 px-6">
+      <h2 className="text-2xl font-bold text-gray-800">Pricing</h2>
+      <p className="text-gray-500 mt-4 text-lg">
         Pricing details coming soon.
       </p>
     </div>

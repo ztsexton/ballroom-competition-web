@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAnyAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -11,61 +11,29 @@ const Navigation = () => {
   };
 
   return (
-    <nav style={{
-      background: '#667eea',
-      padding: '1rem',
-      marginBottom: '2rem',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        display: 'flex',
-        gap: '2rem',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <Link to="/dashboard" style={{
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: '1.25rem',
-          textDecoration: 'none'
-        }}>
+    <nav className="bg-primary-500 p-4 mb-8 shadow-md">
+      <div className="max-w-7xl mx-auto flex gap-8 items-center flex-wrap">
+        <Link to="/dashboard" className="text-white font-bold text-xl no-underline">
           Ballroom Scorer
         </Link>
-        <div style={{ display: 'flex', gap: '1.5rem', flex: 1, flexWrap: 'wrap' }}>
-          {isAdmin ? (
-            <>
-              <Link to="/competitions" style={{ color: 'white' }}>Competitions</Link>
-              <Link to="/studios" style={{ color: 'white' }}>Studios</Link>
-              <Link to="/organizations" style={{ color: 'white' }}>Organizations</Link>
-              <Link to="/users" style={{ color: 'white' }}>Users</Link>
-            </>
-          ) : (
-            <Link to="/portal" style={{ color: 'white' }}>My Portal</Link>
+        <div className="flex gap-6 flex-1 flex-wrap">
+          {isAnyAdmin && (
+            <Link to="/competitions" className="text-white no-underline hover:text-white/80 transition-colors">Competitions</Link>
+          )}
+          <Link to="/portal" className="text-white no-underline hover:text-white/80 transition-colors">My Portal</Link>
+          {isAnyAdmin && (
+            <Link to="/admin" className="text-white no-underline hover:text-white/80 transition-colors">Admin</Link>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="flex items-center gap-4">
           {user && (
-            <Link to="/profile" style={{ color: 'white', fontSize: '0.875rem', textDecoration: 'none' }}>
+            <Link to="/profile" className="text-white text-sm no-underline hover:text-white/80 transition-colors">
               {user.displayName || user.email}
             </Link>
           )}
           <button
             onClick={handleLogout}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              border: 'none',
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+            className="px-4 py-2 rounded border-none bg-white/20 text-white text-sm font-medium cursor-pointer transition-colors hover:bg-white/30"
           >
             Logout
           </button>

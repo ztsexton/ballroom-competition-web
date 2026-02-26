@@ -20,42 +20,36 @@ export default function BreakForm({
   onSubmit,
 }: BreakFormProps) {
   return (
-    <div style={{
-      background: '#f7fafc',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px',
-      padding: '1rem',
-      marginTop: '0.75rem',
-    }}>
-      <h4 style={{ marginBottom: '0.5rem', marginTop: 0 }}>Add Break</h4>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-3">
+      <h4 className="mb-2 mt-0 font-semibold">Add Break</h4>
+      <div className="flex gap-2 flex-wrap items-end">
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Label *</label>
+          <label className="block text-sm mb-1">Label *</label>
           <input
             type="text"
             value={breakLabel}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="e.g. Lunch Break"
-            style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+            className="px-3 py-1.5 rounded border border-gray-200 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
           />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Duration (min)</label>
+          <label className="block text-sm mb-1">Duration (min)</label>
           <input
             type="number"
             value={breakDuration}
             onChange={(e) => onDurationChange(e.target.value ? parseInt(e.target.value) : '')}
             placeholder="Optional"
             min={1}
-            style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+            className="w-20 px-3 py-1.5 rounded border border-gray-200 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
           />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Position</label>
+          <label className="block text-sm mb-1">Position</label>
           <select
             value={breakPosition}
             onChange={(e) => onPositionChange(parseInt(e.target.value))}
-            style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+            className="px-3 py-1.5 rounded border border-gray-200 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
           >
             {Array.from({ length: heatCount + 1 }, (_, i) => (
               <option key={i} value={i}>
@@ -64,7 +58,11 @@ export default function BreakForm({
             ))}
           </select>
         </div>
-        <button className="btn" onClick={onSubmit} disabled={!breakLabel.trim()}>
+        <button
+          className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
+          onClick={onSubmit}
+          disabled={!breakLabel.trim()}
+        >
           Insert Break
         </button>
       </div>

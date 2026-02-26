@@ -1,20 +1,26 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { registerCoupleForEvent } from '../services/registrationService';
 import { Event, DetailedResultsResponse } from '../types';
+import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
 const router = Router();
 
 // Get all events (optionally filtered by competition)
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
+  if (competitionId) {
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  } else if (!req.user!.isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: competitionId required for non-site-admins' });
+  }
   const events = await dataService.getEvents(competitionId);
   res.json(events);
 });
 
 // Get event by ID
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);
   const event = await dataService.getEventById(id);
 
@@ -22,16 +28,19 @@ router.get('/:id', async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Event not found' });
   }
 
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
   res.json(event);
 });
 
 // Create a new event
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const { name, bibs, judgeIds, competitionId, designation, syllabusType, level, style, dances, scoringType, isScholarship, ageCategory } = req.body;
 
   if (!name || !competitionId) {
     return res.status(400).json({ error: 'Name and competition ID are required' });
   }
+
+  if (!(await assertCompetitionAccess(req, res, parseInt(competitionId)))) return;
 
   const eventBibs = Array.isArray(bibs) ? bibs : [];
 
@@ -53,13 +62,15 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Register a couple for a combination (find-or-create event)
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType, ageCategory } = req.body;
 
     if (!competitionId || bib === undefined) {
       return res.status(400).json({ error: 'competitionId and bib are required' });
     }
+
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
 
     const couple = await dataService.getCoupleByBib(bib);
     if (!couple) {
@@ -84,13 +95,15 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // Get entries (couples) for an event
-router.get('/:id/entries', async (req: Request, res: Response) => {
+router.get('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const event = await dataService.getEventById(id);
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
     }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
 
     const bibs = event.heats[0]?.bibs || [];
     const couples = await dataService.getCouples(event.competitionId);
@@ -102,7 +115,7 @@ router.get('/:id/entries', async (req: Request, res: Response) => {
 });
 
 // Add a couple to an event
-router.post('/:id/entries', async (req: Request, res: Response) => {
+router.post('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const { bib } = req.body;
@@ -111,6 +124,8 @@ router.post('/:id/entries', async (req: Request, res: Response) => {
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
     }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
 
     const existingBibs = event.heats[0]?.bibs || [];
     if (existingBibs.includes(bib)) {
@@ -134,7 +149,7 @@ router.post('/:id/entries', async (req: Request, res: Response) => {
 });
 
 // Remove a couple from an event
-router.delete('/:id/entries/:bib', async (req: Request, res: Response) => {
+router.delete('/:id/entries/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const bib = parseInt(req.params.bib);
@@ -143,6 +158,8 @@ router.delete('/:id/entries/:bib', async (req: Request, res: Response) => {
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
     }
+
+    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
 
     const existingBibs = event.heats[0]?.bibs || [];
     if (!existingBibs.includes(bib)) {
@@ -166,12 +183,14 @@ router.delete('/:id/entries/:bib', async (req: Request, res: Response) => {
 });
 
 // Update event
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);
   const existing = await dataService.getEventById(id);
   if (!existing) {
     return res.status(404).json({ error: 'Event not found' });
   }
+
+  if (!(await assertCompetitionAccess(req, res, existing.competitionId))) return;
 
   const {
     bibs,
@@ -233,8 +252,14 @@ router.patch('/:id', async (req: Request, res: Response) => {
 });
 
 // Delete event
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);
+  const event = await dataService.getEventById(id);
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+
   const deleted = await dataService.deleteEvent(id);
 
   if (!deleted) {
@@ -245,7 +270,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Get results for a specific round
-router.get('/:id/results/:round', async (req: Request, res: Response) => {
+router.get('/:id/results/:round', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
   const detail = req.query.detail === 'true';
@@ -254,6 +279,8 @@ router.get('/:id/results/:round', async (req: Request, res: Response) => {
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
+
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
 
   const results = await scoringService.calculateResults(eventId, round);
 
@@ -284,9 +311,16 @@ router.get('/:id/results/:round', async (req: Request, res: Response) => {
 });
 
 // Submit scores for a round
-router.post('/:id/scores/:round', async (req: Request, res: Response) => {
+router.post('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
+
+  const event = await dataService.getEventById(eventId);
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+
   const { scores } = req.body;
 
   if (!scores || !Array.isArray(scores)) {
@@ -303,9 +337,15 @@ router.post('/:id/scores/:round', async (req: Request, res: Response) => {
 });
 
 // Clear scores for a round
-router.delete('/:id/scores/:round', async (req: Request, res: Response) => {
+router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const eventId = parseInt(req.params.id);
   const round = req.params.round;
+
+  const event = await dataService.getEventById(eventId);
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
 
   await dataService.clearScores(eventId, round);
   res.json({ message: 'Scores cleared successfully' });

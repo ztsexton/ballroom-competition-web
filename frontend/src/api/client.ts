@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -51,6 +51,9 @@ export const competitionsApi = {
   update: (id: number, updates: Partial<Omit<Competition, 'id' | 'createdAt'>>) =>
     api.put<Competition>(`/competitions/${id}`, updates),
   delete: (id: number) => api.delete(`/competitions/${id}`),
+  getAdmins: (id: number) => api.get<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]>(`/competitions/${id}/admins`),
+  addAdmin: (id: number, email: string) => api.post<CompetitionAdmin & { email?: string; displayName?: string }>(`/competitions/${id}/admins`, { email }),
+  removeAdmin: (id: number, uid: string) => api.delete(`/competitions/${id}/admins/${uid}`),
 };
 
 // Studios API
@@ -297,6 +300,8 @@ export const usersApi = {
     api.patch<User>('/users/me', updates),
   updateAdmin: (uid: string, isAdmin: boolean) =>
     api.patch<User>(`/users/${uid}/admin`, { isAdmin }),
+  getAdminCompetitions: () =>
+    api.get<{ competitionIds: number[]; isCompetitionAdmin: boolean }>('/users/me/admin-competitions'),
 };
 
 // Invoices API

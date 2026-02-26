@@ -4,6 +4,7 @@ import { eventsApi } from '../../api/client';
 import { Event } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { Skeleton } from '../../components/Skeleton';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
 
@@ -39,7 +40,7 @@ const EventsPage = () => {
 
   const loadEvents = async () => {
     if (!activeCompetition) return;
-    
+
     try {
       const response = await eventsApi.getAll(activeCompetition.id);
       setEvents(Object.values(response.data));
@@ -54,7 +55,7 @@ const EventsPage = () => {
     if (!window.confirm('Are you sure you want to delete this event? This will also delete all associated scores.')) {
       return;
     }
-    
+
     try {
       await eventsApi.delete(id);
       loadEvents();
@@ -63,12 +64,12 @@ const EventsPage = () => {
     }
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
   if (!insideHub && !isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to manage events.</p>
         </div>
@@ -78,18 +79,12 @@ const EventsPage = () => {
 
   if (!insideHub && !activeCompetition) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Manage Events</h2>
-          <div style={{
-            textAlign: 'center',
-            padding: '3rem',
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            borderRadius: '8px'
-          }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No Active Competition</p>
-            <p style={{ color: '#78350f' }}>Please select a competition to manage events.</p>
+          <div className="text-center p-12 bg-amber-50 border border-amber-400 rounded-lg">
+            <p className="text-lg mb-2">No Active Competition</p>
+            <p className="text-amber-900">Please select a competition to manage events.</p>
           </div>
         </div>
       </div>
@@ -98,14 +93,14 @@ const EventsPage = () => {
 
   const content = (
     <>
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2>Manage Events{!insideHub && activeCompetition ? ` - ${activeCompetition.name}` : ''}</h2>
-          <Link to="/events/new" className="btn">Create New Event</Link>
+          <Link to="/events/new" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 no-underline">Create New Event</Link>
         </div>
 
         {events.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
+          <div className="text-center p-8 text-gray-500">
             <h3>No events created yet</h3>
             <p>Create your first event to get started!</p>
           </div>
@@ -133,15 +128,15 @@ const EventsPage = () => {
             };
 
             const renderEventRows = (sectionEvents: Event[]) => (
-              <table>
+              <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th>Event #</th>
-                    <th>Name</th>
-                    <th>Details</th>
-                    <th>Rounds</th>
-                    <th>Competitors</th>
-                    <th>Actions</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Event #</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Name</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Details</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Rounds</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Competitors</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,9 +148,9 @@ const EventsPage = () => {
 
                     return (
                       <tr key={event.id}>
-                        <td><strong>#{event.id}</strong></td>
-                        <td>{event.name}</td>
-                        <td style={{ fontSize: '0.875rem', color: '#718096' }}>
+                        <td className="px-3 py-2 border-t border-gray-100"><strong>#{event.id}</strong></td>
+                        <td className="px-3 py-2 border-t border-gray-100">{event.name}</td>
+                        <td className="px-3 py-2 border-t border-gray-100 text-sm text-gray-500">
                           {[
                             event.designation,
                             event.syllabusType,
@@ -163,49 +158,43 @@ const EventsPage = () => {
                             event.dances?.join(', ')
                           ].filter(Boolean).join(' \u2022 ') || '\u2014'}
                         </td>
-                        <td>{event.heats.length} round{event.heats.length !== 1 ? 's' : ''}</td>
-                        <td>{allBibs.size} couple{allBibs.size !== 1 ? 's' : ''}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <td className="px-3 py-2 border-t border-gray-100">{event.heats.length} round{event.heats.length !== 1 ? 's' : ''}</td>
+                        <td className="px-3 py-2 border-t border-gray-100">{allBibs.size} couple{allBibs.size !== 1 ? 's' : ''}</td>
+                        <td className="px-3 py-2 border-t border-gray-100">
+                          <div className="flex gap-2">
                             <Link
                               to={`/events/${event.id}`}
-                              className="btn"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 no-underline"
                             >
                               View
                             </Link>
                             <Link
                               to={`/events/${event.id}/entries`}
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 no-underline"
                             >
                               Entries
                             </Link>
                             <Link
                               to={`/events/${event.id}/edit`}
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 no-underline"
                             >
                               Edit
                             </Link>
                             <Link
                               to={`/events/${event.id}/score`}
-                              className="btn btn-success"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-success-600 no-underline"
                             >
                               Score
                             </Link>
                             <Link
                               to={`/events/${event.id}/results`}
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 no-underline"
                             >
                               Results
                             </Link>
                             <button
                               onClick={() => handleDelete(event.id)}
-                              className="btn btn-danger"
-                              style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                             >
                               Delete
                             </button>
@@ -221,16 +210,7 @@ const EventsPage = () => {
             return (
               <>
                 {/* Jump nav */}
-                <div style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                  marginBottom: '1.5rem',
-                  padding: '0.75rem',
-                  background: '#f7fafc',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                }}>
+                <div className="flex gap-2 flex-wrap mb-6 p-3 bg-gray-50 rounded-md border border-gray-200">
                   {allSections.map(({ label, events: sectionEvents }) => (
                     <a
                       key={label}
@@ -240,14 +220,9 @@ const EventsPage = () => {
                           setCollapsedSections(prev => ({ ...prev, [label]: false }));
                         }
                       }}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        textDecoration: 'none',
-                        background: sectionEvents.length > 0 ? '#667eea' : '#e2e8f0',
-                        color: sectionEvents.length > 0 ? '#fff' : '#a0aec0',
-                      }}
+                      className={`px-3 py-1 rounded text-sm no-underline ${
+                        sectionEvents.length > 0 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-400'
+                      }`}
                     >
                       {label} ({sectionEvents.length})
                     </a>
@@ -261,28 +236,19 @@ const EventsPage = () => {
                     <div
                       key={label}
                       id={`style-${label.toLowerCase().replace(/\s+/g, '-')}`}
-                      style={{ marginBottom: '1.5rem', scrollMarginTop: '1rem' }}
+                      className="mb-6 scroll-mt-4"
                     >
                       <div
                         onClick={() => toggleSection(label)}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          borderBottom: '2px solid #e2e8f0',
-                          paddingBottom: '0.5rem',
-                          marginBottom: isCollapsed ? 0 : '0.75rem',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                        }}
+                        className={`flex justify-between items-center border-b-2 border-gray-200 pb-2 cursor-pointer select-none ${isCollapsed ? '' : 'mb-3'}`}
                       >
-                        <h3 style={{ margin: 0 }}>
-                          <span style={{ display: 'inline-block', width: '1.25rem', fontSize: '0.75rem' }}>
+                        <h3 className="m-0">
+                          <span className="inline-block w-5 text-xs">
                             {isCollapsed ? '\u25b6' : '\u25bc'}
                           </span>
                           {label}
                         </h3>
-                        <span style={{ fontSize: '0.875rem', color: '#718096' }}>
+                        <span className="text-sm text-gray-500">
                           {sectionEvents.length} event{sectionEvents.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -290,7 +256,7 @@ const EventsPage = () => {
                         sectionEvents.length > 0 ? (
                           renderEventRows(sectionEvents)
                         ) : (
-                          <p style={{ color: '#a0aec0', fontStyle: 'italic', margin: '0.5rem 0' }}>
+                          <p className="text-gray-400 italic my-2">
                             No {label.toLowerCase()} events
                           </p>
                         )
@@ -305,14 +271,14 @@ const EventsPage = () => {
       </div>
 
       {events.length > 0 && (
-        <div className="card">
+        <div className="bg-white rounded-lg shadow p-6">
           <h3>Quick Stats</h3>
           <p>Total Events: <strong>{events.length}</strong></p>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+          <div className="flex gap-4 flex-wrap mt-2">
             {['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'].map(s => {
               const count = events.filter(e => e.style === s).length;
               return count > 0 ? (
-                <span key={s} style={{ fontSize: '0.875rem', color: '#718096' }}>
+                <span key={s} className="text-sm text-gray-500">
                   {s}: <strong>{count}</strong>
                 </span>
               ) : null;
@@ -323,7 +289,7 @@ const EventsPage = () => {
     </>
   );
 
-  return <div className="container">{content}</div>;
+  return <div className="max-w-7xl mx-auto p-8">{content}</div>;
 };
 
 export default EventsPage;

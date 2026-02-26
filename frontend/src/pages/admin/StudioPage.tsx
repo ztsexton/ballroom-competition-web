@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { studiosApi, mindbodyApi } from "../../api/client";
 import { Studio } from "../../types";
 import { useAuth } from "../../context/AuthContext";
+import { Skeleton } from "../../components/Skeleton";
 
 const StudioPage: React.FC = () => {
   const { isAdmin, loading: authLoading } = useAuth();
@@ -91,12 +92,22 @@ const StudioPage: React.FC = () => {
     }
   };
 
-  if (authLoading || loading) return <div className="loading">Loading...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to manage studios.</p>
         </div>
@@ -105,52 +116,52 @@ const StudioPage: React.FC = () => {
   }
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
           <h2>Studios</h2>
         </div>
 
-        {error && <div className="error" style={{ marginBottom: "1rem" }}>{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
         {/* Create studio form */}
-        <div style={{
-          background: "#f7fafc",
-          border: "1px solid #cbd5e0",
-          borderRadius: "8px",
-          padding: "1.5rem",
-          marginBottom: "1.5rem",
-        }}>
-          <h3 style={{ marginTop: 0 }}>Add a Studio</h3>
+        <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
+          <h3 className="mt-0">Add a Studio</h3>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group">
-                <label htmlFor="studioName">Studio Name *</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="mb-4">
+                <label htmlFor="studioName" className="block text-sm font-medium text-gray-700 mb-1">Studio Name *</label>
                 <input
                   id="studioName"
                   type="text"
                   value={studioName}
                   onChange={(e) => setStudioName(e.target.value)}
                   required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="contactEmail">Contact Email *</label>
+              <div className="mb-4">
+                <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
                 <input
                   id="contactEmail"
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
-            <button type="submit" className="btn" disabled={submitting}>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
+              disabled={submitting}
+            >
               {submitting ? "Adding..." : "Add Studio"}
             </button>
           </form>
           {submitted && (
-            <div style={{ marginTop: "0.75rem", color: "#059669", fontWeight: 500 }}>
+            <div className="mt-3 text-emerald-600 font-medium">
               Studio added successfully!
             </div>
           )}
@@ -158,116 +169,93 @@ const StudioPage: React.FC = () => {
 
         {/* Studios list */}
         {studios.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "2rem", color: "#718096" }}>
+          <div className="text-center p-8 text-gray-500">
             No studios yet. Create one above.
           </div>
         ) : (
-          <div style={{ display: "grid", gap: "1rem" }}>
+          <div className="grid gap-4">
             {studios.map((studio) => (
               <div
                 key={studio.id}
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "1.25rem",
-                  background: "white",
-                }}
+                className="border border-gray-200 rounded-lg p-5 bg-white"
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                <div className="flex justify-between items-start">
                   <div>
-                    <h3 style={{ margin: "0 0 0.25rem 0" }}>{studio.name}</h3>
+                    <h3 className="m-0 mb-1">{studio.name}</h3>
                     {studio.contactInfo && (
-                      <p style={{ margin: 0, color: "#718096", fontSize: "0.875rem" }}>
+                      <p className="m-0 text-gray-500 text-sm">
                         {studio.contactInfo}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => handleDelete(studio.id, studio.name)}
-                    className="btn btn-secondary"
-                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.75rem", background: "#fee", color: "#c00" }}
+                    className="px-3 py-1 bg-red-50 text-red-600 rounded border border-red-200 cursor-pointer text-xs font-medium transition-colors hover:bg-red-100"
                   >
                     Delete
                   </button>
                 </div>
 
                 {/* MindBody connection section */}
-                <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #e2e8f0" }}>
+                <div className="mt-4 pt-4 border-t border-gray-200">
                   {studio.mindbodySiteId ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.375rem",
-                        padding: "0.25rem 0.75rem",
-                        borderRadius: "12px",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        background: "#d1fae5",
-                        color: "#065f46",
-                      }}>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.8rem] font-semibold bg-green-100 text-green-800">
                         MindBody Connected (Site: {studio.mindbodySiteId})
                       </span>
                       <button
                         onClick={() => handleDisconnect(studio.id)}
-                        style={{
-                          padding: "0.25rem 0.5rem",
-                          fontSize: "0.75rem",
-                          background: "none",
-                          border: "1px solid #cbd5e0",
-                          borderRadius: "4px",
-                          color: "#718096",
-                          cursor: "pointer",
-                        }}
+                        className="px-2 py-1 text-xs bg-transparent border border-gray-300 rounded text-gray-500 cursor-pointer transition-colors hover:bg-gray-100"
                       >
                         Disconnect
                       </button>
                     </div>
                   ) : connectingStudioId === studio.id ? (
-                    <div style={{ background: "#f7fafc", borderRadius: "6px", padding: "1rem" }}>
-                      <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem" }}>Connect to MindBody</h4>
+                    <div className="bg-gray-50 rounded-md p-4">
+                      <h4 className="m-0 mb-3 text-[0.9rem]">Connect to MindBody</h4>
                       {mbError && (
-                        <div style={{ color: "#c00", fontSize: "0.875rem", marginBottom: "0.75rem" }}>{mbError}</div>
+                        <div className="text-red-600 text-sm mb-3">{mbError}</div>
                       )}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-                        <div className="form-group">
-                          <label style={{ fontSize: "0.8rem" }}>Site ID</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="mb-2">
+                          <label className="block text-[0.8rem] font-medium text-gray-700 mb-1">Site ID</label>
                           <input
                             type="text"
                             value={mbSiteId}
                             onChange={(e) => setMbSiteId(e.target.value)}
                             placeholder="e.g. -99"
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                           />
                         </div>
-                        <div className="form-group">
-                          <label style={{ fontSize: "0.8rem" }}>Staff Username</label>
+                        <div className="mb-2">
+                          <label className="block text-[0.8rem] font-medium text-gray-700 mb-1">Staff Username</label>
                           <input
                             type="text"
                             value={mbUsername}
                             onChange={(e) => setMbUsername(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                           />
                         </div>
-                        <div className="form-group">
-                          <label style={{ fontSize: "0.8rem" }}>Staff Password</label>
+                        <div className="mb-2">
+                          <label className="block text-[0.8rem] font-medium text-gray-700 mb-1">Staff Password</label>
                           <input
                             type="password"
                             value={mbPassword}
                             onChange={(e) => setMbPassword(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                           />
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                      <div className="flex gap-2 mt-2">
                         <button
-                          className="btn"
-                          style={{ fontSize: "0.8rem", padding: "0.375rem 0.75rem" }}
+                          className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-[0.8rem] font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
                           disabled={mbSubmitting || !mbSiteId || !mbUsername || !mbPassword}
                           onClick={() => handleConnect(studio.id)}
                         >
                           {mbSubmitting ? "Connecting..." : "Connect"}
                         </button>
                         <button
-                          className="btn btn-secondary"
-                          style={{ fontSize: "0.8rem", padding: "0.375rem 0.75rem" }}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-[0.8rem] font-medium transition-colors hover:bg-gray-200"
                           onClick={() => {
                             setConnectingStudioId(null);
                             setMbError(null);
@@ -286,8 +274,7 @@ const StudioPage: React.FC = () => {
                         setMbPassword("");
                         setMbError(null);
                       }}
-                      className="btn btn-secondary"
-                      style={{ fontSize: "0.8rem", padding: "0.375rem 0.75rem" }}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-[0.8rem] font-medium transition-colors hover:bg-gray-200"
                     >
                       Connect MindBody
                     </button>

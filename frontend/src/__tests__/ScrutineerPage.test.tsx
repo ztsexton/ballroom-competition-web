@@ -65,6 +65,7 @@ vi.mock('../context/CompetitionContext', () => ({
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     isAdmin: (globalThis as Record<string, unknown>).__mockIsAdmin ?? true,
+    isAnyAdmin: (globalThis as Record<string, unknown>).__mockIsAdmin ?? true,
     loading: false,
   }),
 }));
@@ -143,6 +144,7 @@ describe('ScrutineerPage', () => {
       </RouterWrapper>
     );
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Loading state now renders a skeleton instead of text
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 });

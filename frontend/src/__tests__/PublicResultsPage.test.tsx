@@ -26,6 +26,7 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: null,
     isAdmin: false,
+    isAnyAdmin: false,
     loading: false,
   }),
 }));
@@ -94,6 +95,7 @@ describe('PublicResultsPage', () => {
 
     renderWithRoute('/results');
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Loading state now renders a skeleton instead of text
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 });

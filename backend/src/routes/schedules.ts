@@ -1,11 +1,23 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { dataService } from '../services/dataService';
 import { scheduleService, ScheduleService } from '../services/schedule';
 import { scoringService, computeAdvancementBibs } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { getRecallCount } from '../constants/rounds';
+import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
 const router = Router();
+
+// All schedule routes require at least competition-admin access
+router.use(requireAnyAdmin);
+
+// Check competition access for all routes with :competitionId
+router.use('/:competitionId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (isNaN(competitionId)) return next();
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  next();
+});
 
 // Get schedule for a competition
 router.get('/:competitionId', async (req: Request, res: Response) => {

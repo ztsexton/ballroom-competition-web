@@ -4,10 +4,20 @@ import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi, competition
 import { CompetitionSchedule, Competition, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { useCompetitionSSE } from '../../../hooks/useCompetitionSSE';
-import { formatTime, statusColor, getHeatLabel, getHeatRound } from './utils';
+import { formatTime, getHeatLabel, getHeatRound } from './utils';
+import { Skeleton } from '../../../components/Skeleton';
 import ScoringProgressPanel from './components/ScoringProgressPanel';
 import HeatSidebar from './components/HeatSidebar';
 import ResetModal from './components/ResetModal';
+
+function statusBadgeClasses(status: string): string {
+  switch (status) {
+    case 'pending': return 'bg-gray-200';
+    case 'scoring': return 'bg-yellow-100';
+    case 'completed': return 'bg-green-200';
+    default: return 'bg-gray-200';
+  }
+}
 
 const RunCompetitionPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -178,12 +188,12 @@ const RunCompetitionPage = () => {
     }
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <Skeleton variant="card" />;
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to run competitions.</p>
         </div>
@@ -193,11 +203,11 @@ const RunCompetitionPage = () => {
 
   if (!schedule || Object.keys(events).length === 0) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Run Competition</h2>
           <p>{error || 'No schedule found. Generate a schedule first.'}</p>
-          <button className="btn btn-secondary" onClick={() => navigate(`/competitions/${competitionId}/schedule`)} style={{ marginTop: '1rem' }}>
+          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
             Go to Schedule
           </button>
         </div>
@@ -273,13 +283,15 @@ const RunCompetitionPage = () => {
   const isFirstDance = currentDanceIndex <= 0;
   const isLastDance = currentDanceIndex >= heatDances.length - 1;
 
+  const pct = (completedCount / totalCount) * 100;
+
   return (
-    <div className="container">
-      {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+    <div className="max-w-7xl mx-auto p-8">
+      {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
       {/* Progress Bar */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-2">
           <strong>Progress</strong>
           <span>
             Heat {schedule.currentHeatIndex + 1} of {totalCount} ({completedCount} completed)
@@ -287,85 +299,74 @@ const RunCompetitionPage = () => {
               const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
               if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
                 const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
-                return <span style={{ marginLeft: '0.5rem', color: '#718096' }}>&middot; Est. finish {formatTime(finish.toISOString())}</span>;
+                return <span className="ml-2 text-gray-500">&middot; Est. finish {formatTime(finish.toISOString())}</span>;
               }
               return null;
             })()}
           </span>
         </div>
-        <div style={{
-          width: '100%',
-          height: '8px',
-          background: '#e2e8f0',
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            width: `${(completedCount / totalCount) * 100}%`,
-            height: '100%',
-            background: '#48bb78',
-            borderRadius: '4px',
-            transition: 'width 0.3s ease',
-          }} />
+        <div className="w-full h-2 bg-gray-200 rounded overflow-hidden">
+          <div
+            className="h-full bg-green-400 rounded transition-[width] duration-300 ease-in-out"
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
 
       {/* Main Content: Current Heat + Sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1rem' }}>
+      <div className="grid grid-cols-[1fr_280px] gap-4">
         {/* Current Heat Panel */}
         <div>
           {allCompleted ? (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <h2 style={{ color: '#276749' }}>Competition Complete!</h2>
-              <p style={{ color: '#718096', marginTop: '0.5rem' }}>All {totalCount} heats have been completed.</p>
-              <button className="btn" onClick={() => navigate(`/competitions/${competitionId}/schedule`)} style={{ marginTop: '1rem' }}>
+            <div className="bg-white rounded-lg shadow p-6 text-center py-12">
+              <h2 className="text-green-800">Competition Complete!</h2>
+              <p className="text-gray-500 mt-2">All {totalCount} heats have been completed.</p>
+              <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mt-4" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
                 Back to Schedule
               </button>
             </div>
           ) : isCurrentBreak ? (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <h2 style={{ marginBottom: '0.5rem' }}>
+            <div className="bg-white rounded-lg shadow p-6 text-center py-12">
+              <h2 className="mb-2">
                 {currentScheduledHeat?.breakLabel || 'Break'}
               </h2>
               {currentScheduledHeat?.breakDuration && (
-                <p style={{ color: '#718096', fontSize: '1.125rem', marginBottom: '1rem' }}>
+                <p className="text-gray-500 text-lg mb-4">
                   Duration: {currentScheduledHeat.breakDuration} minutes
                 </p>
               )}
-              <p style={{ color: '#a0aec0', marginBottom: '1.5rem' }}>
+              <p className="text-gray-400 mb-6">
                 {currentStatus === 'completed' ? 'Break completed' : 'Break in progress'}
               </p>
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                <button className="btn btn-secondary" onClick={handleBack}
+              <div className="flex gap-2 justify-center">
+                <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200" onClick={handleBack}
                   disabled={schedule.currentHeatIndex === 0 && currentStatus === 'pending'}>
                   Back
                 </button>
                 {currentStatus !== 'completed' ? (
-                  <button className="btn btn-success" onClick={handleAdvance}
-                    style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                  <button className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-lg font-medium transition-colors hover:bg-success-600" onClick={handleAdvance}>
                     End Break
                   </button>
                 ) : schedule.currentHeatIndex < totalCount - 1 ? (
-                  <button className="btn btn-success" onClick={handleAdvance}
-                    style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                  <button className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-lg font-medium transition-colors hover:bg-success-600" onClick={handleAdvance}>
                     Next Heat
                   </button>
                 ) : null}
               </div>
             </div>
           ) : currentScheduledHeat && currentScheduledHeat.entries.length > 0 ? (
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-start">
                 <div>
                   {currentScheduledHeat.entries.map(entry => {
                     const event = events[entry.eventId];
                     if (!event) return null;
                     return (
-                      <div key={entry.eventId} style={{ marginBottom: '0.25rem' }}>
-                        <h2 style={{ marginBottom: '0.125rem' }}>
+                      <div key={entry.eventId} className="mb-1">
+                        <h2 className="mb-0.5">
                           Event #{event.id}: {event.name}
                         </h2>
-                        <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0 }}>
+                        <p className="text-gray-500 text-sm m-0">
                           {[
                             event.style,
                             event.level,
@@ -376,39 +377,32 @@ const RunCompetitionPage = () => {
                       </div>
                     );
                   })}
-                  <p style={{ color: '#4a5568', fontSize: '1rem', fontWeight: 600, textTransform: 'capitalize', margin: '0.25rem 0' }}>
+                  <p className="text-gray-600 text-base font-semibold capitalize my-1">
                     Round: {getHeatRound(currentScheduledHeat)}
                   </p>
                   {(currentScheduledHeat.estimatedStartTime || currentScheduledHeat.actualStartTime) && (
-                    <p style={{ color: '#718096', fontSize: '0.875rem', margin: '0.125rem 0' }}>
+                    <p className="text-gray-500 text-sm my-0.5">
                       {currentScheduledHeat.estimatedStartTime && (
                         <span>Est. {formatTime(currentScheduledHeat.estimatedStartTime)}</span>
                       )}
                       {currentScheduledHeat.actualStartTime && (
-                        <span style={{ marginLeft: currentScheduledHeat.estimatedStartTime ? '0.75rem' : 0 }}>
+                        <span className={currentScheduledHeat.estimatedStartTime ? 'ml-3' : ''}>
                           Started {formatTime(currentScheduledHeat.actualStartTime)}
                         </span>
                       )}
                     </p>
                   )}
                 </div>
-                <span style={{
-                  padding: '0.25rem 0.75rem',
-                  borderRadius: '9999px',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  background: statusColor(currentStatus),
-                  textTransform: 'capitalize',
-                }}>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold capitalize ${statusBadgeClasses(currentStatus)}`}>
                   {currentStatus}
                 </span>
               </div>
 
               {/* State-dependent content */}
-              <div style={{ marginTop: '1.5rem' }}>
+              <div className="mt-6">
                 {currentStatus === 'pending' && (
                   <>
-                    <h3 style={{ marginBottom: '0.75rem' }}>Couples</h3>
+                    <h3 className="mb-3">Couples</h3>
                     {currentCouples.length > 0 ? (
                       currentScheduledHeat.entries.map(entry => {
                         const event = events[entry.eventId];
@@ -441,32 +435,20 @@ const RunCompetitionPage = () => {
                           return (
                             <div key={`${entry.eventId}-${entry.dance ?? ''}`}>
                               {currentScheduledHeat.entries.length > 1 && (
-                                <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.875rem' }}>
+                                <h4 className="m-0 mb-2 text-gray-600 text-sm">
                                   {event.name}
                                 </h4>
                               )}
                               {floorGroups.map(group => {
                                 const groupCouples = group.bibs.map(bib => couples.find(c => c.bib === bib)).filter(Boolean) as Couple[];
                                 return (
-                                  <div key={group.index} style={{
-                                    marginBottom: '0.75rem',
-                                    padding: '0.5rem',
-                                    background: group.isCurrent ? '#f0fff4' : '#f7fafc',
-                                    border: group.isCurrent ? '2px solid #48bb78' : '1px solid #e2e8f0',
-                                    borderRadius: '6px',
-                                  }}>
-                                    <div style={{
-                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                      marginBottom: '0.375rem',
-                                    }}>
-                                      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: group.isCurrent ? '#276749' : '#4a5568' }}>
+                                  <div key={group.index} className={`mb-3 p-2 rounded-md ${group.isCurrent ? 'bg-green-50 border-2 border-green-400' : 'bg-gray-50 border border-gray-200'}`}>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                      <span className={`font-bold text-sm ${group.isCurrent ? 'text-green-800' : 'text-gray-600'}`}>
                                         Heat {group.index + 1} of {entry.totalFloorHeats} ({groupCouples.length} couples)
                                       </span>
                                       {group.isCurrent && (
-                                        <span style={{
-                                          fontSize: '0.75rem', fontWeight: 600, color: '#276749',
-                                          background: '#c6f6d5', padding: '0.125rem 0.5rem', borderRadius: '9999px',
-                                        }}>
+                                        <span className="text-xs font-semibold text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
                                           Current
                                         </span>
                                       )}
@@ -500,9 +482,9 @@ const RunCompetitionPage = () => {
                         const bibs = (entry.bibSubset || heat?.bibs || []).slice().sort((a, b) => a - b);
                         const entryCouples = bibs.map(bib => couples.find(c => c.bib === bib)).filter(Boolean) as Couple[];
                         return (
-                          <div key={entry.eventId} style={{ marginBottom: currentScheduledHeat.entries.length > 1 ? '1rem' : 0 }}>
+                          <div key={entry.eventId} className={currentScheduledHeat.entries.length > 1 ? 'mb-4' : ''}>
                             {currentScheduledHeat.entries.length > 1 && (
-                              <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.875rem' }}>
+                              <h4 className="m-0 mb-2 text-gray-600 text-sm">
                                 {event.name} ({entryCouples.length})
                               </h4>
                             )}
@@ -528,20 +510,15 @@ const RunCompetitionPage = () => {
                         );
                       })
                     ) : (
-                      <p style={{ color: '#a0aec0' }}>Couples TBD (previous round not yet scored)</p>
+                      <p className="text-gray-400">Couples TBD (previous round not yet scored)</p>
                     )}
 
                     {currentJudges.length > 0 && (
-                      <div style={{ marginTop: '1rem' }}>
-                        <h3 style={{ marginBottom: '0.5rem' }}>Judges</h3>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div className="mt-4">
+                        <h3 className="mb-2">Judges</h3>
+                        <div className="flex gap-2 flex-wrap">
                           {currentJudges.map(judge => (
-                            <span key={judge.id} style={{
-                              padding: '0.25rem 0.75rem',
-                              background: '#edf2f7',
-                              borderRadius: '4px',
-                              fontSize: '0.875rem',
-                            }}>
+                            <span key={judge.id} className="px-3 py-1 bg-gray-100 rounded text-sm">
                               #{judge.judgeNumber}: {judge.name}
                             </span>
                           ))}
@@ -549,14 +526,14 @@ const RunCompetitionPage = () => {
                       </div>
                     )}
 
-                    <div style={{ textAlign: 'center', marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      {/* Split Heat button — only for single-entry, unsplit heats with >2 couples */}
+                    <div className="text-center mt-6 flex gap-3 justify-center flex-wrap">
+                      {/* Split Heat button -- only for single-entry, unsplit heats with >2 couples */}
                       {currentScheduledHeat.entries.length === 1
                         && !currentScheduledHeat.entries[0].bibSubset
                         && currentCouples.length > 2
                         && (
                           <button
-                            className="btn btn-secondary"
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                             onClick={async () => {
                               const groupCount = prompt(`Split into how many floor heats? (${currentCouples.length} couples total)`, '2');
                               if (!groupCount) return;
@@ -573,19 +550,18 @@ const RunCompetitionPage = () => {
                             Split Heat
                           </button>
                         )}
-                      {/* Merge Heats button — only for split heats */}
+                      {/* Merge Heats button -- only for split heats */}
                       {currentScheduledHeat.entries.length === 1
                         && currentScheduledHeat.entries[0].bibSubset
                         && (
                           <button
-                            className="btn btn-secondary"
+                            className="px-4 py-2 bg-red-600 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-red-700"
                             onClick={() => handleUnsplitRequest(currentScheduledHeat)}
-                            style={{ background: '#e53e3e', borderColor: '#e53e3e', color: '#fff' }}
                           >
                             Merge Heats
                           </button>
                         )}
-                      <button className="btn btn-success" onClick={handleAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                      <button className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-lg font-medium transition-colors hover:bg-success-600" onClick={handleAdvance}>
                         Begin Scoring
                       </button>
                     </div>
@@ -596,37 +572,26 @@ const RunCompetitionPage = () => {
                   <>
                     {/* Dance navigation for multi-dance heats */}
                     {isMultiDanceHeat && currentDance && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.75rem 1rem',
-                        background: '#eef2ff',
-                        border: '2px solid #667eea',
-                        borderRadius: '8px',
-                        marginBottom: '1rem',
-                      }}>
+                      <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 border-2 border-indigo-400 rounded-lg mb-4">
                         <button
-                          className="btn btn-secondary"
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                           onClick={handleBackDance}
                           disabled={isFirstDance}
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
                         >
                           Prev Dance
                         </button>
-                        <div style={{ textAlign: 'center' }}>
-                          <p style={{ margin: 0, fontWeight: 700, fontSize: '1.125rem', color: '#4338ca' }}>
+                        <div className="text-center">
+                          <p className="m-0 font-bold text-lg text-indigo-700">
                             {currentDance}
                           </p>
-                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#6366f1' }}>
+                          <p className="m-0 text-xs text-indigo-500">
                             Dance {currentDanceIndex + 1} of {heatDances.length}
                           </p>
                         </div>
                         <button
-                          className="btn"
+                          className={`px-4 py-2 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors ${isLastDance ? 'bg-gray-400' : 'bg-indigo-500 hover:bg-indigo-600'}`}
                           onClick={handleAdvanceDance}
                           disabled={isLastDance}
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', background: isLastDance ? '#a0aec0' : '#667eea', borderColor: isLastDance ? '#a0aec0' : '#667eea' }}
                         >
                           Next Dance
                         </button>
@@ -643,19 +608,19 @@ const RunCompetitionPage = () => {
                 )}
 
                 {currentStatus === 'completed' && (
-                  <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    <p style={{ fontSize: '1.125rem', color: '#276749', marginBottom: '1rem' }}>Heat completed</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <div className="text-center py-8">
+                    <p className="text-lg text-green-800 mb-4">Heat completed</p>
+                    <div className="flex gap-2 justify-center flex-wrap">
                       {currentScheduledHeat.entries.length === 1 && (
                         <Link
                           to={`/events/${currentScheduledHeat.entries[0].eventId}/results/${currentScheduledHeat.entries[0].round}`}
-                          className="btn btn-secondary"
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                         >
                           View Results
                         </Link>
                       )}
                       {schedule.currentHeatIndex < totalCount - 1 && (
-                        <button className="btn btn-success" onClick={handleAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+                        <button className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-lg font-medium transition-colors hover:bg-success-600" onClick={handleAdvance}>
                           Next Heat
                         </button>
                       )}
@@ -665,21 +630,15 @@ const RunCompetitionPage = () => {
               </div>
 
               {/* Navigation buttons */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '1.5rem',
-                paddingTop: '1rem',
-                borderTop: '1px solid #e2e8f0',
-              }}>
+              <div className="flex justify-between mt-6 pt-4 border-t border-gray-200">
                 <button
-                  className="btn btn-secondary"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                   onClick={handleBack}
                   disabled={schedule.currentHeatIndex === 0 && currentStatus === 'pending'}
                 >
                   Back
                 </button>
-                <button className="btn btn-secondary" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
+                <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
                   Back to Schedule
                 </button>
               </div>
@@ -688,25 +647,19 @@ const RunCompetitionPage = () => {
 
           {/* Up Next */}
           {upcomingHeats.length > 0 && !allCompleted && (
-            <div className="card">
+            <div className="bg-white rounded-lg shadow p-6">
               <h3>Up Next</h3>
               {upcomingHeats.map((scheduledHeat, idx) => {
                 const isBreak = scheduledHeat.isBreak;
                 const heatNum = schedule.currentHeatIndex + 2 + idx;
                 return (
-                  <div key={scheduledHeat.id + '-' + idx} style={{
-                    padding: '0.5rem 0',
-                    borderBottom: idx < upcomingHeats.length - 1 ? '1px solid #e2e8f0' : undefined,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}>
+                  <div key={scheduledHeat.id + '-' + idx} className={`py-2 flex justify-between items-center ${idx < upcomingHeats.length - 1 ? 'border-b border-gray-200' : ''}`}>
                     <div>
-                      <strong style={{ fontStyle: isBreak ? 'italic' : undefined }}>
-                        <span style={{ color: '#a0aec0', fontWeight: 400, fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
+                      <strong className={isBreak ? 'italic' : ''}>
+                        <span className="text-gray-400 font-normal text-xs mr-2">#{heatNum}</span>
                         {isBreak ? (scheduledHeat.breakLabel || 'Break') : getHeatLabel(scheduledHeat, events)}
                       </strong>
-                      <p style={{ color: '#718096', fontSize: '0.875rem', margin: 0, textTransform: 'capitalize' }}>
+                      <p className="text-gray-500 text-sm m-0 capitalize">
                         {isBreak
                           ? (scheduledHeat.breakDuration ? `${scheduledHeat.breakDuration} min` : 'Break')
                           : `${getHeatRound(scheduledHeat)} | ${scheduledHeat.entries.map(e => {
@@ -714,14 +667,14 @@ const RunCompetitionPage = () => {
                               return ev ? [ev.style, ev.level].filter(Boolean).join(' - ') : '';
                             }).filter(Boolean).join(', ') || 'No details'}`}
                         {scheduledHeat.estimatedStartTime && (
-                          <span style={{ marginLeft: '0.5rem', textTransform: 'none' }}>
+                          <span className="ml-2 normal-case">
                             &middot; {formatTime(scheduledHeat.estimatedStartTime)}
                           </span>
                         )}
                       </p>
                     </div>
                     {!isBreak && (
-                      <span style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
+                      <span className="text-gray-400 text-sm">
                         {getCouplesForHeat(scheduledHeat).length > 0
                           ? `${getCouplesForHeat(scheduledHeat).length} couples`
                           : 'TBD'}
@@ -757,43 +710,32 @@ const RunCompetitionPage = () => {
 
       {/* Unsplit confirmation modal */}
       {unsplitConfirm && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 1000,
-        }}>
-          <div className="card" style={{ maxWidth: '480px', width: '90%', margin: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Merge Heats?</h3>
-            <p style={{ marginBottom: '0.75rem' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+          <div className="bg-white rounded-lg shadow p-6 max-w-[480px] w-[90%] m-4">
+            <h3 className="mb-4">Merge Heats?</h3>
+            <p className="mb-3">
               This will merge all split floor heats back into a single heat with{' '}
               <strong>{unsplitConfirm.totalCouples} couples</strong> on the floor at once.
             </p>
             {unsplitConfirm.exceedsLimit && (
-              <div style={{
-                padding: '0.75rem 1rem',
-                background: '#fff5f5',
-                border: '2px solid #fc8181',
-                borderRadius: '6px',
-                marginBottom: '0.75rem',
-              }}>
-                <p style={{ margin: 0, color: '#c53030', fontWeight: 700, marginBottom: '0.25rem' }}>
+              <div className="px-4 py-3 bg-red-50 border-2 border-red-300 rounded-md mb-3">
+                <p className="m-0 text-red-700 font-bold mb-1">
                   Warning: Exceeds Floor Limit
                 </p>
-                <p style={{ margin: 0, color: '#9b2c2c', fontSize: '0.875rem' }}>
+                <p className="m-0 text-red-800 text-sm">
                   The configured maximum is <strong>{unsplitConfirm.limitValue}</strong> couples on the floor.
                   Merging will put <strong>{unsplitConfirm.totalCouples}</strong> couples on the floor,
                   exceeding the limit by <strong>{unsplitConfirm.totalCouples - (unsplitConfirm.limitValue || 0)}</strong>.
                 </p>
               </div>
             )}
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button className="btn btn-secondary" onClick={() => setUnsplitConfirm(null)}>
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200" onClick={() => setUnsplitConfirm(null)}>
                 Cancel
               </button>
               <button
-                className="btn"
+                className="px-4 py-2 bg-red-600 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-red-700"
                 onClick={handleUnsplitConfirm}
-                style={{ background: '#e53e3e', borderColor: '#e53e3e', color: '#fff' }}
               >
                 {unsplitConfirm.exceedsLimit ? 'Override & Merge' : 'Merge Heats'}
               </button>

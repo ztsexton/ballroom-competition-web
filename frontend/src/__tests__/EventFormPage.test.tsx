@@ -17,6 +17,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     isAdmin: true,
+    isAnyAdmin: true,
     loading: false,
   }),
 }));

@@ -7,6 +7,7 @@ import Home from '../pages/Home';
 vi.mock('../context/AuthContext', () => ({
   useAuth: vi.fn(() => ({
     isAdmin: true,
+    isAnyAdmin: true,
     loading: false,
   })),
 }));

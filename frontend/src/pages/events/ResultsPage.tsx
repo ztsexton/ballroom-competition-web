@@ -5,6 +5,7 @@ import { Event, DetailedResultsResponse } from '../../types';
 import { JudgeGrid } from '../../components/results/JudgeGrid';
 import { SkatingBreakdown } from '../../components/results/SkatingBreakdown';
 import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
+import { Skeleton } from '../../components/Skeleton';
 
 const RECALL_ROUNDS = ['quarter-final', 'semi-final'];
 
@@ -39,8 +40,23 @@ const ResultsPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
-  if (!event) return <div className="container"><div className="card">Event not found</div></div>;
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-500">Event not found</p>
+        </div>
+      </div>
+    );
+  }
 
   const results = detailed?.results || [];
   const judges = detailed?.judges || [];
@@ -51,30 +67,33 @@ const ResultsPage = () => {
   const hasSkatingDetail = results.some(r => r.skatingDetail);
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 style={{ margin: 0 }}>Results: {event.name}</h2>
+            <h2 className="text-xl font-bold text-gray-800">Results: {event.name}</h2>
             {(detailed?.style || detailed?.level) && (
-              <div style={{ fontSize: '0.875rem', color: '#718096', marginTop: '0.25rem' }}>
+              <div className="text-sm text-gray-500 mt-1">
                 {[detailed.style, detailed.level].filter(Boolean).join(' \u00b7 ')}
                 {isMultiDance && <> &middot; {dances.join(', ')}</>}
               </div>
             )}
           </div>
-          <button onClick={() => navigate(-1)} className="btn btn-secondary">Back</button>
+          <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">Back</button>
         </div>
 
         {event.heats.length > 1 && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Round:</label>
+          <div className="mb-4">
+            <label className="mr-2 font-medium">Round:</label>
             {event.heats.map(heat => (
               <button
                 key={heat.round}
                 onClick={() => navigate(`/events/${id}/results/${heat.round}`)}
-                className={`btn ${heat.round === currentRound ? '' : 'btn-secondary'}`}
-                style={{ marginRight: '0.5rem', textTransform: 'capitalize' }}
+                className={`mr-2 px-4 py-2 rounded border-none cursor-pointer text-sm font-medium transition-colors capitalize ${
+                  heat.round === currentRound
+                    ? 'bg-primary-500 text-white hover:bg-primary-600'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
               >
                 {heat.round}
               </button>
@@ -83,25 +102,23 @@ const ResultsPage = () => {
         )}
 
         {results.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
+          <div className="text-center py-8 text-gray-500">
             <p>No scores submitted yet for this round</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="flex flex-col gap-6">
             {/* Judge Grid(s) */}
             {judges.length > 0 && (
               isMultiDance ? (
                 dances.map(dance => (
                   <div key={dance}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>
-                      {dance}
-                    </h3>
+                    <h3 className="text-base font-semibold mb-2 capitalize">{dance}</h3>
                     <JudgeGrid results={results} judges={judges} isRecall={isRecall} dance={dance} />
                   </div>
                 ))
               ) : (
                 <div>
-                  <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+                  <h3 className="text-base font-semibold mb-2">
                     {isRecall ? 'Recall Marks' : 'Judge Placements'}
                   </h3>
                   <JudgeGrid results={results} judges={judges} isRecall={isRecall} />
@@ -112,7 +129,7 @@ const ResultsPage = () => {
             {/* Skating Breakdown for single-dance finals */}
             {!isRecall && !isProficiency && hasSkatingDetail && !isMultiDance && (
               <div>
-                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Skating System Breakdown</h3>
+                <h3 className="text-base font-semibold mb-2">Skating System Breakdown</h3>
                 <SkatingBreakdown results={results} numJudges={judges.length} />
               </div>
             )}
@@ -128,9 +145,7 @@ const ResultsPage = () => {
                 if (danceResults.length === 0) return null;
                 return (
                   <div key={`skating-${dance}`}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>
-                      Skating: {dance}
-                    </h3>
+                    <h3 className="text-base font-semibold mb-2 capitalize">Skating: {dance}</h3>
                     <SkatingBreakdown results={danceResults} numJudges={judges.length} />
                   </div>
                 );
@@ -140,7 +155,7 @@ const ResultsPage = () => {
             {/* Multi-dance summary table */}
             {isMultiDance && !isRecall && (
               <div>
-                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Overall Placement</h3>
+                <h3 className="text-base font-semibold mb-2">Overall Placement</h3>
                 <MultiDanceSummary results={results} dances={dances} />
               </div>
             )}
@@ -148,21 +163,21 @@ const ResultsPage = () => {
             {/* Proficiency scoring summary */}
             {isProficiency && (
               <div>
-                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Proficiency Scores</h3>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <h3 className="text-base font-semibold mb-2">Proficiency Scores</h3>
+                <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Bib</th>
-                      <th style={{ textAlign: 'left', padding: '0.4rem 0.5rem' }}>Couple</th>
-                      <th style={{ textAlign: 'right', padding: '0.4rem 0.5rem' }}>Avg Score</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left px-2 py-1.5">Bib</th>
+                      <th className="text-left px-2 py-1.5">Couple</th>
+                      <th className="text-right px-2 py-1.5">Avg Score</th>
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((r, i) => (
-                      <tr key={r.bib} style={{ borderBottom: '1px solid #edf2f7', background: i % 2 === 0 ? '#fafafa' : 'white' }}>
-                        <td style={{ padding: '0.4rem 0.5rem' }}>{r.bib}</td>
-                        <td style={{ padding: '0.4rem 0.5rem' }}>{r.leaderName} &amp; {r.followerName}</td>
-                        <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontWeight: 600 }}>
+                      <tr key={r.bib} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                        <td className="px-2 py-1.5">{r.bib}</td>
+                        <td className="px-2 py-1.5">{r.leaderName} &amp; {r.followerName}</td>
+                        <td className="px-2 py-1.5 text-right font-semibold">
                           {r.totalScore?.toFixed(1) ?? '-'}
                         </td>
                       </tr>

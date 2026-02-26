@@ -4,6 +4,7 @@ import { peopleApi, couplesApi, judgesApi, studiosApi, mindbodyApi, eventsApi } 
 import { Person, Couple, Judge, Studio, MindbodyClient, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { Skeleton } from '../../components/Skeleton';
 
 const CompetitionEntriesPage = () => {
   const { activeCompetition } = useCompetition();
@@ -321,51 +322,47 @@ const CompetitionEntriesPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  const toggleBtnClass = (active: boolean) =>
+    active
+      ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-500 text-white cursor-pointer font-semibold text-sm transition-all'
+      : 'px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all';
 
-  const tabStyle = (tab: string): React.CSSProperties => ({
-    padding: '0.75rem 1.25rem',
-    background: 'none',
-    border: 'none',
-    borderBottom: activeTab === tab ? '3px solid #667eea' : '3px solid transparent',
-    color: activeTab === tab ? '#667eea' : '#718096',
-    fontWeight: activeTab === tab ? 600 : 400,
-    fontSize: '0.95rem',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  });
+  if (loading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" className="mb-4" /><Skeleton variant="table" rows={5} cols={4} /></div>;
 
   return (
-    <div className="container">
-      {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+    <div className="max-w-7xl mx-auto p-8">
+      {error && <div className="text-danger-500 mt-2 mb-4">{error}</div>}
 
       {/* Tab bar */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid #e2e8f0',
-        marginBottom: '1rem',
-        gap: '0.25rem',
-      }}>
-        <button style={tabStyle('people')} onClick={() => setActiveTab('people')}>
+      <div className="flex border-b border-gray-200 mb-4 gap-1">
+        <button
+          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'people' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
+          onClick={() => setActiveTab('people')}
+        >
           People ({people.length})
         </button>
-        <button style={tabStyle('couples')} onClick={() => setActiveTab('couples')}>
+        <button
+          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'couples' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
+          onClick={() => setActiveTab('couples')}
+        >
           Couples ({couples.length})
         </button>
-        <button style={tabStyle('judges')} onClick={() => setActiveTab('judges')}>
+        <button
+          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'judges' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
+          onClick={() => setActiveTab('judges')}
+        >
           Judges ({judges.length})
         </button>
       </div>
 
       {/* ====== PEOPLE TAB ====== */}
       {activeTab === 'people' && (
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0 }}>People</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="m-0">People</h3>
           {connectedStudios.length > 0 && (
             <button
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+              className="px-3 py-1.5 bg-gray-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-gray-600"
               onClick={() => setShowMbImport(!showMbImport)}
             >
               {showMbImport ? 'Close Import' : 'Import from MindBody'}
@@ -375,29 +372,24 @@ const CompetitionEntriesPage = () => {
 
         {/* MindBody Import Panel */}
         {showMbImport && (
-          <div style={{
-            background: '#f0f4ff',
-            border: '1px solid #c3dafe',
-            borderRadius: '8px',
-            padding: '1.25rem',
-            marginBottom: '1rem',
-          }}>
-            <h4 style={{ margin: '0 0 0.75rem 0' }}>Import from MindBody</h4>
-            {mbError && <div className="error" style={{ marginBottom: '0.75rem' }}>{mbError}</div>}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-4">
+            <h4 className="mt-0 mb-3">Import from MindBody</h4>
+            {mbError && <div className="text-danger-500 mt-2 mb-3">{mbError}</div>}
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-              <div className="form-group" style={{ marginBottom: 0, minWidth: '160px' }}>
-                <label style={{ fontSize: '0.8rem' }}>Studio</label>
-                <select value={mbStudioId} onChange={e => setMbStudioId(e.target.value ? Number(e.target.value) : '')}>
+            <div className="flex gap-3 items-end flex-wrap mb-3">
+              <div className="mb-0 min-w-[160px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Studio</label>
+                <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={mbStudioId} onChange={e => setMbStudioId(e.target.value ? Number(e.target.value) : '')}>
                   <option value="">Select Studio</option>
                   {connectedStudios.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
-                <label style={{ fontSize: '0.8rem' }}>Search (name, email, phone)</label>
+              <div className="mb-0 flex-1 min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Search (name, email, phone)</label>
                 <input
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                   type="text"
                   value={mbSearchText}
                   onChange={e => setMbSearchText(e.target.value)}
@@ -406,8 +398,7 @@ const CompetitionEntriesPage = () => {
                 />
               </div>
               <button
-                className="btn"
-                style={{ marginBottom: 0, fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+                className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-primary-600 mb-0"
                 disabled={!mbStudioId || mbLoading}
                 onClick={handleMbSearch}
               >
@@ -417,25 +408,24 @@ const CompetitionEntriesPage = () => {
 
             {mbClients.length > 0 && (
               <>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem' }}>Role for imports</label>
-                    <select value={mbRole} onChange={e => setMbRole(e.target.value as Person['role'])}>
+                <div className="flex gap-3 items-end flex-wrap mb-3">
+                  <div className="mb-0">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Role for imports</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={mbRole} onChange={e => setMbRole(e.target.value as Person['role'])}>
                       <option value="both">Both</option>
                       <option value="leader">Leader</option>
                       <option value="follower">Follower</option>
                     </select>
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem' }}>Status for imports</label>
-                    <select value={mbStatus} onChange={e => setMbStatus(e.target.value as Person['status'])}>
+                  <div className="mb-0">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Status for imports</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={mbStatus} onChange={e => setMbStatus(e.target.value as Person['status'])}>
                       <option value="student">Student</option>
                       <option value="professional">Professional</option>
                     </select>
                   </div>
                   <button
-                    className="btn"
-                    style={{ marginBottom: 0, fontSize: '0.8rem', padding: '0.375rem 0.75rem' }}
+                    className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-primary-600 mb-0"
                     disabled={mbSelected.size === 0 || mbImporting}
                     onClick={handleMbImport}
                   >
@@ -443,45 +433,45 @@ const CompetitionEntriesPage = () => {
                   </button>
                 </div>
 
-                <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                  <table style={{ margin: 0 }}>
+                <div className="max-h-[350px] overflow-y-auto border border-gray-200 rounded-md">
+                  <table className="w-full border-collapse m-0">
                     <thead>
                       <tr>
-                        <th style={{ width: '2.5rem' }}>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm w-10">
                           <input
                             type="checkbox"
                             checked={mbSelected.size === mbClients.length && mbClients.length > 0}
                             onChange={handleMbSelectAll}
                           />
                         </th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Active</th>
-                        <th>Last Activity</th>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Name</th>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Email</th>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Phone</th>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Active</th>
+                        <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Last Activity</th>
                       </tr>
                     </thead>
                     <tbody>
                       {mbClients.map(client => (
-                        <tr key={client.id} style={{ opacity: client.isActive ? 1 : 0.5 }}>
-                          <td>
+                        <tr key={client.id} className={client.isActive ? 'opacity-100' : 'opacity-50'}>
+                          <td className="px-3 py-2 border-b border-gray-100 text-sm">
                             <input
                               type="checkbox"
                               checked={mbSelected.has(client.id)}
                               onChange={() => handleMbToggle(client.id)}
                             />
                           </td>
-                          <td>{client.firstName} {client.lastName}</td>
-                          <td style={{ fontSize: '0.85rem' }}>{client.email || '-'}</td>
-                          <td style={{ fontSize: '0.85rem' }}>{client.phone || '-'}</td>
-                          <td>{client.isActive ? 'Yes' : 'No'}</td>
-                          <td style={{ fontSize: '0.85rem' }}>{client.lastActivityDate || '-'}</td>
+                          <td className="px-3 py-2 border-b border-gray-100 text-sm">{client.firstName} {client.lastName}</td>
+                          <td className="px-3 py-2 border-b border-gray-100 text-xs">{client.email || '-'}</td>
+                          <td className="px-3 py-2 border-b border-gray-100 text-xs">{client.phone || '-'}</td>
+                          <td className="px-3 py-2 border-b border-gray-100 text-sm">{client.isActive ? 'Yes' : 'No'}</td>
+                          <td className="px-3 py-2 border-b border-gray-100 text-xs">{client.lastActivityDate || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <p style={{ color: '#718096', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                <p className="text-gray-500 text-xs mt-2">
                   {mbClients.length} clients loaded. {mbSelected.size} selected.
                 </p>
               </>
@@ -489,79 +479,79 @@ const CompetitionEntriesPage = () => {
           </div>
         )}
 
-            <form onSubmit={handleAddPerson} style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>First Name</label>
-                  <input type="text" value={newPerson.firstName}
+            <form onSubmit={handleAddPerson} className="mb-4">
+              <div className="grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_auto] gap-2 items-end">
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">First Name</label>
+                  <input className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" type="text" value={newPerson.firstName}
                     onChange={e => setNewPerson({ ...newPerson, firstName: e.target.value })} required />
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Last Name</label>
-                  <input type="text" value={newPerson.lastName}
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Last Name</label>
+                  <input className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" type="text" value={newPerson.lastName}
                     onChange={e => setNewPerson({ ...newPerson, lastName: e.target.value })} required />
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Email</label>
-                  <input type="email" value={newPerson.email}
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+                  <input className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" type="email" value={newPerson.email}
                     onChange={e => setNewPerson({ ...newPerson, email: e.target.value })} />
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Role</label>
-                  <select value={newPerson.role}
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Role</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={newPerson.role}
                     onChange={e => setNewPerson({ ...newPerson, role: e.target.value as Person['role'] })}>
                     <option value="leader">Leader</option>
                     <option value="follower">Follower</option>
                     <option value="both">Both</option>
                   </select>
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Status</label>
-                  <select value={newPerson.status}
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Status</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={newPerson.status}
                     onChange={e => setNewPerson({ ...newPerson, status: e.target.value as Person['status'] })}>
                     <option value="student">Student</option>
                     <option value="professional">Professional</option>
                   </select>
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Studio</label>
-                  <select value={newPerson.studioId}
+                <div className="mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Studio</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={newPerson.studioId}
                     onChange={e => setNewPerson({ ...newPerson, studioId: e.target.value })}>
                     <option value="">None</option>
                     {studios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
-                <button type="submit" className="btn" style={{ marginBottom: 0 }}>Add</button>
+                <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mb-0">Add</button>
               </div>
             </form>
 
             {people.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '1rem', color: '#718096' }}>No people added yet.</p>
+              <p className="text-center p-4 text-gray-500">No people added yet.</p>
             ) : (
-              <table>
+              <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Studio</th>
-                    <th>Actions</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">First Name</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Last Name</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Email</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Role</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Status</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Studio</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {people.map(person => (
                     <tr key={person.id}>
-                      <td>{person.firstName}</td>
-                      <td>{person.lastName}</td>
-                      <td>{person.email || ''}</td>
-                      <td>{person.role}</td>
-                      <td>{person.status}</td>
-                      <td>{studios.find(s => s.id === person.studioId)?.name || ''}</td>
-                      <td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.firstName}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.lastName}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.email || ''}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.role}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.status}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{studios.find(s => s.id === person.studioId)?.name || ''}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">
                         <button onClick={() => handleDeletePerson(person.id)}
-                          className="btn btn-danger" style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>
+                          className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
                           Delete
                         </button>
                       </td>
@@ -575,21 +565,21 @@ const CompetitionEntriesPage = () => {
 
       {/* ====== COUPLES TAB ====== */}
       {activeTab === 'couples' && (
-      <div className="card">
-        <h3 style={{ margin: '0 0 0.75rem' }}>Couples</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="mt-0 mb-3">Couples</h3>
           <div>
-            {coupleError && <div className="error" style={{ marginBottom: '0.5rem' }}>{coupleError}</div>}
+            {coupleError && <div className="text-danger-500 mt-2 mb-2">{coupleError}</div>}
 
             {people.length === 0 ? (
-              <p style={{ color: '#718096', padding: '1rem', textAlign: 'center' }}>
+              <p className="text-gray-500 p-4 text-center">
                 Add people first before creating couples.
               </p>
             ) : (
-              <form onSubmit={handleAddCouple} style={{ marginBottom: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Leader</label>
-                    <select value={leaderId} onChange={e => setLeaderId(e.target.value)} required>
+              <form onSubmit={handleAddCouple} className="mb-4">
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                  <div className="mb-0">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Leader</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={leaderId} onChange={e => setLeaderId(e.target.value)} required>
                       <option value="">Select Leader</option>
                       {leaders.map(p => (
                         <option key={p.id} value={p.id}>
@@ -598,9 +588,9 @@ const CompetitionEntriesPage = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Follower</label>
-                    <select value={followerId} onChange={e => setFollowerId(e.target.value)} required>
+                  <div className="mb-0">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Follower</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" value={followerId} onChange={e => setFollowerId(e.target.value)} required>
                       <option value="">Select Follower</option>
                       {followers.map(p => (
                         <option key={p.id} value={p.id}>
@@ -609,55 +599,33 @@ const CompetitionEntriesPage = () => {
                       ))}
                     </select>
                   </div>
-                  <button type="submit" className="btn" style={{ marginBottom: 0 }}>Add Couple</button>
+                  <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mb-0">Add Couple</button>
                 </div>
               </form>
             )}
 
             {couples.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '1rem', color: '#718096' }}>No couples created yet.</p>
+              <p className="text-center p-4 text-gray-500">No couples created yet.</p>
             ) : (
               <div>
                 {couples.map(couple => {
                   const isOpen = registerBib === couple.bib;
-                  const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
-                    padding: '0.375rem 0.75rem',
-                    border: active ? '2px solid #667eea' : '1px solid #cbd5e0',
-                    borderRadius: '4px',
-                    background: active ? '#667eea' : 'white',
-                    color: active ? 'white' : '#2d3748',
-                    cursor: 'pointer',
-                    fontWeight: active ? 600 : 400,
-                    fontSize: '0.85rem',
-                    transition: 'all 0.15s',
-                  });
 
                   return (
-                    <div key={couple.bib} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0.625rem 0',
-                        gap: '1rem',
-                      }}>
-                        <strong style={{ minWidth: '3rem' }}>#{couple.bib}</strong>
-                        <span style={{ flex: 1 }}>{couple.leaderName} & {couple.followerName}</span>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div key={couple.bib} className="border-b border-gray-200">
+                      <div className="flex items-center py-2.5 gap-4">
+                        <strong className="min-w-[3rem]">#{couple.bib}</strong>
+                        <span className="flex-1">{couple.leaderName} & {couple.followerName}</span>
+                        <div className="flex gap-2">
                           <button
                             onClick={() => openRegisterPanel(couple.bib)}
-                            className="btn"
-                            style={{
-                              fontSize: '0.875rem',
-                              padding: '0.25rem 0.5rem',
-                              background: isOpen ? '#4c51bf' : undefined,
-                            }}
+                            className={`px-2 py-1 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors ${isOpen ? 'bg-primary-700 hover:bg-primary-800' : 'bg-primary-500 hover:bg-primary-600'}`}
                           >
                             {isOpen ? 'Close' : 'Register'}
                           </button>
                           <button
                             onClick={() => handleDeleteCouple(couple.bib)}
-                            className="btn btn-danger"
-                            style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                            className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                           >
                             Delete
                           </button>
@@ -665,38 +633,25 @@ const CompetitionEntriesPage = () => {
                       </div>
 
                       {isOpen && (
-                        <div style={{
-                          background: '#f7fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '6px',
-                          padding: '1rem',
-                          marginBottom: '0.75rem',
-                        }}>
-                          <h4 style={{ margin: '0 0 0.75rem', color: '#4a5568' }}>
+                        <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-3">
+                          <h4 className="mt-0 mb-3 text-gray-600">
                             Register #{couple.bib} for an event
                           </h4>
 
-                          {regError && <div className="error" style={{ marginBottom: '0.5rem' }}>{regError}</div>}
+                          {regError && <div className="text-danger-500 mt-2 mb-2">{regError}</div>}
                           {regMessage && (
-                            <div style={{
-                              background: '#c6f6d5',
-                              color: '#276749',
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '4px',
-                              marginBottom: '0.75rem',
-                              fontSize: '0.875rem',
-                            }}>
+                            <div className="bg-green-200 text-green-800 px-3 py-2 rounded mb-3 text-sm">
                               {regMessage}
                             </div>
                           )}
 
                           {/* Combination builder */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                          <div className="flex flex-col gap-2.5">
                             <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Designation</label>
-                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                              <label className="block text-xs font-semibold text-gray-500 mb-1">Designation</label>
+                              <div className="flex gap-1.5 flex-wrap">
                                 {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(opt => (
-                                  <button key={opt} type="button" style={toggleBtnStyle(regDesignation === opt)}
+                                  <button key={opt} type="button" className={toggleBtnClass(regDesignation === opt)}
                                     onClick={() => setRegDesignation(regDesignation === opt ? '' : opt)}>
                                     {opt}
                                   </button>
@@ -705,10 +660,10 @@ const CompetitionEntriesPage = () => {
                             </div>
 
                             <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Syllabus Type</label>
-                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                              <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
+                              <div className="flex gap-1.5 flex-wrap">
                                 {['Syllabus', 'Open'].map(opt => (
-                                  <button key={opt} type="button" style={toggleBtnStyle(regSyllabusType === opt)}
+                                  <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
                                     onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
                                     {opt}
                                   </button>
@@ -717,10 +672,10 @@ const CompetitionEntriesPage = () => {
                             </div>
 
                             <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Level</label>
-                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                              <label className="block text-xs font-semibold text-gray-500 mb-1">Level</label>
+                              <div className="flex gap-1.5 flex-wrap">
                                 {(activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS).map(opt => (
-                                  <button key={opt} type="button" style={toggleBtnStyle(regLevel === opt)}
+                                  <button key={opt} type="button" className={toggleBtnClass(regLevel === opt)}
                                     onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
                                     {opt}
                                   </button>
@@ -730,10 +685,10 @@ const CompetitionEntriesPage = () => {
 
                             {availableAgeCategories.length > 0 && (
                               <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Age Category</label>
-                                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Age Category</label>
+                                <div className="flex gap-1.5 flex-wrap">
                                   {availableAgeCategories.map(cat => (
-                                    <button key={cat.name} type="button" style={toggleBtnStyle(regAgeCategory === cat.name)}
+                                    <button key={cat.name} type="button" className={toggleBtnClass(regAgeCategory === cat.name)}
                                       onClick={() => setRegAgeCategory(regAgeCategory === cat.name ? '' : cat.name)}>
                                       {cat.name}
                                     </button>
@@ -743,10 +698,10 @@ const CompetitionEntriesPage = () => {
                             )}
 
                             <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Style</label>
-                              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                              <label className="block text-xs font-semibold text-gray-500 mb-1">Style</label>
+                              <div className="flex gap-1.5 flex-wrap">
                                 {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(opt => (
-                                  <button key={opt} type="button" style={toggleBtnStyle(regStyle === opt)}
+                                  <button key={opt} type="button" className={toggleBtnClass(regStyle === opt)}
                                     onClick={() => {
                                       if (regStyle === opt) {
                                         setRegStyle('');
@@ -764,12 +719,12 @@ const CompetitionEntriesPage = () => {
 
                             {regStyle && getDanceOptions(regStyle).length > 0 && (
                               <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">
                                   Dances {regDances.length > 0 && `(${regDances.length})`}
                                 </label>
-                                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                <div className="flex gap-1.5 flex-wrap">
                                   {getDanceOptions(regStyle).map(d => (
-                                    <button key={d} type="button" style={toggleBtnStyle(regDances.includes(d))}
+                                    <button key={d} type="button" className={toggleBtnClass(regDances.includes(d))}
                                       onClick={() => setRegDances(prev =>
                                         prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
                                       )}>
@@ -781,10 +736,10 @@ const CompetitionEntriesPage = () => {
                             )}
 
                             <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#718096', display: 'block', marginBottom: '0.25rem' }}>Scoring</label>
-                              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                              <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
+                              <div className="flex gap-1.5">
                                 {(['standard', 'proficiency'] as const).map(opt => (
-                                  <button key={opt} type="button" style={toggleBtnStyle(regScoringType === opt)}
+                                  <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
                                     onClick={() => setRegScoringType(opt)}>
                                     {opt === 'standard' ? 'Standard' : 'Proficiency'}
                                   </button>
@@ -793,47 +748,36 @@ const CompetitionEntriesPage = () => {
                             </div>
 
                             <button
-                              className="btn"
+                              className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 self-start mt-1"
                               onClick={handleRegister}
                               disabled={regLoading}
-                              style={{ alignSelf: 'flex-start', marginTop: '0.25rem' }}
                             >
                               {regLoading ? 'Registering...' : 'Register for Event'}
                             </button>
                           </div>
 
                           {/* Current events for this couple */}
-                          <div style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
-                            <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.9rem' }}>
+                          <div className="mt-4 border-t border-gray-200 pt-3">
+                            <h4 className="mt-0 mb-2 text-gray-600 text-sm">
                               Currently Entered ({coupleEventsLoading ? '...' : coupleEvents.length} events)
                             </h4>
                             {coupleEventsLoading ? (
-                              <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Loading...</p>
+                              <p className="text-gray-400 text-sm">Loading...</p>
                             ) : coupleEvents.length === 0 ? (
-                              <p style={{ color: '#a0aec0', fontSize: '0.85rem' }}>Not entered in any events yet.</p>
+                              <p className="text-gray-400 text-sm">Not entered in any events yet.</p>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                              <div className="flex flex-col gap-1.5">
                                 {coupleEvents.map(ev => (
-                                  <div key={ev.id} style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '0.375rem 0.5rem',
-                                    background: 'white',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '4px',
-                                    fontSize: '0.875rem',
-                                  }}>
+                                  <div key={ev.id} className="flex justify-between items-center px-2 py-1.5 bg-white border border-gray-200 rounded text-sm">
                                     <span>
                                       <strong>{ev.name}</strong>
-                                      <span style={{ color: '#718096', marginLeft: '0.5rem' }}>
+                                      <span className="text-gray-500 ml-2">
                                         {[ev.designation, ev.level, ev.dances?.join(', ')].filter(Boolean).join(' \u2022 ')}
                                       </span>
                                     </span>
                                     <button
                                       onClick={() => handleRemoveEntry(ev.id)}
-                                      className="btn btn-danger"
-                                      style={{ fontSize: '0.8rem', padding: '0.125rem 0.5rem' }}
+                                      className="px-2 py-0.5 bg-danger-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-danger-600"
                                     >
                                       Remove
                                     </button>
@@ -855,39 +799,39 @@ const CompetitionEntriesPage = () => {
 
       {/* ====== JUDGES TAB ====== */}
       {activeTab === 'judges' && (
-      <div className="card">
-        <h3 style={{ margin: '0 0 0.75rem' }}>Judges</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="mt-0 mb-3">Judges</h3>
           <div>
-            <form onSubmit={handleAddJudge} style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end' }}>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                  <label>Judge Name</label>
-                  <input type="text" value={newJudgeName}
+            <form onSubmit={handleAddJudge} className="mb-4">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 mb-0">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Judge Name</label>
+                  <input className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" type="text" value={newJudgeName}
                     onChange={e => setNewJudgeName(e.target.value)} placeholder="Enter judge name" required />
                 </div>
-                <button type="submit" className="btn" style={{ marginBottom: 0 }}>Add Judge</button>
+                <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mb-0">Add Judge</button>
               </div>
             </form>
 
             {judges.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '1rem', color: '#718096' }}>No judges added yet.</p>
+              <p className="text-center p-4 text-gray-500">No judges added yet.</p>
             ) : (
-              <table>
+              <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th>Judge #</th>
-                    <th>Name</th>
-                    <th>Actions</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Judge #</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Name</th>
+                    <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {judges.map(judge => (
                     <tr key={judge.id}>
-                      <td><strong>#{judge.judgeNumber}</strong></td>
-                      <td>{judge.name}</td>
-                      <td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm"><strong>#{judge.judgeNumber}</strong></td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">{judge.name}</td>
+                      <td className="px-3 py-2 border-b border-gray-100 text-sm">
                         <button onClick={() => handleDeleteJudge(judge.id)}
-                          className="btn btn-danger" style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}>
+                          className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
                           Delete
                         </button>
                       </td>

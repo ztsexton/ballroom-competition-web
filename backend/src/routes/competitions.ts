@@ -1,22 +1,34 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
+import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
 const router = Router();
 
-// Get all competitions
-router.get('/', async (req: Request, res: Response) => {
+// Get all competitions (site admin sees all, competition admin sees only theirs)
+router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitions = await dataService.getCompetitions();
-    res.json(competitions);
+
+    if (req.user!.isAdmin) {
+      res.json(competitions);
+      return;
+    }
+
+    // Competition admin: filter to only their competitions
+    const adminCompIds = await dataService.getCompetitionsByAdmin(req.user!.uid);
+    const filtered = competitions.filter(c => adminCompIds.includes(c.id));
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch competitions' });
   }
 });
 
 // Get a specific competition
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
     const competition = await dataService.getCompetitionById(id);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
@@ -28,9 +40,11 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Get competition summary with counts
-router.get('/:id/summary', async (req: Request, res: Response) => {
+router.get('/:id/summary', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
     const competition = await dataService.getCompetitionById(id);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
@@ -73,8 +87,8 @@ router.get('/:id/summary', async (req: Request, res: Response) => {
   }
 });
 
-// Create a new competition
-router.post('/', async (req: Request, res: Response) => {
+// Create a new competition (site admin only)
+router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { name, type, date, location, studioId, organizationId, description, defaultScoringType, levels, publiclyVisible, resultsPublic, websiteUrl, organizerEmail } = req.body;
 
@@ -107,6 +121,7 @@ router.post('/', async (req: Request, res: Response) => {
       resultsPublic: resultsPublic !== undefined ? resultsPublic : (type === 'STUDIO' ? false : true),
       websiteUrl,
       organizerEmail,
+      createdBy: req.user!.uid,
     });
 
     res.status(201).json(competition);
@@ -116,11 +131,12 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Update a competition
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const updates = req.body;
+    if (!(await assertCompetitionAccess(req, res, id))) return;
 
+    const updates = req.body;
     const competition = await dataService.updateCompetition(id, updates);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
@@ -132,8 +148,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Delete a competition
-router.delete('/:id', async (req: Request, res: Response) => {
+// Delete a competition (site admin only)
+router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const success = await dataService.deleteCompetition(id);
@@ -143,6 +159,83 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete competition' });
+  }
+});
+
+// ─── Competition Admin CRUD ───
+
+// List admins for a competition (enriched with user info)
+router.get('/:id/admins', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
+    const admins = await dataService.getCompetitionAdmins(id);
+    const users = await dataService.getUsers();
+    const userMap = new Map(users.map(u => [u.uid, u]));
+
+    const enriched = admins.map(a => {
+      const user = userMap.get(a.userUid);
+      return {
+        ...a,
+        email: user?.email,
+        displayName: user?.displayName,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+      };
+    });
+
+    res.json(enriched);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch competition admins' });
+  }
+});
+
+// Add admin by email
+router.post('/:id/admins', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Look up user by email
+    const users = await dataService.getUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ error: 'No registered user found with that email' });
+    }
+
+    const admin = await dataService.addCompetitionAdmin(id, user.uid);
+    res.status(201).json({
+      ...admin,
+      email: user.email,
+      displayName: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add competition admin' });
+  }
+});
+
+// Remove admin
+router.delete('/:id/admins/:uid', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
+    const { uid } = req.params;
+    const success = await dataService.removeCompetitionAdmin(id, uid);
+    if (!success) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove competition admin' });
   }
 });
 

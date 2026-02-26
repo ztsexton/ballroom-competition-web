@@ -26,7 +26,7 @@ interface CompetitionProviderProps {
 }
 
 export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
-  const { isAdmin } = useAuth();
+  const { isAnyAdmin } = useAuth();
   const [activeCompetition, setActiveCompetitionState] = useState<Competition | null>(null);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,14 +61,14 @@ export const CompetitionProvider = ({ children }: CompetitionProviderProps) => {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAnyAdmin) {
       loadCompetitions();
     } else {
       setCompetitions([]);
       setActiveCompetitionState(null);
       setLoading(false);
     }
-  }, [isAdmin, loadCompetitions]);
+  }, [isAnyAdmin, loadCompetitions]);
 
   const setActiveCompetition = useCallback((competition: Competition | null) => {
     setActiveCompetitionState(competition);

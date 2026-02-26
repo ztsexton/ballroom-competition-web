@@ -7,69 +7,42 @@ const PublicLayout = () => {
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const linkStyle = (path: string) => ({
-    color: 'white',
-    textDecoration: 'none',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.95rem',
-    background: isActive(path) ? 'rgba(255,255,255,0.15)' : 'transparent',
-  });
-
   return (
     <>
-      <nav style={{
-        background: '#667eea',
-        padding: '0.75rem 1.5rem',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          flexWrap: 'wrap',
-        }}>
-          <Link to="/" style={{
-            color: 'white',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-            fontSize: '1.25rem',
-            marginRight: '1rem',
-          }}>
+      <nav className="bg-primary-500 px-6 py-3 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center gap-6 flex-wrap">
+          <Link to="/" className="text-white no-underline font-bold text-xl mr-4">
             Ballroom Scorer
           </Link>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flex: 1 }}>
-            <Link to="/results" style={linkStyle('/results')}>Results</Link>
-            <Link to="/pricing" style={linkStyle('/pricing')}>Pricing</Link>
-            <Link to="/faq" style={linkStyle('/faq')}>FAQ</Link>
+          <div className="flex gap-3 flex-1">
+            <Link
+              to="/results"
+              className={`text-white no-underline px-2 py-1 rounded text-[0.95rem] transition-colors ${isActive('/results') ? 'bg-white/15' : 'hover:bg-white/10'}`}
+            >
+              Results
+            </Link>
+            <Link
+              to="/pricing"
+              className={`text-white no-underline px-2 py-1 rounded text-[0.95rem] transition-colors ${isActive('/pricing') ? 'bg-white/15' : 'hover:bg-white/10'}`}
+            >
+              Pricing
+            </Link>
+            <Link
+              to="/faq"
+              className={`text-white no-underline px-2 py-1 rounded text-[0.95rem] transition-colors ${isActive('/faq') ? 'bg-white/15' : 'hover:bg-white/10'}`}
+            >
+              FAQ
+            </Link>
           </div>
 
           <div>
             {!loading && user ? (
-              <Link to="/dashboard" style={{
-                color: '#667eea',
-                background: 'white',
-                textDecoration: 'none',
-                padding: '0.375rem 1rem',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-              }}>
+              <Link to="/dashboard" className="text-primary-500 bg-white no-underline px-4 py-1.5 rounded text-sm font-semibold hover:bg-gray-100 transition-colors">
                 Dashboard
               </Link>
             ) : (
-              <Link to="/login" style={{
-                color: '#667eea',
-                background: 'white',
-                textDecoration: 'none',
-                padding: '0.375rem 1rem',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-              }}>
+              <Link to="/login" className="text-primary-500 bg-white no-underline px-4 py-1.5 rounded text-sm font-semibold hover:bg-gray-100 transition-colors">
                 Sign In
               </Link>
             )}

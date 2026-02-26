@@ -28,35 +28,27 @@ export default function ScheduleConfigForm({
 }: ScheduleConfigFormProps) {
   return (
     <>
-      <div style={{ marginTop: '1.5rem' }}>
+      <div className="mt-6">
         <h3>Style Order</h3>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+        <p className="text-gray-500 text-sm mb-2">
           Events are grouped by style first. Use arrows to set priority.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '300px' }}>
+        <div className="flex flex-col gap-1 max-w-[300px]">
           {styleOrder.map((style, idx) => (
-            <div key={style} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem',
-              background: '#f7fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '4px',
-            }}>
-              <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{idx + 1}.</span>
-              <span style={{ flex: 1 }}>{style}</span>
+            <div key={style} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+              <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+              <span className="flex-1">{style}</span>
               <button
                 onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'up'))}
                 disabled={idx === 0}
-                style={{ padding: '0.125rem 0.375rem', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
+                className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
               >
                 ▲
               </button>
               <button
                 onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'down'))}
                 disabled={idx === styleOrder.length - 1}
-                style={{ padding: '0.125rem 0.375rem', cursor: idx === styleOrder.length - 1 ? 'default' : 'pointer', opacity: idx === styleOrder.length - 1 ? 0.3 : 1 }}
+                className={`py-0.5 px-1.5 ${idx === styleOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
               >
                 ▼
               </button>
@@ -65,35 +57,27 @@ export default function ScheduleConfigForm({
         </div>
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
+      <div className="mt-6">
         <h3>Level Order</h3>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+        <p className="text-gray-500 text-sm mb-2">
           Within each style, events are sorted by level.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '300px' }}>
+        <div className="flex flex-col gap-1 max-w-[300px]">
           {levelOrder.map((level, idx) => (
-            <div key={level} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem',
-              background: '#f7fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '4px',
-            }}>
-              <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{idx + 1}.</span>
-              <span style={{ flex: 1 }}>{level}</span>
+            <div key={level} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+              <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+              <span className="flex-1">{level}</span>
               <button
                 onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'up'))}
                 disabled={idx === 0}
-                style={{ padding: '0.125rem 0.375rem', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
+                className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
               >
                 ▲
               </button>
               <button
                 onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'down'))}
                 disabled={idx === levelOrder.length - 1}
-                style={{ padding: '0.125rem 0.375rem', cursor: idx === levelOrder.length - 1 ? 'default' : 'pointer', opacity: idx === levelOrder.length - 1 ? 0.3 : 1 }}
+                className={`py-0.5 px-1.5 ${idx === levelOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
               >
                 ▼
               </button>
@@ -102,25 +86,25 @@ export default function ScheduleConfigForm({
         </div>
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
+      <div className="mt-6">
         <h3>Judge Assignment</h3>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+        <p className="text-gray-500 text-sm mb-2">
           Judges are automatically rotated across heats. Set the number required per level.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: '300px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Default count</label>
+        <div className="flex flex-col gap-2 max-w-[300px]">
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Default count</label>
             <input
               type="number"
               min={1}
               value={judgeSettings.defaultCount}
               onChange={(e) => onJudgeSettingsChange({ ...judgeSettings, defaultCount: Math.max(1, parseInt(e.target.value) || 1) })}
-              style={{ width: '4rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+              className="w-16 p-1.5 rounded border border-gray-200 text-center"
             />
           </div>
           {levelOrder.map(level => (
-            <div key={level} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <label style={{ flex: 1, color: '#4a5568' }}>{level}</label>
+            <div key={level} className="flex items-center gap-3">
+              <label className="flex-1 text-gray-600">{level}</label>
               <input
                 type="number"
                 min={1}
@@ -136,40 +120,40 @@ export default function ScheduleConfigForm({
                   }
                   onJudgeSettingsChange({ ...judgeSettings, levelOverrides: overrides });
                 }}
-                style={{ width: '4rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+                className="w-16 p-1.5 rounded border border-gray-200 text-center"
               />
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
+      <div className="mt-6">
         <h3>Timing Settings</h3>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+        <p className="text-gray-500 text-sm mb-2">
           Configure dance durations and transition times to estimate the schedule timeline.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: '400px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Start time</label>
+        <div className="flex flex-col gap-2 max-w-[400px]">
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Start time</label>
             <input
               type="datetime-local"
               value={timingSettings.startTime || ''}
               onChange={(e) => onTimingSettingsChange(prev => ({ ...prev, startTime: e.target.value || undefined }))}
-              style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+              className="p-1.5 rounded border border-gray-200"
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Default dance duration (sec)</label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Default dance duration (sec)</label>
             <input
               type="number"
               min={1}
               value={timingSettings.defaultDanceDurationSeconds}
               onChange={(e) => onTimingSettingsChange(prev => ({ ...prev, defaultDanceDurationSeconds: Math.max(1, parseInt(e.target.value) || 75) }))}
-              style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+              className="w-20 p-1.5 rounded border border-gray-200 text-center"
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Scholarship duration (sec)</label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Scholarship duration (sec)</label>
             <input
               type="number"
               min={1}
@@ -182,34 +166,34 @@ export default function ScheduleConfigForm({
                   scholarshipDurationSeconds: val === '' ? undefined : Math.max(1, parseInt(val) || 90),
                 }));
               }}
-              style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+              className="w-20 p-1.5 rounded border border-gray-200 text-center"
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Between dances (sec)</label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Between dances (sec)</label>
             <input
               type="number"
               min={0}
               value={timingSettings.betweenDanceSeconds}
               onChange={(e) => onTimingSettingsChange(prev => ({ ...prev, betweenDanceSeconds: Math.max(0, parseInt(e.target.value) || 0) }))}
-              style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+              className="w-20 p-1.5 rounded border border-gray-200 text-center"
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ flex: 1, fontWeight: 600 }}>Between heats (sec)</label>
+          <div className="flex items-center gap-3">
+            <label className="flex-1 font-semibold">Between heats (sec)</label>
             <input
               type="number"
               min={0}
               value={timingSettings.betweenHeatSeconds}
               onChange={(e) => onTimingSettingsChange(prev => ({ ...prev, betweenHeatSeconds: Math.max(0, parseInt(e.target.value) || 0) }))}
-              style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+              className="w-20 p-1.5 rounded border border-gray-200 text-center"
             />
           </div>
-          <div style={{ marginTop: '0.25rem' }}>
-            <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.375rem' }}>Duration overrides by level (sec)</label>
+          <div className="mt-1">
+            <label className="font-semibold block mb-1.5">Duration overrides by level (sec)</label>
             {levelOrder.map(level => (
-              <div key={level} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                <label style={{ flex: 1, color: '#4a5568' }}>{level}</label>
+              <div key={level} className="flex items-center gap-3 mb-1">
+                <label className="flex-1 text-gray-600">{level}</label>
                 <input
                   type="number"
                   min={1}
@@ -227,7 +211,7 @@ export default function ScheduleConfigForm({
                       return { ...prev, levelDurationOverrides: Object.keys(overrides).length > 0 ? overrides : undefined };
                     });
                   }}
-                  style={{ width: '5rem', padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}
+                  className="w-20 p-1.5 rounded border border-gray-200 text-center"
                 />
               </div>
             ))}
@@ -235,8 +219,8 @@ export default function ScheduleConfigForm({
         </div>
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <button className="btn" onClick={onGenerate}>
+      <div className="mt-6">
+        <button className="px-6 py-3 bg-primary-500 text-white rounded border-none cursor-pointer text-base font-medium transition-colors hover:bg-primary-600" onClick={onGenerate}>
           Generate Schedule ({eventCount} events)
         </button>
       </div>

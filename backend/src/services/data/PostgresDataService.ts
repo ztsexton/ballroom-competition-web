@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  Competition, Studio, Organization, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
+  Competition, CompetitionAdmin, Studio, Organization, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
   CompetitionSchedule, EntryPayment,
 } from '../../types';
 import { IDataService } from './IDataService';
@@ -46,6 +46,7 @@ export class PostgresDataService implements IDataService {
       heatListsPublishedAt: row.heat_lists_published_at || undefined,
       websiteUrl: row.website_url || undefined,
       organizerEmail: row.organizer_email || undefined,
+      createdBy: row.created_by || undefined,
       createdAt: row.created_at,
     };
   }
@@ -183,9 +184,9 @@ export class PostgresDataService implements IDataService {
         registration_open, registration_open_at,
         publicly_visible, publicly_visible_at, results_public,
         heat_lists_published, heat_lists_published_at,
-        website_url, organizer_email, created_at)
+        website_url, organizer_email, created_by, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
@@ -215,10 +216,18 @@ export class PostgresDataService implements IDataService {
         competition.heatListsPublishedAt || null,
         competition.websiteUrl || null,
         competition.organizerEmail || null,
+        competition.createdBy || null,
         now,
       ]
     );
-    return this.competitionFromRow(rows[0]);
+    const comp = this.competitionFromRow(rows[0]);
+
+    // Auto-add creator as competition admin
+    if (competition.createdBy) {
+      await this.addCompetitionAdmin(comp.id, competition.createdBy).catch(() => {});
+    }
+
+    return comp;
   }
 
   async updateCompetition(id: number, updates: Partial<Omit<Competition, 'id' | 'createdAt'>>): Promise<Competition | null> {
@@ -1146,11 +1155,63 @@ export class PostgresDataService implements IDataService {
     return (rowCount ?? 0) > 0;
   }
 
+  // ─── Competition Admins ─────────────────────────────────────────
+
+  async getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM competition_admins WHERE competition_id = $1',
+      [competitionId]
+    );
+    return rows.map(r => ({
+      competitionId: r.competition_id,
+      userUid: r.user_uid,
+      role: r.role,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
+    const { rows } = await this.pool.query(
+      'SELECT competition_id FROM competition_admins WHERE user_uid = $1',
+      [userUid]
+    );
+    return rows.map(r => r.competition_id);
+  }
+
+  async addCompetitionAdmin(competitionId: number, userUid: string, role: string = 'admin'): Promise<CompetitionAdmin> {
+    const now = new Date().toISOString();
+    const { rows } = await this.pool.query(
+      `INSERT INTO competition_admins (competition_id, user_uid, role, created_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (competition_id, user_uid) DO UPDATE SET role = $3
+       RETURNING *`,
+      [competitionId, userUid, role, now]
+    );
+    const r = rows[0];
+    return { competitionId: r.competition_id, userUid: r.user_uid, role: r.role, createdAt: r.created_at };
+  }
+
+  async removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      'DELETE FROM competition_admins WHERE competition_id = $1 AND user_uid = $2',
+      [competitionId, userUid]
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  async isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      'SELECT 1 FROM competition_admins WHERE competition_id = $1 AND user_uid = $2 LIMIT 1',
+      [competitionId, userUid]
+    );
+    return rows.length > 0;
+  }
+
   // ─── Testing ────────────────────────────────────────────────────
 
   clearCache(): void {}
 
   async resetAllData(): Promise<void> {
-    await this.pool.query('TRUNCATE judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, organizations, users RESTART IDENTITY CASCADE');
+    await this.pool.query('TRUNCATE competition_admins, judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, organizations, users RESTART IDENTITY CASCADE');
   }
 }

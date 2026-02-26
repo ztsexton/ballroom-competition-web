@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoicesApi, competitionsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup } from '../../types';
+import { Skeleton } from '../../components/Skeleton';
 
 const DANCE_COUNTS = ['2', '3', '4', '5'];
 
@@ -31,36 +32,36 @@ const TierTable = ({
   };
 
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
-      {label && <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem' }}>{label}</div>}
-      <table style={{ width: '100%', fontSize: '0.875rem' }}>
+    <div className="mb-3">
+      {label && <div className="font-semibold text-sm mb-1.5">{label}</div>}
+      <table className="w-full text-sm">
         <thead>
           <tr>
-            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem' }}>Min Entries</th>
-            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem' }}>Price Per Entry ({currency})</th>
-            <th style={{ width: '40px' }}></th>
+            <th className="text-left px-2 py-1">Min Entries</th>
+            <th className="text-left px-2 py-1">Price Per Entry ({currency})</th>
+            <th className="w-10"></th>
           </tr>
         </thead>
         <tbody>
           {tiers.map((tier, idx) => (
             <tr key={idx}>
-              <td style={{ padding: '0.25rem 0.5rem' }}>
+              <td className="px-2 py-1">
                 <input
                   type="number"
                   min="0"
                   value={tier.minEntries}
                   onChange={e => update(idx, 'minEntries', e.target.value)}
-                  style={{ width: '80px', padding: '0.25rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+                  className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
                 />
               </td>
-              <td style={{ padding: '0.25rem 0.5rem' }}>
+              <td className="px-2 py-1">
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={tier.pricePerEntry}
                   onChange={e => update(idx, 'pricePerEntry', e.target.value)}
-                  style={{ width: '100px', padding: '0.25rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+                  className="w-[100px] px-2 py-1 border border-gray-200 rounded text-sm"
                 />
               </td>
               <td>
@@ -68,7 +69,7 @@ const TierTable = ({
                   <button
                     type="button"
                     onClick={() => onChange(tiers.filter((_, i) => i !== idx))}
-                    style={{ background: 'none', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: '1rem' }}
+                    className="bg-transparent border-none text-danger-500 cursor-pointer text-base"
                   >
                     x
                   </button>
@@ -81,15 +82,7 @@ const TierTable = ({
       <button
         type="button"
         onClick={() => onChange([...tiers, { minEntries: 0, pricePerEntry: 0 }])}
-        style={{
-          marginTop: '0.375rem',
-          padding: '0.25rem 0.75rem',
-          fontSize: '0.8125rem',
-          border: '1px solid #cbd5e0',
-          borderRadius: '4px',
-          background: 'white',
-          cursor: 'pointer',
-        }}
+        className="mt-1.5 px-3 py-1 text-[0.8125rem] border border-gray-300 rounded bg-white cursor-pointer"
       >
         + Add Tier
       </button>
@@ -205,7 +198,12 @@ const InvoicesPage = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return (
+    <div className="max-w-7xl mx-auto p-8">
+      <Skeleton variant="card" className="mb-4" />
+      <Skeleton variant="table" rows={5} cols={6} />
+    </div>
+  );
 
   const hasPricing = !!activeCompetition?.pricing;
   const currency = activeCompetition?.currency || 'USD';
@@ -213,44 +211,38 @@ const InvoicesPage = () => {
     new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
 
   return (
-    <div className="container">
+    <div className="max-w-7xl mx-auto p-8">
       {/* ─── Pricing Configuration ─── */}
-      <div className="card">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+          className="flex justify-between items-center cursor-pointer select-none"
           onClick={() => setPricingOpen(!pricingOpen)}
         >
-          <h3 style={{ margin: 0 }}>
-            <span style={{ marginRight: '0.5rem', color: '#a0aec0' }}>{pricingOpen ? '▾' : '▸'}</span>
+          <h3 className="m-0">
+            <span className="mr-2 text-gray-400">{pricingOpen ? '▾' : '▸'}</span>
             Pricing Configuration
           </h3>
-          {hasPricing && <span style={{ fontSize: '0.8125rem', color: '#48bb78' }}>Configured</span>}
+          {hasPricing && <span className="text-[0.8125rem] text-success-500">Configured</span>}
         </div>
 
         {pricingOpen && (
-          <div style={{ marginTop: '1rem' }}>
-            <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Single Dance</h4>
+          <div className="mt-4">
+            <h4 className="mb-2 text-gray-600">Single Dance</h4>
             <TierTable tiers={singleTiers} onChange={setSingleTiers} label="" currency={currency} />
 
-            <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
+            <hr className="my-4 border-none border-t border-gray-200" />
 
-            <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Multi-Dance</h4>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <h4 className="mb-2 text-gray-600">Multi-Dance</h4>
+            <div className="flex gap-2 mb-3">
               {(['flat', 'per-dance-count'] as const).map(m => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setMultiMode(m)}
-                  style={{
-                    padding: '0.375rem 0.75rem',
-                    border: multiMode === m ? '2px solid #667eea' : '1px solid #cbd5e0',
-                    borderRadius: '4px',
-                    background: multiMode === m ? '#667eea' : 'white',
-                    color: multiMode === m ? 'white' : '#2d3748',
-                    cursor: 'pointer',
-                    fontSize: '0.8125rem',
-                    fontWeight: multiMode === m ? 600 : 400,
-                  }}
+                  className={multiMode === m
+                    ? 'px-3 py-1.5 border-2 border-primary-500 rounded bg-primary-500 text-white cursor-pointer text-[0.8125rem] font-semibold'
+                    : 'px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer text-[0.8125rem]'
+                  }
                 >
                   {m === 'flat' ? 'Flat Rate' : 'By Dance Count'}
                 </button>
@@ -260,7 +252,7 @@ const InvoicesPage = () => {
             {multiMode === 'flat' ? (
               <TierTable tiers={multiFlatTiers} onChange={setMultiFlatTiers} label="" currency={currency} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div className="flex flex-col gap-2">
                 {DANCE_COUNTS.map(dc => (
                   <TierTable
                     key={dc}
@@ -273,16 +265,15 @@ const InvoicesPage = () => {
               </div>
             )}
 
-            <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
+            <hr className="my-4 border-none border-t border-gray-200" />
 
-            <h4 style={{ marginBottom: '0.5rem', color: '#4a5568' }}>Scholarship</h4>
+            <h4 className="mb-2 text-gray-600">Scholarship</h4>
             <TierTable tiers={scholarshipTiers} onChange={setScholarshipTiers} label="" currency={currency} />
 
             <button
-              className="btn"
+              className="mt-4 px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
               onClick={savePricing}
               disabled={savingPricing}
-              style={{ marginTop: '1rem' }}
             >
               {savingPricing ? 'Saving...' : 'Save Pricing'}
             </button>
@@ -292,18 +283,18 @@ const InvoicesPage = () => {
 
       {/* ─── Summary Stats ─── */}
       {summary && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <div className="card" style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8125rem', color: '#718096', marginBottom: '0.25rem' }}>Total Revenue</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{fmt(summary.totalRevenue)}</div>
+        <div className="flex gap-3 mb-6">
+          <div className="bg-white rounded-lg shadow p-6 flex-1 text-center">
+            <div className="text-[0.8125rem] text-gray-500 mb-1">Total Revenue</div>
+            <div className="text-2xl font-bold">{fmt(summary.totalRevenue)}</div>
           </div>
-          <div className="card" style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8125rem', color: '#718096', marginBottom: '0.25rem' }}>Paid</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#48bb78' }}>{fmt(summary.totalPaid)}</div>
+          <div className="bg-white rounded-lg shadow p-6 flex-1 text-center">
+            <div className="text-[0.8125rem] text-gray-500 mb-1">Paid</div>
+            <div className="text-2xl font-bold text-success-500">{fmt(summary.totalPaid)}</div>
           </div>
-          <div className="card" style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.8125rem', color: '#718096', marginBottom: '0.25rem' }}>Outstanding</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: summary.totalOutstanding > 0 ? '#d69e2e' : '#48bb78' }}>
+          <div className="bg-white rounded-lg shadow p-6 flex-1 text-center">
+            <div className="text-[0.8125rem] text-gray-500 mb-1">Outstanding</div>
+            <div className={`text-2xl font-bold ${summary.totalOutstanding > 0 ? 'text-yellow-600' : 'text-success-500'}`}>
               {fmt(summary.totalOutstanding)}
             </div>
           </div>
@@ -311,29 +302,29 @@ const InvoicesPage = () => {
       )}
 
       {/* ─── Invoice Table ─── */}
-      <div className="card">
-        <h3 style={{ marginBottom: '1rem' }}>Invoices</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="mb-4">Invoices</h3>
 
         {!hasPricing ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
-            <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>No pricing configured</p>
+          <div className="text-center p-8 text-gray-500">
+            <p className="mb-2 font-semibold">No pricing configured</p>
             <p>Open the Pricing Configuration section above to set entry prices.</p>
           </div>
         ) : !summary || summary.invoices.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
+          <div className="text-center p-8 text-gray-500">
             <p>No entries found. Add participants to events to generate invoices.</p>
           </div>
         ) : (
-          <table style={{ width: '100%' }}>
+          <table className="w-full text-sm">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>Name</th>
-                <th style={{ textAlign: 'left' }}>Status</th>
-                <th style={{ textAlign: 'right' }}>Entries</th>
-                <th style={{ textAlign: 'right' }}>Total</th>
-                <th style={{ textAlign: 'right' }}>Paid</th>
-                <th style={{ textAlign: 'right' }}>Outstanding</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium">Name</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium">Status</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium">Entries</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium">Total</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium">Paid</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium">Outstanding</th>
+                <th className="text-center px-3 py-2 text-gray-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -351,15 +342,15 @@ const InvoicesPage = () => {
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, borderTop: '2px solid #e2e8f0' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>Total ({summary.invoices.length} people)</td>
+              <tr className="font-bold border-t-2 border-gray-200">
+                <td className="px-2 py-3">Total ({summary.invoices.length} people)</td>
                 <td></td>
-                <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem' }}>
+                <td className="text-right px-2 py-3">
                   {summary.invoices.reduce((s, i) => s + i.partnerships.reduce((ps, p) => ps + p.lineItems.length, 0), 0)}
                 </td>
-                <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem' }}>{fmt(summary.totalRevenue)}</td>
-                <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem', color: '#48bb78' }}>{fmt(summary.totalPaid)}</td>
-                <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem', color: summary.totalOutstanding > 0 ? '#d69e2e' : '#48bb78' }}>
+                <td className="text-right px-2 py-3">{fmt(summary.totalRevenue)}</td>
+                <td className="text-right px-2 py-3 text-success-500">{fmt(summary.totalPaid)}</td>
+                <td className={`text-right px-2 py-3 ${summary.totalOutstanding > 0 ? 'text-yellow-600' : 'text-success-500'}`}>
                   {fmt(summary.totalOutstanding)}
                 </td>
                 <td></td>
@@ -394,7 +385,7 @@ const InvoiceRow = ({
   const totalEntries = invoice.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
   const allPaid = invoice.outstandingAmount === 0 && invoice.totalAmount > 0;
   const statusLabel = invoice.personStatus === 'professional' ? 'Pro' : 'Student';
-  const statusColor = invoice.personStatus === 'professional' ? '#667eea' : '#4a5568';
+  const statusColor = invoice.personStatus === 'professional' ? 'text-primary-500' : 'text-gray-700';
 
   const unpaidEntries = invoice.partnerships.flatMap(p =>
     p.lineItems.filter(item => !item.paid).map(item => ({ eventId: item.eventId, bib: item.bib }))
@@ -407,71 +398,50 @@ const InvoiceRow = ({
     <>
       <tr
         onClick={onToggle}
-        style={{ cursor: 'pointer', background: expanded ? '#f7fafc' : undefined }}
+        className={`cursor-pointer ${expanded ? 'bg-gray-50' : ''}`}
       >
-        <td style={{ padding: '0.5rem' }}>
-          <span style={{ marginRight: '0.5rem', color: '#a0aec0', fontSize: '0.75rem' }}>{expanded ? '▾' : '▸'}</span>
+        <td className="px-2 py-2">
+          <span className="mr-2 text-gray-400 text-xs">{expanded ? '▾' : '▸'}</span>
           {invoice.personName}
         </td>
-        <td style={{ padding: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: statusColor }}>{statusLabel}</span>
+        <td className="px-2 py-2">
+          <span className={`text-xs font-semibold ${statusColor}`}>{statusLabel}</span>
         </td>
-        <td style={{ textAlign: 'right', padding: '0.5rem' }}>{totalEntries}</td>
-        <td style={{ textAlign: 'right', padding: '0.5rem', fontWeight: 600 }}>{fmt(invoice.totalAmount)}</td>
-        <td style={{ textAlign: 'right', padding: '0.5rem', color: '#48bb78' }}>{fmt(invoice.paidAmount)}</td>
-        <td style={{ textAlign: 'right', padding: '0.5rem', color: invoice.outstandingAmount > 0 ? '#d69e2e' : '#48bb78', fontWeight: 600 }}>
+        <td className="text-right px-2 py-2">{totalEntries}</td>
+        <td className="text-right px-2 py-2 font-semibold">{fmt(invoice.totalAmount)}</td>
+        <td className="text-right px-2 py-2 text-success-500">{fmt(invoice.paidAmount)}</td>
+        <td className={`text-right px-2 py-2 font-semibold ${invoice.outstandingAmount > 0 ? 'text-yellow-600' : 'text-success-500'}`}>
           {fmt(invoice.outstandingAmount)}
         </td>
-        <td style={{ textAlign: 'center', padding: '0.5rem' }} onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+        <td className="text-center px-2 py-2" onClick={e => e.stopPropagation()}>
+          <div className="flex gap-1.5 justify-center items-center flex-wrap">
             {allPaid ? (
               <>
-                <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.8125rem' }}>Paid</span>
+                <span className="text-success-500 font-semibold text-[0.8125rem]">Paid</span>
                 <button
                   onClick={() => onPayEntries(paidEntries, false)}
-                  style={{
-                    padding: '0.25rem 0.5rem', fontSize: '0.75rem',
-                    border: '1px solid #cbd5e0', borderRadius: '4px',
-                    background: 'white', cursor: 'pointer', color: '#e53e3e',
-                  }}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded bg-white cursor-pointer text-danger-500 hover:bg-gray-50"
                 >
                   Undo
                 </button>
               </>
             ) : (
               <button
-                className="btn"
+                className="px-2 py-1 text-xs bg-primary-500 text-white rounded border-none cursor-pointer font-medium transition-colors hover:bg-primary-600"
                 onClick={() => onPayEntries(unpaidEntries, true, invoice.personId)}
-                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
               >
                 Pay All
               </button>
             )}
             <button
               onClick={() => onDownloadPDF(invoice.personId, invoice.personName)}
-              style={{
-                padding: '0.25rem 0.5rem',
-                fontSize: '0.75rem',
-                border: '1px solid #cbd5e0',
-                borderRadius: '4px',
-                background: 'white',
-                cursor: 'pointer',
-                color: '#4a5568',
-              }}
+              className="px-2 py-1 text-xs border border-gray-300 rounded bg-white cursor-pointer text-gray-600 hover:bg-gray-50"
             >
               PDF
             </button>
             <button
               onClick={() => onEmailInvoice(invoice.personId)}
-              style={{
-                padding: '0.25rem 0.5rem',
-                fontSize: '0.75rem',
-                border: '1px solid #cbd5e0',
-                borderRadius: '4px',
-                background: 'white',
-                cursor: 'pointer',
-                color: '#4a5568',
-              }}
+              className="px-2 py-1 text-xs border border-gray-300 rounded bg-white cursor-pointer text-gray-600 hover:bg-gray-50"
             >
               Email
             </button>
@@ -480,7 +450,7 @@ const InvoiceRow = ({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} style={{ padding: '0 0.5rem 0.75rem 1.5rem', background: '#f7fafc' }}>
+          <td colSpan={7} className="px-2 pb-3 pl-6 bg-gray-50">
             {invoice.partnerships.map(partnership => (
               <PartnershipSection
                 key={partnership.bib}
@@ -517,76 +487,71 @@ const PartnershipSection = ({
     .map(item => ({ eventId: item.eventId, bib: item.bib }));
 
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem', paddingTop: '0.5rem' }}>
-        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#4a5568' }}>
-          w/ {partnership.partnerName} <span style={{ color: '#a0aec0', fontWeight: 400 }}>(Bib #{partnership.bib})</span>
-          <span style={{ marginLeft: '0.75rem', color: '#718096', fontWeight: 400, fontSize: '0.8125rem' }}>
+    <div className="mb-3">
+      <div className="flex justify-between items-center mb-1.5 pt-2">
+        <div className="font-semibold text-sm text-gray-600">
+          w/ {partnership.partnerName} <span className="text-gray-400 font-normal">(Bib #{partnership.bib})</span>
+          <span className="ml-3 text-gray-500 font-normal text-[0.8125rem]">
             {partnership.lineItems.length} entries — {fmt(partnership.subtotal)}
           </span>
         </div>
         {allPaid ? (
-          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-            <span style={{ color: '#48bb78', fontWeight: 600, fontSize: '0.75rem' }}>Paid</span>
+          <div className="flex gap-1.5 items-center">
+            <span className="text-success-500 font-semibold text-xs">Paid</span>
             <button
               onClick={() => onPayEntries(
                 partnership.lineItems.filter(i => i.paid).map(i => ({ eventId: i.eventId, bib: i.bib })),
                 false,
               )}
-              style={{
-                padding: '0.2rem 0.5rem', fontSize: '0.7rem',
-                border: '1px solid #cbd5e0', borderRadius: '4px',
-                background: 'white', cursor: 'pointer', color: '#e53e3e',
-              }}
+              className="px-2 py-0.5 text-[0.7rem] border border-gray-300 rounded bg-white cursor-pointer text-danger-500 hover:bg-gray-50"
             >
               Undo
             </button>
           </div>
         ) : unpaidEntries.length > 0 ? (
           <button
-            className="btn"
+            className="px-2 py-0.5 text-[0.7rem] bg-primary-500 text-white rounded border-none cursor-pointer font-medium transition-colors hover:bg-primary-600"
             onClick={() => onPayEntries(unpaidEntries, true, personId)}
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}
           >
             Pay Partnership
           </button>
         ) : null}
       </div>
-      <table style={{ width: '100%', fontSize: '0.8125rem' }}>
+      <table className="w-full text-[0.8125rem]">
         <thead>
-          <tr style={{ color: '#718096' }}>
-            <th style={{ textAlign: 'center', padding: '0.25rem 0.5rem', fontWeight: 500, width: '30px' }}>Paid</th>
-            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Event</th>
-            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Category</th>
-            <th style={{ textAlign: 'right', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Dances</th>
-            <th style={{ textAlign: 'right', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Price</th>
+          <tr className="text-gray-500">
+            <th className="text-center px-2 py-1 font-medium w-[30px]">Paid</th>
+            <th className="text-left px-2 py-1 font-medium">Event</th>
+            <th className="text-left px-2 py-1 font-medium">Category</th>
+            <th className="text-right px-2 py-1 font-medium">Dances</th>
+            <th className="text-right px-2 py-1 font-medium">Price</th>
           </tr>
         </thead>
         <tbody>
           {partnership.lineItems.map((item) => (
             <tr key={`${item.eventId}:${item.bib}`}>
-              <td style={{ textAlign: 'center', padding: '0.25rem 0.5rem' }}>
+              <td className="text-center px-2 py-1">
                 <input
                   type="checkbox"
                   checked={item.paid}
                   onChange={() => onPayEntries([{ eventId: item.eventId, bib: item.bib }], !item.paid, personId)}
-                  style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  className="cursor-pointer w-4 h-4"
                 />
               </td>
-              <td style={{ padding: '0.25rem 0.5rem', textDecoration: item.paid ? 'line-through' : undefined, color: item.paid ? '#a0aec0' : undefined }}>
+              <td className={`px-2 py-1 ${item.paid ? 'line-through text-gray-400' : ''}`}>
                 {item.eventName}
               </td>
-              <td style={{ padding: '0.25rem 0.5rem', color: item.paid ? '#a0aec0' : undefined }}>{categoryLabel[item.category]}</td>
-              <td style={{ textAlign: 'right', padding: '0.25rem 0.5rem', color: item.paid ? '#a0aec0' : undefined }}>{item.danceCount}</td>
-              <td style={{ textAlign: 'right', padding: '0.25rem 0.5rem', color: item.paid ? '#a0aec0' : undefined }}>{fmt(item.pricePerEntry)}</td>
+              <td className={`px-2 py-1 ${item.paid ? 'text-gray-400' : ''}`}>{categoryLabel[item.category]}</td>
+              <td className={`text-right px-2 py-1 ${item.paid ? 'text-gray-400' : ''}`}>{item.danceCount}</td>
+              <td className={`text-right px-2 py-1 ${item.paid ? 'text-gray-400' : ''}`}>{fmt(item.pricePerEntry)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 600, borderTop: '1px solid #e2e8f0' }}>
+          <tr className="font-semibold border-t border-gray-200">
             <td></td>
-            <td colSpan={3} style={{ padding: '0.25rem 0.5rem' }}>Subtotal</td>
-            <td style={{ textAlign: 'right', padding: '0.25rem 0.5rem' }}>{fmt(partnership.subtotal)}</td>
+            <td colSpan={3} className="px-2 py-1">Subtotal</td>
+            <td className="text-right px-2 py-1">{fmt(partnership.subtotal)}</td>
           </tr>
         </tfoot>
       </table>

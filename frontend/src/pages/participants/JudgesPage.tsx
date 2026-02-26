@@ -4,6 +4,7 @@ import { judgesApi } from '../../api/client';
 import { Judge } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { Skeleton } from '../../components/Skeleton';
 
 const JudgesPage = () => {
   const { activeCompetition } = useCompetition();
@@ -24,7 +25,7 @@ const JudgesPage = () => {
 
   const loadJudges = async () => {
     if (!activeCompetition) return;
-    
+
     try {
       const response = await judgesApi.getAll(activeCompetition.id);
       setJudges(response.data);
@@ -40,7 +41,7 @@ const JudgesPage = () => {
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     if (!newJudgeName.trim() || !activeCompetition) return;
-    
+
     try {
       await judgesApi.create(newJudgeName.trim(), activeCompetition.id);
       setNewJudgeName('');
@@ -65,7 +66,7 @@ const JudgesPage = () => {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this judge?')) return;
-    
+
     try {
       await judgesApi.delete(id);
       setError('');
@@ -75,14 +76,21 @@ const JudgesPage = () => {
     }
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <Skeleton variant="card" className="mb-4" />
+        <Skeleton variant="table" rows={5} cols={4} />
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
-          <h2>Access Denied</h2>
-          <p>You must be an admin to manage judges.</p>
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h2>
+          <p className="text-gray-500">You must be an admin to manage judges.</p>
         </div>
       </div>
     );
@@ -90,18 +98,12 @@ const JudgesPage = () => {
 
   if (!activeCompetition) {
     return (
-      <div className="container">
-        <div className="card">
-          <h2>⚖️ Manage Judges</h2>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '3rem', 
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            borderRadius: '8px'
-          }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>⚠️ No Active Competition</p>
-            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to manage judges.</p>
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Manage Judges</h2>
+          <div className="text-center p-12 bg-amber-50 border border-amber-400 rounded-lg">
+            <p className="text-lg mb-2">No Active Competition</p>
+            <p className="text-amber-900">Please select a competition from the dropdown above to manage judges.</p>
           </div>
         </div>
       </div>
@@ -109,72 +111,65 @@ const JudgesPage = () => {
   }
 
   return (
-    <div className="container">
-      <div className="card">
-        <h2>⚖️ Manage Judges - {activeCompetition.name}</h2>
-        <p style={{ color: '#718096', marginTop: '0.5rem' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-1">Manage Judges - {activeCompetition.name}</h2>
+        <p className="text-gray-500 mt-2">
           Add and manage competition judges. Judge numbers are automatically assigned.
         </p>
-        
-        {error && <div className="error">{error}</div>}
-        
-        <form onSubmit={handleAdd} style={{ marginTop: '1.5rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end' }}>
-            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-              <label>Judge Name</label>
+
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded mb-4 text-sm mt-3">{error}</div>}
+
+        <form onSubmit={handleAdd} className="mt-6">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Judge Name</label>
               <input
                 type="text"
                 value={newJudgeName}
                 onChange={e => setNewJudgeName(e.target.value)}
                 placeholder="Enter judge name"
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <button type="submit" className="btn">➕ Add Judge</button>
+            <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Add Judge</button>
           </div>
         </form>
 
         {judges.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096', marginTop: '1rem' }}>
-            <h3>No judges registered yet</h3>
+          <div className="text-center py-8 text-gray-500 mt-4">
+            <h3 className="font-semibold mb-1">No judges registered yet</h3>
             <p>Add your first judge using the form above!</p>
           </div>
         ) : (
-          <table style={{ marginTop: '1rem' }}>
+          <table className="w-full text-sm mt-4">
             <thead>
               <tr>
-                <th>Judge #</th>
-                <th>Name</th>
-                <th>Chairman</th>
-                <th>Actions</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Judge #</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Name</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Chairman</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Actions</th>
               </tr>
             </thead>
             <tbody>
               {judges.map(judge => (
                 <tr key={judge.id}>
-                  <td><strong>#{judge.judgeNumber}</strong></td>
-                  <td>{judge.name}</td>
-                  <td>
+                  <td className="px-3 py-2 border-t border-gray-100"><strong>#{judge.judgeNumber}</strong></td>
+                  <td className="px-3 py-2 border-t border-gray-100">{judge.name}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">
                     <button
                       onClick={() => handleToggleChairman(judge.id, !!judge.isChairman)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '1.1rem',
-                        color: judge.isChairman ? '#d69e2e' : '#cbd5e0',
-                        padding: '0.25rem 0.5rem',
-                      }}
+                      className={`bg-transparent border-none cursor-pointer text-lg px-2 py-1 ${judge.isChairman ? 'text-yellow-500' : 'text-gray-300'}`}
                       title={judge.isChairman ? 'Remove Chairman' : 'Set as Chairman'}
                     >
-                      {judge.isChairman ? '★ Chairman' : '☆'}
+                      {judge.isChairman ? '\u2605 Chairman' : '\u2606'}
                     </button>
                   </td>
-                  <td>
+                  <td className="px-3 py-2 border-t border-gray-100">
                     <button
                       onClick={() => handleDelete(judge.id)}
-                      className="btn btn-danger"
-                      style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                      className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                     >
                       Delete
                     </button>
@@ -187,10 +182,10 @@ const JudgesPage = () => {
       </div>
 
       {judges.length > 0 && (
-        <div className="card">
-          <h3>Quick Stats</h3>
-          <p>Total Judges: <strong>{judges.length}</strong></p>
-          <p>Chairman: <strong>{judges.find(j => j.isChairman)?.name || 'Not assigned'}</strong></p>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Quick Stats</h3>
+          <p className="text-gray-600">Total Judges: <strong>{judges.length}</strong></p>
+          <p className="text-gray-600">Chairman: <strong>{judges.find(j => j.isChairman)?.name || 'Not assigned'}</strong></p>
         </div>
       )}
     </div>

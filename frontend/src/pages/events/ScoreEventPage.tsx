@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, couplesApi, judgesApi } from '../../api/client';
 import { Event, Couple, Judge } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { Skeleton } from '../../components/Skeleton';
 
 const ScoreEventPage = () => {
   const { id, round } = useParams<{ id: string; round?: string }>();
@@ -28,10 +29,10 @@ const ScoreEventPage = () => {
     try {
       const eventResponse = await eventsApi.getById(parseInt(id!));
       setEvent(eventResponse.data);
-      
+
       const roundToUse = round || eventResponse.data.heats[0]?.round || 'final';
       setCurrentRound(roundToUse);
-      
+
       const heat = eventResponse.data.heats.find(h => h.round === roundToUse);
       if (heat) {
         setNumJudges(heat.judges.length || 3);
@@ -60,26 +61,22 @@ const ScoreEventPage = () => {
   const handleScoreChange = (judgeIndex: number, bib: number, value: string) => {
     const key = `${judgeIndex}-${bib}`;
     if (isRecallRound && !isProficiency) {
-      // For recall: toggle checkbox (0 or 1)
       setScores(prev => ({ ...prev, [key]: prev[key] === 1 ? 0 : 1 }));
     } else if (isProficiency) {
-      // For proficiency: 0-100
       const num = parseInt(value) || 0;
       setScores(prev => ({ ...prev, [key]: Math.min(100, Math.max(0, num)) }));
     } else {
-      // For final: set rank
       setScores(prev => ({ ...prev, [key]: parseInt(value) || 0 }));
     }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!event) return;
-    
-    // Convert scores object to array format
+
     const scoresArray: Array<{ judgeIndex: number; bib: number; score: number }> = [];
-    
+
     for (let judgeIndex = 0; judgeIndex < numJudges; judgeIndex++) {
       for (const couple of couples) {
         const key = `${judgeIndex}-${couple.bib}`;
@@ -87,7 +84,7 @@ const ScoreEventPage = () => {
         scoresArray.push({ judgeIndex, bib: couple.bib, score });
       }
     }
-    
+
     try {
       await eventsApi.submitScores(event.id, currentRound, scoresArray);
       navigate(`/events/${event.id}/results/${currentRound}`);
@@ -96,37 +93,55 @@ const ScoreEventPage = () => {
     }
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
-  if (!event) return <div className="container"><div className="card">Event not found</div></div>;
+  if (loading || authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-500">Event not found</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
-          <h2>Access Denied</h2>
-          <p>You must be an admin to score events.</p>
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h2>
+          <p className="text-gray-500">You must be an admin to score events.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>Score Event: {event.name}</h2>
-          <button onClick={() => navigate(-1)} className="btn btn-secondary">Cancel</button>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Score Event: {event.name}</h2>
+          <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">Cancel</button>
         </div>
 
         {event.heats.length > 1 && (
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ marginRight: '0.5rem', fontWeight: 500 }}>Round:</label>
+          <div className="mb-4">
+            <label className="mr-2 font-medium">Round:</label>
             {event.heats.map(heat => (
               <button
                 key={heat.round}
                 onClick={() => navigate(`/events/${id}/score/${heat.round}`)}
-                className={`btn ${heat.round === currentRound ? '' : 'btn-secondary'}`}
-                style={{ marginRight: '0.5rem', textTransform: 'capitalize' }}
+                className={`mr-2 px-4 py-2 rounded border-none cursor-pointer text-sm font-medium transition-colors capitalize ${
+                  heat.round === currentRound
+                    ? 'bg-primary-500 text-white hover:bg-primary-600'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
               >
                 {heat.round}
               </button>
@@ -134,25 +149,23 @@ const ScoreEventPage = () => {
           </div>
         )}
 
-        {error && <div className="error">{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded mb-4 text-sm">{error}</div>}
 
         {couples.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
+          <div className="text-center py-8 text-gray-500">
             <p>No couples in this round yet.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div style={{
-              background: isProficiency ? '#f0fff4' : isRecallRound ? '#fef3c7' : '#e6f7ff',
-              border: `1px solid ${isProficiency ? '#38a169' : isRecallRound ? '#f59e0b' : '#1890ff'}`,
-              padding: '1rem',
-              borderRadius: '4px',
-              marginBottom: '1rem'
-            }}>
+            <div className={`p-4 rounded mb-4 ${
+              isProficiency ? 'bg-green-50 border border-success-600' :
+              isRecallRound ? 'bg-amber-50 border border-amber-400' :
+              'bg-blue-50 border border-blue-400'
+            }`}>
               <strong>
-                {isProficiency ? 'Proficiency Scoring' : isRecallRound ? '📋 Recall Round' : '🏆 Final Round'}
+                {isProficiency ? 'Proficiency Scoring' : isRecallRound ? 'Recall Round' : 'Final Round'}
               </strong>
-              <p style={{ margin: '0.5rem 0 0 0' }}>
+              <p className="mt-2">
                 {isProficiency
                   ? 'Enter a score from 0-100 for each couple.'
                   : isRecallRound
@@ -161,28 +174,30 @@ const ScoreEventPage = () => {
               </p>
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th>Bib #</th>
-                    <th>Leader</th>
-                    <th>Follower</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Bib #</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Leader</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Follower</th>
                     {Array.from({ length: numJudges }, (_, i) => (
-                      <th key={i}>{heatJudges[i] ? `#${heatJudges[i].judgeNumber}: ${heatJudges[i].name}${heatJudges[i].isChairman ? ' \u2605' : ''}` : `Judge ${i + 1}`}</th>
+                      <th key={i} className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">
+                        {heatJudges[i] ? `#${heatJudges[i].judgeNumber}: ${heatJudges[i].name}${heatJudges[i].isChairman ? ' \u2605' : ''}` : `Judge ${i + 1}`}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {couples.map(couple => (
                     <tr key={couple.bib}>
-                      <td><strong>#{couple.bib}</strong></td>
-                      <td>{couple.leaderName}</td>
-                      <td>{couple.followerName}</td>
+                      <td className="px-3 py-2 border-t border-gray-100"><strong>#{couple.bib}</strong></td>
+                      <td className="px-3 py-2 border-t border-gray-100">{couple.leaderName}</td>
+                      <td className="px-3 py-2 border-t border-gray-100">{couple.followerName}</td>
                       {Array.from({ length: numJudges }, (_, judgeIndex) => {
                         const key = `${judgeIndex}-${couple.bib}`;
                         return (
-                          <td key={judgeIndex}>
+                          <td key={judgeIndex} className="px-3 py-2 border-t border-gray-100">
                             {isProficiency ? (
                               <input
                                 type="number"
@@ -190,14 +205,14 @@ const ScoreEventPage = () => {
                                 max="100"
                                 value={scores[key] ?? ''}
                                 onChange={e => handleScoreChange(judgeIndex, couple.bib, e.target.value)}
-                                style={{ width: '70px', textAlign: 'center' }}
+                                className="w-[70px] text-center px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                               />
                             ) : isRecallRound ? (
                               <input
                                 type="checkbox"
                                 checked={scores[key] === 1}
                                 onChange={() => handleScoreChange(judgeIndex, couple.bib, '')}
-                                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                className="w-5 h-5 cursor-pointer"
                               />
                             ) : (
                               <input
@@ -206,7 +221,7 @@ const ScoreEventPage = () => {
                                 max={couples.length}
                                 value={scores[key] || ''}
                                 onChange={e => handleScoreChange(judgeIndex, couple.bib, e.target.value)}
-                                style={{ width: '60px', textAlign: 'center' }}
+                                className="w-[60px] text-center px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                               />
                             )}
                           </td>
@@ -218,11 +233,11 @@ const ScoreEventPage = () => {
               </table>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn btn-success">
+            <div className="flex gap-2 mt-6">
+              <button type="submit" className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-success-600">
                 Submit Scores
               </button>
-              <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
+              <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                 Cancel
               </button>
             </div>

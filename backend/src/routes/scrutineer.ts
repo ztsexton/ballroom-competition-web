@@ -1,9 +1,26 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { RECALL_ROUNDS } from '../constants/rounds';
+import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
 const router = Router();
+
+// All scrutineer routes require at least competition-admin access
+router.use(requireAnyAdmin);
+
+// Check competition access for all routes with :eventId (look up event to find competitionId)
+router.use('/events/:eventId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const eventId = parseInt(req.params.eventId);
+  if (isNaN(eventId)) return next();
+  const event = await dataService.getEventById(eventId);
+  if (!event) {
+    res.status(404).json({ error: 'Event not found' });
+    return;
+  }
+  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  next();
+});
 
 // Get all judge scores for an event/round (bulk)
 router.get('/events/:eventId/rounds/:round/judge-scores', async (req: Request, res: Response) => {

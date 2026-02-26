@@ -25,16 +25,12 @@ export default function ScoringProgressPanel({
   return (
     <div>
       {/* Progress badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <strong style={{ fontSize: '1rem' }}>Scoring Progress</strong>
+      <div className="flex items-center gap-3 mb-4">
+        <strong className="text-base">Scoring Progress</strong>
         {progress && (
-          <span style={{
-            padding: '0.25rem 0.75rem',
-            background: progress.submittedCount === progress.totalJudges ? '#c6f6d5' : '#fefcbf',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}>
+          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+            progress.submittedCount === progress.totalJudges ? 'bg-green-100' : 'bg-yellow-100'
+          }`}>
             {progress.submittedCount} / {progress.totalJudges} judges
           </span>
         )}
@@ -42,18 +38,15 @@ export default function ScoringProgressPanel({
 
       {/* Judge status chips */}
       {progress && (
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div className="flex gap-2 flex-wrap mb-4">
           {progress.judges.map(judge => (
             <span
               key={judge.judgeId}
-              style={{
-                padding: '0.25rem 0.75rem',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                background: judge.hasSubmitted ? '#c6f6d5' : '#fed7d7',
-                color: judge.hasSubmitted ? '#276749' : '#9b2c2c',
-                fontWeight: 500,
-              }}
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                judge.hasSubmitted
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+              }`}
             >
               #{judge.judgeNumber}: {judge.judgeName}{judge.isChairman ? ' \u2605' : ''} {judge.hasSubmitted ? '\u2713' : '\u2026'}
             </span>
@@ -65,9 +58,9 @@ export default function ScoringProgressPanel({
       {progress && progress.entries.map(entry => {
         const hasDances = entry.dances && entry.dances.length > 0 && entry.danceScoresByBib;
         return (
-          <div key={`${entry.eventId}:${entry.round}`} style={{ marginBottom: '1rem' }}>
+          <div key={`${entry.eventId}:${entry.round}`} className="mb-4">
             {progress.entries.length > 1 && (
-              <h4 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '0.875rem' }}>
+              <h4 className="m-0 mb-2 text-gray-600 text-sm">
                 {events[entry.eventId]?.name || `Event #${entry.eventId}`} — {entry.round}
               </h4>
             )}
@@ -75,18 +68,18 @@ export default function ScoringProgressPanel({
               entry.dances!.map(dance => {
                 const danceScores = entry.danceScoresByBib![dance] || {};
                 return Object.keys(danceScores).length > 0 ? (
-                  <div key={dance} style={{ marginBottom: '0.75rem' }}>
-                    <h5 style={{ margin: '0 0 0.375rem', color: '#667eea', fontSize: '0.8125rem', fontWeight: 600 }}>
+                  <div key={dance} className="mb-3">
+                    <h5 className="m-0 mb-1.5 text-primary-500 text-[0.8125rem] font-semibold">
                       {dance}
                     </h5>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
                         <thead>
-                          <tr>
-                            <th>Bib</th>
-                            <th>Couple</th>
+                          <tr className="border-b-2 border-gray-200">
+                            <th className="text-left px-2 py-1.5">Bib</th>
+                            <th className="text-left px-2 py-1.5">Couple</th>
                             {progress.judges.map(j => (
-                              <th key={j.judgeId} style={{ textAlign: 'center' }}>
+                              <th key={j.judgeId} className="text-center px-2 py-1.5">
                                 #{j.judgeNumber}
                               </th>
                             ))}
@@ -97,11 +90,11 @@ export default function ScoringProgressPanel({
                             const bib = parseInt(bibStr);
                             const couple = couples.find(c => c.bib === bib);
                             return (
-                              <tr key={bib}>
-                                <td><strong>#{bib}</strong></td>
-                                <td>{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
+                              <tr key={bib} className="border-b border-gray-100">
+                                <td className="px-2 py-1.5"><strong>#{bib}</strong></td>
+                                <td className="px-2 py-1.5">{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
                                 {progress.judges.map(j => (
-                                  <td key={j.judgeId} style={{ textAlign: 'center', color: judgeScores[j.judgeId] !== undefined ? '#2d3748' : '#cbd5e0' }}>
+                                  <td key={j.judgeId} className={`text-center px-2 py-1.5 ${judgeScores[j.judgeId] !== undefined ? 'text-gray-800' : 'text-gray-300'}`}>
                                     {judgeScores[j.judgeId] !== undefined ? judgeScores[j.judgeId] : '--'}
                                   </td>
                                 ))}
@@ -116,14 +109,14 @@ export default function ScoringProgressPanel({
               })
             ) : (
               Object.keys(entry.scoresByBib).length > 0 && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr>
-                        <th>Bib</th>
-                        <th>Couple</th>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="text-left px-2 py-1.5">Bib</th>
+                        <th className="text-left px-2 py-1.5">Couple</th>
                         {progress.judges.map(j => (
-                          <th key={j.judgeId} style={{ textAlign: 'center' }}>
+                          <th key={j.judgeId} className="text-center px-2 py-1.5">
                             #{j.judgeNumber}{j.isChairman ? ' \u2605' : ''}
                           </th>
                         ))}
@@ -134,11 +127,11 @@ export default function ScoringProgressPanel({
                         const bib = parseInt(bibStr);
                         const couple = couples.find(c => c.bib === bib);
                         return (
-                          <tr key={bib}>
-                            <td><strong>#{bib}</strong></td>
-                            <td>{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
+                          <tr key={bib} className="border-b border-gray-100">
+                            <td className="px-2 py-1.5"><strong>#{bib}</strong></td>
+                            <td className="px-2 py-1.5">{couple ? `${couple.leaderName} & ${couple.followerName}` : 'Unknown'}</td>
                             {progress.judges.map(j => (
-                              <td key={j.judgeId} style={{ textAlign: 'center', color: judgeScores[j.judgeId] !== undefined ? '#2d3748' : '#cbd5e0' }}>
+                              <td key={j.judgeId} className={`text-center px-2 py-1.5 ${judgeScores[j.judgeId] !== undefined ? 'text-gray-800' : 'text-gray-300'}`}>
                                 {judgeScores[j.judgeId] !== undefined ? judgeScores[j.judgeId] : '--'}
                               </td>
                             ))}
@@ -155,8 +148,11 @@ export default function ScoringProgressPanel({
       })}
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button className="btn btn-success" onClick={onAdvance} style={{ fontSize: '1.125rem', padding: '0.75rem 2rem' }}>
+      <div className="flex gap-2 justify-center flex-wrap">
+        <button
+          className="px-8 py-3 bg-success-500 text-white rounded border-none cursor-pointer text-lg font-medium transition-colors hover:bg-success-600"
+          onClick={onAdvance}
+        >
           Mark Complete
         </button>
       </div>

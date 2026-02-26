@@ -14,7 +14,7 @@ const QuickScoreForm = ({
   isProAm?: boolean;
 }) => (
   <div>
-    <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
+    <p className="font-semibold mb-1.5 text-sm">
       Score each couple (0-100):
     </p>
     {couples.map(couple => {
@@ -22,57 +22,33 @@ const QuickScoreForm = ({
       return (
         <div
           key={couple.bib}
-          style={{
-            padding: '0.5rem 0.625rem',
-            marginBottom: '0.375rem',
-            borderRadius: '6px',
-            border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
-            borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
-            background: isProAm ? '#fffbeb' : '#fff',
-          }}
+          className={`px-2.5 py-2 mb-1.5 rounded-md ${
+            isProAm
+              ? 'border border-yellow-300 border-l-[3px] border-l-amber-500 bg-amber-50'
+              : 'border border-gray-200 bg-white'
+          }`}
         >
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.375rem',
-          }}>
-            <strong style={{ fontSize: '1.0625rem' }}>#{couple.bib}</strong>
-            <span style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: score > 0 ? '#2d3748' : '#cbd5e0',
-              minWidth: '40px',
-              textAlign: 'right',
-            }}>
+          <div className="flex justify-between items-center mb-1.5">
+            <strong className="text-[1.0625rem]">#{couple.bib}</strong>
+            <span className={`text-2xl font-bold min-w-[40px] text-right ${
+              score > 0 ? 'text-gray-800' : 'text-gray-300'
+            }`}>
               {score > 0 ? score : '--'}
             </span>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '0.25rem',
-            marginBottom: '0.3125rem',
-          }}>
+          <div className="grid grid-cols-4 gap-1 mb-[0.3125rem]">
             {SCORE_PRESETS.map(preset => {
               const isActive = score === preset;
               return (
                 <button
                   key={preset}
                   onClick={() => onChange(couple.bib, String(preset))}
-                  style={{
-                    minHeight: '36px',
-                    border: isActive ? '2px solid #667eea' : '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    background: isActive ? '#667eea' : '#f7fafc',
-                    color: isActive ? 'white' : '#2d3748',
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    touchAction: 'manipulation',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
+                  className={`min-h-[36px] rounded-md text-[0.9375rem] font-semibold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] ${
+                    isActive
+                      ? 'border-2 border-primary-500 bg-primary-500 text-white'
+                      : 'border border-gray-200 bg-gray-50 text-gray-800'
+                  }`}
                 >
                   {preset}
                 </button>
@@ -80,60 +56,19 @@ const QuickScoreForm = ({
             })}
           </div>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.75rem',
-          }}>
+          <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => onChange(couple.bib, String(Math.max(0, score - 1)))}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                border: '1px solid #e2e8f0',
-                background: '#f7fafc',
-                fontSize: '1.125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent',
-                color: '#4a5568',
-              }}
+              className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 text-lg font-bold cursor-pointer flex items-center justify-center touch-manipulation [-webkit-tap-highlight-color:transparent] text-gray-600"
             >
               -
             </button>
-            <span style={{
-              fontSize: '1rem',
-              fontWeight: 600,
-              color: '#718096',
-              minWidth: '30px',
-              textAlign: 'center',
-            }}>
+            <span className="text-base font-semibold text-gray-500 min-w-[30px] text-center">
               {score > 0 ? score : '--'}
             </span>
             <button
               onClick={() => onChange(couple.bib, String(Math.min(100, score + 1)))}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                border: '1px solid #e2e8f0',
-                background: '#f7fafc',
-                fontSize: '1.125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'transparent',
-                color: '#4a5568',
-              }}
+              className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 text-lg font-bold cursor-pointer flex items-center justify-center touch-manipulation [-webkit-tap-highlight-color:transparent] text-gray-600"
             >
               +
             </button>

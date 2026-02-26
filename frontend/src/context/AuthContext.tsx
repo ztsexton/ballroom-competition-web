@@ -10,6 +10,9 @@ interface AuthContextType {
   user: FirebaseUser | null;
   currentUser: User | null;
   isAdmin: boolean;
+  isCompetitionAdmin: boolean;
+  adminCompetitionIds: number[];
+  isAnyAdmin: boolean;
   loading: boolean;
   error: string | null;
   login: () => Promise<void>;
@@ -34,6 +37,8 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, firebaseLoading, hookError] = useAuthState(auth);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [adminCompetitionIds, setAdminCompetitionIds] = useState<number[]>([]);
+  const [isCompetitionAdmin, setIsCompetitionAdmin] = useState(false);
   const [userLoading, setUserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,8 +46,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (user) {
       setUserLoading(true);
       try {
-        const response = await usersApi.getMe();
-        setCurrentUser(response.data);
+        const [meRes, adminRes] = await Promise.allSettled([
+          usersApi.getMe(),
+          usersApi.getAdminCompetitions(),
+        ]);
+        if (meRes.status === 'fulfilled') {
+          setCurrentUser(meRes.value.data);
+        }
+        if (adminRes.status === 'fulfilled') {
+          setAdminCompetitionIds(adminRes.value.data.competitionIds);
+          setIsCompetitionAdmin(adminRes.value.data.isCompetitionAdmin);
+        } else {
+          // Graceful fallback if competition_admins table doesn't exist yet
+          setAdminCompetitionIds([]);
+          setIsCompetitionAdmin(false);
+        }
       } catch (err) {
         console.error('Error fetching current user:', err);
       } finally {
@@ -50,6 +68,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     } else {
       setCurrentUser(null);
+      setAdminCompetitionIds([]);
+      setIsCompetitionAdmin(false);
       setUserLoading(false);
     }
   }, [user]);
@@ -78,6 +98,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setError(null);
       await firebaseSignOut(auth);
       setCurrentUser(null);
+      setAdminCompetitionIds([]);
+      setIsCompetitionAdmin(false);
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to sign out';
       setError(errorMessage);
@@ -85,16 +107,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
+  const isAdmin = currentUser?.isAdmin || false;
+  const isAnyAdmin = isAdmin || isCompetitionAdmin;
+
   const value = useMemo(() => ({
     user: user ?? null,
     currentUser,
-    isAdmin: currentUser?.isAdmin || false,
+    isAdmin,
+    isCompetitionAdmin,
+    adminCompetitionIds,
+    isAnyAdmin,
     loading: firebaseLoading || userLoading,
     error: error || hookError?.message || null,
     login,
     logout,
     refreshUser,
-  }), [user, currentUser, firebaseLoading, userLoading, error, hookError, login, logout, refreshUser]);
+  }), [user, currentUser, isAdmin, isCompetitionAdmin, adminCompetitionIds, isAnyAdmin, firebaseLoading, userLoading, error, hookError, login, logout, refreshUser]);
 
   return (
     <AuthContext.Provider value={value}>

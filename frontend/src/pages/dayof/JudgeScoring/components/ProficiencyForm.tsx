@@ -12,43 +12,26 @@ const ProficiencyForm = ({
   isProAm?: boolean;
 }) => (
   <div>
-    <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
+    <p className="font-semibold mb-1.5 text-sm">
       Score each couple (0-100):
     </p>
     {couples.map(couple => (
       <div
         key={couple.bib}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.5rem 0.625rem',
-          marginBottom: '0.3125rem',
-          borderRadius: '6px',
-          border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
-          borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
-          background: isProAm ? '#fffbeb' : '#fff',
-          minHeight: '44px',
-        }}
+        className={`flex items-center gap-2 px-2.5 py-2 mb-[0.3125rem] rounded-md min-h-[44px] ${
+          isProAm
+            ? 'border border-yellow-300 border-l-[3px] border-l-amber-500 bg-amber-50'
+            : 'border border-gray-200 bg-white'
+        }`}
       >
-        <strong style={{ fontSize: '1.0625rem', flex: 1 }}>#{couple.bib}</strong>
+        <strong className="text-[1.0625rem] flex-1">#{couple.bib}</strong>
         <input
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
           value={scores[couple.bib] ?? ''}
           onChange={(e) => onChange(couple.bib, e.target.value)}
-          style={{
-            width: '56px',
-            height: '40px',
-            textAlign: 'center',
-            padding: '0.125rem',
-            border: '2px solid #cbd5e0',
-            borderRadius: '6px',
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            touchAction: 'manipulation',
-          }}
+          className="w-14 h-10 text-center p-0.5 border-2 border-gray-300 rounded-md text-xl font-bold touch-manipulation"
         />
       </div>
     ))}

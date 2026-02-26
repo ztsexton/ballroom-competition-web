@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { usersApi } from '../../api/client';
 import { User } from '../../types';
+import { Skeleton } from '../../components/Skeleton';
 
 const UsersPage = () => {
   const { isAdmin } = useAuth();
@@ -40,8 +41,8 @@ const UsersPage = () => {
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to view this page.</p>
         </div>
@@ -50,113 +51,100 @@ const UsersPage = () => {
   }
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <Skeleton className="h-8 w-56 mb-4" />
+          <Skeleton className="h-4 w-72 mb-8" />
+          <Skeleton variant="table" rows={5} cols={5} />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container">
-      <div className="card">
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2>User Management</h2>
-        <p style={{ marginBottom: '2rem', color: '#718096' }}>
+        <p className="mb-8 text-gray-500">
           Manage user roles and permissions
         </p>
 
         {error && (
-          <div style={{
-            padding: '0.75rem',
-            backgroundColor: '#fed7d7',
-            color: '#c53030',
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
+          <div className="px-3 py-3 bg-red-100 text-red-700 rounded mb-4">
             {error}
           </div>
         )}
 
         {users.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#a0aec0' }}>
+          <p className="text-center text-gray-400">
             No users have signed in yet.
           </p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>User</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Email</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Last Login</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Admin</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.uid} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {user.photoURL && (
-                        <img
-                          src={user.photoURL}
-                          alt={user.displayName || user.email}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%'
-                          }}
-                        />
-                      )}
-                      <span>{user.displayName || 'No name'}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>{user.email}</td>
-                  <td style={{ padding: '0.75rem' }}>
-                    {new Date(user.lastLoginAt).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                    {user.isAdmin ? (
-                      <span style={{
-                        backgroundColor: '#667eea',
-                        color: 'white',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
-                        Admin
-                      </span>
-                    ) : (
-                      <span style={{
-                        backgroundColor: '#e2e8f0',
-                        color: '#4a5568',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
-                        User
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                    {user.email === 'zsexton2011@gmail.com' ? (
-                      <span style={{ color: '#a0aec0', fontSize: '0.875rem' }}>
-                        Primary Admin
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => toggleAdmin(user.uid, user.isAdmin)}
-                        className="btn"
-                        style={{
-                          padding: '0.5rem 1rem',
-                          fontSize: '0.875rem',
-                          backgroundColor: user.isAdmin ? '#e53e3e' : '#667eea'
-                        }}
-                      >
-                        {user.isAdmin ? 'Remove Admin' : 'Make Admin'}
-                      </button>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="p-3 text-left text-sm font-semibold text-gray-600">User</th>
+                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Last Login</th>
+                  <th className="p-3 text-center text-sm font-semibold text-gray-600">Admin</th>
+                  <th className="p-3 text-center text-sm font-semibold text-gray-600">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.uid} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {user.photoURL && (
+                          <img
+                            src={user.photoURL}
+                            alt={user.displayName || user.email}
+                            className="w-8 h-8 rounded-full"
+                          />
+                        )}
+                        <span>{user.displayName || 'No name'}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">{user.email}</td>
+                    <td className="p-3">
+                      {new Date(user.lastLoginAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-3 text-center">
+                      {user.isAdmin ? (
+                        <span className="bg-primary-500 text-white px-2 py-1 rounded text-sm">
+                          Admin
+                        </span>
+                      ) : (
+                        <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-sm">
+                          User
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {user.email === 'zsexton2011@gmail.com' ? (
+                        <span className="text-gray-400 text-sm">
+                          Primary Admin
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => toggleAdmin(user.uid, user.isAdmin)}
+                          className={`px-4 py-2 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors ${
+                            user.isAdmin
+                              ? 'bg-danger-500 hover:bg-danger-600'
+                              : 'bg-primary-500 hover:bg-primary-600'
+                          }`}
+                        >
+                          {user.isAdmin ? 'Remove Admin' : 'Make Admin'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

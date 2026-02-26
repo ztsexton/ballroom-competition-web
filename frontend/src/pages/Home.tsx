@@ -4,18 +4,11 @@ import { competitionsApi, databaseApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useCompetition } from '../context/CompetitionContext';
 import { Competition } from '../types';
-
-const typeColors: Record<string, { bg: string; text: string }> = {
-  NDCA: { bg: '#e9d8fd', text: '#553c9a' },
-  USA_DANCE: { bg: '#bee3f8', text: '#2a4365' },
-  WDC: { bg: '#d1fae5', text: '#059669' },
-  WDSF: { bg: '#fef3c7', text: '#d97706' },
-  STUDIO: { bg: '#fefcbf', text: '#744210' },
-  UNAFFILIATED: { bg: '#e2e8f0', text: '#4a5568' },
-};
+import { CompetitionTypeBadge } from '../components/CompetitionTypeBadge';
+import { Skeleton } from '../components/Skeleton';
 
 const Home = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
   const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +27,6 @@ const Home = () => {
     try {
       const res = await databaseApi.seed();
       setSeedMessage({ type: 'success', text: res.data.message });
-      // Refresh both local list and global CompetitionContext
       const compsRes = await competitionsApi.getAll();
       setCompetitions(compsRes.data);
       await refreshCompetitions();
@@ -48,7 +40,7 @@ const Home = () => {
   };
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isAnyAdmin) {
       setLoading(false);
       return;
     }
@@ -56,12 +48,24 @@ const Home = () => {
       .then(res => setCompetitions(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, [isAnyAdmin]);
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <Skeleton variant="card" className="mb-6" />
+        <div className="flex gap-3 mb-6">
+          <Skeleton className="h-10 w-40" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} variant="card" />)}
+        </div>
+      </div>
+    );
+  }
 
-  // Non-admins get redirected to participant portal
-  if (!isAdmin) return <Navigate to="/portal" replace />;
+  if (!isAnyAdmin) return <Navigate to="/portal" replace />;
 
   const query = search.toLowerCase().trim();
   const filtered = competitions.filter(c =>
@@ -78,35 +82,28 @@ const Home = () => {
   });
 
   return (
-    <div className="container">
-      <div className="card">
-        <h2 style={{ marginBottom: '0.5rem' }}>Ballroom Scorer</h2>
-        <p style={{ color: '#718096' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-1">Ballroom Scorer</h2>
+        <p className="text-gray-500">
           Manage competitions, participants, events, scheduling, and scoring.
         </p>
       </div>
 
       {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <Link to="/competitions" className="btn">
+      <div className="flex gap-3 mb-6">
+        <Link to="/competitions" className="inline-block px-4 py-2 bg-primary-500 text-white rounded no-underline text-sm font-medium hover:bg-primary-600 transition-colors">
           + New Competition
         </Link>
-        <Link to="/competitions" className="btn btn-secondary">
+        <Link to="/competitions" className="inline-block px-4 py-2 bg-gray-500 text-white rounded no-underline text-sm font-medium hover:bg-gray-600 transition-colors">
           View All Competitions
         </Link>
       </div>
 
       {/* Search + Competitions List */}
       <div>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}>
-          <h3 style={{ margin: 0, color: '#4a5568' }}>
+        <div className="flex justify-between items-center mb-3 gap-4 flex-wrap">
+          <h3 className="text-gray-600 font-semibold">
             Competitions ({sorted.length})
           </h3>
           {competitions.length > 0 && (
@@ -115,109 +112,73 @@ const Home = () => {
               placeholder="Search competitions..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{
-                padding: '0.5rem 0.75rem',
-                border: '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                width: '240px',
-                outline: 'none',
-              }}
+              className="px-3 py-2 border border-gray-200 rounded-md text-sm w-60 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
             />
           )}
         </div>
 
         {sorted.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <h3 style={{ color: '#718096', marginBottom: '0.5rem' }}>
+          <div className="bg-white rounded-lg shadow text-center py-12 px-6">
+            <h3 className="text-gray-500 mb-2">
               {query ? 'No matching competitions' : 'No competitions yet'}
             </h3>
-            <p style={{ color: '#a0aec0' }}>
+            <p className="text-gray-400">
               {query ? 'Try a different search term.' : 'Create your first competition to get started.'}
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {sorted.map(comp => {
-              const colors = typeColors[comp.type] || typeColors.UNAFFILIATED;
-              return (
-                <Link
-                  key={comp.id}
-                  to={`/competitions/${comp.id}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    padding: '1rem 1.25rem',
-                    background: 'white',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    transition: 'box-shadow 0.15s',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '1.0625rem', marginBottom: '0.25rem' }}>
-                      {comp.name}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', fontSize: '0.875rem', color: '#718096' }}>
-                      <span style={{
-                        padding: '0.125rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        background: colors.bg,
-                        color: colors.text,
-                      }}>
-                        {comp.type.replace('_', ' ')}
-                      </span>
-                      <span>{new Date(comp.date).toLocaleDateString()}</span>
-                      {comp.location && <span>{comp.location}</span>}
-                    </div>
+          <div className="flex flex-col gap-3">
+            {sorted.map(comp => (
+              <Link
+                key={comp.id}
+                to={`/competitions/${comp.id}`}
+                className="flex items-center gap-4 px-5 py-4 bg-white rounded-lg shadow no-underline text-inherit transition-shadow hover:shadow-md"
+              >
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-800 text-[1.0625rem] mb-1">
+                    {comp.name}
                   </div>
-                  <span style={{ color: '#667eea', fontSize: '1rem', fontWeight: 600 }}>
-                    Manage &rsaquo;
-                  </span>
-                </Link>
-              );
-            })}
+                  <div className="flex gap-3 items-center text-sm text-gray-500">
+                    <CompetitionTypeBadge type={comp.type} />
+                    <span>{new Date(comp.date).toLocaleDateString()}</span>
+                    {comp.location && <span>{comp.location}</span>}
+                  </div>
+                </div>
+                <span className="text-primary-500 font-semibold">
+                  Manage &rsaquo;
+                </span>
+              </Link>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Developer Tools */}
-      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
-        <h3 style={{ margin: '0 0 0.75rem', color: '#4a5568' }}>Developer Tools</h3>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '200px' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Create Test Competition</div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>
+      {/* Developer Tools (site admin only) */}
+      {isAdmin && <div className="mt-8 pt-6 border-t border-gray-200">
+        <h3 className="text-gray-600 font-semibold mb-3">Developer Tools</h3>
+        <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <div className="font-semibold text-gray-800 mb-1">Create Test Competition</div>
+            <p className="text-sm text-gray-500">
               Seed "Galaxy Ballroom Classic 2026" with sample studios, people, couples, events, and entries for demos and testing.
             </p>
           </div>
           <button
-            className="btn"
             onClick={handleSeedTestCompetition}
             disabled={seeding}
-            style={{ whiteSpace: 'nowrap' }}
+            className={`px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium whitespace-nowrap transition-colors hover:bg-primary-600 ${seeding ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {seeding ? 'Creating...' : 'Create Test Competition'}
           </button>
         </div>
         {seedMessage && (
-          <div style={{
-            marginTop: '0.75rem',
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            background: seedMessage.type === 'success' ? '#c6f6d5' : '#fed7d7',
-            color: seedMessage.type === 'success' ? '#276749' : '#c53030',
-            fontSize: '0.875rem',
-          }}>
+          <div className={`mt-3 px-4 py-3 rounded-md text-sm ${
+            seedMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+          }`}>
             {seedMessage.text}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 };

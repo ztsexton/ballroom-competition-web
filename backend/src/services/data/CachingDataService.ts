@@ -1,6 +1,7 @@
 import { IDataService } from './IDataService';
 import {
   Competition,
+  CompetitionAdmin,
   Studio,
   Organization,
   Person,
@@ -583,6 +584,28 @@ export class CachingDataService implements IDataService {
 
   async hasAnyScores(eventId: number): Promise<boolean> {
     return this.inner.hasAnyScores(eventId);
+  }
+
+  // -- Competition Admins (pass-through, no caching) --
+
+  async getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]> {
+    return this.inner.getCompetitionAdmins(competitionId);
+  }
+
+  async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
+    return this.inner.getCompetitionsByAdmin(userUid);
+  }
+
+  async addCompetitionAdmin(competitionId: number, userUid: string, role?: string): Promise<CompetitionAdmin> {
+    return this.inner.addCompetitionAdmin(competitionId, userUid, role);
+  }
+
+  async removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    return this.inner.removeCompetitionAdmin(competitionId, userUid);
+  }
+
+  async isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
+    return this.inner.isCompetitionAdmin(competitionId, userUid);
   }
 
   // -- Cache management --

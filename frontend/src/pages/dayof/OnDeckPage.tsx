@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { judgingApi } from '../../api/client';
 import { CompetitionSchedule, Event, Couple, Competition, ScheduledHeat } from '../../types';
 import { useCompetitionSSE } from '../../hooks/useCompetitionSSE';
+import { Skeleton } from '../../components/Skeleton';
 
 const OnDeckPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,15 +47,18 @@ const OnDeckPage = () => {
     onScoreUpdate: () => loadData(),
   });
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <Skeleton variant="card" />;
 
   if (error || !schedule) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-[900px] mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>On-Deck Captain</h2>
           <p>{error || 'No schedule found.'}</p>
-          <button className="btn btn-secondary" onClick={() => navigate(-1)} style={{ marginTop: '1rem' }}>
+          <button
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4"
+            onClick={() => navigate(-1)}
+          >
             Go Back
           </button>
         </div>
@@ -114,22 +118,14 @@ const OnDeckPage = () => {
   };
 
   const statusBadge = (status: string) => {
-    const colors: Record<string, { bg: string; text: string }> = {
-      pending: { bg: '#e2e8f0', text: '#4a5568' },
-      scoring: { bg: '#fefcbf', text: '#744210' },
-      completed: { bg: '#c6f6d5', text: '#276749' },
+    const classes: Record<string, string> = {
+      pending: 'bg-gray-200 text-gray-600',
+      scoring: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
     };
-    const c = colors[status] || colors.pending;
+    const c = classes[status] || classes.pending;
     return (
-      <span style={{
-        padding: '0.25rem 0.75rem',
-        borderRadius: '9999px',
-        fontSize: '0.875rem',
-        fontWeight: 600,
-        background: c.bg,
-        color: c.text,
-        textTransform: 'uppercase',
-      }}>
+      <span className={`px-3 py-1 rounded-full text-sm font-semibold uppercase ${c}`}>
         {status}
       </span>
     );
@@ -168,38 +164,32 @@ const OnDeckPage = () => {
     return round;
   };
 
-  const renderCoupleList = (heat: ScheduledHeat, bgColor: string = '#f7fafc') => {
+  const renderCoupleList = (heat: ScheduledHeat, chipBg: string = 'bg-gray-50') => {
     const entryCouples = getHeatCouples(heat);
     const multiEntry = heat.entries.length > 1;
     const totalCouples = entryCouples.reduce((sum, e) => sum + e.couples.length, 0);
 
     if (totalCouples === 0) {
-      return <p style={{ color: '#a0aec0', fontSize: '0.875rem', margin: 0 }}>Couples TBD</p>;
+      return <p className="text-gray-400 text-sm m-0">Couples TBD</p>;
     }
 
     return (
       <div>
         {entryCouples.map((ec, idx) => (
-          <div key={idx} style={{ marginBottom: idx < entryCouples.length - 1 ? '0.5rem' : 0 }}>
+          <div key={idx} className={idx < entryCouples.length - 1 ? 'mb-2' : ''}>
             {multiEntry && (
-              <strong style={{ fontSize: '0.8rem', color: '#718096', display: 'block', marginBottom: '0.25rem' }}>
+              <strong className="text-xs text-gray-500 block mb-1">
                 {ec.eventName} ({ec.couples.length}):
               </strong>
             )}
             {!multiEntry && (
-              <strong style={{ fontSize: '0.875rem', color: '#718096' }}>
+              <strong className="text-sm text-gray-500">
                 Couples ({ec.couples.length}):
               </strong>
             )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+            <div className="flex flex-wrap gap-2 mt-1">
               {ec.couples.map(c => (
-                <span key={c.bib} style={{
-                  padding: '0.25rem 0.5rem',
-                  background: bgColor,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem',
-                }}>
+                <span key={c.bib} className={`px-2 py-1 ${chipBg} border border-gray-200 rounded text-sm`}>
                   <strong>#{c.bib}</strong> {c.leaderName} & {c.followerName}
                 </span>
               ))}
@@ -211,30 +201,27 @@ const OnDeckPage = () => {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '900px' }}>
+    <div className="max-w-[900px] mx-auto p-8">
       {/* Header */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h2 style={{ margin: 0 }}>On-Deck Captain</h2>
-          <span style={{ color: '#718096' }}>
+      <div className="bg-white rounded-lg shadow p-6 mb-4">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="m-0">On-Deck Captain</h2>
+          <span className="text-gray-500">
             Heat {schedule.currentHeatIndex + 1} of {totalCount} ({completedCount} completed)
           </span>
         </div>
         {competition && (
-          <p style={{ color: '#4a5568', margin: '0.5rem 0 0' }}>{competition.name}</p>
+          <p className="text-gray-600 mt-2 mb-0">{competition.name}</p>
         )}
       </div>
 
       {/* NOW ON FLOOR */}
-      <div className="card" style={{
-        marginBottom: '1rem',
-        borderLeft: '4px solid #667eea',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: '#667eea' }}>NOW ON FLOOR</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-4 border-l-4 border-primary-500">
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-3">
+            <h3 className="m-0 text-primary-500">NOW ON FLOOR</h3>
             {currentHeat?.estimatedStartTime && (
-              <span style={{ fontSize: '0.8125rem', color: '#718096' }}>
+              <span className="text-[0.8125rem] text-gray-500">
                 {currentHeat.actualStartTime
                   ? `Started ${formatTime(currentHeat.actualStartTime)}`
                   : `Est. ${formatTime(currentHeat.estimatedStartTime)}`}
@@ -245,14 +232,14 @@ const OnDeckPage = () => {
         </div>
 
         {!currentHeat ? (
-          <p style={{ color: '#718096' }}>No current heat</p>
+          <p className="text-gray-500">No current heat</p>
         ) : currentHeat.isBreak ? (
           <div>
-            <p style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.25rem' }}>
+            <p className="text-xl font-semibold mb-1 mt-0">
               {currentHeat.breakLabel || 'Break'}
             </p>
             {currentHeat.breakDuration && (
-              <p style={{ color: '#718096', margin: 0 }}>{currentHeat.breakDuration} minutes</p>
+              <p className="text-gray-500 m-0">{currentHeat.breakDuration} minutes</p>
             )}
           </div>
         ) : currentHeat.entries.length > 0 ? (
@@ -264,36 +251,32 @@ const OnDeckPage = () => {
                 + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
                 + (entry.dance ? ` — ${entry.dance}` : '');
               return (
-                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
-                  <p style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} className="mb-1">
+                  <p className="text-xl font-semibold mt-0 mb-0.5">
                     {formatEventLabel(event)}
                   </p>
-                  <p style={{ color: '#4a5568', margin: 0 }}>
+                  <p className="text-gray-600 m-0">
                     {roundLabel}
                   </p>
                 </div>
               );
             })}
-            <div style={{ marginTop: '0.75rem' }}>
+            <div className="mt-3">
               {renderCoupleList(currentHeat)}
             </div>
           </div>
         ) : (
-          <p style={{ color: '#718096' }}>Event not found</p>
+          <p className="text-gray-500">Event not found</p>
         )}
       </div>
 
       {/* ON DECK */}
       {nextHeat && (
-        <div className="card" style={{
-          marginBottom: '1rem',
-          borderLeft: '4px solid #ed8936',
-          background: '#fffaf0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: '#c05621' }}>ON DECK — Get Ready!</h3>
+        <div className="bg-white rounded-lg shadow p-6 mb-4 border-l-4 border-orange-500 bg-orange-50">
+          <div className="flex items-center gap-3 mb-3">
+            <h3 className="m-0 text-orange-700">ON DECK — Get Ready!</h3>
             {nextHeat.estimatedStartTime && (
-              <span style={{ fontSize: '0.8125rem', color: '#718096' }}>
+              <span className="text-[0.8125rem] text-gray-500">
                 Est. {formatTime(nextHeat.estimatedStartTime)}
               </span>
             )}
@@ -301,11 +284,11 @@ const OnDeckPage = () => {
 
           {nextHeat.isBreak ? (
             <div>
-              <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.25rem', fontStyle: 'italic' }}>
+              <p className="text-lg font-semibold mb-1 mt-0 italic">
                 {nextHeat.breakLabel || 'Break'}
               </p>
               {nextHeat.breakDuration && (
-                <p style={{ color: '#718096', margin: 0 }}>{nextHeat.breakDuration} minutes</p>
+                <p className="text-gray-500 m-0">{nextHeat.breakDuration} minutes</p>
               )}
             </div>
           ) : nextHeat.entries.length > 0 ? (
@@ -317,52 +300,44 @@ const OnDeckPage = () => {
                   + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
                   + (entry.dance ? ` — ${entry.dance}` : '');
                 return (
-                  <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
-                    <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
+                  <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} className="mb-1">
+                    <p className="text-lg font-semibold mt-0 mb-0.5">
                       {formatEventLabel(event)}
                     </p>
-                    <p style={{ color: '#4a5568', margin: 0 }}>
+                    <p className="text-gray-600 m-0">
                       {nextRoundLabel}
                     </p>
                   </div>
                 );
               })}
-              <div style={{ marginTop: '0.75rem' }}>
-                {renderCoupleList(nextHeat, 'white')}
+              <div className="mt-3">
+                {renderCoupleList(nextHeat, 'bg-white')}
               </div>
             </div>
           ) : (
-            <p style={{ color: '#718096' }}>Event not found</p>
+            <p className="text-gray-500">Event not found</p>
           )}
         </div>
       )}
 
       {/* COMING UP */}
       {upcomingHeats.length > 0 && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.75rem', color: '#4a5568' }}>COMING UP</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 className="mt-0 mb-3 text-gray-600">COMING UP</h3>
+          <div className="flex flex-col gap-2">
             {upcomingHeats.map((heat, idx) => {
               const heatIdx = schedule.currentHeatIndex + 2 + idx;
               const status = schedule.heatStatuses[heat.id] || 'pending';
 
               if (heat.isBreak) {
                 return (
-                  <div key={heat.id + '-' + heatIdx} style={{
-                    padding: '0.5rem 0.75rem',
-                    background: '#fefce8',
-                    borderRadius: '4px',
-                    fontStyle: 'italic',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}>
+                  <div key={heat.id + '-' + heatIdx} className="px-3 py-2 bg-yellow-50 rounded flex justify-between items-center italic">
                     <span>
                       <strong>{heatIdx + 1}.</strong>{' '}
                       {heat.breakLabel || 'Break'}
                       {heat.breakDuration ? ` — ${heat.breakDuration} min` : ''}
                       {heat.estimatedStartTime && (
-                        <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+                        <span className="text-gray-400 ml-2 text-[0.8125rem]">
                           {formatTime(heat.estimatedStartTime)}
                         </span>
                       )}
@@ -375,20 +350,13 @@ const OnDeckPage = () => {
               const coupleCount = getAllHeatCouples(heat).length;
 
               return (
-                <div key={heat.id + '-' + heatIdx} style={{
-                  padding: '0.5rem 0.75rem',
-                  background: '#f7fafc',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
+                <div key={heat.id + '-' + heatIdx} className="px-3 py-2 bg-gray-50 rounded flex justify-between items-center">
                   <span>
                     <strong>{heatIdx + 1}.</strong>{' '}
                     {getHeatLabel(heat)} ({getHeatRound(heat)})
-                    {coupleCount > 0 && <span style={{ color: '#718096' }}> — {coupleCount} couples</span>}
+                    {coupleCount > 0 && <span className="text-gray-500"> — {coupleCount} couples</span>}
                     {heat.estimatedStartTime && (
-                      <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8125rem' }}>
+                      <span className="text-gray-400 ml-2 text-[0.8125rem]">
                         {formatTime(heat.estimatedStartTime)}
                       </span>
                     )}
@@ -401,8 +369,11 @@ const OnDeckPage = () => {
         </div>
       )}
 
-      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-        <button className="btn btn-secondary" onClick={() => navigate(-1)}>
+      <div className="text-center mt-4">
+        <button
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+          onClick={() => navigate(-1)}
+        >
           Back
         </button>
       </div>

@@ -25,51 +25,35 @@ export default function ResetModal({
   const heatsAffected = Math.max(0, schedule.currentHeatIndex - targetIndex);
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '2rem',
-        borderRadius: '8px',
-        maxWidth: '520px',
-        width: '90%',
-      }}>
-        <h3 style={{ color: '#e53e3e', marginTop: 0, marginBottom: '0.5rem' }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+      <div className="bg-white p-8 rounded-lg max-w-[520px] w-[90%]">
+        <h3 className="text-danger-500 mt-0 mb-2 font-semibold">
           Reset: {targetLabel}
         </h3>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        <p className="text-gray-500 text-sm mb-6">
           Choose how to handle this heat. Scores will be permanently cleared.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div className="flex flex-col gap-3 mb-6">
           <button
-            className="btn"
-            style={{ background: '#dd6b20', borderColor: '#dd6b20', textAlign: 'left', padding: '0.75rem 1rem' }}
+            className="bg-orange-600 text-white rounded border-none cursor-pointer text-left px-4 py-3 transition-colors hover:bg-orange-700"
             onClick={onRerun}
           >
             <strong>Re-run this heat only</strong>
             <br />
-            <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+            <span className="text-xs opacity-90">
               Clear scores for this heat and jump to it. All other results are kept.
             </span>
           </button>
 
           {heatsAffected > 0 && (
             <button
-              className="btn"
-              style={{ background: '#e53e3e', borderColor: '#e53e3e', textAlign: 'left', padding: '0.75rem 1rem' }}
+              className="bg-danger-500 text-white rounded border-none cursor-pointer text-left px-4 py-3 transition-colors hover:bg-danger-600"
               onClick={onReset}
             >
               <strong>Reset to this heat</strong>
               <br />
-              <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
+              <span className="text-xs opacity-90">
                 Clear scores for this heat and the {heatsAffected} heat{heatsAffected !== 1 ? 's' : ''} after
                 it (through the current position). Earlier results are kept.
               </span>
@@ -78,9 +62,8 @@ export default function ResetModal({
         </div>
 
         <button
-          className="btn btn-secondary"
+          className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
           onClick={onCancel}
-          style={{ width: '100%' }}
         >
           Cancel
         </button>

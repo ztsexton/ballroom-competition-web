@@ -23,62 +23,29 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="container" style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh'
-    }}>
-      <div className="card" style={{
-        maxWidth: '500px',
-        width: '100%',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ marginBottom: '0.5rem', color: '#667eea' }}>
+    <div className="flex justify-center items-center min-h-screen px-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-[500px] w-full text-center p-8">
+        <h1 className="text-2xl font-bold text-primary-500 mb-2">
           Ballroom Scorer
         </h1>
-        <p style={{ marginBottom: '2rem', color: '#718096' }}>
+        <p className="text-gray-500 mb-8">
           Sign in to manage your ballroom dance competitions
         </p>
 
         <button
           onClick={handleLogin}
-          className="btn"
-          style={{
-            width: '100%',
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            backgroundColor: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5568d3'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#667eea'}
+          className="w-full py-3 px-6 bg-primary-500 text-white border-none rounded-md cursor-pointer text-base font-medium transition-colors hover:bg-primary-600"
         >
-          🔐 Sign in with Google
+          Sign in with Google
         </button>
 
         {error && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            backgroundColor: '#fed7d7',
-            color: '#c53030',
-            borderRadius: '4px',
-            fontSize: '0.9rem'
-          }}>
+          <div className="mt-4 px-3 py-3 bg-red-100 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
 
-        <p style={{
-          marginTop: '2rem',
-          fontSize: '0.85rem',
-          color: '#a0aec0'
-        }}>
+        <p className="mt-8 text-sm text-gray-400">
           Secure authentication powered by Google
         </p>
       </div>

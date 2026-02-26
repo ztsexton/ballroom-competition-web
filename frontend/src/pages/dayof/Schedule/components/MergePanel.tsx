@@ -81,39 +81,28 @@ export default function MergePanel({
   }
 
   return (
-    <div style={{
-      background: '#ebf8ff',
-      border: '1px solid #63b3ed',
-      borderRadius: '8px',
-      padding: '0.75rem 1rem',
-      marginTop: '1rem',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '0.875rem' }}>
+    <div className="bg-blue-50 border border-blue-400 rounded-lg px-4 py-3 mt-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm">
           <strong>Merging:</strong> {sourceLabel} ({sourceCouples} couple{sourceCouples !== 1 ? 's' : ''})
         </span>
         <button
-          className="btn btn-secondary"
-          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+          className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-xs font-medium transition-colors hover:bg-gray-200"
           onClick={onCancel}
         >
           Cancel
         </button>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.8125rem', color: '#4a5568' }}>
+      <div className="flex items-center justify-between">
+        <span className="text-[0.8125rem] text-gray-600">
           Select heats below to merge with this one.
           {' '}
-          <span style={{
-            fontWeight: 600,
-            color: overLimit ? '#c53030' : '#276749',
-          }}>
+          <span className={`font-semibold ${overLimit ? 'text-red-700' : 'text-green-800'}`}>
             Total: {totalCouples} / {maxCouplesPerHeat} couples
           </span>
         </span>
         <button
-          className="btn"
-          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+          className="px-3 py-1 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
           disabled={mergeSelected.size === 0 || overLimit}
           onClick={onMerge}
         >
@@ -121,18 +110,11 @@ export default function MergePanel({
         </button>
       </div>
       {hasDanceDifferences && (
-        <div style={{
-          background: '#fffbeb',
-          border: '1px solid #f59e0b',
-          borderRadius: '6px',
-          padding: '0.5rem 0.75rem',
-          marginTop: '0.5rem',
-          fontSize: '0.8125rem',
-        }}>
-          <strong style={{ color: '#92400e' }}>Different dance lists</strong>
-          <span style={{ color: '#78350f' }}> — combined heat dances: {fullDanceOrder.join(', ')}</span>
+        <div className="bg-amber-50 border border-amber-500 rounded-md px-3 py-2 mt-2 text-[0.8125rem]">
+          <strong className="text-amber-800">Different dance lists</strong>
+          <span className="text-amber-900"> — combined heat dances: {fullDanceOrder.join(', ')}</span>
           {earlyExits.length > 0 && (
-            <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem', color: '#92400e' }}>
+            <ul className="mt-1 mb-0 pl-5 text-amber-800">
               {earlyExits.map(({ name, exitAfter }) => (
                 <li key={name}>
                   <strong>{name}</strong> couples exit the floor after the {exitAfter}

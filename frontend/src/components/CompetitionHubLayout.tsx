@@ -3,6 +3,7 @@ import { Outlet, NavLink, Link, useParams } from 'react-router-dom';
 import { competitionsApi } from '../api/client';
 import { useCompetition } from '../context/CompetitionContext';
 import { Competition } from '../types';
+import { Skeleton } from './Skeleton';
 
 const TABS = [
   { label: 'Overview', path: '', end: true },
@@ -37,14 +38,26 @@ const CompetitionHubLayout = () => {
       .finally(() => setLoading(false));
   }, [competitionId, activeCompetition?.id, setActiveCompetition]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        <Skeleton className="h-4 w-48 mb-4" />
+        <div className="flex gap-4 mb-6">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-20" />
+          ))}
+        </div>
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="container">
-        <div className="card">
-          <p style={{ color: '#e53e3e' }}>{error}</p>
-          <Link to="/competitions" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-danger-500">{error}</p>
+          <Link to="/competitions" className="inline-block mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors no-underline">
             Back to Competitions
           </Link>
         </div>
@@ -56,42 +69,30 @@ const CompetitionHubLayout = () => {
 
   return (
     <div>
-      {/* Breadcrumb + Tab bar in a constrained header area */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+      <div className="max-w-7xl mx-auto px-8">
         {/* Breadcrumb */}
-        <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: '#718096' }}>
-          <Link to="/competitions" style={{ color: '#667eea', textDecoration: 'none' }}>
+        <div className="mb-3 text-sm text-gray-500">
+          <Link to="/competitions" className="text-primary-500 no-underline hover:underline">
             Competitions
           </Link>
-          <span style={{ margin: '0 0.5rem' }}>/</span>
-          <span style={{ color: '#2d3748', fontWeight: 500 }}>{competitionName}</span>
+          <span className="mx-2">/</span>
+          <span className="text-gray-800 font-medium">{competitionName}</span>
         </div>
 
         {/* Tab bar */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '2px solid #e2e8f0',
-          marginBottom: '0',
-          gap: '0.25rem',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}>
+        <div className="flex border-b-2 border-gray-200 gap-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           {TABS.map(tab => (
             <NavLink
               key={tab.path}
               to={tab.path}
               end={tab.end}
-              style={({ isActive }) => ({
-                padding: '0.75rem 1.25rem',
-                color: isActive ? '#667eea' : '#4a5568',
-                textDecoration: 'none',
-                borderBottom: isActive ? '3px solid #667eea' : '3px solid transparent',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: '0.9375rem',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.15s, border-color 0.15s',
-                marginBottom: '-2px',
-              })}
+              className={({ isActive }) =>
+                `px-5 py-3 no-underline whitespace-nowrap text-[0.9375rem] transition-colors -mb-[2px] ${
+                  isActive
+                    ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold'
+                    : 'text-gray-600 border-b-[3px] border-transparent font-medium hover:text-primary-400'
+                }`
+              }
             >
               {tab.label}
             </NavLink>
@@ -99,7 +100,7 @@ const CompetitionHubLayout = () => {
         </div>
       </div>
 
-      {/* Tab content — child pages provide their own container */}
+      {/* Tab content */}
       <Outlet />
     </div>
   );

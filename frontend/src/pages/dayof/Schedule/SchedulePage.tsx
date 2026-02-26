@@ -5,6 +5,7 @@ import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings,
 import { useAuth } from '../../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
 import { formatTime } from './utils';
+import { Skeleton } from '../../../components/Skeleton';
 import ScheduleConfigForm from './components/ScheduleConfigForm';
 import UnscheduledEventsBanner from './components/UnscheduledEventsBanner';
 import BreakForm from './components/BreakForm';
@@ -284,12 +285,12 @@ const SchedulePage = () => {
 
   const maxCouplesPerHeat = competition?.maxCouplesPerHeat ?? 6;
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to manage schedules.</p>
         </div>
@@ -299,10 +300,13 @@ const SchedulePage = () => {
 
   if (!competition) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Competition not found</h2>
-          <button className="btn btn-secondary" onClick={() => navigate('/competitions')} style={{ marginTop: '1rem' }}>
+          <button
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4"
+            onClick={() => navigate('/competitions')}
+          >
             Back to Competitions
           </button>
         </div>
@@ -312,14 +316,17 @@ const SchedulePage = () => {
 
   if (events.length === 0) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Competition Schedule - {competition.name}</h2>
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
+          <div className="text-center p-8 text-gray-500">
             <h3>No events created yet</h3>
             <p>Create events first before generating a schedule.</p>
           </div>
-          <button className="btn btn-secondary" onClick={() => navigate(`/competitions/${competitionId}`)}>
+          <button
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+            onClick={() => navigate(`/competitions/${competitionId}`)}
+          >
             Back to Competition
           </button>
         </div>
@@ -328,14 +335,14 @@ const SchedulePage = () => {
   }
 
   return (
-    <div className="container">
-      <div className="card">
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2>Competition Schedule - {competition.name}</h2>
-        <p style={{ color: '#718096', marginTop: '0.5rem' }}>
+        <p className="text-gray-500 mt-2">
           Configure the event order for your competition, then run it from the announcer interface.
         </p>
 
-        {error && <div className="error">{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
 
         {!schedule ? (
           <ScheduleConfigForm
@@ -364,23 +371,32 @@ const SchedulePage = () => {
               onInsertEvent={handleInsertEvent}
             />
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <div className="flex gap-2 mt-4 flex-wrap">
               <button
-                className="btn btn-success"
+                className="px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-success-600"
                 onClick={() => navigate(`/competitions/${competitionId}/run`)}
               >
                 Run Competition
               </button>
-              <button className="btn btn-secondary" onClick={handleRegenerate}>
+              <button
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+                onClick={handleRegenerate}
+              >
                 Regenerate Schedule
               </button>
-              <button className="btn btn-secondary" onClick={() => {
-                if (schedule) setBreakPosition(schedule.heatOrder.length);
-                setShowBreakForm(!showBreakForm);
-              }}>
+              <button
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+                onClick={() => {
+                  if (schedule) setBreakPosition(schedule.heatOrder.length);
+                  setShowBreakForm(!showBreakForm);
+                }}
+              >
                 {showBreakForm ? 'Cancel Break' : 'Add Break'}
               </button>
-              <button className="btn btn-danger" onClick={handleDelete}>
+              <button
+                className="px-4 py-2 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
+                onClick={handleDelete}
+              >
                 Delete Schedule
               </button>
             </div>
@@ -411,29 +427,21 @@ const SchedulePage = () => {
             )}
 
             {schedule.heatOrder.length > 0 && schedule.heatOrder[0].estimatedStartTime && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.5rem 0.75rem',
-                background: '#f0fff4',
-                border: '1px solid #c6f6d5',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                color: '#276749',
-              }}>
+              <div className="mt-4 px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
                 Estimated start: <strong>{formatTime(schedule.heatOrder[0].estimatedStartTime)}</strong>
                 {(() => {
                   const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
                   if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
                     const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
                     return (
-                      <span style={{ marginLeft: '1rem' }}>
+                      <span className="ml-4">
                         Estimated finish: <strong>{formatTime(finish.toISOString())}</strong>
                       </span>
                     );
                   }
                   return null;
                 })()}
-                <span style={{ marginLeft: '1rem' }}>
+                <span className="ml-4">
                   ({schedule.heatOrder.length} heats)
                 </span>
               </div>
@@ -460,8 +468,11 @@ const SchedulePage = () => {
           </>
         )}
 
-        <div style={{ marginTop: '1.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => navigate(`/competitions/${competitionId}`)}>
+        <div className="mt-6">
+          <button
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+            onClick={() => navigate(`/competitions/${competitionId}`)}
+          >
             Back to Competition
           </button>
         </div>

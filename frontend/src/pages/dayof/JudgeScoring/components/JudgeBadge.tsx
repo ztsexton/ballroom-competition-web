@@ -1,29 +1,12 @@
 import { Judge } from '../../../../types';
 
 const JudgeBadge = ({ judge }: { judge: Judge }) => (
-  <span style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.375rem 0.75rem',
-    background: '#edf2f7',
-    borderRadius: '6px',
-    fontSize: '0.9375rem',
-    fontWeight: 500,
-    border: judge.isChairman ? '2px solid #d69e2e' : undefined,
-  }}>
-    <span style={{
-      width: '28px',
-      height: '28px',
-      borderRadius: '50%',
-      background: judge.isChairman ? '#d69e2e' : '#667eea',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: 700,
-      fontSize: '0.8125rem',
-    }}>
+  <span className={`inline-flex items-center gap-2 py-1.5 px-3 bg-gray-100 rounded-md text-[0.9375rem] font-medium ${
+    judge.isChairman ? 'border-2 border-yellow-500' : ''
+  }`}>
+    <span className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[0.8125rem] ${
+      judge.isChairman ? 'bg-yellow-500' : 'bg-primary-500'
+    }`}>
       {judge.judgeNumber}
     </span>
     {judge.name}{judge.isChairman ? ' \u2605' : ''}

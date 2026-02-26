@@ -82,18 +82,20 @@ app.use('/api/users', usersRoutes);
 app.use('/api/judging', judgingRoutes);
 app.use('/api/participant', participantRoutes);
 
-// Admin-only routes
-app.use('/api/competitions', requireAdmin, competitionsRoutes);
+// Competition-scoped routes (site admin OR competition admin — access checks inside handlers)
+app.use('/api/competitions', competitionsRoutes);
+app.use('/api/people', peopleRoutes);
+app.use('/api/couples', couplesRoutes);
+app.use('/api/judges', judgesRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/schedules', schedulesRoutes);
+app.use('/api/invoices', invoicesRoutes);
+app.use('/api/scrutineer', scrutineerRoutes);
+
+// Site-admin-only routes
 app.use('/api/studios', requireAdmin, studiosRoutes);
 app.use('/api/organizations', requireAdmin, organizationsRoutes);
-app.use('/api/people', requireAdmin, peopleRoutes);
-app.use('/api/couples', requireAdmin, couplesRoutes);
-app.use('/api/judges', requireAdmin, judgesRoutes);
-app.use('/api/events', requireAdmin, eventsRoutes);
-app.use('/api/schedules', requireAdmin, schedulesRoutes);
-app.use('/api/invoices', requireAdmin, invoicesRoutes);
 app.use('/api/mindbody', requireAdmin, mindbodyRoutes);
-app.use('/api/scrutineer', requireAdmin, scrutineerRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

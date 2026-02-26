@@ -50,17 +50,13 @@ const PickerRankForm = ({
   return (
     <div>
       {/* Progress header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>
+      <div className="flex justify-between items-center mb-1.5">
+        <p className="font-semibold m-0 text-sm">
           Pick a rank for each couple (1 = best):
         </p>
-        <span style={{
-          padding: '0.125rem 0.375rem',
-          background: allRanked ? '#c6f6d5' : '#fefcbf',
-          borderRadius: '4px',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-        }}>
+        <span className={`py-0.5 px-1.5 rounded text-[0.8125rem] font-semibold ${
+          allRanked ? 'bg-green-200' : 'bg-yellow-100'
+        }`}>
           {Object.keys(rankToBib).length} / {coupleCount}
         </span>
       </div>
@@ -71,27 +67,16 @@ const PickerRankForm = ({
         return (
           <div
             key={couple.bib}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.375rem 0.5rem',
-              marginBottom: '0.3125rem',
-              borderRadius: '6px',
-              border: hasRank ? '2px solid #667eea' : `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
-              borderLeft: isProAm && !hasRank ? '3px solid #f59e0b' : undefined,
-              background: hasRank ? '#eef2ff' : isProAm ? '#fffbeb' : '#fff',
-              minHeight: '44px',
-            }}
+            className={`flex items-center gap-2 px-2 py-1.5 mb-[0.3125rem] rounded-md min-h-[44px] ${
+              hasRank
+                ? 'border-2 border-primary-500 bg-indigo-50'
+                : isProAm
+                  ? 'border border-yellow-300 border-l-[3px] border-l-amber-500 bg-amber-50'
+                  : 'border border-gray-200 bg-white'
+            }`}
           >
-            <strong style={{ fontSize: '1.0625rem', flexShrink: 0, minWidth: '36px' }}>#{couple.bib}</strong>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.25rem',
-              flex: 1,
-              justifyContent: 'flex-end',
-            }}>
+            <strong className="text-[1.0625rem] shrink-0 min-w-[36px]">#{couple.bib}</strong>
+            <div className="flex flex-wrap gap-1 flex-1 justify-end">
               {rankOptions.map(rank => {
                 const isSelected = currentRank === rank;
                 const isUsedByOther = rankToBib[rank] !== undefined && rankToBib[rank] !== couple.bib;
@@ -99,34 +84,13 @@ const PickerRankForm = ({
                   <button
                     key={rank}
                     onClick={() => handlePickRank(couple.bib, rank)}
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      border: isSelected
-                        ? '2px solid #667eea'
+                    className={`w-9 h-9 rounded-md text-base font-bold touch-manipulation [-webkit-tap-highlight-color:transparent] transition-all p-0 ${
+                      isSelected
+                        ? 'border-2 border-primary-500 bg-primary-500 text-white cursor-pointer'
                         : isUsedByOther
-                          ? '1px solid #e2e8f0'
-                          : '1px solid #cbd5e0',
-                      borderRadius: '6px',
-                      background: isSelected
-                        ? '#667eea'
-                        : isUsedByOther
-                          ? '#f7fafc'
-                          : '#fff',
-                      color: isSelected
-                        ? 'white'
-                        : isUsedByOther
-                          ? '#cbd5e0'
-                          : '#2d3748',
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      cursor: isUsedByOther ? 'default' : 'pointer',
-                      opacity: isUsedByOther ? 0.5 : 1,
-                      touchAction: 'manipulation',
-                      WebkitTapHighlightColor: 'transparent',
-                      transition: 'all 0.1s',
-                      padding: 0,
-                    }}
+                          ? 'border border-gray-200 bg-gray-50 text-gray-300 cursor-default opacity-50'
+                          : 'border border-gray-300 bg-white text-gray-800 cursor-pointer'
+                    }`}
                   >
                     {rank}
                   </button>
@@ -139,19 +103,10 @@ const PickerRankForm = ({
 
       {/* Clear all button */}
       {Object.keys(rankToBib).length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+        <div className="text-center mt-2">
           <button
             onClick={handleClearAll}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'transparent',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              color: '#a0aec0',
-              cursor: 'pointer',
-              fontSize: '0.8125rem',
-              touchAction: 'manipulation',
-            }}
+            className="py-2 px-4 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-[0.8125rem] touch-manipulation"
           >
             Reset Rankings
           </button>

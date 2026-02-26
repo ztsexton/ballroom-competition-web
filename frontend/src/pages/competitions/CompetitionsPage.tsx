@@ -6,10 +6,12 @@ import { Competition, CompetitionType, Studio, Organization } from '../../types'
 import { useAuth } from '../../context/AuthContext';
 import { useCompetition } from '../../context/CompetitionContext';
 import { DEFAULT_LEVELS, LEVEL_TEMPLATES } from '../../constants/levels';
+import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
+import { Skeleton } from '../../components/Skeleton';
 
 const CompetitionsPage = () => {
   const navigate = useNavigate();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
   const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
@@ -40,14 +42,18 @@ const CompetitionsPage = () => {
 
   const loadData = async () => {
     try {
-      const [compsRes, studiosRes, orgsRes] = await Promise.all([
-        competitionsApi.getAll(),
-        studiosApi.getAll(),
-        organizationsApi.getAll(),
-      ]);
+      const compsRes = await competitionsApi.getAll();
       setCompetitions(compsRes.data);
-      setStudios(studiosRes.data);
-      setOrganizations(orgsRes.data);
+
+      // Studios and organizations are site-admin-only
+      if (isAdmin) {
+        const [studiosRes, orgsRes] = await Promise.all([
+          studiosApi.getAll(),
+          organizationsApi.getAll(),
+        ]);
+        setStudios(studiosRes.data);
+        setOrganizations(orgsRes.data);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
       setError('Failed to load competitions');
@@ -153,12 +159,19 @@ const CompetitionsPage = () => {
     return colors[type];
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
-
-  if (!isAdmin) {
+  if (loading || authLoading) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <Skeleton variant="card" />
+        <Skeleton variant="card" />
+      </div>
+    );
+  }
+
+  if (!isAnyAdmin) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to manage competitions.</p>
         </div>
@@ -167,58 +180,52 @@ const CompetitionsPage = () => {
   }
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2>🏆 Competitions</h2>
-          <button 
-            onClick={() => setShowForm(!showForm)} 
-            className="btn"
-          >
-            {showForm ? 'Cancel' : '+ New Competition'}
-          </button>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2>Competitions</h2>
+          {isAdmin && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
+            >
+              {showForm ? 'Cancel' : '+ New Competition'}
+            </button>
+          )}
         </div>
 
-        {error && <div className="error">{error}</div>}
+        {error && <div className="text-danger-500 mt-2">{error}</div>}
 
         {showForm && (
-          <div style={{
-            background: '#f7fafc',
-            border: '1px solid #cbd5e0',
-            borderRadius: '8px',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            <h3 style={{ marginTop: 0 }}>Create New Competition</h3>
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
+            <h3 className="mt-0">Create New Competition</h3>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Competition Name *</label>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Competition Name *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Spring Championship 2025"
                   required
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                 />
               </div>
 
-              <div className="form-group">
-                <label>Competition Type *</label>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Competition Type *</label>
+                <div className="flex gap-2 flex-wrap">
                   {(['NDCA', 'USA_DANCE', 'WDC', 'WDSF', 'UNAFFILIATED', 'STUDIO'] as CompetitionType[]).map(type => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setFormData({ ...formData, type, studioId: type === 'STUDIO' ? formData.studioId : '' })}
+                      className="px-4 py-2 rounded cursor-pointer transition-all duration-200"
                       style={{
-                        padding: '0.5rem 1rem',
                         border: formData.type === type ? `2px solid ${getTypeColor(type)}` : '1px solid #cbd5e0',
-                        borderRadius: '4px',
                         background: formData.type === type ? getTypeColor(type) : 'white',
                         color: formData.type === type ? 'white' : '#2d3748',
-                        cursor: 'pointer',
                         fontWeight: formData.type === type ? 'bold' : 'normal',
-                        transition: 'all 0.2s',
                       }}
                     >
                       {getTypeLabel(type)}
@@ -227,40 +234,37 @@ const CompetitionsPage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>Date *</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Date *</label>
                   <input
                     type="date"
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
                     required
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Location</label>
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Location</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={e => setFormData({ ...formData, location: e.target.value })}
                     placeholder="City, State"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
 
               {formData.type === 'STUDIO' && (
-                <div className="form-group">
-                  <label>Studio *</label>
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Studio *</label>
                   {studios.length === 0 ? (
-                    <div style={{ 
-                      background: '#fef3c7', 
-                      border: '1px solid #f59e0b',
-                      padding: '1rem',
-                      borderRadius: '4px',
-                    }}>
-                      <p style={{ margin: 0 }}>
-                        No studios available. <button type="button" onClick={() => navigate('/studios')} style={{ color: '#667eea', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Create one first →</button>
+                    <div className="bg-amber-50 border border-amber-400 p-4 rounded">
+                      <p className="m-0">
+                        No studios available. <button type="button" onClick={() => navigate('/studios')} className="text-primary-500 underline bg-transparent border-none cursor-pointer">Create one first &rarr;</button>
                       </p>
                     </div>
                   ) : (
@@ -268,6 +272,7 @@ const CompetitionsPage = () => {
                       value={formData.studioId}
                       onChange={e => setFormData({ ...formData, studioId: e.target.value })}
                       required
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                     >
                       <option value="">Select Studio</option>
                       {studios.map(studio => (
@@ -280,41 +285,43 @@ const CompetitionsPage = () => {
                 </div>
               )}
 
-              <div className="form-group">
-                <label>Description</label>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Additional details about the competition..."
                   rows={3}
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e0' }}
+                  className="w-full p-2 rounded border border-gray-300 focus:outline-none focus:border-primary-500"
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>Website URL</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Website URL</label>
                   <input
                     type="url"
                     value={formData.websiteUrl}
                     onChange={e => setFormData({ ...formData, websiteUrl: e.target.value })}
                     placeholder="https://mycompetition.com"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                   />
                 </div>
-                <div className="form-group">
-                  <label>Organizer Email</label>
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Organizer Email</label>
                   <input
                     type="email"
                     value={formData.organizerEmail}
                     onChange={e => setFormData({ ...formData, organizerEmail: e.target.value })}
                     placeholder="organizer@example.com"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
 
               {organizations.length > 0 && (
-                <div className="form-group">
-                  <label>Organization (Optional)</label>
+                <div className="mb-4">
+                  <label className="block mb-2 font-medium">Organization (Optional)</label>
                   <select
                     value={formData.organizationId}
                     onChange={e => {
@@ -330,6 +337,7 @@ const CompetitionsPage = () => {
                         }
                       }
                     }}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                   >
                     <option value="">None</option>
                     {organizations.map(org => (
@@ -338,48 +346,45 @@ const CompetitionsPage = () => {
                       </option>
                     ))}
                   </select>
-                  <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+                  <small className="text-gray-500 mt-1 block">
                     Selecting an organization will pre-fill levels and scoring defaults.
                   </small>
                 </div>
               )}
 
-              <div className="form-group">
-                <label>Default Scoring Type</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Default Scoring Type</label>
+                <div className="flex gap-2">
                   {(['standard', 'proficiency'] as const).map(st => (
                     <button
                       key={st}
                       type="button"
                       onClick={() => setFormData({ ...formData, defaultScoringType: st })}
+                      className="px-4 py-2 rounded cursor-pointer transition-all duration-200"
                       style={{
-                        padding: '0.5rem 1rem',
                         border: formData.defaultScoringType === st ? '2px solid #2563eb' : '1px solid #cbd5e0',
-                        borderRadius: '4px',
                         background: formData.defaultScoringType === st ? '#2563eb' : 'white',
                         color: formData.defaultScoringType === st ? 'white' : '#2d3748',
-                        cursor: 'pointer',
                         fontWeight: formData.defaultScoringType === st ? 'bold' : 'normal',
-                        transition: 'all 0.2s',
                       }}
                     >
                       {st === 'standard' ? 'Standard' : 'Proficiency'}
                     </button>
                   ))}
                 </div>
-                <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+                <small className="text-gray-500 mt-1 block">
                   {formData.defaultScoringType === 'proficiency'
                     ? 'New events will default to proficiency scoring (0-100, single round).'
                     : 'New events will default to standard scoring (recalls + ranking).'}
                 </small>
               </div>
 
-              <div className="form-group">
-                <label>Competition Levels</label>
-                <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Competition Levels</label>
+                <p className="text-gray-500 text-sm mb-2">
                   Choose a template to start from, then customize as needed.
                 </p>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <div className="flex gap-2 flex-wrap mb-4">
                   {Object.entries(LEVEL_TEMPLATES).map(([key, template]) => {
                     const isActive = JSON.stringify(levels) === JSON.stringify(template.levels);
                     return (
@@ -387,15 +392,12 @@ const CompetitionsPage = () => {
                         key={key}
                         type="button"
                         onClick={() => setLevels([...template.levels])}
+                        className="px-4 py-2 rounded cursor-pointer transition-all duration-200"
                         style={{
-                          padding: '0.5rem 1rem',
                           border: isActive ? '2px solid #667eea' : '1px solid #cbd5e0',
-                          borderRadius: '4px',
                           background: isActive ? '#667eea' : 'white',
                           color: isActive ? 'white' : '#2d3748',
-                          cursor: 'pointer',
                           fontWeight: isActive ? 'bold' : 'normal',
-                          transition: 'all 0.2s',
                         }}
                       >
                         {template.label}
@@ -404,46 +406,42 @@ const CompetitionsPage = () => {
                   })}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '400px' }}>
+                <div className="flex flex-col gap-1 max-w-[400px]">
                   {levels.map((lvl, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      padding: '0.5rem', background: '#f7fafc',
-                      border: '1px solid #e2e8f0', borderRadius: '4px',
-                    }}>
-                      <span style={{ fontWeight: 600, minWidth: '1.5rem' }}>{idx + 1}.</span>
-                      <span style={{ flex: 1 }}>{lvl}</span>
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                      <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+                      <span className="flex-1">{lvl}</span>
                       <button type="button" disabled={idx === 0}
                         onClick={() => {
                           const next = [...levels];
                           [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
                           setLevels(next);
                         }}
-                        style={{ padding: '0.125rem 0.375rem', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? 0.3 : 1 }}
-                      >▲</button>
+                        className={`px-1.5 py-0.5 ${idx === 0 ? 'cursor-default opacity-30' : 'cursor-pointer opacity-100'}`}
+                      >&#9650;</button>
                       <button type="button" disabled={idx === levels.length - 1}
                         onClick={() => {
                           const next = [...levels];
                           [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
                           setLevels(next);
                         }}
-                        style={{ padding: '0.125rem 0.375rem', cursor: idx === levels.length - 1 ? 'default' : 'pointer', opacity: idx === levels.length - 1 ? 0.3 : 1 }}
-                      >▼</button>
+                        className={`px-1.5 py-0.5 ${idx === levels.length - 1 ? 'cursor-default opacity-30' : 'cursor-pointer opacity-100'}`}
+                      >&#9660;</button>
                       <button type="button"
                         onClick={() => setLevels(levels.filter((_, i) => i !== idx))}
-                        style={{ padding: '0.125rem 0.375rem', color: '#e53e3e', cursor: 'pointer' }}
-                      >✕</button>
+                        className="px-1.5 py-0.5 text-danger-500 cursor-pointer"
+                      >&#10005;</button>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', maxWidth: '400px' }}>
+                <div className="flex gap-2 mt-2 max-w-[400px]">
                   <input
                     type="text"
                     value={newLevelName}
                     onChange={e => setNewLevelName(e.target.value)}
                     placeholder="Add custom level..."
-                    style={{ flex: 1 }}
+                    className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:border-primary-500"
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -462,17 +460,16 @@ const CompetitionsPage = () => {
                         setNewLevelName('');
                       }
                     }}
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.875rem' }}
+                    className="px-4 py-2 bg-gray-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-600"
                   >
                     Add
                   </button>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" className="btn">Create Competition</button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary">
+              <div className="flex gap-2">
+                <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Create Competition</button>
+                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-600">
                   Cancel
                 </button>
               </div>
@@ -481,78 +478,58 @@ const CompetitionsPage = () => {
         )}
 
         {competitions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#718096' }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No competitions created yet</p>
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-4">No competitions created yet</p>
             <p>Create your first competition to get started!</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '1rem' }}>
+          <div className="grid gap-4">
             {competitions
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
               .map(competition => (
                 <div
                   key={competition.id}
-                  style={{
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '1.5rem',
-                    background: 'white',
-                    transition: 'box-shadow 0.2s',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                  className="border border-gray-200 rounded-lg p-6 bg-white transition-shadow duration-200 cursor-pointer hover:shadow-md"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <h3 style={{ margin: 0 }}>{competition.name}</h3>
-                        <span
-                          style={{
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold',
-                            background: getTypeColor(competition.type),
-                            color: 'white',
-                          }}
-                        >
-                          {getTypeLabel(competition.type)}
-                        </span>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="m-0">{competition.name}</h3>
+                        <CompetitionTypeBadge type={competition.type} />
                       </div>
-                      <div style={{ color: '#718096', fontSize: '0.875rem' }}>
-                        <p style={{ margin: '0.25rem 0' }}>📅 {formatDate(competition.date)}</p>
+                      <div className="text-gray-500 text-sm">
+                        <p className="my-1">📅 {formatDate(competition.date)}</p>
                         {competition.location && (
-                          <p style={{ margin: '0.25rem 0' }}>📍 {competition.location}</p>
+                          <p className="my-1">📍 {competition.location}</p>
                         )}
                         {competition.type === 'STUDIO' && competition.studioId && (
-                          <p style={{ margin: '0.25rem 0' }}>🏢 Studio: {studios.find(s => s.id === competition.studioId)?.name || competition.studioId}</p>
+                          <p className="my-1">🏢 Studio: {studios.find(s => s.id === competition.studioId)?.name || competition.studioId}</p>
                         )}
                         {competition.organizationId && (
-                          <p style={{ margin: '0.25rem 0' }}>🏛 Org: {organizations.find(o => o.id === competition.organizationId)?.name || competition.organizationId}</p>
+                          <p className="my-1">🏛 Org: {organizations.find(o => o.id === competition.organizationId)?.name || competition.organizationId}</p>
                         )}
                         {competition.description && (
-                          <p style={{ margin: '0.5rem 0 0 0', color: '#4a5568' }}>
+                          <p className="mt-2 mb-0 text-gray-600">
                             {competition.description}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => navigate(`/competitions/${competition.id}`)}
-                        className="btn"
-                        style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                        className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
                       >
                         View Details
                       </button>
-                      <button
-                        onClick={() => handleDelete(competition.id, competition.name)}
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.875rem', padding: '0.5rem 1rem', background: '#fee', color: '#c00' }}
-                      >
-                        Delete
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDelete(competition.id, competition.name)}
+                          className="px-4 py-2 bg-red-50 text-red-700 rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-red-100"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

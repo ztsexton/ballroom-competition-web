@@ -195,3 +195,16 @@ ALTER TABLE schedules ADD COLUMN IF NOT EXISTS current_dance TEXT;
 -- Performance indexes for batch scoring queries
 CREATE INDEX IF NOT EXISTS idx_judge_scores_event_round_bib ON judge_scores(event_id, round, bib);
 CREATE INDEX IF NOT EXISTS idx_people_comp_email_lower ON people(competition_id, (LOWER(email)));
+
+-- Migration: add created_by to competitions (tracks who created the competition)
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+-- Competition admins table (per-competition admin role)
+CREATE TABLE IF NOT EXISTS competition_admins (
+  competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  user_uid TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'admin',
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (competition_id, user_uid)
+);
+CREATE INDEX IF NOT EXISTS idx_competition_admins_user ON competition_admins(user_uid);

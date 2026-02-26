@@ -6,6 +6,17 @@ import { Couple, Judge, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { Skeleton } from '../../components/Skeleton';
+
+const toggleCls = (active: boolean) =>
+  active
+    ? 'px-4 py-2 border-2 border-primary-500 rounded bg-primary-500 text-white cursor-pointer font-bold transition-all'
+    : 'px-4 py-2 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal transition-all';
+
+const scholarshipCls = (active: boolean) =>
+  active
+    ? 'px-4 py-2 border-2 border-yellow-500 rounded bg-yellow-500 text-white cursor-pointer font-bold transition-all'
+    : 'px-4 py-2 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal transition-all';
 
 const EventFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -207,12 +218,12 @@ const EventFormPage = () => {
     navigate(isEditMode ? `/events/${id}` : '/events');
   };
 
-  if (loading || authLoading) return <div className="loading">Loading...</div>;
+  if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to {isEditMode ? 'edit' : 'create'} events.</p>
         </div>
@@ -222,11 +233,11 @@ const EventFormPage = () => {
 
   if (isEditMode && (!activeCompetition || !originalEvent)) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Event Not Found</h2>
           <p>Unable to load the event for editing.</p>
-          <button onClick={() => navigate('/events')} className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+          <button onClick={() => navigate('/events')} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4">
             Back to Events
           </button>
         </div>
@@ -236,18 +247,12 @@ const EventFormPage = () => {
 
   if (!isEditMode && !activeCompetition) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2>Create New Event</h2>
-          <div style={{
-            textAlign: 'center',
-            padding: '3rem',
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            borderRadius: '8px'
-          }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No Active Competition</p>
-            <p style={{ color: '#78350f' }}>Please select a competition from the dropdown above to create events.</p>
+          <div className="bg-amber-50 border border-amber-400 p-6 rounded mt-4 text-center">
+            <p className="text-lg mb-2">No Active Competition</p>
+            <p className="text-amber-900">Please select a competition from the dropdown above to create events.</p>
           </div>
         </div>
       </div>
@@ -257,59 +262,44 @@ const EventFormPage = () => {
   const hasData = couples.length > 0;
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2>{isEditMode ? 'Edit Event' : 'Create New Event'} - {activeCompetition!.name}</h2>
-          <button onClick={handleCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={handleCancel} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">Cancel</button>
         </div>
 
-        {error && <div className="error">{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded mb-4 text-sm">{error}</div>}
 
         {!isEditMode && !hasData ? (
-          <div style={{
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            padding: '1.5rem',
-            borderRadius: '4px',
-            marginTop: '1rem'
-          }}>
+          <div className="bg-amber-50 border border-amber-400 p-6 rounded mt-4">
             <h3>Setup Required</h3>
             <p>Before creating an event, you need to:</p>
-            <ol style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
+            <ol className="ml-6 mt-2">
               <li>Add people (leaders and followers)</li>
               <li>Create couples from those people</li>
               <li>Optionally add judges</li>
             </ol>
-            <div style={{ marginTop: '1rem' }}>
-              <button onClick={() => navigate('/people')} className="btn" style={{ marginRight: '0.5rem' }}>
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => navigate('/people')} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">
                 Go to People
               </button>
-              <button onClick={() => navigate('/couples')} className="btn">
+              <button onClick={() => navigate('/couples')} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">
                 Go to Couples
               </button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Scoring Type</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Scoring Type</label>
+              <div className="flex gap-2">
                 {(['standard', 'proficiency'] as const).map(st => (
                   <button
                     key={st}
                     type="button"
                     onClick={() => setScoringType(st)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      border: scoringType === st ? '2px solid #667eea' : '1px solid #cbd5e0',
-                      borderRadius: '4px',
-                      background: scoringType === st ? '#667eea' : 'white',
-                      color: scoringType === st ? 'white' : '#2d3748',
-                      cursor: 'pointer',
-                      fontWeight: scoringType === st ? 'bold' : 'normal',
-                      transition: 'all 0.2s',
-                    }}
+                    className={toggleCls(scoringType === st)}
                   >
                     {st === 'standard' ? 'Standard' : 'Proficiency'}
                   </button>
@@ -317,44 +307,26 @@ const EventFormPage = () => {
               </div>
             </div>
 
-            <div className="form-group">
-              <label>Scholarship Event</label>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Scholarship Event</label>
               <button
                 type="button"
                 onClick={() => setIsScholarship(!isScholarship)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: isScholarship ? '2px solid #d69e2e' : '1px solid #cbd5e0',
-                  borderRadius: '4px',
-                  background: isScholarship ? '#d69e2e' : 'white',
-                  color: isScholarship ? 'white' : '#2d3748',
-                  cursor: 'pointer',
-                  fontWeight: isScholarship ? 'bold' : 'normal',
-                  transition: 'all 0.2s',
-                }}
+                className={scholarshipCls(isScholarship)}
               >
                 {isScholarship ? 'Scholarship' : 'Not Scholarship'}
               </button>
             </div>
 
-            <div className="form-group">
-              <label>Designation</label>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Designation</label>
+              <div className="flex gap-2 flex-wrap">
                 {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(option => (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setDesignation(designation === option ? '' : option)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      border: designation === option ? '2px solid #667eea' : '1px solid #cbd5e0',
-                      borderRadius: '4px',
-                      background: designation === option ? '#667eea' : 'white',
-                      color: designation === option ? 'white' : '#2d3748',
-                      cursor: 'pointer',
-                      fontWeight: designation === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s',
-                    }}
+                    className={toggleCls(designation === option)}
                   >
                     {option}
                   </button>
@@ -363,24 +335,15 @@ const EventFormPage = () => {
             </div>
 
             {(activeCompetition?.levelMode || 'combined') === 'combined' && (
-              <div className="form-group">
-                <label>Syllabus Type</label>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-600 mb-2">Syllabus Type</label>
+                <div className="flex gap-2 flex-wrap">
                   {['Syllabus', 'Open'].map(option => (
                     <button
                       key={option}
                       type="button"
                       onClick={() => setSyllabusType(syllabusType === option ? '' : option)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        border: syllabusType === option ? '2px solid #667eea' : '1px solid #cbd5e0',
-                        borderRadius: '4px',
-                        background: syllabusType === option ? '#667eea' : 'white',
-                        color: syllabusType === option ? 'white' : '#2d3748',
-                        cursor: 'pointer',
-                        fontWeight: syllabusType === option ? 'bold' : 'normal',
-                        transition: 'all 0.2s',
-                      }}
+                      className={toggleCls(syllabusType === option)}
                     >
                       {option}
                     </button>
@@ -389,24 +352,15 @@ const EventFormPage = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label>Level</label>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Level</label>
+              <div className="flex gap-2 flex-wrap">
                 {(activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS).map(option => (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setLevel(level === option ? '' : option)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      border: level === option ? '2px solid #667eea' : '1px solid #cbd5e0',
-                      borderRadius: '4px',
-                      background: level === option ? '#667eea' : 'white',
-                      color: level === option ? 'white' : '#2d3748',
-                      cursor: 'pointer',
-                      fontWeight: level === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s',
-                    }}
+                    className={toggleCls(level === option)}
                   >
                     {option}
                   </button>
@@ -415,24 +369,15 @@ const EventFormPage = () => {
             </div>
 
             {availableAgeCategories.length > 0 && (
-              <div className="form-group">
-                <label>Age Category</label>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-600 mb-2">Age Category</label>
+                <div className="flex gap-2 flex-wrap">
                   {availableAgeCategories.map(cat => (
                     <button
                       key={cat.name}
                       type="button"
                       onClick={() => setAgeCategory(ageCategory === cat.name ? '' : cat.name)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        border: ageCategory === cat.name ? '2px solid #667eea' : '1px solid #cbd5e0',
-                        borderRadius: '4px',
-                        background: ageCategory === cat.name ? '#667eea' : 'white',
-                        color: ageCategory === cat.name ? 'white' : '#2d3748',
-                        cursor: 'pointer',
-                        fontWeight: ageCategory === cat.name ? 'bold' : 'normal',
-                        transition: 'all 0.2s',
-                      }}
+                      className={toggleCls(ageCategory === cat.name)}
                     >
                       {cat.name}
                     </button>
@@ -441,9 +386,9 @@ const EventFormPage = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label>Style</label>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Style</label>
+              <div className="flex gap-2 flex-wrap">
                 {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(option => (
                   <button
                     key={option}
@@ -457,16 +402,7 @@ const EventFormPage = () => {
                         setSelectedDances([]);
                       }
                     }}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      border: style === option ? '2px solid #667eea' : '1px solid #cbd5e0',
-                      borderRadius: '4px',
-                      background: style === option ? '#667eea' : 'white',
-                      color: style === option ? 'white' : '#2d3748',
-                      cursor: 'pointer',
-                      fontWeight: style === option ? 'bold' : 'normal',
-                      transition: 'all 0.2s',
-                    }}
+                    className={toggleCls(style === option)}
                   >
                     {option}
                   </button>
@@ -475,33 +411,20 @@ const EventFormPage = () => {
             </div>
 
             {style && getDanceOptions().length > 0 && (
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ margin: 0 }}>
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="m-0">
                     Select Dances {selectedDances.length > 0 && (
-                      <span style={{
-                        color: '#667eea',
-                        fontWeight: 'bold',
-                        marginLeft: '0.5rem'
-                      }}>
+                      <span className="text-primary-500 font-bold ml-2">
                         ({selectedDances.length} selected)
                       </span>
                     )}
                   </label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedDances(getDanceOptions())}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        fontSize: '0.875rem',
-                        border: '1px solid #667eea',
-                        borderRadius: '4px',
-                        background: 'white',
-                        color: '#667eea',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                      }}
+                      className="px-3 py-1 text-sm border border-primary-500 rounded bg-white text-primary-500 cursor-pointer font-medium"
                     >
                       Select All
                     </button>
@@ -509,38 +432,20 @@ const EventFormPage = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedDances([])}
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          fontSize: '0.875rem',
-                          border: '1px solid #cbd5e0',
-                          borderRadius: '4px',
-                          background: 'white',
-                          color: '#718096',
-                          cursor: 'pointer',
-                        }}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-500 cursor-pointer"
                       >
                         Clear
                       </button>
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div className="flex gap-2 flex-wrap">
                   {getDanceOptions().map(dance => (
                     <button
                       key={dance}
                       type="button"
                       onClick={() => handleDanceToggle(dance)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        border: selectedDances.includes(dance) ? '2px solid #667eea' : '1px solid #cbd5e0',
-                        borderRadius: '4px',
-                        background: selectedDances.includes(dance) ? '#667eea' : 'white',
-                        color: selectedDances.includes(dance) ? 'white' : '#2d3748',
-                        cursor: 'pointer',
-                        fontWeight: selectedDances.includes(dance) ? 'bold' : 'normal',
-                        transition: 'all 0.2s',
-                        minWidth: '120px',
-                      }}
+                      className={`${toggleCls(selectedDances.includes(dance))} min-w-[120px]`}
                     >
                       {dance}
                     </button>
@@ -549,13 +454,14 @@ const EventFormPage = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label>Event Name *</label>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Event Name *</label>
               <input
                 type="text"
                 value={eventName}
                 onChange={e => setEventName(e.target.value)}
                 placeholder={isEditMode ? 'e.g., Bronze Waltz, Silver Foxtrot' : 'e.g., Bronze Waltz, Silver Foxtrot (or auto-generate based on selections)'}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 required
               />
               {designation && level && style && (
@@ -568,26 +474,25 @@ const EventFormPage = () => {
                     }
                     setEventName(parts.filter(p => p).join(' '));
                   }}
-                  className="btn btn-secondary"
-                  style={{ marginTop: '0.5rem', fontSize: '0.875rem', padding: '0.25rem 0.75rem' }}
+                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-2"
                 >
                   Auto-Generate Name
                 </button>
               )}
             </div>
 
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ margin: 0 }}>
-                  Select Couples {isEditMode ? '*' : <span style={{ color: '#a0aec0', fontWeight: 'normal' }}>(optional)</span>}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="m-0">
+                  Select Couples {isEditMode ? '*' : <span className="text-gray-400 font-normal">(optional)</span>}
                   {selectedBibs.length > 0 && (
-                    <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
+                    <span className="text-primary-500 font-bold ml-2">
                       ({selectedBibs.length} selected)
                     </span>
                   )}
                 </label>
                 {couples.length > 0 && (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -597,16 +502,7 @@ const EventFormPage = () => {
                           return Array.from(combined);
                         });
                       }}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        fontSize: '0.875rem',
-                        border: '1px solid #667eea',
-                        borderRadius: '4px',
-                        background: 'white',
-                        color: '#667eea',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                      }}
+                      className="px-3 py-1 text-sm border border-primary-500 rounded bg-white text-primary-500 cursor-pointer font-medium"
                     >
                       {coupleSearch ? 'Select Matching' : 'Select All'}
                     </button>
@@ -614,15 +510,7 @@ const EventFormPage = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedBibs([])}
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          fontSize: '0.875rem',
-                          border: '1px solid #cbd5e0',
-                          borderRadius: '4px',
-                          background: 'white',
-                          color: '#718096',
-                          cursor: 'pointer',
-                        }}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-500 cursor-pointer"
                       >
                         Clear
                       </button>
@@ -636,64 +524,41 @@ const EventFormPage = () => {
                   value={coupleSearch}
                   onChange={e => setCoupleSearch(e.target.value)}
                   placeholder="Search by bib #, leader, or follower name..."
-                  style={{ marginBottom: '0.5rem' }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 mb-2"
                 />
               )}
               {couples.length === 0 ? (
-                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                <p className="text-gray-500 text-center p-4">
                   No couples available
                 </p>
               ) : filteredCouples.length === 0 ? (
-                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                <p className="text-gray-500 text-center p-4">
                   No couples match "{coupleSearch}"
                 </p>
               ) : (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                  gap: '0.5rem',
-                  maxHeight: '360px',
-                  overflowY: 'auto',
-                  padding: '0.25rem',
-                }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-2 max-h-[360px] overflow-y-auto p-1">
                   {filteredCouples.map(couple => {
                     const isSelected = selectedBibs.includes(couple.bib);
                     return (
                       <div
                         key={couple.bib}
                         onClick={() => handleBibToggle(couple.bib)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '0.625rem 0.75rem',
-                          borderRadius: '6px',
-                          border: isSelected ? '2px solid #667eea' : '1px solid #e2e8f0',
-                          background: isSelected ? '#ebf4ff' : '#fff',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
+                        className={isSelected
+                          ? 'flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-primary-500 bg-primary-50 cursor-pointer transition-all'
+                          : 'flex items-center gap-3 px-3 py-2.5 rounded-md border border-gray-200 bg-white cursor-pointer transition-all'
+                        }
                       >
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '6px',
-                          background: isSelected ? '#667eea' : '#edf2f7',
-                          color: isSelected ? '#fff' : '#4a5568',
-                          fontWeight: 700,
-                          fontSize: '0.875rem',
-                          flexShrink: 0,
-                        }}>
+                        <span className={isSelected
+                          ? 'inline-flex items-center justify-center w-9 h-9 rounded-md bg-primary-500 text-white font-bold text-sm shrink-0'
+                          : 'inline-flex items-center justify-center w-9 h-9 rounded-md bg-gray-100 text-gray-600 font-bold text-sm shrink-0'
+                        }>
                           {couple.bib}
                         </span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div className="min-w-0">
+                          <div className="font-medium text-[0.9rem] whitespace-nowrap overflow-hidden text-ellipsis">
                             {couple.leaderName}
                           </div>
-                          <div style={{ color: '#718096', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div className="text-gray-500 text-[0.8rem] whitespace-nowrap overflow-hidden text-ellipsis">
                             & {couple.followerName}
                           </div>
                         </div>
@@ -704,32 +569,23 @@ const EventFormPage = () => {
               )}
             </div>
 
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ margin: 0 }}>
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="m-0">
                   Select Judges
-                  <span style={{ color: '#a0aec0', fontWeight: 'normal', marginLeft: '0.25rem' }}>(optional)</span>
+                  <span className="text-gray-400 font-normal ml-1">(optional)</span>
                   {selectedJudges.length > 0 && (
-                    <span style={{ color: '#667eea', fontWeight: 'bold', marginLeft: '0.5rem' }}>
+                    <span className="text-primary-500 font-bold ml-2">
                       ({selectedJudges.length} selected)
                     </span>
                   )}
                 </label>
                 {judges.length > 0 && (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedJudges(judges.map(j => j.id))}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        fontSize: '0.875rem',
-                        border: '1px solid #667eea',
-                        borderRadius: '4px',
-                        background: 'white',
-                        color: '#667eea',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                      }}
+                      className="px-3 py-1 text-sm border border-primary-500 rounded bg-white text-primary-500 cursor-pointer font-medium"
                     >
                       Select All
                     </button>
@@ -737,15 +593,7 @@ const EventFormPage = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedJudges([])}
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          fontSize: '0.875rem',
-                          border: '1px solid #cbd5e0',
-                          borderRadius: '4px',
-                          background: 'white',
-                          color: '#718096',
-                          cursor: 'pointer',
-                        }}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-500 cursor-pointer"
                       >
                         Clear
                       </button>
@@ -754,45 +602,29 @@ const EventFormPage = () => {
                 )}
               </div>
               {judges.length === 0 ? (
-                <p style={{ color: '#718096', textAlign: 'center', padding: '1rem' }}>
+                <p className="text-gray-500 text-center p-4">
                   No judges available (you can add them later)
                 </p>
               ) : (
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div className="flex gap-2 flex-wrap">
                   {judges.map(judge => {
                     const isSelected = selectedJudges.includes(judge.id);
                     return (
                       <div
                         key={judge.id}
                         onClick={() => handleJudgeToggle(judge.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.625rem',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '6px',
-                          border: isSelected ? '2px solid #667eea' : '1px solid #e2e8f0',
-                          background: isSelected ? '#ebf4ff' : '#fff',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
+                        className={isSelected
+                          ? 'flex items-center gap-2.5 px-4 py-2 rounded-md border-2 border-primary-500 bg-primary-50 cursor-pointer transition-all'
+                          : 'flex items-center gap-2.5 px-4 py-2 rounded-md border border-gray-200 bg-white cursor-pointer transition-all'
+                        }
                       >
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '50%',
-                          background: isSelected ? '#667eea' : '#edf2f7',
-                          color: isSelected ? '#fff' : '#4a5568',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          flexShrink: 0,
-                        }}>
+                        <span className={isSelected
+                          ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-500 text-white font-bold text-xs shrink-0'
+                          : 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold text-xs shrink-0'
+                        }>
                           {judge.judgeNumber}
                         </span>
-                        <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                        <span className="font-medium text-[0.9rem]">
                           {judge.name}
                         </span>
                       </div>
@@ -803,28 +635,16 @@ const EventFormPage = () => {
             </div>
 
             {scoringType === 'proficiency' ? (
-              <div style={{
-                background: '#f0fff4',
-                border: '1px solid #38a169',
-                padding: '1rem',
-                borderRadius: '4px',
-                marginTop: '1rem',
-              }}>
+              <div className="bg-green-50 border border-success-600 p-4 rounded mt-4">
                 <strong>Proficiency Scoring</strong>
-                <p style={{ margin: '0.5rem 0 0 0' }}>
+                <p className="mt-2 mb-0">
                   Each judge scores every couple 0-100. One round only. Results ranked by average score.
                 </p>
               </div>
             ) : (
-              <div style={{
-                background: '#e6f7ff',
-                border: '1px solid #1890ff',
-                padding: '1rem',
-                borderRadius: '4px',
-                marginTop: '1rem',
-              }}>
+              <div className="bg-blue-50 border border-blue-400 p-4 rounded mt-4">
                 <strong>Standard Scoring — Automatic Round Generation</strong>
-                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: 0 }}>
+                <ul className="ml-6 mt-2 mb-0">
                   <li>1-6 couples: Final only</li>
                   <li>7-14 couples: Semi-final + Final</li>
                   <li>15+ couples: Quarter-final + Semi-final + Final</li>
@@ -832,11 +652,11 @@ const EventFormPage = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn" disabled={isEditMode && selectedBibs.length === 0}>
+            <div className="flex gap-2 mt-6">
+              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600" disabled={isEditMode && selectedBibs.length === 0}>
                 {isEditMode ? 'Save Changes' : 'Create Event'}
               </button>
-              <button type="button" onClick={handleCancel} className="btn btn-secondary">
+              <button type="button" onClick={handleCancel} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                 Cancel
               </button>
             </div>
@@ -846,36 +666,18 @@ const EventFormPage = () => {
 
       {/* Score clearing confirmation modal (edit mode only) */}
       {showScoreWarning && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            maxWidth: '480px',
-            width: '90%',
-          }}>
-            <h3 style={{ color: '#e53e3e', marginTop: 0, marginBottom: '1rem' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+          <div className="bg-white p-8 rounded-lg max-w-[480px] w-[90%]">
+            <h3 className="text-danger-500 mt-0 mb-4">
               Warning: Scores Will Be Cleared
             </h3>
-            <p style={{ marginBottom: '1.5rem' }}>
+            <p className="mb-6">
               Changing couples, judges, or scoring type will permanently clear all
               existing scores for this event. This cannot be undone.
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex gap-2">
               <button
-                className="btn"
-                style={{ background: '#e53e3e', borderColor: '#e53e3e' }}
+                className="px-4 py-2 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                 onClick={(e) => {
                   setShowScoreWarning(false);
                   handleSubmit(e as any, true);
@@ -884,7 +686,7 @@ const EventFormPage = () => {
                 Clear Scores & Save
               </button>
               <button
-                className="btn btn-secondary"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                 onClick={() => setShowScoreWarning(false)}
               >
                 Cancel

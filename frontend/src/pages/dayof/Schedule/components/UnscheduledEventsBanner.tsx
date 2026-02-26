@@ -23,17 +23,11 @@ export default function UnscheduledEventsBanner({
   if (unscheduledEvents.length === 0) return null;
 
   return (
-    <div style={{
-      background: '#fef3c7',
-      border: '1px solid #f59e0b',
-      borderRadius: '8px',
-      padding: '1rem',
-      marginTop: '1rem',
-    }}>
-      <h3 style={{ marginBottom: '0.5rem', color: '#92400e' }}>
+    <div className="bg-amber-100 border border-amber-500 rounded-lg p-4 mt-4">
+      <h3 className="mb-2 text-amber-800">
         {unscheduledEvents.length} New Event{unscheduledEvents.length > 1 ? 's' : ''} Not in Schedule
       </h3>
-      <p style={{ color: '#78350f', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+      <p className="text-amber-900 text-sm mb-3">
         These events were added after the schedule was generated. Choose where to insert each one.
       </p>
       {unscheduledEvents.map(event => {
@@ -49,25 +43,19 @@ export default function UnscheduledEventsBanner({
         };
 
         return (
-          <div key={event.id} style={{
-            background: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '4px',
-            padding: '0.75rem',
-            marginBottom: '0.5rem',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div key={event.id} className="bg-white border border-gray-200 rounded p-3 mb-2">
+            <div className="flex justify-between items-center flex-wrap gap-2">
               <div>
                 <strong>{event.name}</strong>
-                <span style={{ color: '#718096', fontSize: '0.875rem', marginLeft: '0.5rem' }}>
+                <span className="text-gray-500 text-sm ml-2">
                   {[event.style, event.level].filter(Boolean).join(' - ')}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="flex items-center gap-2">
                 <select
                   value={current}
                   onChange={(e) => onCustomPositionChange(event.id, parseInt(e.target.value))}
-                  style={{ padding: '0.375rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                  className="p-1.5 rounded border border-gray-200"
                 >
                   {Array.from({ length: schedule.heatOrder.length + 1 }, (_, i) => (
                     <option key={i} value={i}>
@@ -76,8 +64,7 @@ export default function UnscheduledEventsBanner({
                   ))}
                 </select>
                 <button
-                  className="btn"
-                  style={{ fontSize: '0.875rem', padding: '0.375rem 0.75rem' }}
+                  className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
                   onClick={() => onInsertEvent(event.id, current)}
                 >
                   Insert

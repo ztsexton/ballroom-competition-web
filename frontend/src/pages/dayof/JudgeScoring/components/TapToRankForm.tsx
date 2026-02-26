@@ -1,4 +1,3 @@
-import React from 'react';
 import { CoupleInfo } from '../types';
 
 const TapToRankForm = ({
@@ -63,125 +62,57 @@ const TapToRankForm = ({
     onScoresChange(cleared);
   };
 
-  const rowBase: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    width: '100%',
-    padding: '0.4375rem 0.625rem',
-    marginBottom: '0.3125rem',
-    borderRadius: '6px',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontSize: '0.9375rem',
-    minHeight: '44px',
-    touchAction: 'manipulation',
-    WebkitTapHighlightColor: 'transparent',
-    userSelect: 'none',
-  };
-
   return (
     <div>
       {/* Progress header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>Tap couples in placement order:</p>
-        <span style={{
-          padding: '0.125rem 0.375rem',
-          background: allRanked ? '#c6f6d5' : '#fefcbf',
-          borderRadius: '4px',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-        }}>
+      <div className="flex justify-between items-center mb-1.5">
+        <p className="font-semibold m-0 text-sm">Tap couples in placement order:</p>
+        <span className={`py-0.5 px-1.5 rounded text-[0.8125rem] font-semibold ${
+          allRanked ? 'bg-green-200' : 'bg-yellow-100'
+        }`}>
           {ranked.length} / {couples.length}
         </span>
       </div>
 
       {/* Ranked section */}
       {ranked.length > 0 && (
-        <div style={{ marginBottom: unranked.length > 0 ? '0.5rem' : 0 }}>
+        <div className={unranked.length > 0 ? 'mb-2' : ''}>
           {ranked.map(couple => {
             const rank = scores[couple.bib];
             const maxRank = Math.max(0, ...Object.values(scores).filter(v => v > 0));
             const canMoveUp = rank > 1;
             const canMoveDown = rank < maxRank;
-            const arrowBtn: React.CSSProperties = {
-              width: '28px',
-              height: '28px',
-              borderRadius: '4px',
-              border: '1px solid #c3cfea',
-              background: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'transparent',
-              padding: 0,
-              color: '#667eea',
-            };
             return (
               <div
                 key={couple.bib}
-                style={{
-                  ...rowBase,
-                  background: '#eef2ff',
-                  border: '2px solid #667eea',
-                  cursor: 'default',
-                }}
+                className="flex items-center gap-2 w-full py-[0.4375rem] px-2.5 mb-[0.3125rem] rounded-md border-2 border-primary-500 bg-indigo-50 cursor-default text-left text-[0.9375rem] min-h-[44px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none"
               >
-                <span style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: '#667eea',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  flexShrink: 0,
-                }}>
+                <span className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-base shrink-0">
                   {rank}
                 </span>
-                <strong style={{ flex: 1, fontSize: '1.0625rem' }}>#{couple.bib}</strong>
-                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
+                <strong className="flex-1 text-[1.0625rem]">#{couple.bib}</strong>
+                <div className="flex gap-1 items-center shrink-0">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleMoveUp(couple.bib); }}
                     disabled={!canMoveUp}
-                    style={{ ...arrowBtn, opacity: canMoveUp ? 1 : 0.3 }}
+                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-sm font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
+                      !canMoveUp ? 'opacity-30' : ''
+                    }`}
                   >
                     ▲
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleMoveDown(couple.bib); }}
                     disabled={!canMoveDown}
-                    style={{ ...arrowBtn, opacity: canMoveDown ? 1 : 0.3 }}
+                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-sm font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
+                      !canMoveDown ? 'opacity-30' : ''
+                    }`}
                   >
                     ▼
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleRemoveRank(couple.bib); }}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '4px',
-                      background: '#e2e8f0',
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      color: '#718096',
-                      flexShrink: 0,
-                      cursor: 'pointer',
-                      touchAction: 'manipulation',
-                      WebkitTapHighlightColor: 'transparent',
-                      padding: 0,
-                    }}
+                    className="w-7 h-7 rounded bg-gray-200 border-none flex items-center justify-center text-xs text-gray-500 shrink-0 cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0"
                   >
                     ✕
                   </button>
@@ -194,14 +125,7 @@ const TapToRankForm = ({
 
       {/* Divider with label */}
       {ranked.length > 0 && unranked.length > 0 && (
-        <p style={{
-          fontSize: '0.6875rem',
-          fontWeight: 600,
-          color: '#a0aec0',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginBottom: '0.3125rem',
-        }}>
+        <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-[0.3125rem]">
           Tap to place
         </p>
       )}
@@ -211,47 +135,25 @@ const TapToRankForm = ({
         <button
           key={couple.bib}
           onClick={() => handleTapToRank(couple.bib)}
-          style={{
-            ...rowBase,
-            background: isProAm ? '#fffbeb' : '#fff',
-            border: `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
-            borderLeft: isProAm ? '3px solid #f59e0b' : undefined,
-          }}
+          className={`flex items-center gap-2 w-full py-[0.4375rem] px-2.5 mb-[0.3125rem] rounded-md border-none cursor-pointer text-left text-[0.9375rem] min-h-[44px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none ${
+            isProAm
+              ? 'bg-amber-50 border border-yellow-300 border-l-[3px] border-l-amber-500'
+              : 'bg-white border border-gray-200'
+          }`}
         >
-          <span style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            border: '2px dashed #cbd5e0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: '1rem',
-            color: '#cbd5e0',
-            flexShrink: 0,
-          }}>
+          <span className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center font-bold text-base text-gray-300 shrink-0">
             {ranked.length + unranked.indexOf(couple) + 1}
           </span>
-          <strong style={{ flex: 1, fontSize: '1.0625rem' }}>#{couple.bib}</strong>
+          <strong className="flex-1 text-[1.0625rem]">#{couple.bib}</strong>
         </button>
       ))}
 
       {/* Clear all button */}
       {ranked.length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+        <div className="text-center mt-2">
           <button
             onClick={handleClearAll}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'transparent',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              color: '#a0aec0',
-              cursor: 'pointer',
-              fontSize: '0.8125rem',
-              touchAction: 'manipulation',
-            }}
+            className="py-2 px-4 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-[0.8125rem] touch-manipulation"
           >
             Reset Rankings
           </button>

@@ -117,3 +117,62 @@ export const requireAdmin = (
 
   next();
 };
+
+/**
+ * Middleware: passes if user is a site admin OR a competition admin for any competition.
+ * Use at route-mount level for competition-scoped routes.
+ */
+export const requireAnyAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized: No user' });
+    return;
+  }
+
+  if (req.user.isAdmin) {
+    next();
+    return;
+  }
+
+  try {
+    const competitionIds = await dataService.getCompetitionsByAdmin(req.user.uid);
+    if (competitionIds.length > 0) {
+      next();
+      return;
+    }
+  } catch {
+    // Table may not exist if migration hasn't run — fall through to deny
+  }
+
+  res.status(403).json({ error: 'Forbidden: Admin access required' });
+};
+
+/**
+ * Helper: returns true if user is site admin OR competition admin for the given competition.
+ * Sends 403 and returns false if denied.
+ */
+export const assertCompetitionAccess = async (
+  req: AuthRequest,
+  res: Response,
+  competitionId: number
+): Promise<boolean> => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized: No user' });
+    return false;
+  }
+
+  if (req.user.isAdmin) return true;
+
+  try {
+    const isAdmin = await dataService.isCompetitionAdmin(competitionId, req.user.uid);
+    if (isAdmin) return true;
+  } catch {
+    // Table may not exist if migration hasn't run — fall through to deny
+  }
+
+  res.status(403).json({ error: 'Forbidden: You do not have access to this competition' });
+  return false;
+};

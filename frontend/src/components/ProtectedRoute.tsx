@@ -15,15 +15,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '1.2rem',
-        color: '#667eea'
-      }}>
-        Loading...
+      <div className="flex justify-center items-center h-screen">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin" />
+          <span className="text-primary-500 text-lg">Loading...</span>
+        </div>
       </div>
     );
   }

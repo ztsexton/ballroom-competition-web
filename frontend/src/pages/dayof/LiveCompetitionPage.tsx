@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { judgingApi } from '../../api/client';
 import { CompetitionSchedule, Event, Competition, ScheduledHeat } from '../../types';
 import { useCompetitionSSE } from '../../hooks/useCompetitionSSE';
+import { Skeleton } from '../../components/Skeleton';
 
 const LiveCompetitionPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,15 +44,15 @@ const LiveCompetitionPage = () => {
     onScoreUpdate: () => loadData(),
   });
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <Skeleton variant="card" />;
 
   if (error || !schedule) {
     return (
-      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
-        <div className="card">
+      <div className="max-w-[600px] mx-auto p-4">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Live Competition</h2>
           <p>{error || 'No schedule found.'}</p>
-          <button className="btn btn-secondary" onClick={() => navigate(-1)} style={{ marginTop: '1rem' }}>
+          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4" onClick={() => navigate(-1)}>
             Go Back
           </button>
         </div>
@@ -76,23 +77,15 @@ const LiveCompetitionPage = () => {
   };
 
   const statusBadge = (status: string, large?: boolean) => {
-    const colors: Record<string, { bg: string; text: string }> = {
-      pending: { bg: '#e2e8f0', text: '#4a5568' },
-      scoring: { bg: '#fefcbf', text: '#744210' },
-      completed: { bg: '#c6f6d5', text: '#276749' },
+    const colorClasses: Record<string, string> = {
+      pending: 'bg-gray-200 text-gray-600',
+      scoring: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
     };
-    const c = colors[status] || colors.pending;
+    const c = colorClasses[status] || colorClasses.pending;
+    const sizeClasses = large ? 'px-4 py-1.5 text-base' : 'px-3 py-1 text-xs';
     return (
-      <span style={{
-        padding: large ? '0.375rem 1rem' : '0.25rem 0.75rem',
-        borderRadius: '9999px',
-        fontSize: large ? '1rem' : '0.75rem',
-        fontWeight: 700,
-        background: c.bg,
-        color: c.text,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}>
+      <span className={`${sizeClasses} rounded-full font-bold uppercase tracking-wider ${c}`}>
         {status}
       </span>
     );
@@ -147,58 +140,35 @@ const LiveCompetitionPage = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
+    <div className="max-w-[600px] mx-auto p-4">
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '1rem',
-        padding: '0.75rem 1rem',
-        background: '#2d3748',
-        borderRadius: '8px',
-        color: 'white',
-      }}>
+      <div className="flex justify-between items-center mb-4 px-4 py-3 bg-gray-800 rounded-lg text-white">
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.125rem' }}>{competition?.name || 'Competition'}</h2>
+          <h2 className="m-0 text-lg">{competition?.name || 'Competition'}</h2>
         </div>
-        <span style={{
-          padding: '0.25rem 0.75rem',
-          background: '#e53e3e',
-          borderRadius: '9999px',
-          fontSize: '0.75rem',
-          fontWeight: 700,
-          letterSpacing: '0.05em',
-        }}>
+        <span className="px-3 py-1 bg-red-500 rounded-full text-xs font-bold tracking-wider">
           LIVE
         </span>
       </div>
 
       {/* NOW */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '1.25rem',
-        marginBottom: '0.75rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        borderLeft: '4px solid #667eea',
-      }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#667eea', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+      <div className="bg-white rounded-xl p-5 mb-3 shadow-sm border-l-4 border-primary-500">
+        <div className="text-xs font-bold text-primary-500 uppercase tracking-widest mb-2">
           Now
         </div>
 
         {!currentHeat ? (
-          <p style={{ color: '#718096', fontSize: '1.125rem', margin: 0 }}>Waiting to start...</p>
+          <p className="text-gray-500 text-lg m-0">Waiting to start...</p>
         ) : currentHeat.isBreak ? (
           <div>
-            <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
+            <p className="text-gray-400 m-0 mb-1 text-[0.8rem]">
               Heat {schedule.currentHeatIndex + 1} of {totalCount}
             </p>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>
+            <p className="text-2xl font-bold m-0 mb-1">
               {currentHeat.breakLabel || 'Break'}
             </p>
             {currentHeat.breakDuration && (
-              <p style={{ color: '#718096', margin: '0 0 0.5rem', fontSize: '1rem' }}>
+              <p className="text-gray-500 m-0 mb-2 text-base">
                 {currentHeat.breakDuration} minutes
               </p>
             )}
@@ -206,7 +176,7 @@ const LiveCompetitionPage = () => {
           </div>
         ) : currentHeat.entries.length > 0 ? (
           <div>
-            <p style={{ color: '#a0aec0', margin: '0 0 0.25rem', fontSize: '0.8rem' }}>
+            <p className="text-gray-400 m-0 mb-1 text-[0.8rem]">
               Heat {schedule.currentHeatIndex + 1} of {totalCount}
             </p>
             {currentHeat.entries.map(entry => {
@@ -216,23 +186,23 @@ const LiveCompetitionPage = () => {
                 + (entry.totalFloorHeats && entry.totalFloorHeats > 1 ? ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})` : '')
                 + (entry.dance ? ` — ${entry.dance}` : '');
               return (
-                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} style={{ marginBottom: '0.25rem' }}>
-                  <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.125rem', lineHeight: 1.2 }}>
+                <div key={`${entry.eventId}-${entry.floorHeatIndex ?? 0}-${entry.dance ?? ''}`} className="mb-1">
+                  <p className="text-2xl font-bold m-0 mb-0.5 leading-tight">
                     {formatEventLabel(event)}
                   </p>
-                  <p style={{ fontSize: '1rem', color: '#4a5568', margin: 0 }}>
+                  <p className="text-base text-gray-600 m-0">
                     {liveRoundLabel}
                   </p>
                 </div>
               );
             })}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               {statusBadge(currentStatus, true)}
-              <span style={{ color: '#718096', fontSize: '0.875rem' }}>
+              <span className="text-gray-500 text-sm">
                 {getHeatCoupleCount(currentHeat)} couples
               </span>
               {(currentHeat.estimatedStartTime || currentHeat.actualStartTime) && (
-                <span style={{ color: '#a0aec0', fontSize: '0.8125rem' }}>
+                <span className="text-gray-400 text-[0.8125rem]">
                   {currentHeat.actualStartTime
                     ? `Started ${formatTime(currentHeat.actualStartTime)}`
                     : `Est. ${formatTime(currentHeat.estimatedStartTime)}`}
@@ -241,84 +211,66 @@ const LiveCompetitionPage = () => {
             </div>
           </div>
         ) : (
-          <p style={{ color: '#718096', margin: 0 }}>Unknown event</p>
+          <p className="text-gray-500 m-0">Unknown event</p>
         )}
       </div>
 
       {/* UP NEXT */}
       {nextHeat && (
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1rem 1.25rem',
-          marginBottom: '0.75rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          borderLeft: '4px solid #ed8936',
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c05621', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+        <div className="bg-white rounded-xl px-5 py-4 mb-3 shadow-sm border-l-4 border-orange-500">
+          <div className="text-xs font-bold text-orange-700 uppercase tracking-widest mb-2">
             Up Next
           </div>
 
           {nextHeat.isBreak ? (
             <div>
-              <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0, fontStyle: 'italic' }}>
-                <span style={{ color: '#a0aec0', fontStyle: 'normal', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{schedule.currentHeatIndex + 2}</span>
+              <p className="text-lg font-semibold m-0 italic">
+                <span className="not-italic text-gray-400 text-[0.8rem] mr-2">#{schedule.currentHeatIndex + 2}</span>
                 {nextHeat.breakLabel || 'Break'}
                 {nextHeat.breakDuration ? ` — ${nextHeat.breakDuration} min` : ''}
               </p>
             </div>
           ) : nextHeat.entries.length > 0 ? (
             <div>
-              <p style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.125rem' }}>
-                <span style={{ color: '#a0aec0', fontSize: '0.8rem', fontWeight: 400, marginRight: '0.5rem' }}>#{schedule.currentHeatIndex + 2}</span>
+              <p className="text-lg font-semibold m-0 mb-0.5">
+                <span className="text-gray-400 text-[0.8rem] font-normal mr-2">#{schedule.currentHeatIndex + 2}</span>
                 {getHeatLabel(nextHeat)}
               </p>
-              <p style={{ color: '#718096', margin: 0, fontSize: '0.875rem' }}>
+              <p className="text-gray-500 m-0 text-sm">
                 {getHeatRound(nextHeat)}
                 {' · '}
                 {getHeatCoupleCount(nextHeat)} couples
                 {nextHeat.estimatedStartTime && (
-                  <span style={{ marginLeft: '0.5rem', color: '#a0aec0' }}>
+                  <span className="ml-2 text-gray-400">
                     · {formatTime(nextHeat.estimatedStartTime)}
                   </span>
                 )}
               </p>
             </div>
           ) : (
-            <p style={{ color: '#718096', margin: 0 }}>Unknown event</p>
+            <p className="text-gray-500 m-0">Unknown event</p>
           )}
         </div>
       )}
 
       {/* COMING UP */}
       {laterHeats.length > 0 && (
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1rem 1.25rem',
-          marginBottom: '0.75rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+        <div className="bg-white rounded-xl px-5 py-4 mb-3 shadow-sm">
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
             Coming Up
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             {laterHeats.map((heat, idx) => {
               const heatNum = schedule.currentHeatIndex + 3 + idx;
 
               if (heat.isBreak) {
                 return (
-                  <div key={heat.id + '-' + idx} style={{
-                    padding: '0.5rem 0',
-                    borderBottom: idx < laterHeats.length - 1 ? '1px solid #edf2f7' : undefined,
-                    fontStyle: 'italic',
-                    color: '#718096',
-                  }}>
-                    <span style={{ fontStyle: 'normal', color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
+                  <div key={heat.id + '-' + idx} className={`py-2 italic text-gray-500${idx < laterHeats.length - 1 ? ' border-b border-gray-100' : ''}`}>
+                    <span className="not-italic text-gray-400 text-[0.8rem] mr-2">#{heatNum}</span>
                     {heat.breakLabel || 'Break'}
                     {heat.breakDuration ? ` — ${heat.breakDuration} min` : ''}
                     {heat.estimatedStartTime && (
-                      <span style={{ fontStyle: 'normal', color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.8rem' }}>
+                      <span className="not-italic text-gray-400 ml-2 text-[0.8rem]">
                         {formatTime(heat.estimatedStartTime)}
                       </span>
                     )}
@@ -329,13 +281,10 @@ const LiveCompetitionPage = () => {
               const coupleCount = getHeatCoupleCount(heat);
 
               return (
-                <div key={heat.id + '-' + idx} style={{
-                  padding: '0.5rem 0',
-                  borderBottom: idx < laterHeats.length - 1 ? '1px solid #edf2f7' : undefined,
-                }}>
-                  <span style={{ color: '#a0aec0', fontSize: '0.8rem', marginRight: '0.5rem' }}>#{heatNum}</span>
-                  <span style={{ fontWeight: 500 }}>{getHeatLabel(heat)}</span>
-                  <span style={{ color: '#a0aec0', marginLeft: '0.5rem', fontSize: '0.875rem' }}>
+                <div key={heat.id + '-' + idx} className={`py-2${idx < laterHeats.length - 1 ? ' border-b border-gray-100' : ''}`}>
+                  <span className="text-gray-400 text-[0.8rem] mr-2">#{heatNum}</span>
+                  <span className="font-medium">{getHeatLabel(heat)}</span>
+                  <span className="text-gray-400 ml-2 text-sm">
                     {getHeatRound(heat)}
                     {coupleCount > 0 && ` · ${coupleCount}`}
                     {heat.estimatedStartTime && ` · ${formatTime(heat.estimatedStartTime)}`}
@@ -348,48 +297,33 @@ const LiveCompetitionPage = () => {
       )}
 
       {/* Progress */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '1rem 1.25rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.875rem', color: '#718096' }}>Progress</span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+      <div className="bg-white rounded-xl px-5 py-4 shadow-sm">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-500">Progress</span>
+          <span className="text-sm font-semibold">
             {completedCount} of {totalCount} heats
             {(() => {
               const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
               if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
                 const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
-                return <span style={{ fontWeight: 400, color: '#a0aec0', marginLeft: '0.5rem' }}>· Est. finish {formatTime(finish.toISOString())}</span>;
+                return <span className="font-normal text-gray-400 ml-2">· Est. finish {formatTime(finish.toISOString())}</span>;
               }
               return null;
             })()}
           </span>
         </div>
-        <div style={{
-          width: '100%',
-          height: '8px',
-          background: '#e2e8f0',
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            width: `${progressPercent}%`,
-            height: '100%',
-            background: '#667eea',
-            borderRadius: '4px',
-            transition: 'width 0.3s ease',
-          }} />
+        <div className="bg-gray-200 rounded h-2 overflow-hidden">
+          <div
+            className="bg-primary-500 rounded h-full transition-[width] duration-300 ease-in-out"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+      <div className="text-center mt-4">
         <button
-          className="btn btn-secondary"
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
           onClick={() => navigate(-1)}
-          style={{ fontSize: '0.875rem' }}
         >
           Back
         </button>

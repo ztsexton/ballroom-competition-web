@@ -125,6 +125,14 @@ export interface Competition {
   heatListsPublishedAt?: string; // ISO date string for scheduled publish
   websiteUrl?: string;
   organizerEmail?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface CompetitionAdmin {
+  competitionId: number;
+  userUid: string;
+  role: string;
   createdAt: string;
 }
 

@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     isAdmin: true,
+    isAnyAdmin: true,
     loading: false,
   }),
 }));
@@ -60,7 +61,8 @@ describe('ResultsPage', () => {
 
     renderWithRoute();
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Loading state now renders a skeleton instead of text
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('should show "Event not found" when event API returns error', async () => {

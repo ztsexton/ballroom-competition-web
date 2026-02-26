@@ -14,33 +14,18 @@ const InputMethodToggle = ({
     : [{ key: 'quickscore', label: 'Quick Score' }, { key: 'keyboard', label: 'Keyboard' }];
 
   return (
-    <div style={{
-      display: 'flex',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px',
-      overflow: 'hidden',
-      marginBottom: '0.5rem',
-    }}>
+    <div className="flex border border-gray-200 rounded-lg overflow-hidden mb-2">
       {options.map(opt => {
         const isActive = opt.key === selectedMethod;
         return (
           <button
             key={opt.key}
             onClick={() => onMethodChange(opt.key)}
-            style={{
-              flex: 1,
-              padding: '0.375rem 0.25rem',
-              minHeight: '34px',
-              border: 'none',
-              background: isActive ? '#667eea' : 'transparent',
-              color: isActive ? 'white' : '#4a5568',
-              fontWeight: isActive ? 700 : 500,
-              fontSize: '0.8125rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              touchAction: 'manipulation',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+            className={`flex-1 py-1.5 px-1 min-h-[34px] border-none text-[0.8125rem] cursor-pointer transition-all touch-manipulation [-webkit-tap-highlight-color:transparent] ${
+              isActive
+                ? 'bg-primary-500 text-white font-bold'
+                : 'bg-transparent text-gray-600 font-medium'
+            }`}
           >
             {opt.label}
           </button>

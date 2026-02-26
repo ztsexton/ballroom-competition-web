@@ -14,6 +14,7 @@ import QuickScoreForm from './JudgeScoring/components/QuickScoreForm';
 import { JudgeGrid } from '../../components/results/JudgeGrid';
 import { SkatingBreakdown } from '../../components/results/SkatingBreakdown';
 import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
+import { Skeleton } from '../../components/Skeleton';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
 
@@ -303,17 +304,17 @@ const ScrutineerPage = () => {
   }
   const sectionOrder = [...STYLE_SECTIONS, ...Object.keys(groupedEvents).filter(s => !STYLE_SECTIONS.includes(s))];
 
-  if (authLoading || loading) return <div className="loading">Loading...</div>;
+  if (authLoading || loading) return <Skeleton variant="card" />;
   if (!isAdmin) {
     return (
-      <div className="container"><div className="card">
+      <div className="max-w-7xl mx-auto p-8"><div className="bg-white rounded-lg shadow p-6">
         <h2>Access Denied</h2>
         <p>You must be an admin to access the scrutineer view.</p>
       </div></div>
     );
   }
   if (!activeCompetition) {
-    return <div className="container"><div className="card"><p>No competition selected.</p></div></div>;
+    return <div className="max-w-7xl mx-auto p-8"><div className="bg-white rounded-lg shadow p-6"><p>No competition selected.</p></div></div>;
   }
 
   // ─── Scoring Grid View ───
@@ -321,60 +322,47 @@ const ScrutineerPage = () => {
     const isProficiency = scoringType === 'proficiency';
 
     return (
-      <div className="container">
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-3">
             <div>
-              <button onClick={closeScoringGrid} className="btn btn-secondary" style={{ marginRight: '1rem', fontSize: '0.875rem' }}>
+              <button onClick={closeScoringGrid} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mr-4">
                 &larr; Back to Events
               </button>
-              <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>{selectedEvent.name}</span>
+              <span className="font-semibold text-lg">{selectedEvent.name}</span>
             </div>
           </div>
 
           {/* Round tabs */}
-          <div style={{
-            display: 'flex', gap: '0.25rem', marginBottom: '1rem',
-            borderBottom: '2px solid #e2e8f0', paddingBottom: '0',
-          }}>
-            {selectedEvent.heats.map(heat => (
-              <button
-                key={heat.round}
-                onClick={() => { if (heat.round !== selectedRound) openScoringGrid(selectedEvent!, heat.round); }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: 'none',
-                  background: 'none',
-                  cursor: heat.round === selectedRound ? 'default' : 'pointer',
-                  fontWeight: heat.round === selectedRound ? 600 : 400,
-                  color: heat.round === selectedRound ? '#667eea' : '#4a5568',
-                  borderBottom: heat.round === selectedRound ? '3px solid #667eea' : '3px solid transparent',
-                  marginBottom: '-2px',
-                  textTransform: 'capitalize',
-                  fontSize: '0.9375rem',
-                  transition: 'color 0.15s, border-color 0.15s',
-                }}
-              >
-                {heat.round}
-              </button>
-            ))}
+          <div className="flex gap-1 mb-4 border-b-2 border-gray-200 pb-0">
+            {selectedEvent.heats.map(heat => {
+              const active = heat.round === selectedRound;
+              return (
+                <button
+                  key={heat.round}
+                  onClick={() => { if (heat.round !== selectedRound) openScoringGrid(selectedEvent!, heat.round); }}
+                  className={`${active ? 'text-primary-600 font-semibold border-b-[3px] border-primary-500' : 'text-gray-600 border-b-[3px] border-transparent'} px-4 py-2 border-none bg-transparent cursor-pointer capitalize text-sm transition-colors -mb-0.5`}
+                >
+                  {heat.round}
+                </button>
+              );
+            })}
           </div>
 
-          {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+          {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
           {/* Scoring type info */}
-          <div style={{
-            background: isProficiency ? '#f0fff4' : isRecallRound ? '#fef3c7' : '#e6f7ff',
-            border: `1px solid ${isProficiency ? '#38a169' : isRecallRound ? '#f59e0b' : '#1890ff'}`,
-            padding: '0.75rem 1rem',
-            borderRadius: '4px',
-            marginBottom: '1rem',
-            fontSize: '0.875rem',
-          }}>
+          <div className={`px-4 py-3 rounded mb-4 text-sm border ${
+            isProficiency
+              ? 'bg-green-50 border-green-500'
+              : isRecallRound
+                ? 'bg-amber-50 border-amber-500'
+                : 'bg-blue-50 border-blue-500'
+          }`}>
             <strong>
               {isProficiency ? 'Proficiency Scoring' : isRecallRound ? 'Recall Round' : 'Final Round'}
             </strong>
-            <span style={{ marginLeft: '0.5rem', color: '#4a5568' }}>
+            <span className="ml-2 text-gray-600">
               {isProficiency
                 ? '— Enter scores 0-100 for each couple.'
                 : isRecallRound
@@ -384,15 +372,16 @@ const ScrutineerPage = () => {
           </div>
 
           {/* Entry mode toggle */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="flex justify-between items-center mb-4">
             {/* Multi-dance tabs */}
-            <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <div className="flex gap-1">
               {gridDances.length > 0 && gridDances.map(dance => (
                 <button
                   key={dance}
+                  className={activeDance === dance
+                    ? 'px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 capitalize'
+                    : 'px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 capitalize'}
                   onClick={() => setActiveDance(dance)}
-                  className={`btn ${activeDance === dance ? '' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.875rem', textTransform: 'capitalize' }}
                 >
                   {dance}
                 </button>
@@ -400,60 +389,38 @@ const ScrutineerPage = () => {
             </div>
 
             {/* Grid / Per-Judge toggle */}
-            <div style={{
-              display: 'flex', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden',
-            }}>
-              {([['grid', 'Grid'], ['per-judge', 'Per-Judge']] as const).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  onClick={() => handleInputModeChange(mode)}
-                  style={{
-                    padding: '0.375rem 0.75rem',
-                    border: 'none',
-                    background: inputMode === mode ? '#667eea' : 'transparent',
-                    color: inputMode === mode ? 'white' : '#4a5568',
-                    fontWeight: inputMode === mode ? 700 : 500,
-                    fontSize: '0.8125rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+              {([['grid', 'Grid'], ['per-judge', 'Per-Judge']] as const).map(([mode, label]) => {
+                const active = inputMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => handleInputModeChange(mode)}
+                    className={`${active ? 'bg-primary-500 text-white font-bold' : 'bg-transparent text-gray-600 font-medium'} px-3 py-1.5 border-none text-[0.8125rem] cursor-pointer transition-all`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {gridLoading ? (
-            <div className="loading">Loading scores...</div>
+            <Skeleton variant="card" />
           ) : gridBibs.length === 0 ? (
-            <p style={{ color: '#718096', textAlign: 'center', padding: '2rem' }}>No couples in this round.</p>
+            <p className="text-gray-500 text-center py-8">No couples in this round.</p>
           ) : inputMode === 'per-judge' ? (
             /* ── Per-Judge Mode ── */
             <>
               {/* Judge selector tabs */}
-              <div style={{
-                display: 'flex', gap: '0.25rem', marginBottom: '0.75rem',
-                overflowX: 'auto', WebkitOverflowScrolling: 'touch',
-              }}>
+              <div className="flex gap-1 mb-3 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {gridJudges.map(judge => {
                   const active = activeJudgeId === judge.id;
                   return (
                     <button
                       key={judge.id}
                       onClick={() => setActiveJudgeId(judge.id)}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        border: active ? '2px solid #667eea' : '1px solid #e2e8f0',
-                        borderRadius: '6px',
-                        background: active ? '#eef2ff' : 'white',
-                        color: active ? '#667eea' : '#4a5568',
-                        fontWeight: active ? 600 : 400,
-                        fontSize: '0.8125rem',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s',
-                      }}
+                      className={`${active ? 'border-2 border-primary-500 bg-primary-50 text-primary-500 font-semibold' : 'border border-gray-200 bg-white text-gray-600'} px-3 py-2 rounded-md text-[0.8125rem] cursor-pointer whitespace-nowrap transition-all`}
                     >
                       #{judge.judgeNumber}: {judge.name}{judge.isChairman ? ' \u2605' : ''}
                     </button>
@@ -526,14 +493,14 @@ const ScrutineerPage = () => {
                       />
                     )}
 
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                      <button onClick={() => handleSaveJudge(activeJudgeId)} disabled={saving} className="btn btn-secondary">
+                    <div className="flex gap-2 mt-4 flex-wrap">
+                      <button onClick={() => handleSaveJudge(activeJudgeId)} disabled={saving} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                         {saving ? 'Saving...' : `Save Judge #${gridJudges.find(j => j.id === activeJudgeId)?.judgeNumber || ''}`}
                       </button>
-                      <button onClick={handleSaveAll} disabled={saving} className="btn btn-secondary">
+                      <button onClick={handleSaveAll} disabled={saving} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                         {saving ? 'Saving...' : 'Save All Judges'}
                       </button>
-                      <button onClick={handleCompile} disabled={compiling || saving} className="btn">
+                      <button onClick={handleCompile} disabled={compiling || saving} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">
                         {compiling ? 'Compiling...' : 'Compile & Calculate Results'}
                       </button>
                     </div>
@@ -544,21 +511,20 @@ const ScrutineerPage = () => {
           ) : (
             /* ── Grid Mode ── */
             <>
-              <div style={{ overflowX: 'auto' }}>
-                <table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
                     <tr>
                       <th>Bib</th>
                       <th>Leader</th>
                       <th>Follower</th>
                       {gridJudges.map(judge => (
-                        <th key={judge.id} style={{ textAlign: 'center', minWidth: '80px' }}>
+                        <th key={judge.id} className="text-center min-w-[80px]">
                           <div>#{judge.judgeNumber}: {judge.name}{judge.isChairman ? ' \u2605' : ''}</div>
                           <button
                             onClick={() => handleSaveJudge(judge.id)}
                             disabled={saving}
-                            className="btn btn-secondary"
-                            style={{ fontSize: '0.6875rem', padding: '0.125rem 0.5rem', marginTop: '0.25rem' }}
+                            className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-[0.6875rem] font-medium transition-colors hover:bg-gray-200 mt-1"
                           >
                             Save
                           </button>
@@ -577,7 +543,7 @@ const ScrutineerPage = () => {
                           {gridJudges.map(judge => {
                             const key = scoreKey(judge.id, bib);
                             return (
-                              <td key={judge.id} style={{ textAlign: 'center' }}>
+                              <td key={judge.id} className="text-center">
                                 {isProficiency ? (
                                   <input
                                     type="number"
@@ -585,14 +551,14 @@ const ScrutineerPage = () => {
                                     max="100"
                                     value={scores[key] ?? ''}
                                     onChange={e => handleScoreChange(judge.id, bib, e.target.value)}
-                                    style={{ width: '60px', textAlign: 'center' }}
+                                    className="w-[60px] text-center"
                                   />
                                 ) : isRecallRound ? (
                                   <input
                                     type="checkbox"
                                     checked={scores[key] === 1}
                                     onChange={() => handleScoreChange(judge.id, bib, '')}
-                                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                    className="w-5 h-5 cursor-pointer"
                                   />
                                 ) : (
                                   <input
@@ -601,7 +567,7 @@ const ScrutineerPage = () => {
                                     max={gridBibs.length}
                                     value={scores[key] ?? ''}
                                     onChange={e => handleScoreChange(judge.id, bib, e.target.value)}
-                                    style={{ width: '50px', textAlign: 'center' }}
+                                    className="w-[50px] text-center"
                                   />
                                 )}
                               </td>
@@ -614,11 +580,11 @@ const ScrutineerPage = () => {
                 </table>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                <button onClick={handleSaveAll} disabled={saving} className="btn btn-secondary">
+              <div className="flex gap-2 mt-6 flex-wrap">
+                <button onClick={handleSaveAll} disabled={saving} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                   {saving ? 'Saving...' : 'Save All'}
                 </button>
-                <button onClick={handleCompile} disabled={compiling || saving} className="btn">
+                <button onClick={handleCompile} disabled={compiling || saving} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">
                   {compiling ? 'Compiling...' : 'Compile & Calculate Results'}
                 </button>
               </div>
@@ -627,15 +593,15 @@ const ScrutineerPage = () => {
 
           {/* Inline results after compilation */}
           {results && results.length > 0 && (
-            <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <h3 style={{ marginBottom: '0' }}>Results — {selectedEvent.name} ({selectedRound})</h3>
+            <div className="mt-8 flex flex-col gap-5">
+              <h3 className="mb-0">Results — {selectedEvent.name} ({selectedRound})</h3>
 
               {/* Judge Grid */}
               {gridJudges.length > 0 && (
                 gridDances.length > 1 ? (
                   gridDances.map(dance => (
                     <div key={dance}>
-                      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem', textTransform: 'capitalize' }}>{dance}</h4>
+                      <h4 className="text-sm mb-1.5 capitalize">{dance}</h4>
                       <JudgeGrid results={results} judges={gridJudges} isRecall={isRecallRound} dance={dance} />
                     </div>
                   ))
@@ -647,7 +613,7 @@ const ScrutineerPage = () => {
               {/* Skating breakdown for standard finals */}
               {!isRecallRound && !isProficiency && results.some(r => r.skatingDetail) && gridDances.length <= 1 && (
                 <div>
-                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem' }}>Skating System Breakdown</h4>
+                  <h4 className="text-sm mb-1.5">Skating System Breakdown</h4>
                   <SkatingBreakdown results={results} numJudges={gridJudges.length} />
                 </div>
               )}
@@ -663,7 +629,7 @@ const ScrutineerPage = () => {
                   if (danceResults.length === 0) return null;
                   return (
                     <div key={`skating-${dance}`}>
-                      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem', textTransform: 'capitalize' }}>Skating: {dance}</h4>
+                      <h4 className="text-sm mb-1.5 capitalize">Skating: {dance}</h4>
                       <SkatingBreakdown results={danceResults} numJudges={gridJudges.length} />
                     </div>
                   );
@@ -673,7 +639,7 @@ const ScrutineerPage = () => {
               {/* Multi-dance summary */}
               {gridDances.length > 1 && !isRecallRound && (
                 <div>
-                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.4rem' }}>Overall Placement</h4>
+                  <h4 className="text-sm mb-1.5">Overall Placement</h4>
                   <MultiDanceSummary results={results} dances={gridDances} />
                 </div>
               )}
@@ -686,40 +652,35 @@ const ScrutineerPage = () => {
 
   // ─── Event Browser View ───
   return (
-    <div className="container">
-      <div className="card">
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2>Scrutineer — {activeCompetition.name}</h2>
-        <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        <p className="text-gray-500 text-sm mb-6">
           Select an event and round to enter scores from paper judging sheets.
         </p>
 
-        {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
         {events.length === 0 ? (
-          <p style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>No events created yet.</p>
+          <p className="text-center py-8 text-gray-500">No events created yet.</p>
         ) : (
           sectionOrder.filter(s => groupedEvents[s]?.length > 0).map(style => {
             const sectionEvents = groupedEvents[style];
             const collapsed = collapsedSections[style];
             return (
-              <div key={style} style={{ marginBottom: '1rem' }}>
+              <div key={style} className="mb-4">
                 <div
                   onClick={() => setCollapsedSections(prev => ({ ...prev, [style]: !prev[style] }))}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '0.625rem 0.75rem',
-                    background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
-                    cursor: 'pointer', userSelect: 'none',
-                  }}
+                  className="flex justify-between items-center px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-md cursor-pointer select-none"
                 >
                   <strong>{style}</strong>
-                  <span style={{ color: '#718096', fontSize: '0.875rem' }}>
-                    {sectionEvents.length} event{sectionEvents.length !== 1 ? 's' : ''} {collapsed ? '▸' : '▾'}
+                  <span className="text-gray-500 text-sm">
+                    {sectionEvents.length} event{sectionEvents.length !== 1 ? 's' : ''} {collapsed ? '\u25B8' : '\u25BE'}
                   </span>
                 </div>
 
                 {!collapsed && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.375rem' }}>
+                  <div className="flex flex-col gap-1.5 mt-1.5">
                     {sectionEvents.map(evt => {
                       const bibCount = evt.heats[0]?.bibs.length || 0;
                       const defaultRound = evt.heats[evt.heats.length - 1]?.round;
@@ -727,31 +688,21 @@ const ScrutineerPage = () => {
                         <div
                           key={evt.id}
                           onClick={() => defaultRound && openScoringGrid(evt, defaultRound)}
-                          style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '0.625rem 0.75rem',
-                            border: '1px solid #e2e8f0', borderRadius: '4px',
-                            background: 'white',
-                            cursor: 'pointer',
-                            transition: 'background 0.1s',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f7fafc')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                          className="flex justify-between items-center px-3 py-2.5 border border-gray-200 rounded bg-white cursor-pointer transition-colors hover:bg-gray-50"
                         >
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontWeight: 500 }}>{evt.name}</span>
-                            <span style={{ color: '#a0aec0', fontSize: '0.8125rem', marginLeft: '0.5rem' }}>
+                          <div className="flex-1">
+                            <span className="font-medium">{evt.name}</span>
+                            <span className="text-gray-400 text-[0.8125rem] ml-2">
                               {bibCount} couple{bibCount !== 1 ? 's' : ''}
-                              {evt.dances && evt.dances.length > 1 && ` · ${evt.dances.length} dances`}
+                              {evt.dances && evt.dances.length > 1 && ` \u00B7 ${evt.dances.length} dances`}
                             </span>
                           </div>
-                          <div style={{ display: 'flex', gap: '0.375rem' }}>
+                          <div className="flex gap-1.5">
                             {evt.heats.map(heat => (
                               <button
                                 key={heat.round}
                                 onClick={e => { e.stopPropagation(); openScoringGrid(evt, heat.round); }}
-                                className="btn btn-secondary"
-                                style={{ fontSize: '0.8125rem', padding: '0.25rem 0.625rem', textTransform: 'capitalize' }}
+                                className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-[0.8125rem] font-medium transition-colors hover:bg-gray-200 capitalize"
                               >
                                 {heat.round}
                               </button>

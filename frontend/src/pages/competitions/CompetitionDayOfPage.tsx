@@ -27,41 +27,30 @@ const CompetitionDayOfPage = () => {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div className="container">
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2 style={{ marginBottom: '0.25rem' }}>Competition Day Views</h2>
-        <p style={{ color: '#718096', fontSize: '0.9375rem' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-1">Competition Day Views</h2>
+        <p className="text-gray-500 text-[0.9375rem]">
           Open these on separate screens or devices during the competition.
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div className="flex flex-col gap-3">
         {dayOfViews.map(view => (
           <Link
             key={view.path}
             to={`/competitions/${id}/${view.path}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '1.25rem',
-              background: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              textDecoration: 'none',
-              color: 'inherit',
-              transition: 'box-shadow 0.15s',
-            }}
+            className="flex items-center gap-4 p-5 bg-white rounded-lg shadow no-underline text-inherit transition-shadow hover:shadow-md"
           >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '0.25rem' }}>
+            <div className="flex-1">
+              <div className="font-semibold text-lg text-gray-800 mb-1">
                 {view.label}
               </div>
-              <div style={{ color: '#718096', fontSize: '0.875rem' }}>
+              <div className="text-gray-500 text-sm">
                 {view.description}
               </div>
             </div>
-            <span style={{ color: '#667eea', fontSize: '1.5rem', fontWeight: 700, flexShrink: 0 }}>
+            <span className="text-primary-500 text-2xl font-bold shrink-0">
               &rsaquo;
             </span>
           </Link>

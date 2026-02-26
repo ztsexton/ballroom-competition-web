@@ -4,6 +4,7 @@ import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Competition, Person, Couple, Event, AgeCategory } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { Skeleton } from '../../components/Skeleton';
 
 interface ScheduleItem {
   heatId: string;
@@ -21,17 +22,10 @@ const getDanceOptions = (s: string) => {
   return [];
 };
 
-const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
-  padding: '0.375rem 0.75rem',
-  border: active ? '2px solid #667eea' : '1px solid #cbd5e0',
-  borderRadius: '4px',
-  background: active ? '#667eea' : 'white',
-  color: active ? 'white' : '#2d3748',
-  cursor: 'pointer',
-  fontWeight: active ? 600 : 400,
-  fontSize: '0.85rem',
-  transition: 'all 0.15s',
-});
+const toggleBtnCls = (active: boolean) =>
+  active
+    ? 'px-3 py-1.5 border-2 border-primary-500 rounded bg-primary-500 text-white cursor-pointer font-semibold text-sm transition-all'
+    : 'px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all';
 
 const ParticipantPortalPage = () => {
   const { user } = useAuth();
@@ -243,66 +237,55 @@ const ParticipantPortalPage = () => {
     );
   };
 
-  if (loadingComps) return <div className="loading">Loading...</div>;
+  if (loadingComps) return (
+    <div className="max-w-[900px] mx-auto p-8">
+      <Skeleton variant="card" className="mb-4" />
+      <Skeleton variant="card" />
+    </div>
+  );
 
   const levels = selectedComp?.levels || DEFAULT_LEVELS;
 
   return (
-    <div className="container" style={{ maxWidth: '900px' }}>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2 style={{ margin: '0 0 0.25rem' }}>Participant Portal</h2>
-        <p style={{ color: '#718096', margin: 0 }}>
+    <div className="max-w-[900px] mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6 mb-4">
+        <h2 className="m-0 mb-1">Participant Portal</h2>
+        <p className="text-gray-500 m-0">
           Register for competitions, manage your entries, and view your schedule.
         </p>
       </div>
 
-      {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+      {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded mb-4 text-sm">{error}</div>}
       {success && (
-        <div style={{
-          padding: '0.75rem 1rem',
-          background: '#c6f6d5',
-          border: '1px solid #48bb78',
-          borderRadius: '6px',
-          marginBottom: '1rem',
-          color: '#276749',
-        }}>
+        <div className="px-4 py-3 bg-green-100 border border-success-500 rounded-md mb-4 text-green-800">
           {success}
         </div>
       )}
 
       {/* Section 1: Competition Selection */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ margin: '0 0 0.75rem' }}>Select Competition</h3>
+      <div className="bg-white rounded-lg shadow p-6 mb-4">
+        <h3 className="mt-0 mb-3">Select Competition</h3>
         {competitions.length === 0 ? (
-          <p style={{ color: '#718096' }}>No competitions are currently open for registration.</p>
+          <p className="text-gray-500">No competitions are currently open for registration.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             {competitions.map(comp => (
               <button
                 key={comp.id}
                 onClick={() => setSelectedComp(comp)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem',
-                  background: selectedComp?.id === comp.id ? '#ebf4ff' : 'white',
-                  border: selectedComp?.id === comp.id ? '2px solid #667eea' : '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s',
-                }}
+                className={selectedComp?.id === comp.id
+                  ? 'flex justify-between items-center p-3 bg-primary-50 border-2 border-primary-500 rounded-md cursor-pointer text-left transition-all'
+                  : 'flex justify-between items-center p-3 bg-white border border-gray-200 rounded-md cursor-pointer text-left transition-all'}
               >
                 <div>
-                  <div style={{ fontWeight: 600 }}>{comp.name}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                  <div className="font-semibold">{comp.name}</div>
+                  <div className="text-sm text-gray-500">
                     {new Date(comp.date).toLocaleDateString()}
                     {comp.location && ` \u2022 ${comp.location}`}
                   </div>
                 </div>
                 {selectedComp?.id === comp.id && (
-                  <span style={{ color: '#667eea', fontWeight: 600 }}>Selected</span>
+                  <span className="text-primary-500 font-semibold">Selected</span>
                 )}
               </button>
             ))}
@@ -312,34 +295,35 @@ const ParticipantPortalPage = () => {
 
       {/* Section 2: Registration */}
       {selectedComp && !myPerson && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.75rem' }}>Register as Participant</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Your Name</label>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 className="mt-0 mb-3">Register as Participant</h3>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Your Name</label>
               <input
                 type="text"
                 value={regName}
                 onChange={e => setRegName(e.target.value)}
                 placeholder="First Last"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Role</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Role</label>
+              <div className="flex gap-2">
                 {(['leader', 'follower', 'both'] as const).map(r => (
-                  <button key={r} type="button" style={toggleBtnStyle(regRole === r)}
+                  <button key={r} type="button" className={toggleBtnCls(regRole === r)}
                     onClick={() => setRegRole(r)}>
                     {r.charAt(0).toUpperCase() + r.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Status</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Status</label>
+              <div className="flex gap-2">
                 {(['student', 'professional'] as const).map(s => (
-                  <button key={s} type="button" style={toggleBtnStyle(regStatus === s)}
+                  <button key={s} type="button" className={toggleBtnCls(regStatus === s)}
                     onClick={() => setRegStatus(s)}>
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
@@ -347,14 +331,14 @@ const ParticipantPortalPage = () => {
               </div>
             </div>
             {levels.length > 0 && selectedComp?.entryValidation?.enabled && (
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Your Skill Level</label>
-                <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Your Skill Level</label>
+                <p className="text-xs text-gray-500 mb-2">
                   This determines which event levels you can enter.
                 </p>
-                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <div className="flex gap-1.5 flex-wrap">
                   {levels.map(lvl => (
-                    <button key={lvl} type="button" style={toggleBtnStyle(regDeclaredLevel === lvl)}
+                    <button key={lvl} type="button" className={toggleBtnCls(regDeclaredLevel === lvl)}
                       onClick={() => setRegDeclaredLevel(regDeclaredLevel === lvl ? '' : lvl)}>
                       {lvl}
                     </button>
@@ -362,7 +346,7 @@ const ParticipantPortalPage = () => {
                 </div>
               </div>
             )}
-            <button className="btn" onClick={handleRegister} disabled={loading || !regName.trim()}>
+            <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600" onClick={handleRegister} disabled={loading || !regName.trim()}>
               Register
             </button>
           </div>
@@ -371,34 +355,18 @@ const ParticipantPortalPage = () => {
 
       {/* Section 2b: Already registered badge */}
       {selectedComp && myPerson && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <div className="flex justify-between items-center">
             <div>
-              <h3 style={{ margin: '0 0 0.25rem' }}>
+              <h3 className="mt-0 mb-1">
                 Registered as {myPerson.firstName} {myPerson.lastName}
               </h3>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '0.125rem 0.5rem',
-                  background: '#e9d8fd',
-                  color: '#553c9a',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                }}>
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
                   {myPerson.role} &middot; {myPerson.status}
                 </span>
                 {myPerson.level && (
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '0.125rem 0.5rem',
-                    background: '#bee3f8',
-                    color: '#2c5282',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                  }}>
+                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
                     {myPerson.level}
                   </span>
                 )}
@@ -410,21 +378,12 @@ const ParticipantPortalPage = () => {
 
       {/* Section 3: Partners & Couples */}
       {selectedComp && myPerson && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.75rem' }}>Partners & Couples</h3>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 className="mt-0 mb-3">Partners & Couples</h3>
           {myCouples.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
+            <div className="mb-4">
               {myCouples.map(c => (
-                <div key={c.bib} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.5rem 0.75rem',
-                  background: '#f7fafc',
-                  borderRadius: '4px',
-                  marginBottom: '0.5rem',
-                  border: '1px solid #e2e8f0',
-                }}>
+                <div key={c.bib} className="flex justify-between items-center px-3 py-2 bg-gray-50 rounded border border-gray-200 mb-2">
                   <span>
                     <strong>Bib #{c.bib}</strong> &mdash; {c.leaderName} & {c.followerName}
                   </span>
@@ -432,29 +391,30 @@ const ParticipantPortalPage = () => {
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: '200px' }}>
-              <label>Partner Name</label>
+          <div className="flex gap-2 items-end flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Partner Name</label>
               <input
                 type="text"
                 value={partnerName}
                 onChange={e => setPartnerName(e.target.value)}
                 placeholder="First Last"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Role</label>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <div>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Role</label>
+              <div className="flex gap-1">
                 {(['leader', 'follower', 'both'] as const).map(r => (
-                  <button key={r} type="button" style={toggleBtnStyle(partnerRole === r)}
+                  <button key={r} type="button" className={toggleBtnCls(partnerRole === r)}
                     onClick={() => setPartnerRole(r)}>
                     {r.charAt(0).toUpperCase() + r.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
-            <button className="btn" onClick={handleAddPartner}
-              disabled={loading || !partnerName.trim()} style={{ marginBottom: 0 }}>
+            <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600" onClick={handleAddPartner}
+              disabled={loading || !partnerName.trim()}>
               Add Partner
             </button>
           </div>
@@ -463,14 +423,15 @@ const ParticipantPortalPage = () => {
 
       {/* Section 4: Event Entries */}
       {selectedComp && myPerson && myCouples.length > 0 && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.75rem' }}>Register for Events</h3>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 className="mt-0 mb-3">Register for Events</h3>
 
           {/* Couple selector */}
           {myCouples.length > 1 && (
-            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-              <label>Select Couple</label>
-              <select value={regBib || ''} onChange={e => setRegBib(parseInt(e.target.value) || null)}>
+            <div className="mb-3">
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Select Couple</label>
+              <select value={regBib || ''} onChange={e => setRegBib(parseInt(e.target.value) || null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
                 <option value="">Choose a couple...</option>
                 {myCouples.map(c => (
                   <option key={c.bib} value={c.bib}>
@@ -485,19 +446,13 @@ const ParticipantPortalPage = () => {
           {regBib && (
             <>
               {/* Combination builder */}
-              <div style={{
-                padding: '1rem',
-                background: '#f7fafc',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '1rem',
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="p-4 bg-gray-50 rounded-md border border-gray-200 mb-4">
+                <div className="flex flex-col gap-3">
                   <div>
-                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Designation</label>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                    <label className="block font-semibold text-sm mb-1">Designation</label>
+                    <div className="flex gap-1.5 flex-wrap">
                       {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(opt => (
-                        <button key={opt} type="button" style={toggleBtnStyle(regDesignation === opt)}
+                        <button key={opt} type="button" className={toggleBtnCls(regDesignation === opt)}
                           onClick={() => setRegDesignation(regDesignation === opt ? '' : opt)}>
                           {opt}
                         </button>
@@ -506,10 +461,10 @@ const ParticipantPortalPage = () => {
                   </div>
 
                   <div>
-                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Syllabus Type</label>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                    <label className="block font-semibold text-sm mb-1">Syllabus Type</label>
+                    <div className="flex gap-1.5 flex-wrap">
                       {['Syllabus', 'Open'].map(opt => (
-                        <button key={opt} type="button" style={toggleBtnStyle(regSyllabusType === opt)}
+                        <button key={opt} type="button" className={toggleBtnCls(regSyllabusType === opt)}
                           onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
                           {opt}
                         </button>
@@ -518,27 +473,27 @@ const ParticipantPortalPage = () => {
                   </div>
 
                   <div>
-                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Level</label>
+                    <label className="block font-semibold text-sm mb-1">Level</label>
                     {validationEnabled && coupleLevel && (
-                      <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.5rem' }}>
+                      <p className="text-xs text-gray-500 mb-2">
                         Based on your declared level ({coupleLevel}), you can enter these levels:
                       </p>
                     )}
                     {validationEnabled && !coupleLevel && (
-                      <p style={{ fontSize: '0.8rem', color: '#e53e3e', marginBottom: '0.5rem' }}>
+                      <p className="text-xs text-danger-500 mb-2">
                         Please update your declared skill level to see available levels.
                       </p>
                     )}
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                    <div className="flex gap-1.5 flex-wrap">
                       {(validationEnabled ? allowedLevels : levels).map(opt => (
-                        <button key={opt} type="button" style={toggleBtnStyle(regLevel === opt)}
+                        <button key={opt} type="button" className={toggleBtnCls(regLevel === opt)}
                           onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
                           {opt}
                         </button>
                       ))}
                     </div>
                     {validationEnabled && levels.length > allowedLevels.length && (
-                      <p style={{ fontSize: '0.75rem', color: '#a0aec0', marginTop: '0.375rem' }}>
+                      <p className="text-xs text-gray-400 mt-1.5">
                         Contact an admin to enter levels outside your range.
                       </p>
                     )}
@@ -546,10 +501,10 @@ const ParticipantPortalPage = () => {
 
                   {availableAgeCategories.length > 0 && (
                     <div>
-                      <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Age Category</label>
-                      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                      <label className="block font-semibold text-sm mb-1">Age Category</label>
+                      <div className="flex gap-1.5 flex-wrap">
                         {availableAgeCategories.map(cat => (
-                          <button key={cat.name} type="button" style={toggleBtnStyle(regAgeCategory === cat.name)}
+                          <button key={cat.name} type="button" className={toggleBtnCls(regAgeCategory === cat.name)}
                             onClick={() => setRegAgeCategory(regAgeCategory === cat.name ? '' : cat.name)}>
                             {cat.name}
                           </button>
@@ -559,10 +514,10 @@ const ParticipantPortalPage = () => {
                   )}
 
                   <div>
-                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Style</label>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                    <label className="block font-semibold text-sm mb-1">Style</label>
+                    <div className="flex gap-1.5 flex-wrap">
                       {['Smooth', 'Standard', 'Rhythm', 'Latin'].map(opt => (
-                        <button key={opt} type="button" style={toggleBtnStyle(regStyle === opt)}
+                        <button key={opt} type="button" className={toggleBtnCls(regStyle === opt)}
                           onClick={() => {
                             if (regStyle === opt) {
                               setRegStyle('');
@@ -580,10 +535,10 @@ const ParticipantPortalPage = () => {
 
                   {regStyle && (
                     <div>
-                      <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Dances</label>
-                      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                      <label className="block font-semibold text-sm mb-1">Dances</label>
+                      <div className="flex gap-1.5 flex-wrap">
                         {getDanceOptions(regStyle).map(dance => (
-                          <button key={dance} type="button" style={toggleBtnStyle(regDances.includes(dance))}
+                          <button key={dance} type="button" className={toggleBtnCls(regDances.includes(dance))}
                             onClick={() => toggleDance(dance)}>
                             {dance}
                           </button>
@@ -593,10 +548,10 @@ const ParticipantPortalPage = () => {
                   )}
 
                   <div>
-                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Scoring</label>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                    <label className="block font-semibold text-sm mb-1">Scoring</label>
+                    <div className="flex gap-1.5 flex-wrap">
                       {['standard', 'proficiency'].map(opt => (
-                        <button key={opt} type="button" style={toggleBtnStyle(regScoringType === opt)}
+                        <button key={opt} type="button" className={toggleBtnCls(regScoringType === opt)}
                           onClick={() => setRegScoringType(regScoringType === opt ? '' : opt)}>
                           {opt.charAt(0).toUpperCase() + opt.slice(1)}
                         </button>
@@ -605,9 +560,8 @@ const ParticipantPortalPage = () => {
                   </div>
                 </div>
 
-                <button className="btn" onClick={handleRegisterEntry}
-                  disabled={loading}
-                  style={{ marginTop: '0.75rem' }}>
+                <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mt-3" onClick={handleRegisterEntry}
+                  disabled={loading}>
                   Register for Event
                 </button>
               </div>
@@ -618,32 +572,31 @@ const ParticipantPortalPage = () => {
                   event.heats.some(h => h.bibs.includes(regBib!))
                 );
                 if (coupleEntries.length === 0) return (
-                  <p style={{ color: '#718096', fontStyle: 'italic' }}>No entries yet for this couple.</p>
+                  <p className="text-gray-500 italic">No entries yet for this couple.</p>
                 );
                 return (
                   <div>
-                    <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
+                    <h4 className="mt-0 mb-2 text-sm">
                       Current Entries ({coupleEntries.length})
                     </h4>
-                    <table>
+                    <table className="w-full text-sm">
                       <thead>
                         <tr>
-                          <th>Event</th>
-                          <th>Details</th>
-                          <th>Actions</th>
+                          <th className="text-left px-3 py-2 text-gray-500 font-medium">Event</th>
+                          <th className="text-left px-3 py-2 text-gray-500 font-medium">Details</th>
+                          <th className="text-left px-3 py-2 text-gray-500 font-medium">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {coupleEntries.map(event => (
                           <tr key={event.id}>
-                            <td><strong>{event.name}</strong></td>
-                            <td style={{ fontSize: '0.85rem', color: '#718096' }}>
+                            <td className="px-3 py-2 border-t border-gray-100"><strong>{event.name}</strong></td>
+                            <td className="px-3 py-2 border-t border-gray-100 text-sm text-gray-500">
                               {[event.designation, event.syllabusType, event.level, event.style,
                                 event.dances?.join(', ')].filter(Boolean).join(' \u2022 ') || '\u2014'}
                             </td>
-                            <td>
-                              <button className="btn btn-danger"
-                                style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
+                            <td className="px-3 py-2 border-t border-gray-100">
+                              <button className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-danger-600"
                                 onClick={() => handleRemoveEntry(event.id, regBib!)}>
                                 Remove
                               </button>
@@ -662,41 +615,35 @@ const ParticipantPortalPage = () => {
 
       {/* Section 5: My Schedule */}
       {selectedComp && myPerson && myEntries.length > 0 && (
-        <div className="card">
-          <h3 style={{ margin: '0 0 0.75rem' }}>My Schedule</h3>
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 className="mt-0 mb-3">My Schedule</h3>
           {schedule.length > 0 ? (
-            <table>
+            <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Event</th>
-                  <th>Round</th>
+                  <th className="text-left px-3 py-2 text-gray-500 font-medium">Time</th>
+                  <th className="text-left px-3 py-2 text-gray-500 font-medium">Event</th>
+                  <th className="text-left px-3 py-2 text-gray-500 font-medium">Round</th>
                 </tr>
               </thead>
               <tbody>
                 {schedule.map((item, i) => (
                   <tr key={i}>
-                    <td>
+                    <td className="px-3 py-2 border-t border-gray-100">
                       {item.estimatedStartTime
                         ? new Date(item.estimatedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : '\u2014'}
                     </td>
-                    <td>{item.eventName}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{item.round.replace('-', ' ')}</td>
+                    <td className="px-3 py-2 border-t border-gray-100">{item.eventName}</td>
+                    <td className="px-3 py-2 border-t border-gray-100 capitalize">{item.round.replace('-', ' ')}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '1.5rem',
-              background: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '6px',
-            }}>
-              <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Schedule not yet available</p>
-              <p style={{ margin: 0, color: '#78350f', fontSize: '0.875rem' }}>
+            <div className="text-center p-6 bg-amber-50 border border-amber-400 rounded-md">
+              <p className="m-0 mb-2 font-semibold">Schedule not yet available</p>
+              <p className="m-0 text-amber-900 text-sm">
                 You are entered in {myEntries.length} event{myEntries.length !== 1 ? 's' : ''}. Times will appear once the schedule is generated.
               </p>
             </div>

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicCompetition } from '../../types';
 import { publicCompetitionsApi } from '../../api/client';
+import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
+import { Skeleton } from '../../components/Skeleton';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -10,39 +12,18 @@ function formatDate(iso: string): string {
 
 function CompetitionCard({ comp, linkPrefix = '/results' }: { comp: PublicCompetition; linkPrefix?: string }) {
   return (
-    <Link
-      to={`${linkPrefix}/${comp.id}`}
-      style={{ textDecoration: 'none', color: 'inherit' }}
-    >
-      <div
-        className="card"
-        style={{ padding: '1rem 1.25rem', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-        onMouseOver={(e) => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)')}
-        onMouseOut={(e) => (e.currentTarget.style.boxShadow = '')}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 600 }}>{comp.name}</div>
-          {comp.type && (
-            <span style={{
-              fontSize: '0.75rem',
-              padding: '0.15rem 0.5rem',
-              borderRadius: '9999px',
-              background: '#ebf4ff',
-              color: '#3182ce',
-              whiteSpace: 'nowrap',
-            }}>
-              {comp.type}
-            </span>
-          )}
+    <Link to={`${linkPrefix}/${comp.id}`} className="no-underline text-inherit">
+      <div className="bg-white rounded-lg shadow p-4 cursor-pointer transition-shadow hover:shadow-md">
+        <div className="flex justify-between items-start gap-2">
+          <div className="font-semibold text-gray-800">{comp.name}</div>
+          {comp.type && <CompetitionTypeBadge type={comp.type} />}
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#718096', marginTop: '0.25rem' }}>
+        <div className="text-sm text-gray-500 mt-1">
           {formatDate(comp.date)}
           {comp.location && <> &middot; {comp.location}</>}
         </div>
         {comp.description && (
-          <div style={{ fontSize: '0.85rem', color: '#a0aec0', marginTop: '0.35rem' }}>
-            {comp.description}
-          </div>
+          <div className="text-sm text-gray-400 mt-1">{comp.description}</div>
         )}
       </div>
     </Link>
@@ -68,30 +49,39 @@ const PublicHomePage = () => {
   }, []);
 
   return (
-    <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+    <div className="max-w-7xl mx-auto px-8 pt-8 pb-12">
       {/* Hero */}
-      <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2rem', color: '#2d3748', marginBottom: '0.5rem' }}>
-          Ballroom Scorer
-        </h1>
-        <p style={{ color: '#718096', fontSize: '1.1rem' }}>
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Ballroom Scorer</h1>
+        <p className="text-gray-500 text-lg">
           Competition management, scoring, and results for ballroom dance
         </p>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: '#718096' }}>Loading competitions...</div>
+        <div className="flex gap-8 flex-wrap">
+          <div className="flex-1 min-w-[320px]">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} variant="card" />)}
+            </div>
+          </div>
+          <div className="flex-1 min-w-[320px]">
+            <Skeleton className="h-6 w-36 mb-4" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} variant="card" />)}
+            </div>
+          </div>
+        </div>
       ) : (
-        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+        <div className="flex gap-8 flex-wrap">
           {/* Upcoming */}
-          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: '#2d3748' }}>
-              Upcoming Competitions
-            </h2>
+          <div className="flex-1 min-w-[320px]">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Upcoming Competitions</h2>
             {upcoming.length === 0 ? (
-              <p style={{ color: '#a0aec0' }}>No upcoming competitions.</p>
+              <p className="text-gray-400">No upcoming competitions.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="flex flex-col gap-3">
                 {upcoming.map((c) => (
                   <CompetitionCard key={c.id} comp={c} linkPrefix="/competition" />
                 ))}
@@ -100,14 +90,12 @@ const PublicHomePage = () => {
           </div>
 
           {/* Recent */}
-          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: '#2d3748' }}>
-              Recent Results
-            </h2>
+          <div className="flex-1 min-w-[320px]">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Results</h2>
             {recent.length === 0 ? (
-              <p style={{ color: '#a0aec0' }}>No recent competitions.</p>
+              <p className="text-gray-400">No recent competitions.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="flex flex-col gap-3">
                 {recent.map((c) => (
                   <CompetitionCard key={c.id} comp={c} />
                 ))}

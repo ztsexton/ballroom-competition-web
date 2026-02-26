@@ -3,13 +3,22 @@ import { organizationsApi } from '../../api/client';
 import { Organization, RulePresetKey, AgeCategory } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { AGE_CATEGORY_PRESETS } from '../../constants/ageCategories';
+import { Skeleton } from '../../components/Skeleton';
 
-const presetColors: Record<RulePresetKey, { bg: string; text: string }> = {
-  ndca: { bg: '#fde8e8', text: '#dc2626' },
-  usadance: { bg: '#dbeafe', text: '#2563eb' },
-  wdc: { bg: '#d1fae5', text: '#059669' },
-  wdsf: { bg: '#fef3c7', text: '#d97706' },
-  custom: { bg: '#e2e8f0', text: '#4a5568' },
+const presetColorCls: Record<RulePresetKey, { bg: string; text: string }> = {
+  ndca: { bg: 'bg-red-100', text: 'text-red-600' },
+  usadance: { bg: 'bg-blue-100', text: 'text-blue-600' },
+  wdc: { bg: 'bg-green-100', text: 'text-green-600' },
+  wdsf: { bg: 'bg-yellow-100', text: 'text-yellow-600' },
+  custom: { bg: 'bg-gray-200', text: 'text-gray-600' },
+};
+
+const presetBtnActive: Record<RulePresetKey, string> = {
+  ndca: 'border-2 border-red-600 bg-red-600 text-white font-bold',
+  usadance: 'border-2 border-blue-600 bg-blue-600 text-white font-bold',
+  wdc: 'border-2 border-green-600 bg-green-600 text-white font-bold',
+  wdsf: 'border-2 border-yellow-600 bg-yellow-600 text-white font-bold',
+  custom: 'border-2 border-gray-600 bg-gray-600 text-white font-bold',
 };
 
 const presetLabels: Record<RulePresetKey, string> = {
@@ -98,12 +107,22 @@ const OrganizationsPage = () => {
     }
   };
 
-  if (authLoading || loading) return <div className="loading">Loading...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <Skeleton className="h-8 w-56 mb-6" />
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
-      <div className="container">
-        <div className="card">
+      <div className="max-w-7xl mx-auto p-8">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2>Access Denied</h2>
           <p>You must be an admin to manage organizations.</p>
         </div>
@@ -112,29 +131,26 @@ const OrganizationsPage = () => {
   }
 
   return (
-    <div className="container">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+    <div className="max-w-7xl mx-auto p-8">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
           <h2>Organizations</h2>
-          <button onClick={() => setShowForm(!showForm)} className="btn">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
+          >
             {showForm ? 'Cancel' : '+ New Organization'}
           </button>
         </div>
 
-        {error && <div className="error" style={{ marginBottom: '1rem' }}>{error}</div>}
+        {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
         {showForm && (
-          <div style={{
-            background: '#f7fafc',
-            border: '1px solid #cbd5e0',
-            borderRadius: '8px',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            <h3 style={{ marginTop: 0 }}>Create New Organization</h3>
+          <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
+            <h3 className="mt-0">Create New Organization</h3>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="orgName">Organization Name *</label>
+              <div className="mb-4">
+                <label htmlFor="orgName" className="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label>
                 <input
                   id="orgName"
                   type="text"
@@ -142,37 +158,32 @@ const OrganizationsPage = () => {
                   onChange={e => setFormName(e.target.value)}
                   placeholder="e.g., NDCA Region 1, My Studio Comp"
                   required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
-              <div className="form-group">
-                <label>Rule Preset *</label>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rule Preset *</label>
+                <div className="flex gap-2 flex-wrap">
                   {(['ndca', 'usadance', 'wdc', 'wdsf', 'custom'] as RulePresetKey[]).map(preset => {
-                    const colors = presetColors[preset];
                     const isActive = formPreset === preset;
                     return (
                       <button
                         key={preset}
                         type="button"
                         onClick={() => setFormPreset(preset)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          border: isActive ? `2px solid ${colors.text}` : '1px solid #cbd5e0',
-                          borderRadius: '4px',
-                          background: isActive ? colors.text : 'white',
-                          color: isActive ? 'white' : '#2d3748',
-                          cursor: 'pointer',
-                          fontWeight: isActive ? 'bold' : 'normal',
-                          transition: 'all 0.2s',
-                        }}
+                        className={`px-4 py-2 rounded cursor-pointer transition-all ${
+                          isActive
+                            ? presetBtnActive[preset]
+                            : 'border border-gray-300 bg-white text-gray-700 font-normal'
+                        }`}
                       >
                         {presetLabels[preset]}
                       </button>
                     );
                   })}
                 </div>
-                <small style={{ color: '#718096', marginTop: '0.25rem', display: 'block' }}>
+                <small className="text-gray-500 mt-1 block">
                   {formPreset === 'ndca' && 'NDCA defaults: Bronze through Championship levels, standard scoring, 7 couples/heat.'}
                   {formPreset === 'usadance' && 'USA Dance defaults: Newcomer through Championship levels, standard scoring, 6 couples/heat.'}
                   {formPreset === 'wdc' && 'WDC defaults: Bronze through Championship levels, standard scoring, 7 couples/heat.'}
@@ -181,11 +192,19 @@ const OrganizationsPage = () => {
                 </small>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" className="btn" disabled={submitting}>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
+                  disabled={submitting}
+                >
                   {submitting ? 'Creating...' : 'Create Organization'}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+                >
                   Cancel
                 </button>
               </div>
@@ -194,49 +213,37 @@ const OrganizationsPage = () => {
         )}
 
         {organizations.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#718096' }}>
-            <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No organizations yet</p>
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-4">No organizations yet</p>
             <p>Create an organization to define rule presets and default settings for your competitions.</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '1rem' }}>
+          <div className="grid gap-4">
             {organizations.map(org => {
-              const colors = presetColors[org.rulePresetKey] || presetColors.custom;
+              const colors = presetColorCls[org.rulePresetKey] || presetColorCls.custom;
               return (
                 <div
                   key={org.id}
-                  style={{
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '1.25rem',
-                    background: 'white',
-                  }}
+                  className="border border-gray-200 rounded-lg p-5 bg-white"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <h3 style={{ margin: 0 }}>{org.name}</h3>
-                        <span style={{
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          background: colors.bg,
-                          color: colors.text,
-                        }}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="m-0">{org.name}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors.bg} ${colors.text}`}>
                           {presetLabels[org.rulePresetKey] || org.rulePresetKey}
                         </span>
                       </div>
 
                       {/* Settings summary */}
-                      <div style={{ fontSize: '0.875rem', color: '#718096' }}>
+                      <div className="text-sm text-gray-500">
                         {org.settings.defaultLevels && org.settings.defaultLevels.length > 0 && (
-                          <p style={{ margin: '0.25rem 0' }}>
+                          <p className="my-1">
                             Levels: {org.settings.defaultLevels.join(', ')}
                           </p>
                         )}
                         {org.settings.defaultScoringType && (
-                          <span style={{ marginRight: '1rem' }}>
+                          <span className="mr-4">
                             Scoring: {org.settings.defaultScoringType}
                           </span>
                         )}
@@ -246,26 +253,24 @@ const OrganizationsPage = () => {
                           </span>
                         )}
                         {org.settings.ageCategories && org.settings.ageCategories.length > 0 && (
-                          <p style={{ margin: '0.25rem 0' }}>
+                          <p className="my-1">
                             Age categories: {org.settings.ageCategories.map(ac => ac.name).join(', ')}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="flex gap-2">
                       {editingAgeCatsOrgId !== org.id && (
                         <button
                           onClick={() => startEditingAgeCats(org)}
-                          className="btn btn-secondary"
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-xs font-medium transition-colors hover:bg-gray-200"
                         >
                           Edit Age Categories
                         </button>
                       )}
                       <button
                         onClick={() => handleDelete(org.id, org.name)}
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', background: '#fee', color: '#c00' }}
+                        className="px-3 py-1 bg-red-50 text-red-600 rounded border border-red-200 cursor-pointer text-xs font-medium transition-colors hover:bg-red-100"
                       >
                         Delete
                       </button>
@@ -274,22 +279,15 @@ const OrganizationsPage = () => {
 
                   {/* Age category inline editor */}
                   {editingAgeCatsOrgId === org.id && (
-                    <div style={{
-                      marginTop: '1rem',
-                      padding: '1rem',
-                      background: '#f7fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
+                      <div className="flex justify-between items-center mb-3">
                         <strong>Age Categories</strong>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="flex gap-2">
                           {AGE_CATEGORY_PRESETS[org.rulePresetKey] && (
                             <button
                               type="button"
                               onClick={() => setEditableAgeCats(AGE_CATEGORY_PRESETS[org.rulePresetKey].map(c => ({ ...c })))}
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-xs font-medium transition-colors hover:bg-gray-200"
                             >
                               Reset to {presetLabels[org.rulePresetKey]} Defaults
                             </button>
@@ -297,8 +295,7 @@ const OrganizationsPage = () => {
                           <button
                             type="button"
                             onClick={() => setEditableAgeCats([...editableAgeCats, { name: '' }])}
-                            className="btn btn-secondary"
-                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-xs font-medium transition-colors hover:bg-gray-200"
                           >
                             + Add
                           </button>
@@ -306,11 +303,11 @@ const OrganizationsPage = () => {
                       </div>
 
                       {editableAgeCats.length === 0 ? (
-                        <p style={{ color: '#a0aec0', textAlign: 'center', padding: '0.5rem' }}>No age categories configured</p>
+                        <p className="text-gray-400 text-center p-2">No age categories configured</p>
                       ) : (
-                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                        <div className="grid gap-2">
                           {editableAgeCats.map((cat, idx) => (
-                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
+                            <div key={idx} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-center">
                               <input
                                 type="text"
                                 value={cat.name}
@@ -320,7 +317,7 @@ const OrganizationsPage = () => {
                                   updated[idx] = { ...updated[idx], name: e.target.value };
                                   setEditableAgeCats(updated);
                                 }}
-                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                                className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               />
                               <input
                                 type="number"
@@ -331,7 +328,7 @@ const OrganizationsPage = () => {
                                   updated[idx] = { ...updated[idx], minAge: e.target.value ? parseInt(e.target.value) : undefined };
                                   setEditableAgeCats(updated);
                                 }}
-                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                                className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               />
                               <input
                                 type="number"
@@ -342,20 +339,12 @@ const OrganizationsPage = () => {
                                   updated[idx] = { ...updated[idx], maxAge: e.target.value ? parseInt(e.target.value) : undefined };
                                   setEditableAgeCats(updated);
                                 }}
-                                style={{ padding: '0.375rem 0.5rem', fontSize: '0.875rem' }}
+                                className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               />
                               <button
                                 type="button"
                                 onClick={() => setEditableAgeCats(editableAgeCats.filter((_, i) => i !== idx))}
-                                style={{
-                                  padding: '0.25rem 0.5rem',
-                                  background: 'none',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '4px',
-                                  color: '#e53e3e',
-                                  cursor: 'pointer',
-                                  fontSize: '0.875rem',
-                                }}
+                                className="px-2 py-1 bg-transparent border border-gray-200 rounded text-danger-500 cursor-pointer text-sm transition-colors hover:bg-red-50"
                               >
                                 X
                               </button>
@@ -364,20 +353,18 @@ const OrganizationsPage = () => {
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                      <div className="flex gap-2 mt-3">
                         <button
                           type="button"
                           onClick={() => saveAgeCats(org.id)}
-                          className="btn"
-                          style={{ fontSize: '0.875rem', padding: '0.375rem 1rem' }}
+                          className="px-4 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
                         >
                           Save
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingAgeCatsOrgId(null)}
-                          className="btn btn-secondary"
-                          style={{ fontSize: '0.875rem', padding: '0.375rem 1rem' }}
+                          className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
                         >
                           Cancel
                         </button>

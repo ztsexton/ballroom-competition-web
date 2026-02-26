@@ -18,7 +18,7 @@ const RankingForm = ({
 
   return (
     <div>
-      <p style={{ fontWeight: 600, marginBottom: '0.375rem', fontSize: '0.875rem' }}>
+      <p className="font-semibold mb-1.5 text-sm">
         Rank each couple (1 = best, {couples.length} = last):
       </p>
       {couples.map(couple => {
@@ -27,38 +27,26 @@ const RankingForm = ({
         return (
           <div
             key={couple.bib}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 0.625rem',
-              marginBottom: '0.3125rem',
-              borderRadius: '6px',
-              border: isDuplicate ? '2px solid #e53e3e' : `1px solid ${isProAm ? '#fcd34d' : '#e2e8f0'}`,
-              borderLeft: isProAm && !isDuplicate ? '3px solid #f59e0b' : undefined,
-              background: isDuplicate ? '#fff5f5' : isProAm ? '#fffbeb' : '#fff',
-              minHeight: '44px',
-            }}
+            className={`flex items-center gap-2 px-2.5 py-2 mb-[0.3125rem] rounded-md min-h-[44px] ${
+              isDuplicate
+                ? 'border-2 border-danger-500 bg-red-50'
+                : isProAm
+                  ? 'border border-yellow-300 border-l-[3px] border-l-amber-500 bg-amber-50'
+                  : 'border border-gray-200 bg-white'
+            }`}
           >
-            <strong style={{ fontSize: '1.0625rem', flex: 1 }}>#{couple.bib}</strong>
+            <strong className="text-[1.0625rem] flex-1">#{couple.bib}</strong>
             <input
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
               value={rank || ''}
               onChange={(e) => onChange(couple.bib, e.target.value)}
-              style={{
-                width: '52px',
-                height: '40px',
-                textAlign: 'center',
-                padding: '0.125rem',
-                border: isDuplicate ? '2px solid #e53e3e' : '2px solid #cbd5e0',
-                borderRadius: '6px',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                color: isDuplicate ? '#e53e3e' : '#2d3748',
-                touchAction: 'manipulation',
-              }}
+              className={`w-[52px] h-10 text-center p-0.5 rounded-md text-xl font-bold touch-manipulation ${
+                isDuplicate
+                  ? 'border-2 border-danger-500 text-danger-500'
+                  : 'border-2 border-gray-300 text-gray-800'
+              }`}
             />
           </div>
         );
