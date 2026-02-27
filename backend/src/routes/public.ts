@@ -159,6 +159,43 @@ router.get('/competitions/:id/events', async (req: Request, res: Response) => {
   }
 });
 
+// GET /competitions/:id/people — public people list with their partnerships
+router.get('/competitions/:id/people', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    const people = await dataService.getPeople(competitionId);
+    const couples = await dataService.getCouples(competitionId);
+
+    // Build a map of personId → partnerships (bib + partner name)
+    const personPartnerships = new Map<number, Array<{ bib: number; partnerName: string }>>();
+    for (const c of couples) {
+      // Leader side
+      let leaderList = personPartnerships.get(c.leaderId);
+      if (!leaderList) { leaderList = []; personPartnerships.set(c.leaderId, leaderList); }
+      leaderList.push({ bib: c.bib, partnerName: c.followerName });
+      // Follower side
+      let followerList = personPartnerships.get(c.followerId);
+      if (!followerList) { followerList = []; personPartnerships.set(c.followerId, followerList); }
+      followerList.push({ bib: c.bib, partnerName: c.leaderName });
+    }
+
+    res.json(people.map(p => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      partnerships: personPartnerships.get(p.id) || [],
+    })));
+  } catch (error) {
+    logger.error({ err: error }, 'Public people error');
+    res.status(500).json({ error: 'Failed to load people' });
+  }
+});
+
 // GET /competitions/:id/heats — public heat lists (requires heatListsPublished)
 router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
   try {

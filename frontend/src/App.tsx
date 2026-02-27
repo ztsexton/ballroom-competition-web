@@ -33,6 +33,7 @@ import {
 import {
   CompetitionsPage,
   CompetitionDetailsPage,
+  CompetitionResultsPage,
   CompetitionEntriesPage,
   CompetitionSettingsPage,
   CompetitionDayOfPage,
@@ -101,6 +102,7 @@ const App = () => {
                       <Route index element={<CompetitionDetailsPage />} />
                       <Route path="participants" element={<CompetitionEntriesPage />} />
                       <Route path="events" element={<EventsPage />} />
+                      <Route path="results" element={<CompetitionResultsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
                       <Route path="settings" element={<CompetitionSettingsPage />} />
                       <Route path="heat-lists" element={<SchedulePage />} />

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const mockGetAllCompetitions = vi.fn();
 const mockGetEvents = vi.fn();
+const mockGetPeople = vi.fn();
 const mockSearchByDancer = vi.fn();
 const mockGetDetailedEventResults = vi.fn();
 
@@ -14,6 +16,7 @@ vi.mock('../api/client', () => ({
       data: { id: 1, name: 'Test Comp', date: '2025-06-01', type: 'UNAFFILIATED' },
     })),
     getEvents: (...args: unknown[]) => mockGetEvents(...args),
+    getPeople: (...args: unknown[]) => mockGetPeople(...args),
     getDetailedEventResults: (...args: unknown[]) => mockGetDetailedEventResults(...args),
     searchByDancer: (...args: unknown[]) => mockSearchByDancer(...args),
   },
@@ -76,7 +79,13 @@ describe('PublicResultsPage', () => {
     expect(await screen.findByText(/No competitions found/i)).toBeInTheDocument();
   });
 
-  it('should show competition detail with event list', async () => {
+  it('should show competition detail with tabbed views and event list', async () => {
+    mockGetPeople.mockResolvedValue({
+      data: [
+        { id: 1, firstName: 'John', lastName: 'Smith', partnerships: [{ bib: 101, partnerName: 'Jane Doe' }] },
+        { id: 2, firstName: 'Jane', lastName: 'Doe', partnerships: [{ bib: 101, partnerName: 'John Smith' }] },
+      ],
+    });
     mockGetEvents.mockResolvedValue({
       data: [
         { id: 1, name: 'Waltz', rounds: ['final'], coupleCount: 4 },
@@ -85,6 +94,17 @@ describe('PublicResultsPage', () => {
     });
 
     renderWithRoute('/results/1');
+
+    // Default view is "By Person" — tabs should be visible
+    expect(await screen.findByText('By Person')).toBeInTheDocument();
+    expect(screen.getByText('By Event')).toBeInTheDocument();
+
+    // Default By Person tab shows individual people sorted by last name
+    expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('John Smith')).toBeInTheDocument();
+
+    // Switch to "By Event" tab to see events
+    await userEvent.click(screen.getByText('By Event'));
 
     expect(await screen.findByText('Waltz')).toBeInTheDocument();
     expect(screen.getByText('Tango')).toBeInTheDocument();

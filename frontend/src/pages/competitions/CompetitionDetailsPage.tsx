@@ -13,6 +13,7 @@ interface WorkflowCounts {
   events: number;
   scheduleHeats: number;
   currentHeatIndex: number;
+  completedCount: number;
   scheduleExists: boolean;
 }
 
@@ -24,7 +25,7 @@ const CompetitionDetailsPage = () => {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [counts, setCounts] = useState<WorkflowCounts>({
     people: 0, couples: 0, judges: 0, events: 0,
-    scheduleHeats: 0, currentHeatIndex: 0, scheduleExists: false,
+    scheduleHeats: 0, currentHeatIndex: 0, completedCount: 0, scheduleExists: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +47,7 @@ const CompetitionDetailsPage = () => {
         events: c.events,
         scheduleHeats: s.scheduleHeats,
         currentHeatIndex: s.currentHeatIndex,
+        completedCount: s.completedCount,
         scheduleExists: s.scheduleExists,
       });
 
@@ -104,12 +106,20 @@ const CompetitionDetailsPage = () => {
     {
       label: 'Run',
       detail: counts.scheduleExists
-        ? (counts.currentHeatIndex > 0
-          ? `In progress — heat ${counts.currentHeatIndex + 1} of ${counts.scheduleHeats}`
-          : 'Ready to start')
+        ? (counts.completedCount > 0 && counts.completedCount === counts.scheduleHeats
+          ? `Complete — all ${counts.scheduleHeats} heats done`
+          : counts.currentHeatIndex > 0
+            ? `In progress — heat ${Math.min(counts.currentHeatIndex + 1, counts.scheduleHeats)} of ${counts.scheduleHeats}`
+            : 'Ready to start')
         : 'Generate schedule first',
       link: 'run',
-      done: false,
+      done: counts.completedCount > 0 && counts.completedCount === counts.scheduleHeats,
+    },
+    {
+      label: 'Results',
+      detail: counts.events > 0 ? 'View event results and scores' : 'No events yet',
+      link: 'results',
+      done: counts.completedCount > 0 && counts.completedCount === counts.scheduleHeats,
     },
   ];
 

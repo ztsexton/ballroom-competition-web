@@ -44,7 +44,7 @@ export const competitionsApi = {
   getSummary: (id: number) => api.get<{
     competition: Competition;
     counts: { people: number; couples: number; judges: number; events: number; totalEntries: number };
-    schedule: { scheduleHeats: number; currentHeatIndex: number; scheduleExists: boolean };
+    schedule: { scheduleHeats: number; currentHeatIndex: number; completedCount: number; scheduleExists: boolean };
   }>(`/competitions/${id}/summary`),
   create: (competition: Omit<Competition, 'id' | 'createdAt'>) =>
     api.post<Competition>('/competitions', competition),
@@ -336,6 +336,7 @@ export const mindbodyApi = {
 // Database API (admin only)
 export const databaseApi = {
   seed: () => api.post<{ success: boolean; message: string }>('/database/seed'),
+  seedFinished: () => api.post<{ success: boolean; message: string }>('/database/seed-finished'),
 };
 
 // Public API client (no auth token)
@@ -354,6 +355,8 @@ export const publicCompetitionsApi = {
     publicApi.get<PublicCompetition>(`/public/competitions/${id}`),
   getEvents: (id: number) =>
     publicApi.get<PublicEvent[]>(`/public/competitions/${id}/events`),
+  getPeople: (id: number) =>
+    publicApi.get<Array<{ id: number; firstName: string; lastName: string; partnerships: Array<{ bib: number; partnerName: string }> }>>(`/public/competitions/${id}/people`),
   getHeats: (id: number) =>
     publicApi.get<PublicEventWithHeats[]>(`/public/competitions/${id}/heats`),
   getEventResults: (competitionId: number, eventId: number, round: string) =>
