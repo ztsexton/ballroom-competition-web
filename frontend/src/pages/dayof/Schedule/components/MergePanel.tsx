@@ -97,18 +97,24 @@ export default function MergePanel({
         <span className="text-[0.8125rem] text-gray-600">
           Select heats below to merge with this one.
           {' '}
-          <span className={`font-semibold ${overLimit ? 'text-red-700' : 'text-green-800'}`}>
+          <span className={`font-semibold ${overLimit ? 'text-amber-700' : 'text-green-800'}`}>
             Total: {totalCouples} / {maxCouplesPerHeat} couples
           </span>
         </span>
         <button
           className="px-3 py-1 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium transition-colors hover:bg-primary-600 disabled:opacity-50"
-          disabled={mergeSelected.size === 0 || overLimit}
+          disabled={mergeSelected.size === 0}
           onClick={onMerge}
         >
           Merge {mergeSelected.size > 0 ? `(${mergeSelected.size})` : ''}
         </button>
       </div>
+      {overLimit && (
+        <div className="bg-amber-50 border border-amber-400 rounded px-3 py-2 mt-2 text-[0.8125rem] text-amber-800">
+          <strong>Warning:</strong> Total couples ({totalCouples}) exceeds the configured maximum ({maxCouplesPerHeat}).
+          Merge will proceed with admin override.
+        </div>
+      )}
       {hasDanceDifferences && (
         <div className="bg-amber-50 border border-amber-500 rounded-md px-3 py-2 mt-2 text-[0.8125rem]">
           <strong className="text-amber-800">Different dance lists</strong>

@@ -6,7 +6,9 @@ import {
   getHeatRound,
   getHeatStyle,
   getHeatLevel,
+  getHeatCoupleCount,
   getMergeIncompatibilityReason,
+  getMergeWarnings,
   formatTime,
   statusBadge,
 } from '../utils';
@@ -105,6 +107,9 @@ export default function ScheduleHeatTable({
             const incompatibilityReason = isMergeTarget && sourceHeatObj
               ? getMergeIncompatibilityReason(sourceHeatObj, scheduledHeat, events, maxCouplesPerHeat, schedule.heatStatuses)
               : null;
+            const mergeWarnings = isMergeTarget && sourceHeatObj && incompatibilityReason === null
+              ? getMergeWarnings(sourceHeatObj, scheduledHeat, events, maxCouplesPerHeat)
+              : [];
             const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
 
             const rowBg = isBreak
@@ -223,6 +228,7 @@ export default function ScheduleHeatTable({
                       isMergeSource={isMergeSource}
                       isMergeChecked={isMergeChecked}
                       incompatibilityReason={incompatibilityReason}
+                      mergeWarnings={mergeWarnings}
                       onMoveEvent={onMoveEvent}
                       onRemoveBreak={onRemoveBreak}
                       onStartMerge={onStartMerge}
@@ -245,8 +251,8 @@ export default function ScheduleHeatTable({
                       <td className="px-3 py-2"></td>
                       <td className="px-3 py-2 pl-7 text-sm">
                         {event?.name || `Event #${entry.eventId}`}
-                        <span className="text-gray-400 ml-2">
-                          ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
+                        <span className="inline-flex items-center ml-2 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          {coupleCount} couple{coupleCount !== 1 ? 's' : ''}
                         </span>
                       </td>
                       <td className="px-3 py-2 capitalize text-sm">{entry.round}</td>
@@ -302,6 +308,9 @@ function MultiEntryCell({
         <span className="py-0.5 px-1.5 rounded-full text-[0.6875rem] font-semibold bg-purple-200 text-purple-800">
           {scheduledHeat.entries.length} combined
         </span>
+        <span className="py-0.5 px-1.5 rounded-full text-[0.6875rem] font-semibold bg-blue-100 text-blue-700">
+          {getHeatCoupleCount(scheduledHeat, events)} couples
+        </span>
       </div>
       <div className="flex flex-col gap-1">
         {scheduledHeat.entries.map((entry) => {
@@ -343,8 +352,8 @@ function SingleEntryCell({
     <div>
       <span>
         {getHeatLabel(scheduledHeat, events)}
-        <span className="text-gray-400 ml-2 text-[0.8125rem]">
-          ({coupleCount} couple{coupleCount !== 1 ? 's' : ''})
+        <span className="inline-flex items-center ml-2 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+          {coupleCount} couple{coupleCount !== 1 ? 's' : ''}
         </span>
       </span>
       {mergeSource && event?.dances && event.dances.length > 0 && (
@@ -367,6 +376,7 @@ function HeatActions({
   isMergeSource,
   isMergeChecked,
   incompatibilityReason,
+  mergeWarnings,
   onMoveEvent,
   onRemoveBreak,
   onStartMerge,
@@ -382,6 +392,7 @@ function HeatActions({
   isMergeSource: boolean;
   isMergeChecked: boolean;
   incompatibilityReason: string | null;
+  mergeWarnings: string[];
   onMoveEvent: (fromIndex: number, toIndex: number) => void;
   onRemoveBreak: (heatIndex: number) => void;
   onStartMerge: (heatId: string, idx: number) => void;
@@ -411,6 +422,15 @@ function HeatActions({
         <div className="flex justify-end">
           <span className="text-[0.6875rem] text-gray-400 italic">
             {incompatibilityReason}
+          </span>
+        </div>
+      );
+    }
+    if (mergeWarnings.length > 0) {
+      return (
+        <div className="flex justify-end">
+          <span className="text-[0.6875rem] text-amber-600 italic">
+            {mergeWarnings.join('; ')}
           </span>
         </div>
       );

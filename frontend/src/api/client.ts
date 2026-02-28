@@ -195,8 +195,8 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/break`, { label, duration, position }),
   removeBreak: (competitionId: number, heatIndex: number) =>
     api.delete<CompetitionSchedule>(`/schedules/${competitionId}/break/${heatIndex}`),
-  updateHeatEntries: (competitionId: number, heatId: string, entries: HeatEntry[]) =>
-    api.patch<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/entries`, { entries }),
+  updateHeatEntries: (competitionId: number, heatId: string, entries: HeatEntry[], forceOverride?: boolean) =>
+    api.patch<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/entries`, { entries, forceOverride }),
   splitHeatEntry: (competitionId: number, heatId: string, eventId: number, round: string) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/split`, { eventId, round }),
   splitFloorHeat: (competitionId: number, heatId: string, groupCount: number) =>

@@ -64,10 +64,8 @@ function areMergeable(
   const tgtRound = targetHeat.entries[0].round;
   if (srcRound !== tgtRound) return false;
 
-  // Scoring type & style
-  let srcType: string | undefined;
+  // Style check
   let srcStyle: string | undefined;
-  let tgtType: string | undefined;
   let tgtStyle: string | undefined;
   let totalCouples = 0;
 
@@ -75,7 +73,6 @@ function areMergeable(
     const event = events[entry.eventId];
     if (!event) return false;
     if (event.heats.length > 1) return false; // Multi-round event
-    srcType = event.scoringType || 'standard';
     srcStyle = event.style || '';
     totalCouples += event.heats[0]?.bibs.length ?? 0;
   }
@@ -84,12 +81,10 @@ function areMergeable(
     const event = events[entry.eventId];
     if (!event) return false;
     if (event.heats.length > 1) return false;
-    tgtType = event.scoringType || 'standard';
     tgtStyle = event.style || '';
     totalCouples += event.heats[0]?.bibs.length ?? 0;
   }
 
-  if (srcType !== tgtType) return false;
   if (srcStyle && tgtStyle && srcStyle !== tgtStyle) return false;
   if (totalCouples > maxCouples) return false;
 

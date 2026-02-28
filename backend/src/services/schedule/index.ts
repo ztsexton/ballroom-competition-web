@@ -71,8 +71,8 @@ export class ScheduleService {
     return rerunHeat(competitionId, heatIndex);
   }
 
-  updateHeatEntries(competitionId: number, heatId: string, newEntries: HeatEntry[]): Promise<CompetitionSchedule | null> {
-    return updateHeatEntries(competitionId, heatId, newEntries);
+  updateHeatEntries(competitionId: number, heatId: string, newEntries: HeatEntry[], forceOverride?: boolean): Promise<CompetitionSchedule | null> {
+    return updateHeatEntries(competitionId, heatId, newEntries, forceOverride);
   }
 
   splitHeatEntry(competitionId: number, heatId: string, eventId: number, round: string): Promise<CompetitionSchedule | null> {

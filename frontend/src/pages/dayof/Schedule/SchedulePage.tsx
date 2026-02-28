@@ -282,8 +282,20 @@ const SchedulePage = () => {
       }
     }
 
+    // Compute total couples to determine if override is needed
+    let totalCouples = 0;
+    for (const entry of allEntries) {
+      const event = events.find(e => e.id === entry.eventId);
+      if (event) {
+        const allBibs = new Set<number>();
+        event.heats.forEach(h => h.bibs.forEach(b => allBibs.add(b)));
+        totalCouples += allBibs.size;
+      }
+    }
+    const needsOverride = totalCouples > maxCouplesPerHeat;
+
     try {
-      const res = await schedulesApi.updateHeatEntries(competitionId, mergeSource.heatId, allEntries);
+      const res = await schedulesApi.updateHeatEntries(competitionId, mergeSource.heatId, allEntries, needsOverride || undefined);
       setSchedule(res.data);
       setMergeSource(null);
       setMergeSelected(new Set());

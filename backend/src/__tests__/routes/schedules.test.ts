@@ -860,6 +860,95 @@ describe('Schedules API', () => {
         .send({ entries: 'not-array' })
         .expect(400);
     });
+
+    it('should succeed with forceOverride when over couple limit', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 2 });
+      const bibs = await createCouples(comp.id, 6);
+
+      const ev1 = await dataService.addEvent('A', bibs.slice(0, 3), [], comp.id);
+      const ev2 = await dataService.addEvent('B', bibs.slice(3, 6), [], comp.id);
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'h1', entries: [{ eventId: ev1.id, round: 'final' }] },
+          { id: 'h2', entries: [{ eventId: ev2.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'h1': 'pending', 'h2': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: [],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Without forceOverride — should fail
+      await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/h1/entries`)
+        .send({
+          entries: [
+            { eventId: ev1.id, round: 'final' },
+            { eventId: ev2.id, round: 'final' },
+          ],
+        })
+        .expect(400);
+
+      // With forceOverride — should succeed
+      const res = await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/h1/entries`)
+        .send({
+          entries: [
+            { eventId: ev1.id, round: 'final' },
+            { eventId: ev2.id, round: 'final' },
+          ],
+          forceOverride: true,
+        })
+        .expect(200);
+
+      const heat = res.body.heatOrder.find((h: any) => h.id === 'h1');
+      expect(heat.entries).toHaveLength(2);
+    });
+
+    it('should succeed with mixed scoring types', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 4);
+
+      const evStd = await dataService.addEvent(
+        'Standard', bibs.slice(0, 2), [], comp.id,
+        undefined, undefined, undefined, undefined, undefined, 'standard',
+      );
+      const evProf = await dataService.addEvent(
+        'Proficiency', bibs.slice(2, 4), [], comp.id,
+        undefined, undefined, undefined, undefined, undefined, 'proficiency',
+      );
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'h1', entries: [{ eventId: evStd.id, round: 'final' }] },
+          { id: 'h2', entries: [{ eventId: evProf.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'h1': 'pending', 'h2': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: [],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/h1/entries`)
+        .send({
+          entries: [
+            { eventId: evStd.id, round: 'final' },
+            { eventId: evProf.id, round: 'final' },
+          ],
+        })
+        .expect(200);
+
+      const heat = res.body.heatOrder.find((h: any) => h.id === 'h1');
+      expect(heat.entries).toHaveLength(2);
+    });
   });
 
   describe('POST /:competitionId/heat/:heatId/split-floor', () => {

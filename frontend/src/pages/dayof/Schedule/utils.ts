@@ -89,7 +89,7 @@ export function getMergeIncompatibilityReason(
   sourceHeat: ScheduledHeat,
   targetHeat: ScheduledHeat,
   events: Event[],
-  maxCouplesPerHeat?: number,
+  _maxCouplesPerHeat?: number,
   heatStatuses?: Record<string, string>,
 ): string | null {
   // Heat status check — can't merge into scoring or completed heats
@@ -104,11 +104,6 @@ export function getMergeIncompatibilityReason(
   const tgtRound = targetHeat.entries[0]?.round;
   if (srcRound && tgtRound && srcRound !== tgtRound) return 'Different round';
 
-  // Scoring type mismatch
-  const srcType = getHeatScoringType(sourceHeat, events);
-  const tgtType = getHeatScoringType(targetHeat, events);
-  if (srcType !== tgtType) return 'Different scoring type';
-
   // Style mismatch
   const srcStyle = getHeatPrimaryStyle(sourceHeat, events);
   const tgtStyle = getHeatPrimaryStyle(targetHeat, events);
@@ -118,16 +113,6 @@ export function getMergeIncompatibilityReason(
   for (const entry of [...sourceHeat.entries, ...targetHeat.entries]) {
     const event = getEventById(events, entry.eventId);
     if (event && event.heats.length > 1) return 'Multi-round event cannot be merged';
-  }
-
-  // Couple count overflow
-  if (maxCouplesPerHeat !== undefined) {
-    const srcCount = getHeatCoupleCount(sourceHeat, events);
-    const tgtCount = getHeatCoupleCount(targetHeat, events);
-    const total = srcCount + tgtCount;
-    if (total > maxCouplesPerHeat) {
-      return `Would exceed ${maxCouplesPerHeat} couple limit (${total} total)`;
-    }
   }
 
   // Overlapping bibs — source and target share couples
@@ -153,6 +138,32 @@ function getHeatBibs(heat: ScheduledHeat, events: Event[]): Set<number> {
     }
   }
   return bibs;
+}
+
+export function getMergeWarnings(
+  sourceHeat: ScheduledHeat,
+  targetHeat: ScheduledHeat,
+  events: Event[],
+  maxCouplesPerHeat?: number,
+): string[] {
+  const warnings: string[] = [];
+
+  // Couple count overflow (warning, not blocker)
+  if (maxCouplesPerHeat !== undefined) {
+    const total = getHeatCoupleCount(sourceHeat, events) + getHeatCoupleCount(targetHeat, events);
+    if (total > maxCouplesPerHeat) {
+      warnings.push(`Exceeds ${maxCouplesPerHeat} couple limit (${total} total)`);
+    }
+  }
+
+  // Mixed scoring types (warning, not blocker)
+  const srcType = getHeatScoringType(sourceHeat, events);
+  const tgtType = getHeatScoringType(targetHeat, events);
+  if (srcType && tgtType && srcType !== tgtType) {
+    warnings.push(`Mixed scoring types (${srcType} + ${tgtType})`);
+  }
+
+  return warnings;
 }
 
 export function statusBadge(status: string) {

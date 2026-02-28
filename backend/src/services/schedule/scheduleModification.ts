@@ -200,6 +200,7 @@ export async function updateHeatEntries(
   competitionId: number,
   heatId: string,
   newEntries: HeatEntry[],
+  forceOverride?: boolean,
 ): Promise<CompetitionSchedule | null> {
   const schedule = await dataService.getSchedule(competitionId);
   if (!schedule) return null;
@@ -216,7 +217,6 @@ export async function updateHeatEntries(
   const maxCouples = competition?.maxCouplesPerHeat ?? DEFAULT_MAX_COUPLES_PER_HEAT;
 
   let totalCouples = 0;
-  let scoringType: string | undefined;
   let style: string | undefined;
 
   for (const entry of newEntries) {
@@ -226,12 +226,6 @@ export async function updateHeatEntries(
     if (!eventHeat) return null;
 
     totalCouples += event.heats[0]?.bibs.length ?? 0;
-    const st = event.scoringType || 'standard';
-    if (scoringType === undefined) {
-      scoringType = st;
-    } else if (scoringType !== st) {
-      return null; // Incompatible scoring types
-    }
 
     const eventStyle = event.style || '';
     if (style === undefined) {
@@ -241,7 +235,7 @@ export async function updateHeatEntries(
     }
   }
 
-  if (totalCouples > maxCouples) return null;
+  if (totalCouples > maxCouples && !forceOverride) return null;
   if (newEntries.length === 0) return null;
 
   // Remove these entries from any other heats they might be in

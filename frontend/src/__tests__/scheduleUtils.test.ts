@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getMergeIncompatibilityReason,
+  getMergeWarnings,
   getHeatCoupleCount,
 } from '../pages/dayof/Schedule/utils';
 import { Event, ScheduledHeat } from '../types';
@@ -42,10 +43,10 @@ describe('getMergeIncompatibilityReason', () => {
     expect(getMergeIncompatibilityReason(source, target, events, 10)).toBeNull();
   });
 
-  it('should detect different scoring type', () => {
+  it('should allow different scoring types (no longer blocks)', () => {
     const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
     const target = makeHeat('h4', [{ eventId: 4, round: 'final' }]);
-    expect(getMergeIncompatibilityReason(source, target, events)).toBe('Different scoring type');
+    expect(getMergeIncompatibilityReason(source, target, events)).toBeNull();
   });
 
   it('should detect different style', () => {
@@ -60,11 +61,11 @@ describe('getMergeIncompatibilityReason', () => {
     expect(getMergeIncompatibilityReason(source, target, events)).toBe('Different round');
   });
 
-  it('should detect couple count overflow', () => {
+  it('should no longer block on couple count overflow', () => {
     const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
     const target = makeHeat('h2', [{ eventId: 2, round: 'final' }]);
-    // 3 + 3 = 6 > maxCouplesPerHeat of 4
-    expect(getMergeIncompatibilityReason(source, target, events, 4)).toBe('Would exceed 4 couple limit (6 total)');
+    // 3 + 3 = 6 > maxCouplesPerHeat of 4 — now allowed (warning only)
+    expect(getMergeIncompatibilityReason(source, target, events, 4)).toBeNull();
   });
 
   it('should detect multi-round events', () => {
@@ -95,6 +96,53 @@ describe('getMergeIncompatibilityReason', () => {
     const modifiedEvents = [...events];
     modifiedEvents[5] = makeEvent({ id: 6, style: 'Smooth', scoringType: 'standard', heats: [{ round: 'final', bibs: [1, 2], judges: [] }] });
     expect(getMergeIncompatibilityReason(source, target, modifiedEvents, 10)).toBe('Shared couples');
+  });
+});
+
+describe('getMergeWarnings', () => {
+  const events: Event[] = [
+    makeEvent({ id: 1, style: 'Smooth', scoringType: 'standard', heats: [{ round: 'final', bibs: [1, 2, 3], judges: [] }] }),
+    makeEvent({ id: 2, style: 'Smooth', scoringType: 'standard', heats: [{ round: 'final', bibs: [4, 5, 6], judges: [] }] }),
+    makeEvent({ id: 4, style: 'Smooth', scoringType: 'proficiency', heats: [{ round: 'final', bibs: [9, 10], judges: [] }] }),
+  ];
+
+  it('should return empty array for compatible heats with no warnings', () => {
+    const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
+    const target = makeHeat('h2', [{ eventId: 2, round: 'final' }]);
+    expect(getMergeWarnings(source, target, events, 10)).toEqual([]);
+  });
+
+  it('should warn when couple count exceeds max', () => {
+    const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
+    const target = makeHeat('h2', [{ eventId: 2, round: 'final' }]);
+    const warnings = getMergeWarnings(source, target, events, 4);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('Exceeds 4 couple limit');
+    expect(warnings[0]).toContain('6 total');
+  });
+
+  it('should warn on mixed scoring types', () => {
+    const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
+    const target = makeHeat('h4', [{ eventId: 4, round: 'final' }]);
+    const warnings = getMergeWarnings(source, target, events);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('Mixed scoring types');
+  });
+
+  it('should return both warnings when applicable', () => {
+    const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
+    const target = makeHeat('h4', [{ eventId: 4, round: 'final' }]);
+    const warnings = getMergeWarnings(source, target, events, 2);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain('couple limit');
+    expect(warnings[1]).toContain('Mixed scoring types');
+  });
+
+  it('should not warn when maxCouplesPerHeat is not set', () => {
+    const source = makeHeat('h1', [{ eventId: 1, round: 'final' }]);
+    const target = makeHeat('h2', [{ eventId: 2, round: 'final' }]);
+    // No maxCouplesPerHeat passed — no couple count warning
+    expect(getMergeWarnings(source, target, events)).toEqual([]);
   });
 });
 

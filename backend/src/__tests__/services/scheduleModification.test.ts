@@ -304,7 +304,7 @@ describe('Schedule Modification', () => {
       ])).toBeNull();
     });
 
-    it('should return null for incompatible scoring types', async () => {
+    it('should allow merging different scoring types', async () => {
       const comp = await dataService.addCompetition({
         name: 'Mixed', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 20,
       });
@@ -334,10 +334,59 @@ describe('Schedule Modification', () => {
         updatedAt: new Date().toISOString(),
       });
 
-      expect(await updateHeatEntries(comp.id, 'h1', [
+      const result = await updateHeatEntries(comp.id, 'h1', [
         { eventId: evStd.id, round: 'final' },
         { eventId: evProf.id, round: 'final' },
+      ]);
+      expect(result).not.toBeNull();
+      const heat = result!.heatOrder.find(h => h.id === 'h1');
+      expect(heat!.entries).toHaveLength(2);
+    });
+
+    it('should allow merge with forceOverride when over couple limit', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Override', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 2,
+      });
+
+      const bibs: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(couple!.bib);
+      }
+
+      const ev1 = await dataService.addEvent('A', bibs.slice(0, 3), [], comp.id);
+      const ev2 = await dataService.addEvent('B', bibs.slice(3, 6), [], comp.id);
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'h1', entries: [{ eventId: ev1.id, round: 'final' }] },
+          { id: 'h2', entries: [{ eventId: ev2.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'h1': 'pending', 'h2': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: [],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Without forceOverride — should reject
+      expect(await updateHeatEntries(comp.id, 'h1', [
+        { eventId: ev1.id, round: 'final' },
+        { eventId: ev2.id, round: 'final' },
       ])).toBeNull();
+
+      // With forceOverride — should succeed
+      const result = await updateHeatEntries(comp.id, 'h1', [
+        { eventId: ev1.id, round: 'final' },
+        { eventId: ev2.id, round: 'final' },
+      ], true);
+      expect(result).not.toBeNull();
+      const heat = result!.heatOrder.find(h => h.id === 'h1');
+      expect(heat!.entries).toHaveLength(2);
     });
 
     it('should return null for incompatible styles', async () => {

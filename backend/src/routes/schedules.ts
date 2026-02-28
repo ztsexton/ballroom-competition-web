@@ -316,13 +316,13 @@ router.patch('/:competitionId/heat/:heatId/entries', async (req: Request, res: R
   try {
     const competitionId = parseInt(req.params.competitionId);
     const heatId = req.params.heatId;
-    const { entries } = req.body;
+    const { entries, forceOverride } = req.body;
 
     if (!Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({ error: 'At least one entry is required' });
     }
 
-    const schedule = await scheduleService.updateHeatEntries(competitionId, heatId, entries);
+    const schedule = await scheduleService.updateHeatEntries(competitionId, heatId, entries, forceOverride);
     if (!schedule) {
       return res.status(400).json({ error: 'Invalid heat, incompatible entries, or exceeds max couples per heat' });
     }

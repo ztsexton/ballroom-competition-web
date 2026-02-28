@@ -223,6 +223,45 @@ describe('Schedule Optimizer', () => {
       expect(analysis.fitsInWindow).toBe(true);
       expect(analysis.estimatedDurationMinutes).toBe(0);
     });
+
+    it('should suggest merges even for different scoring types', async () => {
+      const { comp, bibs } = await setupCompetition({
+        dayConfigs: [{ day: 1, startTime: '08:00', endTime: '08:01' }], // 1 minute — overflow
+        timingSettings: {
+          defaultDanceDurationSeconds: 75,
+          betweenDanceSeconds: 35,
+          betweenHeatSeconds: 45,
+          startTime: '2026-06-01T08:00:00',
+        },
+      });
+
+      const evStd = await dataService.addEvent(
+        'Waltz', bibs.slice(0, 3), [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'standard',
+      );
+      const evProf = await dataService.addEvent(
+        'Proficiency', bibs.slice(3, 6), [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'proficiency',
+      );
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'heat-1', entries: [{ eventId: evStd.id, round: 'final' }] },
+          { id: 'heat-2', entries: [{ eventId: evProf.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'heat-1': 'pending', 'heat-2': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: ['Smooth'],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const analysis = await analyzeSchedule(comp.id);
+      const mergeSuggestions = analysis.suggestions.filter(s => s.type === 'merge');
+      expect(mergeSuggestions.length).toBeGreaterThan(0);
+    });
   });
 
   describe('applySuggestions', () => {

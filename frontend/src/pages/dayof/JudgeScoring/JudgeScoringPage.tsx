@@ -36,7 +36,10 @@ const JudgeScoringPage = () => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [activeDance, setActiveDance] = useState<string | null>(null);
   const [submittedDances, setSubmittedDances] = useState<Set<string>>(new Set());
-  const [inputMethod, setInputMethod] = useState<InputMethod>('keyboard');
+  const [inputMethods, setInputMethods] = useState<Record<string, InputMethod>>({
+    ranking: 'keyboard',
+    proficiency: 'keyboard',
+  });
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Track which heat we've submitted for and which heat our scores belong to.
@@ -94,16 +97,15 @@ const JudgeScoringPage = () => {
     const key = `judge-input-pref-${judgeId}-${mode}`;
     const saved = localStorage.getItem(key);
     if (saved === 'tap' || saved === 'picker' || saved === 'quickscore' || saved === 'keyboard') {
-      setInputMethod(saved);
+      setInputMethods(prev => ({ ...prev, [mode]: saved }));
     } else {
-      setInputMethod(mode === 'proficiency' ? 'quickscore' : 'tap');
+      setInputMethods(prev => ({ ...prev, [mode]: mode === 'proficiency' ? 'quickscore' : 'tap' }));
     }
   }, []);
 
-  const handleInputMethodChange = (method: InputMethod) => {
-    setInputMethod(method);
-    if (selectedJudgeId !== null && firstEntry) {
-      const mode = firstEntry.scoringType === 'proficiency' ? 'proficiency' : 'ranking';
+  const handleInputMethodChange = (mode: string, method: InputMethod) => {
+    setInputMethods(prev => ({ ...prev, [mode]: method }));
+    if (selectedJudgeId !== null) {
       const key = `judge-input-pref-${selectedJudgeId}-${mode}`;
       localStorage.setItem(key, method);
     }
@@ -171,11 +173,14 @@ const JudgeScoringPage = () => {
     setShowConfirm(false);
     setValidationErrors([]);
 
-    // Load saved input method preference for the new heat's scoring type
-    if (selectedJudgeId !== null && firstEntry) {
-      loadInputMethodPref(selectedJudgeId, firstEntry.scoringType, firstEntry.isRecallRound);
+    // Load saved input method preferences for all scoring types in the heat
+    if (selectedJudgeId !== null && heatInfo) {
+      const scoringTypes = new Set(heatInfo.entries.map(e => e.scoringType || 'standard'));
+      for (const st of scoringTypes) {
+        loadInputMethodPref(selectedJudgeId, st, heatInfo.entries[0]?.isRecallRound);
+      }
     }
-  }, [heatKey, heatInfo, selectedJudgeId, loadInputMethodPref, firstEntry]);
+  }, [heatKey, heatInfo, selectedJudgeId, loadInputMethodPref]);
 
   // When the heat changes (different key), clear the submitted state.
   useEffect(() => {
@@ -443,9 +448,10 @@ const JudgeScoringPage = () => {
     const isProficiency = entry.scoringType === 'proficiency';
     const isRecall = entry.isRecallRound;
     const proAm = entry.designation === 'Pro-Am';
+    const currentInputMethod = isProficiency ? inputMethods.proficiency : inputMethods.ranking;
 
     if (isProficiency) {
-      return inputMethod === 'quickscore' ? (
+      return currentInputMethod === 'quickscore' ? (
         <QuickScoreForm
           couples={entry.couples}
           scores={entryScores}
@@ -474,7 +480,7 @@ const JudgeScoringPage = () => {
       );
     }
 
-    if (inputMethod === 'tap') {
+    if (currentInputMethod === 'tap') {
       return (
         <TapToRankForm
           couples={entry.couples}
@@ -485,7 +491,7 @@ const JudgeScoringPage = () => {
       );
     }
 
-    if (inputMethod === 'picker') {
+    if (currentInputMethod === 'picker') {
       return (
         <PickerRankForm
           couples={entry.couples}
@@ -506,9 +512,11 @@ const JudgeScoringPage = () => {
     );
   };
 
-  // All entries share same scoringType/isRecallRound (merge criterion)
+  // Detect mixed scoring types in the heat
   const isRecall = firstEntry?.isRecallRound ?? false;
   const isProficiency = firstEntry?.scoringType === 'proficiency';
+  const scoringTypes = new Set(heatInfo!.entries.map(e => e.scoringType || 'standard'));
+  const hasMixedTypes = scoringTypes.size > 1;
 
   return (
     <div className="max-w-[540px] mx-auto p-2">
@@ -527,12 +535,35 @@ const JudgeScoringPage = () => {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      {/* Input method toggle (not for recall) */}
-      {!isRecall && (
+      {/* Input method toggle(s) — per scoring type when mixed */}
+      {!isRecall && hasMixedTypes ? (
+        <div className="mb-2">
+          {scoringTypes.has('standard') && (
+            <div className="mb-1">
+              <span className="text-xs text-gray-500 font-medium mr-1">Ranking events:</span>
+              <InputMethodToggle
+                mode="ranking"
+                selectedMethod={inputMethods.ranking}
+                onMethodChange={(m) => handleInputMethodChange('ranking', m)}
+              />
+            </div>
+          )}
+          {scoringTypes.has('proficiency') && (
+            <div className="mb-1">
+              <span className="text-xs text-gray-500 font-medium mr-1">Proficiency events:</span>
+              <InputMethodToggle
+                mode="proficiency"
+                selectedMethod={inputMethods.proficiency}
+                onMethodChange={(m) => handleInputMethodChange('proficiency', m)}
+              />
+            </div>
+          )}
+        </div>
+      ) : !isRecall && (
         <InputMethodToggle
           mode={isProficiency ? 'proficiency' : 'ranking'}
-          selectedMethod={inputMethod}
-          onMethodChange={handleInputMethodChange}
+          selectedMethod={inputMethods[isProficiency ? 'proficiency' : 'ranking']}
+          onMethodChange={(m) => handleInputMethodChange(isProficiency ? 'proficiency' : 'ranking', m)}
         />
       )}
 
@@ -570,6 +601,13 @@ const JudgeScoringPage = () => {
               <div className="py-2 mb-2 border-b-2 border-primary-500">
                 <p className="m-0 font-bold text-primary-500 text-base">
                   {entry.eventName}
+                  {hasMixedTypes && (
+                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.6875rem] font-semibold ${
+                      entry.scoringType === 'proficiency' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {entry.scoringType === 'proficiency' ? 'Proficiency' : 'Ranking'}
+                    </span>
+                  )}
                 </p>
                 <p className="mt-0.5 mb-0 text-gray-500 text-[0.8rem]">
                   {formatRound(entry.round)} — {entry.couples.length} couples
