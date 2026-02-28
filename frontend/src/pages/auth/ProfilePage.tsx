@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { themes, themeKeys } from '../../themes';
@@ -48,8 +49,8 @@ const ProfilePage = () => {
       await usersApi.updateProfile(formData);
       await refreshUser();
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save profile');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to save profile' : 'Failed to save profile');
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { eventsApi, couplesApi, judgesApi } from '../../api/client';
 import { Couple, Judge, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
@@ -184,11 +185,11 @@ const EventFormPage = () => {
       try {
         const response = await eventsApi.update(originalEvent.id, payload as any);
         navigate(`/events/${response.data.id}`);
-      } catch (err: any) {
-        if (err.response?.status === 409 && err.response?.data?.warning) {
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.status === 409 && err.response?.data?.warning) {
           setShowScoreWarning(true);
         } else {
-          setError(err.response?.data?.error || 'Failed to update event');
+          setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update event' : 'Failed to update event');
         }
       }
     } else {
@@ -208,8 +209,8 @@ const EventFormPage = () => {
           ageCategory || undefined
         );
         navigate(`/events/${response.data.id}`);
-      } catch (error: any) {
-        setError(error.response?.data?.error || 'Failed to create event');
+      } catch (error: unknown) {
+        setError(axios.isAxiosError(error) ? error.response?.data?.error || 'Failed to create event' : 'Failed to create event');
       }
     }
   };

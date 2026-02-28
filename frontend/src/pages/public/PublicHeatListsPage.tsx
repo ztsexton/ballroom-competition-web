@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import axios from 'axios';
 import { PublicCompetition, PublicEventWithHeats } from '../../types';
 import { publicCompetitionsApi } from '../../api/client';
 import { Skeleton } from '../../components/Skeleton';
@@ -32,8 +33,8 @@ const PublicHeatListsPage = () => {
 
         const heatsRes = await publicCompetitionsApi.getHeats(compId);
         setEvents(heatsRes.data);
-      } catch (err: any) {
-        if (err?.response?.status === 403) {
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.status === 403) {
           setNotPublished(true);
         }
       } finally {

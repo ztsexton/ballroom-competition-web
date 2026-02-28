@@ -283,15 +283,25 @@ router.post('/:id/late-entry', requireAnyAdmin, async (req: AuthRequest, res: Re
       return heat;
     });
 
-    // Check which subsequent rounds have scores and add bib to unscored ones with bibs
+    // Batch-fetch scores for subsequent rounds that have bibs, then add bib to unscored ones
+    const roundsToCheck = updatedHeats
+      .slice(1)
+      .filter(heat => heat.bibs.length > 0);
+
+    const scoreResults = await Promise.all(
+      roundsToCheck.map(heat => dataService.getScoresForRound(id, heat.round, heat.bibs))
+    );
+
+    const scoredRounds = new Set<string>();
+    roundsToCheck.forEach((heat, idx) => {
+      const hasAnyScores = Object.values(scoreResults[idx]).some(s => s.length > 0);
+      if (hasAnyScores) scoredRounds.add(heat.round);
+    });
+
     for (let i = 1; i < updatedHeats.length; i++) {
       const heat = updatedHeats[i];
-      if (heat.bibs.length > 0) {
-        const hasScores = await dataService.getScoresForRound(id, heat.round, heat.bibs);
-        const hasAnyScores = Object.values(hasScores).some(s => s.length > 0);
-        if (!hasAnyScores) {
-          updatedHeats[i] = { ...heat, bibs: [...heat.bibs, bib] };
-        }
+      if (heat.bibs.length > 0 && !scoredRounds.has(heat.round)) {
+        updatedHeats[i] = { ...heat, bibs: [...heat.bibs, bib] };
       }
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import axios from 'axios';
 import { peopleApi, couplesApi, judgesApi, studiosApi, mindbodyApi, eventsApi } from '../../api/client';
 import { Person, Couple, Judge, Studio, MindbodyClient, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
@@ -121,8 +122,8 @@ const CompetitionEntriesPage = () => {
     try {
       await peopleApi.delete(id);
       loadAllData();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete person');
+    } catch (err: unknown) {
+      alert(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete person' : 'Failed to delete person');
     }
   };
 
@@ -140,8 +141,8 @@ const CompetitionEntriesPage = () => {
       setFollowerId('');
       setCoupleError('');
       loadAllData();
-    } catch (err: any) {
-      setCoupleError(err.response?.data?.error || 'Failed to add couple');
+    } catch (err: unknown) {
+      setCoupleError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to add couple' : 'Failed to add couple');
     }
   };
 
@@ -151,8 +152,8 @@ const CompetitionEntriesPage = () => {
       await couplesApi.delete(bib);
       setCoupleError('');
       loadAllData();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete couple');
+    } catch (err: unknown) {
+      alert(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete couple' : 'Failed to delete couple');
     }
   };
 
@@ -175,8 +176,8 @@ const CompetitionEntriesPage = () => {
     try {
       await judgesApi.delete(id);
       loadAllData();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete judge');
+    } catch (err: unknown) {
+      alert(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete judge' : 'Failed to delete judge');
     }
   };
 
@@ -237,8 +238,8 @@ const CompetitionEntriesPage = () => {
       // Refresh couple events
       const evRes = await couplesApi.getEvents(registerBib);
       setCoupleEvents(evRes.data);
-    } catch (err: any) {
-      setRegError(err.response?.data?.error || 'Failed to register');
+    } catch (err: unknown) {
+      setRegError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to register' : 'Failed to register');
     } finally {
       setRegLoading(false);
     }
@@ -250,8 +251,8 @@ const CompetitionEntriesPage = () => {
       await eventsApi.removeEntry(eventId, registerBib);
       const evRes = await couplesApi.getEvents(registerBib);
       setCoupleEvents(evRes.data);
-    } catch (err: any) {
-      setRegError(err.response?.data?.error || 'Failed to remove entry');
+    } catch (err: unknown) {
+      setRegError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to remove entry' : 'Failed to remove entry');
     }
   };
 
@@ -270,8 +271,8 @@ const CompetitionEntriesPage = () => {
       });
       setMbClients(res.data.clients);
       setMbSelected(new Set());
-    } catch (err: any) {
-      setMbError(err?.response?.data?.error || 'Failed to fetch clients');
+    } catch (err: unknown) {
+      setMbError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to fetch clients' : 'Failed to fetch clients');
       setMbClients([]);
     } finally {
       setMbLoading(false);
@@ -315,8 +316,8 @@ const CompetitionEntriesPage = () => {
       setMbClients([]);
       setMbSelected(new Set());
       loadAllData();
-    } catch (err: any) {
-      setMbError(err?.response?.data?.error || 'Failed to import clients');
+    } catch (err: unknown) {
+      setMbError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to import clients' : 'Failed to import clients');
     } finally {
       setMbImporting(false);
     }

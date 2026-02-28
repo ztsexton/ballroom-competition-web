@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Competition, Person, Couple, Event, AgeCategory } from '../../types';
@@ -155,12 +156,16 @@ const ParticipantPortalPage = () => {
       setMyPerson(res.data);
       setSuccess('Registered successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      const msg = err.response?.data?.error || 'Registration failed';
-      if (err.response?.data?.person) {
-        setMyPerson(err.response.data.person);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const msg = err.response?.data?.error || 'Registration failed';
+        if (err.response?.data?.person) {
+          setMyPerson(err.response.data.person);
+        }
+        setError(msg);
+      } else {
+        setError('Registration failed');
       }
-      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -179,8 +184,8 @@ const ParticipantPortalPage = () => {
       setPartnerName('');
       setSuccess(`Partner added! Bib #${res.data.couple.bib}`);
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add partner');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to add partner' : 'Failed to add partner');
     } finally {
       setLoading(false);
     }
@@ -213,8 +218,8 @@ const ParticipantPortalPage = () => {
       setRegScoringType('');
       setRegAgeCategory('');
       await loadMyData(selectedComp.id);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to register entry');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to register entry' : 'Failed to register entry');
     } finally {
       setLoading(false);
     }
@@ -226,8 +231,8 @@ const ParticipantPortalPage = () => {
     try {
       await participantApi.removeEntry(selectedComp.id, eventId, bib);
       await loadMyData(selectedComp.id);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to remove entry');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to remove entry' : 'Failed to remove entry');
     }
   };
 

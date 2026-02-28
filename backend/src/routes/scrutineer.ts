@@ -51,16 +51,10 @@ router.get('/events/:eventId/rounds/:round/judge-scores', async (req: Request, r
     const dances = event.dances && event.dances.length > 1 ? event.dances : [];
 
     if (dances.length > 0) {
-      // Multi-dance: fetch scores per dance
+      // Multi-dance: fetch scores per dance (batch)
       const danceScoresByBib: Record<string, Record<number, Record<number, number>>> = {};
       for (const dance of dances) {
-        danceScoresByBib[dance] = {};
-        for (const bib of heat.bibs) {
-          const judgeScores = await dataService.getJudgeScores(eventId, round, bib, dance);
-          if (Object.keys(judgeScores).length > 0) {
-            danceScoresByBib[dance][bib] = judgeScores;
-          }
-        }
+        danceScoresByBib[dance] = await dataService.getJudgeScoresForRound(eventId, round, heat.bibs, dance);
       }
       res.json({
         eventId, round, bibs: heat.bibs, judges,
@@ -69,14 +63,8 @@ router.get('/events/:eventId/rounds/:round/judge-scores', async (req: Request, r
         danceScoresByBib,
       });
     } else {
-      // Single-dance
-      const scoresByBib: Record<number, Record<number, number>> = {};
-      for (const bib of heat.bibs) {
-        const judgeScores = await dataService.getJudgeScores(eventId, round, bib);
-        if (Object.keys(judgeScores).length > 0) {
-          scoresByBib[bib] = judgeScores;
-        }
-      }
+      // Single-dance (batch)
+      const scoresByBib = await dataService.getJudgeScoresForRound(eventId, round, heat.bibs);
       res.json({
         eventId, round, bibs: heat.bibs, judges,
         isRecallRound, scoringType, dances: [],

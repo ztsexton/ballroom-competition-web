@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { eventsApi, couplesApi } from '../../api/client';
 import { Event, Couple } from '../../types';
 import { Skeleton } from '../../components/Skeleton';
@@ -45,8 +46,8 @@ const EventEntriesPage = () => {
       await eventsApi.addEntry(eventId, parseInt(selectedBib));
       setSelectedBib('');
       loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add couple');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to add couple' : 'Failed to add couple');
     }
   };
 
@@ -54,8 +55,8 @@ const EventEntriesPage = () => {
     try {
       await eventsApi.removeEntry(eventId, bib);
       loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to remove couple');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to remove couple' : 'Failed to remove couple');
     }
   };
 

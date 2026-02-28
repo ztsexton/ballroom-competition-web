@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { invoicesApi, competitionsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup } from '../../types';
@@ -192,8 +193,8 @@ const InvoicesPage = () => {
     try {
       const res = await invoicesApi.emailInvoice(competitionId, personId);
       alert(`Invoice emailed to ${res.data.sentTo}`);
-    } catch (err: any) {
-      const msg = err?.response?.data?.error || 'Failed to send email';
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to send email' : 'Failed to send email';
       alert(msg);
     }
   };

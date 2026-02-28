@@ -82,12 +82,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setError(null);
       await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      if (err.code === 'auth/popup-blocked') {
+    } catch (err: unknown) {
+      if (err instanceof Error && 'code' in err && (err as { code: string }).code === 'auth/popup-blocked') {
         await signInWithRedirect(auth, googleProvider);
         return;
       }
-      const errorMessage = err.message || 'Failed to sign in';
+      const errorMessage = err instanceof Error ? err.message || 'Failed to sign in' : 'Failed to sign in';
       setError(errorMessage);
       console.error('Login error:', err);
     }
@@ -100,8 +100,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setCurrentUser(null);
       setAdminCompetitionIds([]);
       setIsCompetitionAdmin(false);
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to sign out';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message || 'Failed to sign out' : 'Failed to sign out';
       setError(errorMessage);
       console.error('Logout error:', err);
     }

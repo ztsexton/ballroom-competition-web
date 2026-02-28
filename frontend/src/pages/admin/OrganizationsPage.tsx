@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { organizationsApi } from '../../api/client';
 import { Organization, RulePresetKey, AgeCategory } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -71,8 +72,8 @@ const OrganizationsPage = () => {
       setFormPreset('custom');
       setShowForm(false);
       loadOrganizations();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to create organization');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to create organization' : 'Failed to create organization');
     } finally {
       setSubmitting(false);
     }

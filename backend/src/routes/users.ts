@@ -1,6 +1,7 @@
 import express from 'express';
 import { dataService } from '../services/dataService';
 import { requireAdmin, AuthRequest, clearUserCache } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -94,8 +95,9 @@ router.get('/me/admin-competitions', async (req: AuthRequest, res) => {
       competitionIds,
       isCompetitionAdmin: competitionIds.length > 0,
     });
-  } catch {
+  } catch (err) {
     // Table may not exist if migration hasn't run yet
+    logger.error(err, 'Failed to fetch admin-competitions');
     res.json({
       competitionIds: [],
       isCompetitionAdmin: false,

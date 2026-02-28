@@ -32,7 +32,7 @@ scorer_data.pkl
 backend/data-test/
 
 # Results
-results/
+/results/
 
 # IDE
 .vscode/

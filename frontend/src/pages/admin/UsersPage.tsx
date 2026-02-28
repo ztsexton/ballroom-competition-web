@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { usersApi } from '../../api/client';
 import { User } from '../../types';
@@ -20,8 +21,8 @@ const UsersPage = () => {
       setError(null);
       const response = await usersApi.getAll();
       setUsers(response.data);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load users');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to load users' : 'Failed to load users');
       console.error('Error loading users:', err);
     } finally {
       setLoading(false);
@@ -33,8 +34,8 @@ const UsersPage = () => {
       setError(null);
       await usersApi.updateAdmin(uid, !currentAdminStatus);
       await loadUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update user');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update user' : 'Failed to update user');
       console.error('Error updating user:', err);
     }
   };

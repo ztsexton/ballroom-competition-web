@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { registerCoupleForEvent, removeEntryFromEvent } from '../services/registrationService';
 import { validateEntry, getAllowedLevelsForCouple } from '../services/validationService';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -12,7 +13,8 @@ router.get('/competitions', async (_req: AuthRequest, res: Response) => {
     const competitions = await dataService.getCompetitions();
     const open = competitions.filter(c => c.registrationOpen);
     res.json(open);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to load competitions');
     res.status(500).json({ error: 'Failed to load competitions' });
   }
 });
@@ -26,7 +28,8 @@ router.get('/competitions/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Competition not found' });
     }
     res.json(comp);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to load competition');
     res.status(500).json({ error: 'Failed to load competition' });
   }
 });
@@ -37,7 +40,8 @@ router.get('/profile', async (req: AuthRequest, res: Response) => {
     const userId = req.user!.uid;
     const people = await dataService.getPersonsByUserId(userId);
     res.json(people);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to load profile');
     res.status(500).json({ error: 'Failed to load profile' });
   }
 });
@@ -51,7 +55,8 @@ router.get('/competitions/:id/age-categories', async (req: AuthRequest, res: Res
       return res.status(404).json({ error: 'Competition not found' });
     }
     res.json(comp.ageCategories || []);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to load age categories');
     res.status(500).json({ error: 'Failed to load age categories' });
   }
 });
@@ -108,7 +113,8 @@ router.post('/competitions/:id/register', async (req: AuthRequest, res: Response
     });
 
     res.status(201).json(person);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to register');
     res.status(500).json({ error: 'Failed to register' });
   }
 });
@@ -168,7 +174,8 @@ router.post('/competitions/:id/partner', async (req: AuthRequest, res: Response)
     }
 
     res.status(201).json({ partner, couple });
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to add partner');
     res.status(500).json({ error: 'Failed to add partner' });
   }
 });
@@ -236,7 +243,8 @@ router.get('/competitions/:id/my-entries', async (req: AuthRequest, res: Respons
       entries: myEvents,
       schedule: filteredSchedule,
     });
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to load entries');
     res.status(500).json({ error: 'Failed to load entries' });
   }
 });
@@ -287,7 +295,8 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
       return res.status(201).json({ event: result.event, created: true });
     }
     return res.json({ event: result.event, created: false });
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to register entry');
     res.status(500).json({ error: 'Failed to register entry' });
   }
 });
@@ -318,7 +327,8 @@ router.delete('/competitions/:id/entries/:eventId/:bib', async (req: AuthRequest
     }
 
     res.json(result.event);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to remove entry');
     res.status(500).json({ error: 'Failed to remove entry' });
   }
 });
@@ -335,7 +345,8 @@ router.post('/competitions/:id/validate', async (req: AuthRequest, res: Response
 
     const result = await validateEntry(competitionId, bib, { level, designation, ageCategory });
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to validate entry');
     res.status(500).json({ error: 'Failed to validate entry' });
   }
 });
@@ -386,7 +397,8 @@ router.get('/competitions/:id/allowed-levels/:bib', async (req: AuthRequest, res
       coupleLevel,
       allLevels: comp.levels || [],
     });
-  } catch {
+  } catch (err) {
+    logger.error(err, 'Failed to get allowed levels');
     res.status(500).json({ error: 'Failed to get allowed levels' });
   }
 });

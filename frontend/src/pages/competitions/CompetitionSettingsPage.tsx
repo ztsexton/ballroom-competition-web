@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import { competitionsApi, organizationsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
@@ -126,8 +127,8 @@ const CompetitionAdminsSection = ({
       setAdmins(prev => [...prev.filter(a => a.userUid !== res.data.userUid), res.data as EnrichedAdmin]);
       setEmail('');
       flashSaved('admins');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add admin');
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to add admin' : 'Failed to add admin');
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -6,48 +7,58 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 import PublicLayout from './components/PublicLayout';
 import CompetitionHubLayout from './components/CompetitionHubLayout';
-import Home from './pages/Home';
-import { LoginPage, ProfilePage } from './pages/auth';
-import {
-  PublicHomePage,
-  PublicResultsPage,
-  PublicHeatListsPage,
-  PaymentPage,
-  PricingPage,
-  FaqPage,
-} from './pages/public';
-import {
-  PeoplePage,
-  CouplesPage,
-  JudgesPage,
-  ParticipantPortalPage,
-  InvoicesPage,
-} from './pages/participants';
-import {
-  EventsPage,
-  EventFormPage,
-  EventEntriesPage,
-  ResultsPage,
-  ScoreEventPage,
-} from './pages/events';
-import {
-  CompetitionsPage,
-  CompetitionDetailsPage,
-  CompetitionResultsPage,
-  CompetitionEntriesPage,
-  CompetitionSettingsPage,
-  CompetitionDayOfPage,
-} from './pages/competitions';
-import { OrganizationsPage, StudioPage, UsersPage, AdminDashboardPage } from './pages/admin';
-import {
-  LiveCompetitionPage,
-  OnDeckPage,
-  ScrutineerPage,
-  JudgeScoringPage,
-  RunCompetitionPage,
-  SchedulePage,
-} from './pages/dayof';
 import './App.css';
+
+// -- Dashboard --
+const Home = React.lazy(() => import('./pages/Home'));
+
+// -- Auth pages --
+const LoginPage = React.lazy(() => import('./pages/auth').then(m => ({ default: m.LoginPage })));
+const ProfilePage = React.lazy(() => import('./pages/auth').then(m => ({ default: m.ProfilePage })));
+
+// -- Public pages --
+const PublicHomePage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicHomePage })));
+const PublicResultsPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicResultsPage })));
+const PublicHeatListsPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicHeatListsPage })));
+const PaymentPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PaymentPage })));
+const PricingPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PricingPage })));
+const FaqPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.FaqPage })));
+
+// -- Participant pages --
+const PeoplePage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.PeoplePage })));
+const CouplesPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.CouplesPage })));
+const JudgesPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.JudgesPage })));
+const ParticipantPortalPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.ParticipantPortalPage })));
+const InvoicesPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.InvoicesPage })));
+
+// -- Event pages --
+const EventsPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.EventsPage })));
+const EventFormPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.EventFormPage })));
+const EventEntriesPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.EventEntriesPage })));
+const ResultsPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.ResultsPage })));
+const ScoreEventPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.ScoreEventPage })));
+
+// -- Competition pages --
+const CompetitionsPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionsPage })));
+const CompetitionDetailsPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionDetailsPage })));
+const CompetitionResultsPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionResultsPage })));
+const CompetitionEntriesPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionEntriesPage })));
+const CompetitionSettingsPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionSettingsPage })));
+const CompetitionDayOfPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionDayOfPage })));
+
+// -- Admin pages --
+const AdminDashboardPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.AdminDashboardPage })));
+const UsersPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.UsersPage })));
+const StudioPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.StudioPage })));
+const OrganizationsPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.OrganizationsPage })));
+
+// -- Day-of pages --
+const LiveCompetitionPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.LiveCompetitionPage })));
+const OnDeckPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.OnDeckPage })));
+const ScrutineerPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.ScrutineerPage })));
+const JudgeScoringPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.JudgeScoringPage })));
+const RunCompetitionPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.RunCompetitionPage })));
+const SchedulePage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.SchedulePage })));
 
 // Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
 const ConditionalNavigation = () => {
@@ -60,6 +71,12 @@ const ConditionalNavigation = () => {
 // Get base path for router (handles subpath deployments like /ballroomcomp)
 const basePath = import.meta.env.BASE_URL || '/';
 
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+  </div>
+);
+
 const App = () => {
   return (
     <BrowserRouter
@@ -68,6 +85,7 @@ const App = () => {
     >
       <ThemeProvider>
       <AuthProvider>
+        <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Public routes — no auth required */}
           <Route element={<PublicLayout />}>
@@ -138,6 +156,7 @@ const App = () => {
             }
           />
         </Routes>
+        </Suspense>
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

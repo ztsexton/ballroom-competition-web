@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { studiosApi, mindbodyApi } from "../../api/client";
 import { Studio } from "../../types";
 import { useAuth } from "../../context/AuthContext";
@@ -48,8 +49,8 @@ const StudioPage: React.FC = () => {
       setStudioName("");
       setContactEmail("");
       loadStudios();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to add studio");
+    } catch (err: unknown) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || "Failed to add studio" : "Failed to add studio");
     } finally {
       setSubmitting(false);
     }
@@ -75,8 +76,8 @@ const StudioPage: React.FC = () => {
       setMbUsername("");
       setMbPassword("");
       loadStudios();
-    } catch (err: any) {
-      setMbError(err?.response?.data?.error || "Failed to connect to MindBody");
+    } catch (err: unknown) {
+      setMbError(axios.isAxiosError(err) ? err.response?.data?.error || "Failed to connect to MindBody" : "Failed to connect to MindBody");
     } finally {
       setMbSubmitting(false);
     }
