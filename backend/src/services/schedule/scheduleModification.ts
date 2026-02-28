@@ -432,7 +432,7 @@ export async function resplitPendingHeats(
 
   const event = await dataService.getEventById(eventId);
   if (!event) return null;
-  if (groupCount < 2) return null;
+  if (groupCount < 1) return null;
 
   const heatData = event.heats.find(h => h.round === round);
   if (!heatData) return null;
@@ -456,6 +456,23 @@ export async function resplitPendingHeats(
   // Collect dances from existing entries
   const isMultiDance = event.dances && event.dances.length > 1;
 
+  // Collect which dances are still pending (only these should be recreated)
+  const pendingDances = new Set<string>();
+  if (isMultiDance) {
+    for (const idx of pendingIndices) {
+      const h = schedule.heatOrder[idx];
+      for (const e of h.entries) {
+        if (e.eventId === eventId && e.round === round && e.dance) {
+          pendingDances.add(e.dance);
+        }
+      }
+    }
+    // Unsplit heat (no dance field) → all dances are pending
+    if (pendingDances.size === 0) {
+      event.dances!.forEach(d => pendingDances.add(d));
+    }
+  }
+
   // Track the earliest pending position
   const earliestPos = pendingIndices[0];
 
@@ -470,41 +487,47 @@ export async function resplitPendingHeats(
     delete schedule.heatStatuses[id];
   }
 
-  // Build new split heats
-  const chunks = splitBibsEvenly(bibs, groupCount);
-  const totalFloorHeats = chunks.length;
+  // Build new heats
   const newHeats: ScheduledHeat[] = [];
 
-  if (isMultiDance) {
-    for (const dance of event.dances!) {
-      for (let i = 0; i < chunks.length; i++) {
-        const newHeat: ScheduledHeat = {
+  if (groupCount === 1) {
+    // Merge: create unsplit heats (no bibSubset/floorHeatIndex/totalFloorHeats)
+    if (isMultiDance) {
+      for (const dance of pendingDances) {
+        newHeats.push({
           id: generateHeatId(),
-          entries: [{
-            eventId,
-            round,
-            bibSubset: chunks[i],
-            floorHeatIndex: i,
-            totalFloorHeats,
-            dance,
-          }],
-        };
-        newHeats.push(newHeat);
+          entries: [{ eventId, round, dance }],
+        });
       }
+    } else {
+      newHeats.push({
+        id: generateHeatId(),
+        entries: [{ eventId, round }],
+      });
     }
   } else {
-    for (let i = 0; i < chunks.length; i++) {
-      const newHeat: ScheduledHeat = {
-        id: generateHeatId(),
-        entries: [{
+    // Split into floor heats
+    const chunks = splitBibsEvenly(bibs, groupCount);
+    const totalFloorHeats = chunks.length;
+    const dancesToCreate = isMultiDance
+      ? [...pendingDances]
+      : [undefined as string | undefined];
+
+    for (const dance of dancesToCreate) {
+      for (let i = 0; i < chunks.length; i++) {
+        const entry: HeatEntry = {
           eventId,
           round,
           bibSubset: chunks[i],
           floorHeatIndex: i,
           totalFloorHeats,
-        }],
-      };
-      newHeats.push(newHeat);
+        };
+        if (dance) entry.dance = dance;
+        newHeats.push({
+          id: generateHeatId(),
+          entries: [entry],
+        });
+      }
     }
   }
 

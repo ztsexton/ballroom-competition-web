@@ -459,6 +459,350 @@ describe('Schedule Modification', () => {
     });
   });
 
+  describe('multi-dance split and merge at various scoring stages', () => {
+    const DANCES = ['Waltz', 'Tango', 'Foxtrot', 'Quickstep'];
+
+    async function setupMultiDanceWithSchedule(opts?: { coupleCount?: number; dances?: string[] }) {
+      const dances = opts?.dances ?? DANCES;
+      const coupleCount = opts?.coupleCount ?? 6;
+
+      const comp = await dataService.addCompetition({
+        name: 'Multi Dance Test', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 20,
+      });
+
+      const bibs: number[] = [];
+      for (let i = 0; i < coupleCount; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(couple!.bib);
+      }
+
+      const event = await dataService.addEvent(
+        'Multi Dance Event', bibs, [], comp.id,
+        undefined, undefined, undefined, 'Smooth', dances, 'standard',
+      );
+
+      // Use the actual first round name (≤6 couples → 'final', 7-14 → 'semi-final')
+      const firstRound = event.heats[0].round;
+
+      const schedule = await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'md-heat', entries: [{ eventId: event.id, round: firstRound }] },
+        ],
+        heatStatuses: { 'md-heat': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: ['Smooth'],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      return { comp, event, bibs, schedule, round: firstRound };
+    }
+
+    async function setupSingleDanceWithSchedule(coupleCount = 6) {
+      const comp = await dataService.addCompetition({
+        name: 'Single Dance Test', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 20,
+      });
+
+      const bibs: number[] = [];
+      for (let i = 0; i < coupleCount; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(couple!.bib);
+      }
+
+      const event = await dataService.addEvent(
+        'Single Dance Event', bibs, [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const firstRound = event.heats[0].round;
+
+      const schedule = await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'sd-heat', entries: [{ eventId: event.id, round: firstRound }] },
+        ],
+        heatStatuses: { 'sd-heat': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: ['Smooth'],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      return { comp, event, bibs, schedule, round: firstRound };
+    }
+
+    /** Helper: split via splitRoundIntoFloorHeats, then mark heats for specific dances as completed */
+    async function splitAndScoreDances(
+      compId: number,
+      eventId: number,
+      round: string,
+      groupCount: number,
+      completedDances: string[],
+    ) {
+      // Split the unsplit heat
+      const schedule = await dataService.getSchedule(compId);
+      const unsplitHeat = schedule!.heatOrder.find(h =>
+        h.entries.some(e => e.eventId === eventId && e.round === round));
+      const splitResult = await splitRoundIntoFloorHeats(compId, unsplitHeat!.id, groupCount);
+      expect(splitResult).not.toBeNull();
+
+      // Mark completed dances
+      const updated = await dataService.getSchedule(compId);
+      for (const h of updated!.heatOrder) {
+        for (const e of h.entries) {
+          if (e.eventId === eventId && e.round === round && e.dance && completedDances.includes(e.dance)) {
+            updated!.heatStatuses[h.id] = 'completed';
+          }
+        }
+      }
+      await dataService.saveSchedule(updated!);
+      return updated!;
+    }
+
+    // --- Split scenarios ---
+
+    it('should split single-dance into 2 groups before scoring', async () => {
+      const { comp, event, bibs } = await setupSingleDanceWithSchedule(6);
+
+      const result = await splitRoundIntoFloorHeats(comp.id, 'sd-heat', 2);
+      expect(result).not.toBeNull();
+
+      const floorHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id && e.bibSubset));
+      expect(floorHeats).toHaveLength(2);
+
+      // All bibs accounted for
+      const allBibs = floorHeats.flatMap(h => h.entries[0].bibSubset || []);
+      expect(allBibs.sort()).toEqual([...bibs].sort());
+    });
+
+    it('should split 4-dance event into 2 groups before scoring', async () => {
+      const { comp, event } = await setupMultiDanceWithSchedule();
+
+      const result = await splitRoundIntoFloorHeats(comp.id, 'md-heat', 2);
+      expect(result).not.toBeNull();
+
+      const floorHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id && e.bibSubset));
+      // 4 dances × 2 groups = 8 heats
+      expect(floorHeats).toHaveLength(8);
+
+      // Each dance should have exactly 2 floor heats
+      for (const dance of DANCES) {
+        const danceHeats = floorHeats.filter(h => h.entries[0].dance === dance);
+        expect(danceHeats).toHaveLength(2);
+      }
+    });
+
+    it('should resplit after 1st dance scored', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 2);
+      expect(result).not.toBeNull();
+
+      // 2 completed (Waltz) + 6 new pending (3 dances × 2)
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+      expect(completedHeats).toHaveLength(2);
+      expect(pendingHeats).toHaveLength(6);
+    });
+
+    it('should resplit after 2nd dance scored', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz', 'Tango']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 2);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+      // 4 completed (2 dances × 2) + 4 pending (2 dances × 2)
+      expect(completedHeats).toHaveLength(4);
+      expect(pendingHeats).toHaveLength(4);
+    });
+
+    it('should resplit after 3rd dance scored', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz', 'Tango', 'Foxtrot']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 2);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+      // 6 completed (3 dances × 2) + 2 pending (1 dance × 2)
+      expect(completedHeats).toHaveLength(6);
+      expect(pendingHeats).toHaveLength(2);
+    });
+
+    // --- Merge scenarios ---
+
+    it('should merge single-dance heats before scoring via unsplit', async () => {
+      const { comp, event } = await setupSingleDanceWithSchedule(6);
+
+      await splitRoundIntoFloorHeats(comp.id, 'sd-heat', 2);
+      const schedule = await dataService.getSchedule(comp.id);
+      const splitHeat = schedule!.heatOrder.find(h => h.entries.some(e => e.bibSubset));
+
+      const result = await unsplitFloorHeats(comp.id, splitHeat!.id);
+      expect(result).not.toBeNull();
+
+      const eventHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id));
+      expect(eventHeats).toHaveLength(1);
+      expect(eventHeats[0].entries[0].bibSubset).toBeUndefined();
+    });
+
+    it('should merge 4-dance heats before scoring via unsplit', async () => {
+      const { comp, event } = await setupMultiDanceWithSchedule();
+
+      await splitRoundIntoFloorHeats(comp.id, 'md-heat', 2);
+      const schedule = await dataService.getSchedule(comp.id);
+      const splitHeat = schedule!.heatOrder.find(h => h.entries.some(e => e.bibSubset));
+
+      const result = await unsplitFloorHeats(comp.id, splitHeat!.id);
+      expect(result).not.toBeNull();
+
+      const eventHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id));
+      // unsplit collapses all back to 1 heat
+      expect(eventHeats).toHaveLength(1);
+      expect(eventHeats[0].entries[0].bibSubset).toBeUndefined();
+    });
+
+    it('should merge pending heats after 1st dance scored via resplit(groupCount=1)', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 1);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+
+      // 2 completed (Waltz group 1 + group 2) + 3 unsplit pending (Tango, Foxtrot, Quickstep)
+      expect(completedHeats).toHaveLength(2);
+      expect(pendingHeats).toHaveLength(3);
+
+      // Pending heats should be unsplit (no bibSubset)
+      for (const h of pendingHeats) {
+        expect(h.entries[0].bibSubset).toBeUndefined();
+        expect(h.entries[0].floorHeatIndex).toBeUndefined();
+        expect(h.entries[0].totalFloorHeats).toBeUndefined();
+      }
+
+      // Pending dances should be Tango, Foxtrot, Quickstep
+      const pendingDances = pendingHeats.map(h => h.entries[0].dance).sort();
+      expect(pendingDances).toEqual(['Foxtrot', 'Quickstep', 'Tango']);
+    });
+
+    it('should merge pending heats after 2nd dance scored via resplit(groupCount=1)', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz', 'Tango']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 1);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+
+      // 4 completed + 2 unsplit pending (Foxtrot, Quickstep)
+      expect(completedHeats).toHaveLength(4);
+      expect(pendingHeats).toHaveLength(2);
+
+      for (const h of pendingHeats) {
+        expect(h.entries[0].bibSubset).toBeUndefined();
+      }
+
+      const pendingDances = pendingHeats.map(h => h.entries[0].dance).sort();
+      expect(pendingDances).toEqual(['Foxtrot', 'Quickstep']);
+    });
+
+    it('should merge pending heats after 3rd dance scored via resplit(groupCount=1)', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+      await splitAndScoreDances(comp.id, event.id, round, 2, ['Waltz', 'Tango', 'Foxtrot']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 1);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+
+      // 6 completed + 1 unsplit pending (Quickstep)
+      expect(completedHeats).toHaveLength(6);
+      expect(pendingHeats).toHaveLength(1);
+
+      expect(pendingHeats[0].entries[0].bibSubset).toBeUndefined();
+      expect(pendingHeats[0].entries[0].dance).toBe('Quickstep');
+    });
+
+    // --- Resplit between group counts ---
+
+    it('should resplit from 2 groups to 3 (all pending)', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+
+      // Split into 2 groups first
+      await splitRoundIntoFloorHeats(comp.id, 'md-heat', 2);
+
+      // Resplit into 3 groups
+      const result = await resplitPendingHeats(comp.id, event.id, round, 3);
+      expect(result).not.toBeNull();
+
+      const floorHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id && e.bibSubset));
+      // 4 dances × 3 groups = 12 heats
+      expect(floorHeats).toHaveLength(12);
+
+      for (const dance of DANCES) {
+        const danceHeats = floorHeats.filter(h => h.entries[0].dance === dance);
+        expect(danceHeats).toHaveLength(3);
+      }
+    });
+
+    it('should resplit from 3 groups to 2 after 1st dance scored', async () => {
+      const { comp, event, round } = await setupMultiDanceWithSchedule();
+
+      // Split into 3 groups and score first dance
+      await splitAndScoreDances(comp.id, event.id, round, 3, ['Waltz']);
+
+      const result = await resplitPendingHeats(comp.id, event.id, round, 2);
+      expect(result).not.toBeNull();
+
+      const completedHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'completed');
+      const pendingHeats = result!.heatOrder.filter(h =>
+        h.entries.some(e => e.eventId === event.id) && result!.heatStatuses[h.id] === 'pending');
+
+      // 3 completed (Waltz × 3 groups) + 6 pending (3 dances × 2 groups)
+      expect(completedHeats).toHaveLength(3);
+      expect(pendingHeats).toHaveLength(6);
+
+      // Verify pending heats are for the right dances
+      const pendingDances = [...new Set(pendingHeats.map(h => h.entries[0].dance))].sort();
+      expect(pendingDances).toEqual(['Foxtrot', 'Quickstep', 'Tango']);
+    });
+  });
+
   describe('resplitPendingHeats', () => {
     it('should split pending single-heat into floor heats', async () => {
       const { comp, event1, bibs } = await setupWithSchedule();
@@ -501,7 +845,7 @@ describe('Schedule Modification', () => {
 
     it('should return null for invalid groupCount', async () => {
       const { comp, event1 } = await setupWithSchedule();
-      expect(await resplitPendingHeats(comp.id, event1.id, 'final', 1)).toBeNull();
+      expect(await resplitPendingHeats(comp.id, event1.id, 'final', 0)).toBeNull();
     });
 
     it('should return null for non-existent event', async () => {

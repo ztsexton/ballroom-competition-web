@@ -5,6 +5,9 @@ import path from 'path';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 import { dataService } from '../services/dataService';
+import { scoringService } from '../services/scoringService';
+import { scheduleService } from '../services/schedule';
+import { seedFinishedCompetition } from '../services/seedFinishedCompetition';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -98,6 +101,27 @@ router.post('/seed', authenticate, requireAdmin, async (req: AuthRequest, res: R
     });
   } finally {
     await pool.end();
+  }
+});
+
+// POST /api/database/seed-finished — seed a fully scored/completed competition (admin only)
+router.post('/seed-finished', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    logger.info({ user: req.user?.email }, 'Seeding finished competition data');
+
+    const result = await seedFinishedCompetition(dataService, scoringService, scheduleService);
+
+    logger.info({ competitionId: result.competitionId }, 'Finished competition seeded successfully');
+    res.json({
+      success: true,
+      message: `Finished competition "${result.competitionName}" created successfully with all events scored and results calculated`,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to seed finished competition');
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to seed finished competition',
+    });
   }
 });
 

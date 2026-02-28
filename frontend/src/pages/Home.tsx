@@ -15,6 +15,8 @@ const Home = () => {
   const [search, setSearch] = useState('');
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [seedingFinished, setSeedingFinished] = useState(false);
+  const [seedFinishedMessage, setSeedFinishedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleSeedTestCompetition = async () => {
     if (!confirm('This will create a test competition "Galaxy Ballroom Classic 2026" with sample data. Continue?')) {
@@ -36,6 +38,29 @@ const Home = () => {
       setSeedMessage({ type: 'error', text: message });
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleSeedFinishedCompetition = async () => {
+    if (!confirm('This will create a fully scored "Stardust Invitational 2026" with results for all events. This may take a moment. Continue?')) {
+      return;
+    }
+
+    setSeedingFinished(true);
+    setSeedFinishedMessage(null);
+
+    try {
+      const res = await databaseApi.seedFinished();
+      setSeedFinishedMessage({ type: 'success', text: res.data.message });
+      const compsRes = await competitionsApi.getAll();
+      setCompetitions(compsRes.data);
+      await refreshCompetitions();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create finished competition';
+      setSeedFinishedMessage({ type: 'error', text: message });
+    } finally {
+      setSeedingFinished(false);
     }
   };
 
@@ -176,6 +201,28 @@ const Home = () => {
             seedMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
           }`}>
             {seedMessage.text}
+          </div>
+        )}
+        <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4 flex-wrap mt-3">
+          <div className="flex-1 min-w-[200px]">
+            <div className="font-semibold text-gray-800 mb-1">Create Finished Competition</div>
+            <p className="text-sm text-gray-500">
+              Seed "Stardust Invitational 2026" with all events fully scored, schedule completed, and results calculated. Covers standard, multi-dance, proficiency, scratches, and tie-breaking scenarios.
+            </p>
+          </div>
+          <button
+            onClick={handleSeedFinishedCompetition}
+            disabled={seedingFinished}
+            className={`px-4 py-2 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium whitespace-nowrap transition-colors hover:bg-success-600 ${seedingFinished ? 'opacity-70 cursor-not-allowed' : ''}`}
+          >
+            {seedingFinished ? 'Creating & Scoring...' : 'Create Finished Competition'}
+          </button>
+        </div>
+        {seedFinishedMessage && (
+          <div className={`mt-3 px-4 py-3 rounded-md text-sm ${
+            seedFinishedMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+          }`}>
+            {seedFinishedMessage.text}
           </div>
         )}
       </div>}

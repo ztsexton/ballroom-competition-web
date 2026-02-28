@@ -383,8 +383,8 @@ router.post('/:competitionId/heat/resplit', async (req: Request, res: Response) 
     const competitionId = parseInt(req.params.competitionId);
     const { eventId, round, groupCount } = req.body;
 
-    if (!eventId || !round || !groupCount || groupCount < 2) {
-      return res.status(400).json({ error: 'eventId, round, and groupCount (≥2) are required' });
+    if (!eventId || !round || !groupCount || groupCount < 1) {
+      return res.status(400).json({ error: 'eventId, round, and groupCount (>=1) are required' });
     }
 
     const schedule = await scheduleService.resplitPendingHeats(competitionId, eventId, round, groupCount);

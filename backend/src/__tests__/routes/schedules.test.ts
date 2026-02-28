@@ -931,7 +931,7 @@ describe('Schedules API', () => {
 
       await request(app)
         .post(`/api/schedules/${comp.id}/heat/resplit`)
-        .send({ eventId: 1, round: 'final', groupCount: 1 })
+        .send({ eventId: 1, round: 'final', groupCount: 0 })
         .expect(400);
     });
 

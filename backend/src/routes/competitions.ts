@@ -63,6 +63,10 @@ router.get('/:id/summary', async (req: AuthRequest, res: Response) => {
       0
     );
 
+    const completedCount = schedule
+      ? Object.values(schedule.heatStatuses).filter(s => s === 'completed').length
+      : 0;
+
     res.json({
       competition,
       counts: {
@@ -75,10 +79,12 @@ router.get('/:id/summary', async (req: AuthRequest, res: Response) => {
       schedule: schedule ? {
         scheduleHeats: schedule.heatOrder.length,
         currentHeatIndex: schedule.currentHeatIndex,
+        completedCount,
         scheduleExists: true,
       } : {
         scheduleHeats: 0,
         currentHeatIndex: 0,
+        completedCount: 0,
         scheduleExists: false,
       },
     });

@@ -294,20 +294,24 @@ const RunCompetitionPage = () => {
         <div className="flex justify-between items-center mb-2">
           <strong>Progress</strong>
           <span>
-            Heat {schedule.currentHeatIndex + 1} of {totalCount} ({completedCount} completed)
-            {(() => {
-              const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
-              if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
-                const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
-                return <span className="ml-2 text-gray-500">&middot; Est. finish {formatTime(finish.toISOString())}</span>;
-              }
-              return null;
-            })()}
+            {allCompleted
+              ? `Complete — all ${totalCount} heats done`
+              : <>Heat {Math.min(schedule.currentHeatIndex + 1, totalCount)} of {totalCount} ({completedCount} completed)
+                {(() => {
+                  const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
+                  if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
+                    const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
+                    return <span className="ml-2 text-gray-500">&middot; Est. finish {formatTime(finish.toISOString())}</span>;
+                  }
+                  return null;
+                })()}
+              </>
+            }
           </span>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded overflow-hidden">
           <div
-            className="h-full bg-green-400 rounded transition-[width] duration-300 ease-in-out"
+            className={`h-full rounded transition-[width] duration-300 ease-in-out ${allCompleted ? 'bg-green-500' : 'bg-green-400'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -321,9 +325,17 @@ const RunCompetitionPage = () => {
             <div className="bg-white rounded-lg shadow p-6 text-center py-12">
               <h2 className="text-green-800">Competition Complete!</h2>
               <p className="text-gray-500 mt-2">All {totalCount} heats have been completed.</p>
-              <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mt-4" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
-                Back to Schedule
-              </button>
+              <div className="flex gap-3 justify-center mt-4">
+                <Link
+                  to={`/competitions/${competitionId}/events`}
+                  className="px-4 py-2 bg-primary-500 text-white rounded no-underline text-sm font-medium transition-colors hover:bg-primary-600"
+                >
+                  View Results
+                </Link>
+                <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200" onClick={() => navigate(`/competitions/${competitionId}/schedule`)}>
+                  Back to Schedule
+                </button>
+              </div>
             </div>
           ) : isCurrentBreak ? (
             <div className="bg-white rounded-lg shadow p-6 text-center py-12">
