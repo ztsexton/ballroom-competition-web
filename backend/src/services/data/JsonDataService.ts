@@ -1016,6 +1016,21 @@ export class JsonDataService implements IDataService {
     return this.competitionAdmins.filter(a => a.competitionId === competitionId);
   }
 
+  async getEnrichedCompetitionAdmins(competitionId: number): Promise<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]> {
+    const admins = this.competitionAdmins.filter(a => a.competitionId === competitionId);
+    const userMap = new Map(this.data.users.map(u => [u.uid, u]));
+    return admins.map(a => {
+      const user = userMap.get(a.userUid);
+      return {
+        ...a,
+        email: user?.email,
+        displayName: user?.displayName,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+      };
+    });
+  }
+
   async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
     return this.competitionAdmins
       .filter(a => a.userUid === userUid)

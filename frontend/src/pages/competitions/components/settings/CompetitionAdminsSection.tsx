@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { competitionsApi } from '../../../../api/client';
 import { useAuth } from '../../../../context/AuthContext';
@@ -23,9 +23,11 @@ const CompetitionAdminsSection = ({
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const loadedRef = useRef(false);
 
-  useEffect(() => {
-    if (!competitionId) return;
+  const loadAdmins = useCallback(() => {
+    if (!competitionId || loadedRef.current) return;
+    loadedRef.current = true;
     competitionsApi.getAdmins(competitionId)
       .then(res => setAdmins(res.data))
       .catch(() => {});
@@ -58,7 +60,7 @@ const CompetitionAdminsSection = ({
   };
 
   return (
-    <Section title="Competition Admins" defaultOpen={false} savedKey="admins" savedMap={savedMap}>
+    <Section title="Competition Admins" defaultOpen={false} savedKey="admins" savedMap={savedMap} onOpen={loadAdmins}>
       <p className="text-gray-500 text-sm mb-3">
         Competition admins can manage this competition without having full site admin access.
         {isAdmin ? '' : ' Only site admins can create new competitions.'}

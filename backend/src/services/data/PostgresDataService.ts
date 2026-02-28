@@ -1158,6 +1158,27 @@ export class PostgresDataService implements IDataService {
     }));
   }
 
+  async getEnrichedCompetitionAdmins(competitionId: number): Promise<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]> {
+    const { rows } = await this.pool.query(
+      `SELECT ca.competition_id, ca.user_uid, ca.role, ca.created_at,
+              u.email, u.display_name, u.first_name, u.last_name
+       FROM competition_admins ca
+       LEFT JOIN users u ON ca.user_uid = u.uid
+       WHERE ca.competition_id = $1`,
+      [competitionId]
+    );
+    return rows.map(r => ({
+      competitionId: r.competition_id,
+      userUid: r.user_uid,
+      role: r.role,
+      createdAt: r.created_at,
+      email: r.email || undefined,
+      displayName: r.display_name || undefined,
+      firstName: r.first_name || undefined,
+      lastName: r.last_name || undefined,
+    }));
+  }
+
   async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
     const { rows } = await this.pool.query(
       'SELECT competition_id FROM competition_admins WHERE user_uid = $1',

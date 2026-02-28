@@ -176,21 +176,7 @@ router.get('/:id/admins', async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (!(await assertCompetitionAccess(req, res, id))) return;
 
-    const admins = await dataService.getCompetitionAdmins(id);
-    const users = await dataService.getUsers();
-    const userMap = new Map(users.map(u => [u.uid, u]));
-
-    const enriched = admins.map(a => {
-      const user = userMap.get(a.userUid);
-      return {
-        ...a,
-        email: user?.email,
-        displayName: user?.displayName,
-        firstName: user?.firstName,
-        lastName: user?.lastName,
-      };
-    });
-
+    const enriched = await dataService.getEnrichedCompetitionAdmins(id);
     res.json(enriched);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch competition admins' });

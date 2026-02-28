@@ -76,17 +76,20 @@ const CompetitionSettingsPage = () => {
     if (!activeCompetition) return;
 
     organizationsApi.getAll()
-      .then(res => setOrganizations(res.data))
-      .catch(() => setOrganizations([]));
-
-    // Load org name for display
-    if (activeCompetition.organizationId) {
-      organizationsApi.getById(activeCompetition.organizationId)
-        .then(res => setOrgName(res.data.name))
-        .catch(() => setOrgName(''));
-    } else {
-      setOrgName('');
-    }
+      .then(res => {
+        setOrganizations(res.data);
+        // Derive org name from the loaded list instead of a separate API call
+        if (activeCompetition.organizationId) {
+          const org = res.data.find((o: Organization) => o.id === activeCompetition.organizationId);
+          setOrgName(org?.name || '');
+        } else {
+          setOrgName('');
+        }
+      })
+      .catch(() => {
+        setOrganizations([]);
+        setOrgName('');
+      });
   }, [activeCompetition?.id, activeCompetition?.organizationId]);
 
   const saveField = async (field: string, value: unknown, section: string) => {

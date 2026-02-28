@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface SectionProps {
   title: string;
@@ -6,6 +6,7 @@ interface SectionProps {
   savedKey: string;
   savedMap: Record<string, boolean>;
   children: React.ReactNode;
+  onOpen?: () => void;
 }
 
 const Section = ({
@@ -14,15 +15,22 @@ const Section = ({
   savedKey,
   savedMap,
   children,
+  onOpen,
 }: SectionProps) => {
   const [open, setOpen] = useState(defaultOpen);
   const saved = savedMap[savedKey];
+
+  const handleToggle = useCallback(() => {
+    const next = !open;
+    setOpen(next);
+    if (next && onOpen) onOpen();
+  }, [open, onOpen]);
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-3">
       <div
         className="flex justify-between items-center cursor-pointer select-none"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
       >
         <h3 className="m-0">
           <span className="mr-2 text-gray-400">{open ? '▾' : '▸'}</span>

@@ -592,6 +592,10 @@ export class CachingDataService implements IDataService {
     return this.inner.getCompetitionAdmins(competitionId);
   }
 
+  async getEnrichedCompetitionAdmins(competitionId: number): Promise<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]> {
+    return this.inner.getEnrichedCompetitionAdmins(competitionId);
+  }
+
   async getCompetitionsByAdmin(userUid: string): Promise<number[]> {
     return this.inner.getCompetitionsByAdmin(userUid);
   }

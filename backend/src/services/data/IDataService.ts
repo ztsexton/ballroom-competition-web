@@ -126,6 +126,7 @@ export interface IDataService {
 
   // Competition Admins
   getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]>;
+  getEnrichedCompetitionAdmins(competitionId: number): Promise<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]>;
   getCompetitionsByAdmin(userUid: string): Promise<number[]>;
   addCompetitionAdmin(competitionId: number, userUid: string, role?: string): Promise<CompetitionAdmin>;
   removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
