@@ -111,19 +111,19 @@ Root `.gitignore` contains `results/` which conflicts with `frontend/src/compone
 Ordered by impact and effort:
 
 ### Quick Wins (< 30 min each)
-- [ ] **T1**: Fix `.gitignore` `results/` pattern to not conflict with `components/results/`
-- [ ] **T2**: Add error logging to silent catch blocks in `participant.ts` and `users.ts`
-- [ ] **T3**: Replace `catch (err: any)` with `catch (err: unknown)` + type guards across frontend
+- [x] **T1**: Fix `.gitignore` `results/` pattern to not conflict with `components/results/`
+- [x] **T2**: Add error logging to silent catch blocks in `participant.ts` and `users.ts`
+- [x] **T3**: Replace `catch (err: any)` with `catch (err: unknown)` + type guards across frontend
 
 ### Medium Effort (30-60 min each)
-- [ ] **T4**: Add `React.lazy()` code splitting for route groups in `App.tsx`
-- [ ] **T5**: Fix N+1 in `scrutineer.ts` — batch `getJudgeScores` calls
-- [ ] **T6**: Fix N+1 in `events.ts` — batch `getScoresForRound` calls in late-entry logic
+- [x] **T4**: Add `React.lazy()` code splitting for route groups in `App.tsx`
+- [x] **T5**: Fix N+1 in `scrutineer.ts` — batch `getJudgeScores` calls
+- [x] **T6**: Fix N+1 in `events.ts` — batch `getScoresForRound` calls in late-entry logic
 
 ### Larger Refactors (60+ min each, skip for now)
 - [ ] **T7**: Break up CompetitionSettingsPage.tsx (1,177 lines) into subcomponents
 - [ ] **T8**: Break up JudgeScoringPage.tsx (875 lines) into subcomponents
 - [ ] **T9**: Break up CompetitionEntriesPage.tsx (850 lines) into subcomponents
-- [ ] **T10**: Add frontend tests for CompetitionsPage, CompetitionDetailsPage, LoginPage
+- [x] **T10**: Add frontend tests for CompetitionsPage, CompetitionDetailsPage, LoginPage (expanded to 26 test files, 284 tests covering all major pages)
 
-*Note: T7-T10 are significant refactors that risk regressions with low frontend test coverage. They should be tackled after T10 (more tests) provides a safety net.*
+*Note: T7-T9 are significant refactors that risk regressions. T10 is now complete, providing a comprehensive safety net (284 frontend tests across 26 files).*
