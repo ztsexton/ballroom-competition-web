@@ -217,6 +217,7 @@ export async function updateHeatEntries(
 
   let totalCouples = 0;
   let scoringType: string | undefined;
+  let style: string | undefined;
 
   for (const entry of newEntries) {
     const event = events[entry.eventId];
@@ -230,6 +231,13 @@ export async function updateHeatEntries(
       scoringType = st;
     } else if (scoringType !== st) {
       return null; // Incompatible scoring types
+    }
+
+    const eventStyle = event.style || '';
+    if (style === undefined) {
+      style = eventStyle;
+    } else if (style && eventStyle && style !== eventStyle) {
+      return null; // Incompatible styles
     }
   }
 

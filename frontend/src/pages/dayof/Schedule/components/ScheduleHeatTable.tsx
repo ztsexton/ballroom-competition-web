@@ -20,6 +20,7 @@ interface ScheduleHeatTableProps {
   dragIndex: number | null;
   dragOverIndex: number | null;
   movedHeat: { id: string; key: number } | null;
+  maxCouplesPerHeat: number;
   onDragStart: (idx: number) => void;
   onDragOver: (e: React.DragEvent, idx: number) => void;
   onDragEnd: () => void;
@@ -40,6 +41,7 @@ export default function ScheduleHeatTable({
   dragIndex,
   dragOverIndex,
   movedHeat,
+  maxCouplesPerHeat,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -101,7 +103,7 @@ export default function ScheduleHeatTable({
             const isMergeChecked = mergeSelected.has(scheduledHeat.id);
             const sourceHeatObj = mergeSource ? schedule.heatOrder.find(h => h.id === mergeSource.heatId) : null;
             const incompatibilityReason = isMergeTarget && sourceHeatObj
-              ? getMergeIncompatibilityReason(sourceHeatObj, scheduledHeat, events)
+              ? getMergeIncompatibilityReason(sourceHeatObj, scheduledHeat, events, maxCouplesPerHeat, schedule.heatStatuses)
               : null;
             const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
 

@@ -575,6 +575,38 @@ router.post('/:competitionId/minimize-back-to-back', async (req: Request, res: R
   }
 });
 
+// Analyze schedule for optimization opportunities
+router.get('/:competitionId/analyze', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const analysis = await scheduleService.analyzeSchedule(competitionId);
+    res.json(analysis);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to analyze schedule' });
+  }
+});
+
+// Apply optimization suggestions
+router.post('/:competitionId/optimize', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { suggestions } = req.body;
+
+    if (!Array.isArray(suggestions)) {
+      return res.status(400).json({ error: 'suggestions array is required' });
+    }
+
+    const schedule = await scheduleService.applySuggestions(competitionId, suggestions);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    res.json(schedule);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to apply optimizations' });
+  }
+});
+
 // Delete schedule
 router.delete('/:competitionId', async (req: Request, res: Response) => {
   try {

@@ -89,16 +89,70 @@ export function getMergeIncompatibilityReason(
   sourceHeat: ScheduledHeat,
   targetHeat: ScheduledHeat,
   events: Event[],
+  maxCouplesPerHeat?: number,
+  heatStatuses?: Record<string, string>,
 ): string | null {
+  // Heat status check — can't merge into scoring or completed heats
+  if (heatStatuses) {
+    const targetStatus = heatStatuses[targetHeat.id] || 'pending';
+    if (targetStatus === 'scoring') return 'Currently scoring';
+    if (targetStatus === 'completed') return 'Already completed';
+  }
+
+  // Round mismatch — all entries must share the same round
+  const srcRound = sourceHeat.entries[0]?.round;
+  const tgtRound = targetHeat.entries[0]?.round;
+  if (srcRound && tgtRound && srcRound !== tgtRound) return 'Different round';
+
+  // Scoring type mismatch
   const srcType = getHeatScoringType(sourceHeat, events);
   const tgtType = getHeatScoringType(targetHeat, events);
   if (srcType !== tgtType) return 'Different scoring type';
 
+  // Style mismatch
   const srcStyle = getHeatPrimaryStyle(sourceHeat, events);
   const tgtStyle = getHeatPrimaryStyle(targetHeat, events);
   if (srcStyle && tgtStyle && srcStyle !== tgtStyle) return `Different style (${tgtStyle})`;
 
+  // Multi-round event — events with multiple heats can't be merged
+  for (const entry of [...sourceHeat.entries, ...targetHeat.entries]) {
+    const event = getEventById(events, entry.eventId);
+    if (event && event.heats.length > 1) return 'Multi-round event cannot be merged';
+  }
+
+  // Couple count overflow
+  if (maxCouplesPerHeat !== undefined) {
+    const srcCount = getHeatCoupleCount(sourceHeat, events);
+    const tgtCount = getHeatCoupleCount(targetHeat, events);
+    const total = srcCount + tgtCount;
+    if (total > maxCouplesPerHeat) {
+      return `Would exceed ${maxCouplesPerHeat} couple limit (${total} total)`;
+    }
+  }
+
+  // Overlapping bibs — source and target share couples
+  const srcBibs = getHeatBibs(sourceHeat, events);
+  const tgtBibs = getHeatBibs(targetHeat, events);
+  for (const bib of srcBibs) {
+    if (tgtBibs.has(bib)) return 'Shared couples';
+  }
+
   return null;
+}
+
+function getHeatBibs(heat: ScheduledHeat, events: Event[]): Set<number> {
+  const bibs = new Set<number>();
+  for (const entry of heat.entries) {
+    if (entry.bibSubset) {
+      entry.bibSubset.forEach(b => bibs.add(b));
+    } else {
+      const event = getEventById(events, entry.eventId);
+      if (event) {
+        event.heats.forEach(h => h.bibs.forEach(b => bibs.add(b)));
+      }
+    }
+  }
+  return bibs;
 }
 
 export function statusBadge(status: string) {

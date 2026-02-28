@@ -207,6 +207,21 @@ export const schedulesApi = {
     api.get<{ conflicts: Array<{ bib: number; leaderName: string; followerName: string; heatIndex1: number; heatIndex2: number; eventName1: string; eventName2: string }>; count: number }>(`/schedules/${competitionId}/back-to-back`),
   minimizeBackToBack: (competitionId: number) =>
     api.post<{ schedule: CompetitionSchedule; conflictsRemaining: number }>(`/schedules/${competitionId}/minimize-back-to-back`),
+  analyze: (competitionId: number) =>
+    api.get<{
+      estimatedDurationMinutes: number;
+      availableMinutes: number | null;
+      overflowMinutes: number;
+      fitsInWindow: boolean;
+      suggestions: Array<{
+        type: 'merge' | 'increase-max-couples';
+        description: string;
+        details: { sourceIndex?: number; targetIndex?: number; newMaxCouples?: number };
+        estimatedTimeSavingMinutes: number;
+      }>;
+    }>(`/schedules/${competitionId}/analyze`),
+  optimize: (competitionId: number, suggestions: number[]) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/optimize`, { suggestions }),
 };
 
 // Judging API (non-admin, for judges and SSE)

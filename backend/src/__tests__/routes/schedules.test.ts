@@ -1058,4 +1058,88 @@ describe('Schedules API', () => {
         .expect(400);
     });
   });
+
+  describe('GET /:competitionId/analyze', () => {
+    it('should return analysis for a schedule', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 3);
+      await dataService.addEvent(
+        'Waltz', bibs, [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'standard',
+      );
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/analyze`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('fitsInWindow');
+      expect(res.body).toHaveProperty('estimatedDurationMinutes');
+      expect(res.body).toHaveProperty('suggestions');
+    });
+
+    it('should handle gracefully when no schedule exists', async () => {
+      const comp = await setupCompetition();
+
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/analyze`)
+        .expect(200);
+
+      expect(res.body.fitsInWindow).toBe(true);
+      expect(res.body.estimatedDurationMinutes).toBe(0);
+    });
+  });
+
+  describe('POST /:competitionId/optimize', () => {
+    it('should apply suggestions and return updated schedule', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Opt Test',
+        type: 'UNAFFILIATED',
+        date: '2026-06-01',
+        maxCouplesPerHeat: 10,
+        scheduleDayConfigs: [{ day: 1, startTime: '08:00', endTime: '08:01' }],
+        timingSettings: {
+          defaultDanceDurationSeconds: 75,
+          betweenDanceSeconds: 35,
+          betweenHeatSeconds: 45,
+          startTime: '2026-06-01T08:00:00',
+        },
+      });
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Waltz', bibs.slice(0, 3), [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Tango', bibs.slice(3, 6), [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Tango'], 'standard',
+      );
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/optimize`)
+        .send({ suggestions: [] })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('heatOrder');
+    });
+
+    it('should return 400 when suggestions is not an array', async () => {
+      const comp = await setupCompetition();
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/optimize`)
+        .send({ suggestions: 'invalid' })
+        .expect(400);
+    });
+  });
 });

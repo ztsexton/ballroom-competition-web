@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry } from '../../../types';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
 import { formatTime } from './utils';
@@ -11,6 +11,7 @@ import UnscheduledEventsBanner from './components/UnscheduledEventsBanner';
 import BreakForm from './components/BreakForm';
 import MergePanel from './components/MergePanel';
 import ScheduleHeatTable from './components/ScheduleHeatTable';
+import ScheduleOptimizer from './components/ScheduleOptimizer';
 
 const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
 
@@ -33,6 +34,9 @@ const SchedulePage = () => {
     betweenDanceSeconds: 35,
     betweenHeatSeconds: 45,
   });
+  const [dayConfigs, setDayConfigs] = useState<ScheduleDayConfig[]>([
+    { day: 1, startTime: '08:00', endTime: '17:00' },
+  ]);
 
   // Drag-and-drop state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -77,6 +81,9 @@ const SchedulePage = () => {
       }
       if (compRes.data.timingSettings) {
         setTimingSettings(prev => ({ ...prev, ...compRes.data.timingSettings }));
+      }
+      if (compRes.data.scheduleDayConfigs && compRes.data.scheduleDayConfigs.length > 0) {
+        setDayConfigs(compRes.data.scheduleDayConfigs);
       }
       const eventList = Object.values(eventsRes.data);
       setEvents(eventList);
@@ -138,6 +145,11 @@ const SchedulePage = () => {
   const handleGenerate = async () => {
     if (!competitionId) return;
     try {
+      // Save day configs to competition
+      await competitionsApi.update(competitionId, {
+        numberOfDays: dayConfigs.length,
+        scheduleDayConfigs: dayConfigs,
+      });
       const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings);
       setSchedule(res.data);
       setUnscheduledEvents([]);
@@ -372,10 +384,12 @@ const SchedulePage = () => {
             judgeSettings={judgeSettings}
             timingSettings={timingSettings}
             eventCount={events.length}
+            dayConfigs={dayConfigs}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
             onJudgeSettingsChange={setJudgeSettings}
             onTimingSettingsChange={setTimingSettings}
+            onDayConfigsChange={setDayConfigs}
             onGenerate={handleGenerate}
           />
         ) : (
@@ -447,26 +461,66 @@ const SchedulePage = () => {
               />
             )}
 
-            {schedule.heatOrder.length > 0 && schedule.heatOrder[0].estimatedStartTime && (
-              <div className="mt-4 px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-                Estimated start: <strong>{formatTime(schedule.heatOrder[0].estimatedStartTime)}</strong>
-                {(() => {
-                  const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
-                  if (lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds) {
-                    const finish = new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000);
-                    return (
-                      <span className="ml-4">
-                        Estimated finish: <strong>{formatTime(finish.toISOString())}</strong>
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-                <span className="ml-4">
-                  ({schedule.heatOrder.length} heats)
-                </span>
-              </div>
+            {competition?.scheduleDayConfigs && competition.scheduleDayConfigs.length > 0 && (
+              <ScheduleOptimizer
+                competitionId={competitionId}
+                onScheduleUpdated={setSchedule}
+              />
             )}
+
+            {schedule.heatOrder.length > 0 && schedule.heatOrder[0].estimatedStartTime && (() => {
+              const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
+              const finishTime = lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds
+                ? new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000)
+                : null;
+              const startMs = new Date(schedule.heatOrder[0].estimatedStartTime!).getTime();
+              const estimatedMinutes = finishTime ? Math.round((finishTime.getTime() - startMs) / 60000) : null;
+
+              // Calculate available minutes from day configs
+              let availableMinutes: number | null = null;
+              if (competition?.scheduleDayConfigs && competition.scheduleDayConfigs.length > 0) {
+                availableMinutes = 0;
+                for (const dc of competition.scheduleDayConfigs) {
+                  const [sh, sm] = dc.startTime.split(':').map(Number);
+                  const [eh, em] = dc.endTime.split(':').map(Number);
+                  availableMinutes += (eh * 60 + em) - (sh * 60 + sm);
+                }
+              }
+
+              const overflows = availableMinutes !== null && estimatedMinutes !== null && estimatedMinutes > availableMinutes;
+              const borderColor = overflows ? 'border-amber-400' : 'border-green-200';
+              const bgColor = overflows ? 'bg-amber-50' : 'bg-green-50';
+              const textColor = overflows ? 'text-amber-900' : 'text-green-800';
+
+              return (
+                <div className={`mt-4 px-3 py-2 ${bgColor} border ${borderColor} rounded-md text-sm ${textColor}`}>
+                  Estimated start: <strong>{formatTime(schedule.heatOrder[0].estimatedStartTime!)}</strong>
+                  {finishTime && (
+                    <span className="ml-4">
+                      Estimated finish: <strong>{formatTime(finishTime.toISOString())}</strong>
+                    </span>
+                  )}
+                  <span className="ml-4">
+                    ({schedule.heatOrder.length} heats)
+                  </span>
+                  {estimatedMinutes !== null && (
+                    <span className="ml-4">
+                      Duration: <strong>{Math.floor(estimatedMinutes / 60)}h {estimatedMinutes % 60}m</strong>
+                    </span>
+                  )}
+                  {availableMinutes !== null && (
+                    <span className="ml-4">
+                      Available: <strong>{Math.floor(availableMinutes / 60)}h {availableMinutes % 60}m</strong>
+                    </span>
+                  )}
+                  {overflows && (
+                    <div className="mt-1 font-semibold text-amber-800">
+                      Schedule exceeds available time by {estimatedMinutes! - availableMinutes!} minutes
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <ScheduleHeatTable
               schedule={schedule}
@@ -477,6 +531,7 @@ const SchedulePage = () => {
               dragIndex={dragIndex}
               dragOverIndex={dragOverIndex}
               movedHeat={movedHeat}
+              maxCouplesPerHeat={maxCouplesPerHeat}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}

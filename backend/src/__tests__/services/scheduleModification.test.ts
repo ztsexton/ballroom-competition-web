@@ -36,7 +36,7 @@ describe('Schedule Modification', () => {
     );
     const event2 = await dataService.addEvent(
       'Tango', bibs.slice(3, 6), [], comp.id,
-      undefined, undefined, undefined, 'Rhythm', ['Cha Cha'], 'standard',
+      undefined, undefined, undefined, 'Smooth', ['Tango'], 'standard',
     );
 
     const schedule = await dataService.saveSchedule({
@@ -337,6 +337,42 @@ describe('Schedule Modification', () => {
       expect(await updateHeatEntries(comp.id, 'h1', [
         { eventId: evStd.id, round: 'final' },
         { eventId: evProf.id, round: 'final' },
+      ])).toBeNull();
+    });
+
+    it('should return null for incompatible styles', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'StyleMix', type: 'UNAFFILIATED', date: '2026-06-01', maxCouplesPerHeat: 20,
+      });
+
+      const bibs: number[] = [];
+      for (let i = 0; i < 4; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'X', role: 'follower', status: 'student', competitionId: comp.id });
+        const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(couple!.bib);
+      }
+
+      const evSmooth = await dataService.addEvent('Smooth', bibs.slice(0, 2), [], comp.id, undefined, undefined, undefined, 'Smooth');
+      const evRhythm = await dataService.addEvent('Rhythm', bibs.slice(2, 4), [], comp.id, undefined, undefined, undefined, 'Rhythm');
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'h1', entries: [{ eventId: evSmooth.id, round: 'final' }] },
+          { id: 'h2', entries: [{ eventId: evRhythm.id, round: 'final' }] },
+        ],
+        heatStatuses: { 'h1': 'pending', 'h2': 'pending' },
+        currentHeatIndex: 0,
+        styleOrder: [],
+        levelOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      expect(await updateHeatEntries(comp.id, 'h1', [
+        { eventId: evSmooth.id, round: 'final' },
+        { eventId: evRhythm.id, round: 'final' },
       ])).toBeNull();
     });
   });

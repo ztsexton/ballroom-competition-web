@@ -6,6 +6,7 @@ import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, spl
 import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
 import { detectBackToBack, minimizeBackToBack, BackToBackConflict } from './backToBack';
+import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion } from './scheduleOptimizer';
 
 export class ScheduleService {
   static migrateSchedule = migrateSchedule;
@@ -97,6 +98,14 @@ export class ScheduleService {
       const migrated = migrateSchedule(schedule);
       return detectBackToBack(migrated.heatOrder, competitionId);
     })();
+  }
+
+  analyzeSchedule(competitionId: number): Promise<ScheduleAnalysis> {
+    return analyzeSchedule(competitionId);
+  }
+
+  applySuggestions(competitionId: number, suggestionIndices: number[]): Promise<CompetitionSchedule | null> {
+    return applySuggestions(competitionId, suggestionIndices);
   }
 
   async minimizeBackToBack(competitionId: number): Promise<CompetitionSchedule | null> {

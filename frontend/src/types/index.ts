@@ -82,6 +82,12 @@ export interface EntryPayment {
   notes?: string;
 }
 
+export interface ScheduleDayConfig {
+  day: number;
+  startTime: string;  // "08:00"
+  endTime: string;    // "17:00"
+}
+
 export interface RecallRules {
   finalSize?: number;       // Target final round size (default: 6)
   finalMaxSize?: number;    // Hard max final size for tie expansion (default: 8)
@@ -113,6 +119,8 @@ export interface Competition {
   maxCouplesPerHeat?: number;
   maxCouplesOnFloor?: number;
   maxCouplesOnFloorByLevel?: Record<string, number>;
+  numberOfDays?: number;
+  scheduleDayConfigs?: ScheduleDayConfig[];
   recallRules?: RecallRules;
   entryValidation?: EntryValidation;
   ageCategories?: AgeCategory[];
