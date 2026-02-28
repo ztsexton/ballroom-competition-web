@@ -6,7 +6,6 @@ import { useCompetitionSSE } from '../../../hooks/useCompetitionSSE';
 import { Skeleton } from '../../../components/Skeleton';
 import { InputMethod } from './types';
 import { formatRound } from './utils';
-import JudgeBadge from './components/JudgeBadge';
 import InputMethodToggle from './components/InputMethodToggle';
 import RecallForm from './components/RecallForm';
 import RankingForm from './components/RankingForm';
@@ -14,15 +13,12 @@ import TapToRankForm from './components/TapToRankForm';
 import PickerRankForm from './components/PickerRankForm';
 import ProficiencyForm from './components/ProficiencyForm';
 import QuickScoreForm from './components/QuickScoreForm';
-
-const statusCls = (status: string) => {
-  switch (status) {
-    case 'pending': return 'bg-gray-200 text-gray-600';
-    case 'scoring': return 'bg-yellow-100 text-yellow-800';
-    case 'completed': return 'bg-green-100 text-green-800';
-    default: return 'bg-gray-200 text-gray-600';
-  }
-};
+import JudgeSelectionCard from './components/JudgeSelectionCard';
+import SubmittedCard from './components/SubmittedCard';
+import WaitingCard from './components/WaitingCard';
+import ScoringHeader from './components/ScoringHeader';
+import DanceProgressIndicator from './components/DanceProgressIndicator';
+import SubmissionPanel from './components/SubmissionPanel';
 
 const JudgeScoringPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -425,179 +421,18 @@ const JudgeScoringPage = () => {
     setValidationErrors([]);
   };
 
-  // --- Status display helpers ---
-
-  const statusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'scoring': return 'Scoring';
-      case 'completed': return 'Completed';
-      default: return status;
-    }
-  };
-
   if (loading) return <Skeleton variant="card" />;
 
-  // ==================== JUDGE SELECTION ====================
   if (!isJudgeSelected) {
-    return (
-      <div className="max-w-[540px] mx-auto p-2">
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <h2 className="mb-2">Judge Scoring</h2>
-          <p className="text-gray-500 mb-6">
-            Select your judge identity to begin.
-          </p>
-          <div className="flex flex-col gap-3">
-            {judges.map(judge => (
-              <button
-                key={judge.id}
-                onClick={() => handleSelectJudge(judge.id)}
-                className="flex items-center gap-3 p-4 px-5 bg-white border-2 border-gray-200 rounded-lg cursor-pointer transition-all duration-150 text-left text-base touch-manipulation [-webkit-tap-highlight-color:transparent] select-none min-h-[44px] hover:border-primary-500 hover:bg-gray-50"
-              >
-                <span className={`w-10 h-10 rounded-full ${judge.isChairman ? 'bg-yellow-500' : 'bg-primary-500'} text-white flex items-center justify-center font-bold text-base shrink-0`}>
-                  {judge.judgeNumber}
-                </span>
-                <span className="font-medium text-lg">
-                  {judge.name}
-                  {judge.isChairman && <span className="text-yellow-500 ml-2 text-sm">{'\u2605'} Chairman</span>}
-                </span>
-              </button>
-            ))}
-            {judges.length === 0 && (
-              <p className="text-gray-400">No judges found for this competition.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+    return <JudgeSelectionCard judges={judges} onSelectJudge={handleSelectJudge} />;
   }
 
-  // ==================== SUBMITTED ====================
   if (isSubmitted) {
-    return (
-      <div className="max-w-[540px] mx-auto p-2">
-        <div className="text-center mb-4">
-          <JudgeBadge judge={selectedJudge!} />
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <div className="w-[72px] h-[72px] rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 text-3xl text-green-800">
-            ✓
-          </div>
-
-          <h2 className="text-green-800 mb-2">Scores Submitted</h2>
-          {heatInfo && (
-            <>
-              <p className="text-gray-400 mb-1 text-[0.8rem]">
-                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
-              </p>
-              {heatInfo.entries.map(entry => (
-                <p key={entry.eventId} className="text-gray-500 mb-1">
-                  {entry.eventName} — {formatRound(entry.round)}
-                </p>
-              ))}
-            </>
-          )}
-          <p className="text-gray-400 text-sm mt-2">
-            Waiting for the next heat...
-          </p>
-        </div>
-
-        <div className="text-center mt-4">
-          <button
-            onClick={handleChangeJudge}
-            className="py-3 px-5 bg-transparent border border-gray-300 rounded-md text-gray-500 cursor-pointer text-sm touch-manipulation min-h-[44px] select-none [-webkit-tap-highlight-color:transparent]"
-          >
-            Change Judge
-          </button>
-        </div>
-      </div>
-    );
+    return <SubmittedCard judge={selectedJudge!} heatInfo={heatInfo} onChangeJudge={handleChangeJudge} />;
   }
 
-  // ==================== WAITING ====================
   if (!canScore) {
-    return (
-      <div className="max-w-[540px] mx-auto p-2">
-        <div className="text-center mb-4">
-          <JudgeBadge judge={selectedJudge!} />
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <h2 className="mb-4">Waiting</h2>
-
-          {!heatInfo ? (
-            <div>
-              <div className="text-3xl mb-2 text-gray-400">...</div>
-              <p className="text-gray-400">No active heat. Waiting for the competition to begin.</p>
-            </div>
-          ) : heatInfo.isBreak ? (
-            <div>
-              <p className="text-gray-400 mb-2 text-[0.8rem]">
-                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
-              </p>
-              <div className="p-4 bg-yellow-50 rounded-lg mb-3">
-                <p className="text-lg font-semibold mb-1">
-                  {heatInfo.breakLabel || 'Break'}
-                </p>
-                {heatInfo.breakDuration && (
-                  <p className="text-gray-500 m-0">{heatInfo.breakDuration} minutes</p>
-                )}
-              </div>
-              <p className="text-gray-500 text-sm">Scoring will resume after the break.</p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-gray-400 mb-2 text-[0.8rem]">
-                Heat {heatInfo.heatNumber} of {heatInfo.totalHeats}
-              </p>
-              <div className="p-4 bg-gray-50 rounded-lg mb-3">
-                {heatInfo.entries.map(entry => (
-                  <div key={entry.eventId} className="mb-1">
-                    <p className="text-lg font-semibold mb-0.5">
-                      {entry.eventName}
-                    </p>
-                    <p className="text-gray-600 m-0 capitalize">
-                      {formatRound(entry.round)}
-                    </p>
-                  </div>
-                ))}
-                <div className="mt-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold uppercase ${statusCls(heatInfo.status)}`}>
-                    {statusLabel(heatInfo.status)}
-                  </span>
-                </div>
-              </div>
-
-              {heatInfo.status === 'scoring' && !isAssigned && (
-                <p className="text-red-500 text-sm font-medium">
-                  You are not assigned to judge this heat.
-                </p>
-              )}
-              {heatInfo.status !== 'scoring' && isAssigned && (
-                <p className="text-primary-500 text-sm font-medium">
-                  You are assigned to this heat. Scoring will begin soon.
-                </p>
-              )}
-              {heatInfo.status !== 'scoring' && !isAssigned && (
-                <p className="text-gray-500 text-sm">
-                  Waiting for this heat to enter scoring.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="text-center mt-4">
-          <button
-            onClick={handleChangeJudge}
-            className="py-3 px-5 bg-transparent border border-gray-300 rounded-md text-gray-500 cursor-pointer text-sm touch-manipulation min-h-[44px] select-none [-webkit-tap-highlight-color:transparent]"
-          >
-            Change Judge
-          </button>
-        </div>
-      </div>
-    );
+    return <WaitingCard judge={selectedJudge!} heatInfo={heatInfo} isAssigned={isAssigned} onChangeJudge={handleChangeJudge} />;
   }
 
   // ==================== SCORING ====================
@@ -683,32 +518,14 @@ const JudgeScoringPage = () => {
         </div>
       )}
 
-      {/* Compact header: judge identity + heat counter + controls */}
-      <div className="flex items-center justify-between px-2.5 py-1.5 bg-primary-500 rounded-lg mb-2 text-white">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-sm">
-            J{selectedJudge!.judgeNumber} {selectedJudge!.name}
-          </span>
-          <button
-            onClick={handleChangeJudge}
-            className="bg-transparent border-none text-white/60 text-[0.6875rem] cursor-pointer p-0 underline touch-manipulation select-none [-webkit-tap-highlight-color:transparent]"
-          >
-            change
-          </button>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs text-white/80">
-            Heat {heatInfo!.heatNumber}/{heatInfo!.totalHeats}
-          </span>
-          <button
-            onClick={toggleFullscreen}
-            className="bg-transparent border-none text-white/70 text-xs cursor-pointer p-0 touch-manipulation leading-none select-none [-webkit-tap-highlight-color:transparent]"
-            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen ? '⊗' : '⛶'}
-          </button>
-        </div>
-      </div>
+      <ScoringHeader
+        judge={selectedJudge!}
+        heatNumber={heatInfo!.heatNumber}
+        totalHeats={heatInfo!.totalHeats}
+        isFullscreen={isFullscreen}
+        onChangeJudge={handleChangeJudge}
+        onToggleFullscreen={toggleFullscreen}
+      />
 
       {/* Input method toggle (not for recall) */}
       {!isRecall && (
@@ -719,62 +536,14 @@ const JudgeScoringPage = () => {
         />
       )}
 
-      {/* Current dance indicator for multi-dance events (read-only, admin-controlled) */}
-      {isMultiDance && activeDance && (() => {
-        const danceSubmitted = submittedDances.has(activeDance);
-        return (
-          <div
-            className="mb-2 rounded-lg overflow-hidden"
-            style={{ border: `2px solid ${danceSubmitted ? '#48bb78' : '#667eea'}` }}
-          >
-            <div
-              className="px-3 py-1.5 text-center"
-              style={{ background: danceSubmitted ? '#48bb78' : '#667eea' }}
-            >
-              <p className="m-0 font-bold text-lg text-white">
-                {danceSubmitted ? '✓ ' : ''}{activeDance}
-              </p>
-              <p className="m-0 text-[0.6875rem] text-white/85 font-medium">
-                {danceSubmitted ? 'Submitted — waiting for next dance' : `Now Scoring — Dance ${currentDanceIndex + 1} of ${allDances.length}`}
-              </p>
-            </div>
-
-            {allDances.length > 1 && (
-              <div
-                className="flex items-center justify-center gap-1 px-2 py-[0.3125rem]"
-                style={{ background: danceSubmitted ? '#f0fff4' : '#eef2ff' }}
-              >
-                {allDances.map((d, i) => {
-                  const isThisDance = d === activeDance;
-                  const isSubmitted = submittedDances.has(d);
-                  return (
-                    <div key={d} className="flex items-center gap-1">
-                      <div
-                        className="flex items-center justify-center text-[0.6875rem] font-bold text-white"
-                        style={{
-                          minWidth: isThisDance ? undefined : '8px',
-                          height: isThisDance ? '22px' : '8px',
-                          padding: isThisDance ? '0 0.5rem' : 0,
-                          borderRadius: isThisDance ? '11px' : '50%',
-                          background: isSubmitted ? '#48bb78' : isThisDance ? '#667eea' : '#cbd5e0',
-                        }}
-                      >
-                        {isThisDance ? d : ''}
-                      </div>
-                      {i < allDances.length - 1 && (
-                        <div
-                          className="w-3 h-0.5"
-                          style={{ background: isSubmitted ? '#48bb78' : '#cbd5e0' }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {isMultiDance && activeDance && (
+        <DanceProgressIndicator
+          activeDance={activeDance}
+          allDances={allDances}
+          submittedDances={submittedDances}
+          currentDanceIndex={currentDanceIndex}
+        />
+      )}
 
       {/* Scoring forms — one per entry (filtered by active dance if multi-dance) */}
       <div className="bg-white rounded-lg shadow p-6">
@@ -817,55 +586,20 @@ const JudgeScoringPage = () => {
           </div>
         ))}
 
-        {/* Validation errors, confirm overlay, and submit button — hidden when in dance-submitted waiting state */}
-        {!(isMultiDance && activeDance && submittedDances.has(activeDance)) && (<>
-          {/* Validation errors */}
-          {validationErrors.length > 0 && (
-            <div className="px-4 py-3 bg-red-100 rounded-md mt-4">
-              {validationErrors.map((err, i) => (
-                <p key={i} className={`text-red-800 text-sm ${i > 0 ? 'mt-1' : 'm-0'}`}>
-                  {err}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Confirmation overlay */}
-          {showConfirm && (
-            <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-lg mt-3 text-center">
-              <p className="font-semibold mb-2 text-blue-900 text-[0.9375rem]">
-                Submit {isMultiDance && activeDance ? `${activeDance} scores` : 'scores'}{isMultiEntry ? ` across ${heatInfo!.entries.length} events` : ''}?
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  disabled={submitting}
-                  className="flex-1 p-2.5 min-h-[44px] bg-white text-gray-600 border border-gray-300 rounded-md text-[0.9375rem] cursor-pointer touch-manipulation select-none [-webkit-tap-highlight-color:transparent]"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmSubmit}
-                  disabled={submitting}
-                  className={`flex-1 p-2.5 min-h-[44px] bg-success-500 text-white border-none rounded-md text-[0.9375rem] font-bold touch-manipulation select-none [-webkit-tap-highlight-color:transparent] ${submitting ? 'cursor-not-allowed opacity-60' : 'cursor-pointer opacity-100'}`}
-                >
-                  {submitting ? 'Submitting...' : 'Confirm'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Submit button */}
-          {!showConfirm && (
-            <button
-              onClick={handleSubmitClick}
-              disabled={submitting}
-              className={`w-full mt-3 p-3 min-h-[48px] bg-success-500 text-white border-none rounded-lg text-lg font-bold transition-opacity duration-150 touch-manipulation select-none [-webkit-tap-highlight-color:transparent] ${submitting ? 'cursor-not-allowed opacity-60' : 'cursor-pointer opacity-100'}`}
-            >
-              {submitting ? 'Submitting...' : isMultiDance && activeDance ? `Submit ${activeDance}` : isMultiEntry ? 'Submit All Scores' : 'Submit Scores'}
-            </button>
-          )}
-        </>)}
+        {!(isMultiDance && activeDance && submittedDances.has(activeDance)) && (
+          <SubmissionPanel
+            validationErrors={validationErrors}
+            showConfirm={showConfirm}
+            submitting={submitting}
+            isMultiDance={isMultiDance}
+            isMultiEntry={isMultiEntry}
+            activeDance={activeDance}
+            entryCount={heatInfo!.entries.length}
+            onSubmitClick={handleSubmitClick}
+            onConfirmSubmit={handleConfirmSubmit}
+            onCancelConfirm={() => setShowConfirm(false)}
+          />
+        )}
       </div>
 
     </div>
