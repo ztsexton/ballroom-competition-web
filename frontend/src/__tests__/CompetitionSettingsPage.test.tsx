@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Competition } from '../types';
 
@@ -112,6 +112,9 @@ describe('CompetitionSettingsPage', () => {
       </RouterWrapper>
     );
 
+    // Click the Access tab to reveal the Competition Admins section
+    fireEvent.click(await screen.findByRole('button', { name: 'Access' }));
+
     // The Competition Admins section title should be present
     expect(await screen.findByText('Competition Admins')).toBeInTheDocument();
   });
@@ -124,6 +127,9 @@ describe('CompetitionSettingsPage', () => {
         <CompetitionSettingsPage />
       </RouterWrapper>
     );
+
+    // Click the Access tab to reveal Visibility & Access section
+    fireEvent.click(await screen.findByRole('button', { name: 'Access' }));
 
     // Wait for content to load
     await screen.findByText('Visibility & Access');
@@ -147,6 +153,9 @@ describe('CompetitionSettingsPage', () => {
       </RouterWrapper>
     );
 
+    // Click the Rules tab to reveal Rules & Scoring section
+    fireEvent.click(await screen.findByRole('button', { name: 'Rules' }));
+
     // Rules & Scoring section should be present
     expect(await screen.findByText('Rules & Scoring')).toBeInTheDocument();
 
@@ -169,8 +178,9 @@ describe('CompetitionSettingsPage', () => {
       </RouterWrapper>
     );
 
-    // Wait for the General section to render
-    expect(await screen.findByText('General')).toBeInTheDocument();
+    // Wait for the General section to render (tab button + section heading both say "General")
+    const generals = await screen.findAllByText('General');
+    expect(generals.length).toBeGreaterThanOrEqual(2);
 
     // Date and Location labels
     expect(screen.getByText('Date')).toBeInTheDocument();

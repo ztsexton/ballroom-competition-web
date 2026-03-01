@@ -18,11 +18,24 @@ import {
   CURRENCY_OPTIONS,
 } from './components/settings';
 
+// ─── Tabs ───
+
+const TABS = [
+  { key: 'general', label: 'General' },
+  { key: 'rules', label: 'Rules' },
+  { key: 'events', label: 'Events' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'access', label: 'Access' },
+] as const;
+
+type TabKey = typeof TABS[number]['key'];
+
 // ─── Main Page ───
 
 const CompetitionSettingsPage = () => {
   const { activeCompetition, setActiveCompetition } = useCompetition();
   const competitionId = activeCompetition?.id || 0;
+  const [activeTab, setActiveTab] = useState<TabKey>('general');
 
   // Saved feedback per section
   const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
@@ -220,126 +233,166 @@ const CompetitionSettingsPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-8">
-      <GeneralSection
-        comp={comp}
-        savedMap={savedMap}
-        name={name}
-        setName={setName}
-        date={date}
-        setDate={setDate}
-        location={location}
-        setLocation={setLocation}
-        description={description}
-        setDescription={setDescription}
-        organizations={organizations}
-        setOrganizations={setOrganizations}
-        saveField={saveField}
-        saveOnBlur={saveOnBlur}
-        handleOrgSwitch={handleOrgSwitch}
-        isOrgActive={isOrgActive}
-        confirmOrgSwitch={confirmOrgSwitch}
-      />
-
-      {/* ─── Contact & Links ─── */}
-      <Section title="Contact & Links" savedKey="contact" savedMap={savedMap}>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-600 mb-1">Website URL</label>
-            <input
-              type="url"
-              value={websiteUrl}
-              onChange={e => setWebsiteUrl(e.target.value)}
-              onBlur={() => saveOnBlur('websiteUrl', websiteUrl, 'contact')}
-              placeholder="https://mycompetition.com"
-              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-600 mb-1">Organizer Email</label>
-            <input
-              type="email"
-              value={organizerEmail}
-              onChange={e => setOrganizerEmail(e.target.value)}
-              onBlur={() => saveOnBlur('organizerEmail', organizerEmail, 'contact')}
-              placeholder="organizer@example.com"
-              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-            />
-          </div>
-        </div>
-      </Section>
-
-      <RulesAndScoringSection
-        comp={comp}
-        savedMap={savedMap}
-        levels={levels}
-        newLevelName={newLevelName}
-        setNewLevelName={setNewLevelName}
-        saveField={saveField}
-        saveLevels={saveLevels}
-      />
-
-      <DanceOrderSettingsSection
-        comp={comp}
-        savedMap={savedMap}
-        saveField={saveField}
-      />
-
-      <EntryValidationSection
-        comp={comp}
-        savedMap={savedMap}
-        levels={levels}
-        saveField={saveField}
-      />
-
-      <AgeCategoriesSection
-        comp={comp}
-        savedMap={savedMap}
-        organizations={organizations}
-        orgName={orgName}
-        ageCategories={ageCategories}
-        setAgeCategories={setAgeCategories}
-        saveAgeCategories={saveAgeCategories}
-      />
-
-      <FloorSizeSection
-        comp={comp}
-        savedMap={savedMap}
-        levels={levels}
-        saveField={saveField}
-      />
-
-      <RecallAdvancementSection
-        comp={comp}
-        savedMap={savedMap}
-        saveField={saveField}
-      />
-
-      {/* ─── Billing ─── */}
-      <Section title="Billing" savedKey="billing" savedMap={savedMap}>
-        <div className="mb-4">
-          <label className="block text-sm font-semibold text-gray-600 mb-1">Currency</label>
-          <select
-            value={comp.currency || 'USD'}
-            onChange={e => saveField('currency', e.target.value, 'billing')}
-            className="px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+      {/* ─── Tab Bar ─── */}
+      <div className="flex border-b border-gray-200 mb-6 gap-1">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-sm transition-colors cursor-pointer ${
+              activeTab === tab.key
+                ? 'border-b-2 border-primary-500 text-primary-600 font-semibold'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
-            {CURRENCY_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <small className="text-gray-500 text-sm mt-1 block">
-            This determines the currency used for entry fees and invoices.
-          </small>
-        </div>
-      </Section>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <CompetitionAdminsSection competitionId={competitionId} savedMap={savedMap} flashSaved={flashSaved} />
+      {/* ─── General Tab ─── */}
+      {activeTab === 'general' && (
+        <>
+          <GeneralSection
+            comp={comp}
+            savedMap={savedMap}
+            name={name}
+            setName={setName}
+            date={date}
+            setDate={setDate}
+            location={location}
+            setLocation={setLocation}
+            description={description}
+            setDescription={setDescription}
+            organizations={organizations}
+            setOrganizations={setOrganizations}
+            saveField={saveField}
+            saveOnBlur={saveOnBlur}
+            handleOrgSwitch={handleOrgSwitch}
+            isOrgActive={isOrgActive}
+            confirmOrgSwitch={confirmOrgSwitch}
+          />
 
-      <VisibilityAccessSection
-        comp={comp}
-        savedMap={savedMap}
-        saveField={saveField}
-      />
+          <Section title="Contact & Links" savedKey="contact" savedMap={savedMap}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Website URL</label>
+                <input
+                  type="url"
+                  value={websiteUrl}
+                  onChange={e => setWebsiteUrl(e.target.value)}
+                  onBlur={() => saveOnBlur('websiteUrl', websiteUrl, 'contact')}
+                  placeholder="https://mycompetition.com"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Organizer Email</label>
+                <input
+                  type="email"
+                  value={organizerEmail}
+                  onChange={e => setOrganizerEmail(e.target.value)}
+                  onBlur={() => saveOnBlur('organizerEmail', organizerEmail, 'contact')}
+                  placeholder="organizer@example.com"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </Section>
+        </>
+      )}
+
+      {/* ─── Rules Tab ─── */}
+      {activeTab === 'rules' && (
+        <>
+          <RulesAndScoringSection
+            comp={comp}
+            savedMap={savedMap}
+            levels={levels}
+            newLevelName={newLevelName}
+            setNewLevelName={setNewLevelName}
+            saveField={saveField}
+            saveLevels={saveLevels}
+          />
+
+          <EntryValidationSection
+            comp={comp}
+            savedMap={savedMap}
+            levels={levels}
+            saveField={saveField}
+          />
+
+          <RecallAdvancementSection
+            comp={comp}
+            savedMap={savedMap}
+            saveField={saveField}
+          />
+        </>
+      )}
+
+      {/* ─── Events Tab ─── */}
+      {activeTab === 'events' && (
+        <>
+          <DanceOrderSettingsSection
+            comp={comp}
+            savedMap={savedMap}
+            saveField={saveField}
+          />
+
+          <FloorSizeSection
+            comp={comp}
+            savedMap={savedMap}
+            levels={levels}
+            saveField={saveField}
+          />
+        </>
+      )}
+
+      {/* ─── Billing Tab ─── */}
+      {activeTab === 'billing' && (
+        <>
+          <Section title="Billing" savedKey="billing" savedMap={savedMap}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Currency</label>
+              <select
+                value={comp.currency || 'USD'}
+                onChange={e => saveField('currency', e.target.value, 'billing')}
+                className="px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              >
+                {CURRENCY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <small className="text-gray-500 text-sm mt-1 block">
+                This determines the currency used for entry fees and invoices.
+              </small>
+            </div>
+          </Section>
+
+          <AgeCategoriesSection
+            comp={comp}
+            savedMap={savedMap}
+            organizations={organizations}
+            orgName={orgName}
+            ageCategories={ageCategories}
+            setAgeCategories={setAgeCategories}
+            saveAgeCategories={saveAgeCategories}
+          />
+        </>
+      )}
+
+      {/* ─── Access Tab ─── */}
+      {activeTab === 'access' && (
+        <>
+          <VisibilityAccessSection
+            comp={comp}
+            savedMap={savedMap}
+            saveField={saveField}
+          />
+
+          <CompetitionAdminsSection competitionId={competitionId} savedMap={savedMap} flashSaved={flashSaved} />
+        </>
+      )}
     </div>
   );
 };
