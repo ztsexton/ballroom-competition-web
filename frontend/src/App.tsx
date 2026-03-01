@@ -23,6 +23,9 @@ const PublicHeatListsPage = React.lazy(() => import('./pages/public').then(m => 
 const PaymentPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PaymentPage })));
 const PricingPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PricingPage })));
 const FaqPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.FaqPage })));
+const PublicPersonResultsPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicPersonResultsPage })));
+const PublicHeatListSearchPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicHeatListSearchPage })));
+const PublicPersonHeatListPage = React.lazy(() => import('./pages/public').then(m => ({ default: m.PublicPersonHeatListPage })));
 
 // -- Participant pages --
 const PeoplePage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.PeoplePage })));
@@ -96,6 +99,9 @@ const App = () => {
             <Route path="/results/:competitionId" element={<PublicResultsPage />} />
             <Route path="/competition/:competitionId" element={<PublicResultsPage />} />
             <Route path="/results/:competitionId/heats" element={<PublicHeatListsPage />} />
+            <Route path="/results/:competitionId/person/:personId" element={<PublicPersonResultsPage />} />
+            <Route path="/results/:competitionId/heatlists" element={<PublicHeatListSearchPage />} />
+            <Route path="/results/:competitionId/heatlists/:personId" element={<PublicPersonHeatListPage />} />
             <Route path="/pay/:competitionId" element={<PaymentPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/faq" element={<FaqPage />} />

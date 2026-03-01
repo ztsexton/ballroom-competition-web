@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { competitionsApi, databaseApi } from '../api/client';
+import { competitionsApi, databaseApi, publicCompetitionsApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useCompetition } from '../context/CompetitionContext';
-import { Competition } from '../types';
+import { Competition, PublicCompetition } from '../types';
 import { CompetitionTypeBadge } from '../components/CompetitionTypeBadge';
 import { Skeleton } from '../components/Skeleton';
 
@@ -17,6 +17,8 @@ const Home = () => {
   const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [seedingFinished, setSeedingFinished] = useState(false);
   const [seedFinishedMessage, setSeedFinishedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [recentResults, setRecentResults] = useState<PublicCompetition[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
 
   const handleSeedTestCompetition = async () => {
     if (!confirm('This will create a test competition "Galaxy Ballroom Classic 2026" with sample data. Continue?')) {
@@ -67,12 +69,17 @@ const Home = () => {
   useEffect(() => {
     if (!isAnyAdmin) {
       setLoading(false);
+      setRecentLoading(false);
       return;
     }
     competitionsApi.getAll()
       .then(res => setCompetitions(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+    publicCompetitionsApi.getAll('recent')
+      .then(res => setRecentResults(res.data.slice(0, 5)))
+      .catch(() => {})
+      .finally(() => setRecentLoading(false));
   }, [isAnyAdmin]);
 
   if (loading || authLoading) {
@@ -171,6 +178,40 @@ const Home = () => {
                 </div>
                 <span className="text-primary-500 font-semibold">
                   Manage &rsaquo;
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Results */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h3 className="text-gray-600 font-semibold mb-3">Recent Results</h3>
+        {recentLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 2 }, (_, i) => <Skeleton key={i} variant="card" />)}
+          </div>
+        ) : recentResults.length === 0 ? (
+          <p className="text-gray-400 text-sm">No recent competition results.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {recentResults.map(comp => (
+              <Link
+                key={comp.id}
+                to={`/results/${comp.id}`}
+                className="flex items-center gap-4 px-5 py-4 bg-white rounded-lg shadow no-underline text-inherit transition-shadow hover:shadow-md"
+              >
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-800 mb-1">{comp.name}</div>
+                  <div className="flex gap-3 items-center text-sm text-gray-500">
+                    <CompetitionTypeBadge type={comp.type} />
+                    <span>{new Date(comp.date).toLocaleDateString()}</span>
+                    {comp.location && <span>{comp.location}</span>}
+                  </div>
+                </div>
+                <span className="text-primary-500 font-semibold">
+                  Results &rsaquo;
                 </span>
               </Link>
             ))}

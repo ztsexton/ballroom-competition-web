@@ -422,6 +422,51 @@ export interface PublicCompetition {
   organizerEmail?: string;
   registrationOpen?: boolean;
   heatListsPublished?: boolean;
+  resultsPublic?: boolean;
+}
+
+export interface PersonHeatEntry {
+  heatNumber: number;
+  estimatedTime?: string;
+  eventName: string;
+  round: string;
+  dance?: string;
+  style?: string;
+}
+
+export interface PersonPartnerHeats {
+  bib: number;
+  partnerName: string;
+  heats: PersonHeatEntry[];
+}
+
+export interface PersonHeatListResponse {
+  personId: number;
+  firstName: string;
+  lastName: string;
+  partnerships: PersonPartnerHeats[];
+}
+
+export interface PersonEventResult {
+  eventId: number;
+  eventName: string;
+  style?: string;
+  level?: string;
+  dances?: string[];
+  bib: number;
+  partnerName: string;
+  rounds: Array<{
+    round: string;
+    detailed: DetailedResultsResponse;
+    personResult: EventResult;
+  }>;
+}
+
+export interface PersonResultsResponse {
+  personId: number;
+  firstName: string;
+  lastName: string;
+  events: PersonEventResult[];
 }
 
 export interface PublicEvent {

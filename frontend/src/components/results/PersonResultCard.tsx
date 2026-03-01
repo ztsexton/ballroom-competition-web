@@ -1,4 +1,5 @@
 import { useState, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 export interface PartnershipEvents {
   bib: number;
@@ -8,6 +9,7 @@ export interface PartnershipEvents {
 
 interface PersonResultCardProps {
   personName: string;
+  linkTo?: string;
   partnerships: Array<{ bib: number; partnerName: string }>;
   renderEventResults: (eventId: number, rounds: string[]) => ReactNode;
   /** Lazy-load events for all partnerships when first expanded */
@@ -16,6 +18,7 @@ interface PersonResultCardProps {
 
 export function PersonResultCard({
   personName,
+  linkTo,
   partnerships,
   renderEventResults,
   loadPartnerships,
@@ -53,7 +56,17 @@ export function PersonResultCard({
         className="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-50"
       >
         <div>
-          <div className="font-semibold text-gray-800">{personName}</div>
+          {linkTo ? (
+            <Link
+              to={linkTo}
+              onClick={(e) => e.stopPropagation()}
+              className="font-semibold text-primary-500 hover:underline"
+            >
+              {personName}
+            </Link>
+          ) : (
+            <div className="font-semibold text-gray-800">{personName}</div>
+          )}
           <div className="text-xs text-gray-500 mt-0.5">
             {partnerships.length > 0
               ? `${partnerships.length} partner${partnerships.length !== 1 ? 's' : ''}`

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
-import { Competition, Event, DetailedResultsResponse } from '../types';
+import { Competition, Event, DetailedResultsResponse, PersonEventResult, PersonResultsResponse, PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse } from '../types';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -64,6 +64,7 @@ function sanitizeCompetition(comp: Competition) {
     organizerEmail: comp.organizerEmail,
     registrationOpen: isEffectivelyEnabled(comp.registrationOpen, comp.registrationOpenAt),
     heatListsPublished: isEffectivelyEnabled(comp.heatListsPublished, comp.heatListsPublishedAt),
+    resultsPublic: comp.resultsPublic !== false,
   };
 }
 
@@ -108,7 +109,7 @@ router.get('/competitions', async (_req: Request, res: Response) => {
         .sort((a, b) => a.date.localeCompare(b.date));
     } else if (scope === 'recent') {
       filtered = filtered
-        .filter(c => c.date < today)
+        .filter(c => c.date < today && c.resultsPublic !== false)
         .sort((a, b) => b.date.localeCompare(a.date));
     } else {
       filtered = filtered.sort((a, b) => b.date.localeCompare(a.date));
@@ -300,6 +301,201 @@ router.get('/competitions/:id/events/:eventId/results/:round', async (req: Reque
   } catch (error) {
     logger.error({ err: error }, 'Public results error');
     res.status(500).json({ error: 'Failed to load results' });
+  }
+});
+
+// GET /competitions/:id/people/:personId/results — all results for a person across events
+router.get('/competitions/:id/people/:personId/results', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const personId = parseInt(req.params.personId);
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition || competition.publiclyVisible === false) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    if (competition.resultsPublic === false) {
+      return res.status(403).json({ error: 'Results are not publicly available for this competition' });
+    }
+
+    const people = await dataService.getPeople(competitionId);
+    const person = people.find(p => p.id === personId);
+    if (!person || person.competitionId !== competitionId) {
+      return res.status(404).json({ error: 'Person not found in this competition' });
+    }
+
+    const couples = await dataService.getCouples(competitionId);
+    const personCouples = couples.filter(c => c.leaderId === personId || c.followerId === personId);
+    const personBibs = new Set(personCouples.map(c => c.bib));
+
+    const eventsMap = await dataService.getEvents(competitionId);
+    const events: PersonEventResult[] = [];
+
+    for (const event of Object.values(eventsMap)) {
+      // Find bib for this person in this event
+      const eventBibs = new Set(event.heats.flatMap(h => h.bibs));
+      const matchingBib = [...personBibs].find(b => eventBibs.has(b));
+      if (!matchingBib) continue;
+
+      const couple = personCouples.find(c => c.bib === matchingBib)!;
+      const partnerName = couple.leaderId === personId ? couple.followerName : couple.leaderName;
+
+      const rounds: PersonEventResult['rounds'] = [];
+      for (const heat of event.heats) {
+        if (!heat.bibs.includes(matchingBib)) continue;
+
+        const results = await scoringService.calculateResults(event.id, heat.round);
+        await scoringService.enrichRecallStatus(results, event.id, heat.round);
+
+        const judgeIds = heat.judges || [];
+        const judgesMap = await dataService.getJudgesByIds(judgeIds);
+        const judges = judgeIds.map(id => {
+          const j = judgesMap.get(id);
+          return { id, judgeNumber: j?.judgeNumber ?? 0, name: j?.name ?? '' };
+        });
+
+        const personResult = results.find(r => r.bib === matchingBib);
+        if (!personResult) continue;
+
+        rounds.push({
+          round: heat.round,
+          detailed: {
+            judges,
+            eventName: event.name,
+            round: heat.round,
+            dances: event.dances,
+            style: event.style,
+            level: event.level,
+            results,
+          },
+          personResult,
+        });
+      }
+
+      if (rounds.length > 0) {
+        events.push({
+          eventId: event.id,
+          eventName: event.name,
+          style: event.style,
+          level: event.level,
+          dances: event.dances,
+          bib: matchingBib,
+          partnerName,
+          rounds,
+        });
+      }
+    }
+
+    const response: PersonResultsResponse = {
+      personId: person.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      events,
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error({ err: error }, 'Public person results error');
+    res.status(500).json({ error: 'Failed to load person results' });
+  }
+});
+
+// GET /competitions/:id/people/:personId/heatlists — per-person heatlist (NDCA-style)
+router.get('/competitions/:id/people/:personId/heatlists', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const personId = parseInt(req.params.personId);
+
+    let competition = await dataService.getCompetitionById(competitionId);
+    if (!competition || competition.publiclyVisible === false) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    competition = await applyScheduledSettings(competition);
+    if (!isEffectivelyEnabled(competition.heatListsPublished, competition.heatListsPublishedAt)) {
+      return res.status(403).json({ error: 'Heat lists are not yet published for this competition' });
+    }
+
+    const people = await dataService.getPeople(competitionId);
+    const person = people.find(p => p.id === personId);
+    if (!person || person.competitionId !== competitionId) {
+      return res.status(404).json({ error: 'Person not found in this competition' });
+    }
+
+    const couples = await dataService.getCouples(competitionId);
+    const personCouples = couples.filter(c => c.leaderId === personId || c.followerId === personId);
+    const bibToPartner = new Map<number, string>();
+    for (const c of personCouples) {
+      bibToPartner.set(c.bib, c.leaderId === personId ? c.followerName : c.leaderName);
+    }
+    const personBibs = new Set(personCouples.map(c => c.bib));
+
+    const schedule = await dataService.getSchedule(competitionId);
+    const eventsMap = await dataService.getEvents(competitionId);
+
+    // Build per-partner heat list from schedule
+    const partnershipHeatsMap = new Map<number, PersonHeatEntry[]>();
+
+    if (schedule) {
+      let heatNumber = 0;
+      for (const scheduledHeat of schedule.heatOrder) {
+        if (scheduledHeat.isBreak) {
+          heatNumber++;
+          continue;
+        }
+        heatNumber++;
+
+        for (const entry of scheduledHeat.entries) {
+          const event = eventsMap[entry.eventId];
+          if (!event) continue;
+
+          // Check if person's bib is in this event's heat for this round
+          const heat = event.heats.find(h => h.round === entry.round);
+          if (!heat) continue;
+
+          const scratched = new Set(event.scratchedBibs || []);
+          const activeBibs = heat.bibs.filter(b => !scratched.has(b));
+
+          // If floor heat has bibSubset, use that; otherwise use all active bibs
+          const relevantBibs = entry.bibSubset || activeBibs;
+
+          for (const bib of relevantBibs) {
+            if (!personBibs.has(bib)) continue;
+
+            let heats = partnershipHeatsMap.get(bib);
+            if (!heats) { heats = []; partnershipHeatsMap.set(bib, heats); }
+            heats.push({
+              heatNumber,
+              estimatedTime: scheduledHeat.estimatedStartTime,
+              eventName: event.name,
+              round: entry.round,
+              dance: entry.dance,
+              style: event.style,
+            });
+          }
+        }
+      }
+    }
+
+    const partnerships: PersonPartnerHeats[] = [];
+    for (const [bib, heats] of partnershipHeatsMap) {
+      partnerships.push({
+        bib,
+        partnerName: bibToPartner.get(bib) || '',
+        heats,
+      });
+    }
+
+    const response: PersonHeatListResponse = {
+      personId: person.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      partnerships,
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error({ err: error }, 'Public person heatlist error');
+    res.status(500).json({ error: 'Failed to load person heatlist' });
   }
 });
 

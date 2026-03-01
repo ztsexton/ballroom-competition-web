@@ -138,7 +138,7 @@ export async function seedFinishedCompetition(
   const comp = await ds.addCompetition({
     name: COMP_NAME,
     type: 'NDCA',
-    date: '2026-04-12',
+    date: '2026-02-15',
     location: 'Hilton Midtown, New York',
     description: 'Fully scored demo competition for validation. All events completed with results.',
     defaultScoringType: 'standard',
@@ -149,6 +149,7 @@ export async function seedFinishedCompetition(
       betweenDanceSeconds: 30,
       betweenHeatSeconds: 45,
     },
+    publiclyVisible: true,
     resultsPublic: true,
   });
   const compId = comp.id;

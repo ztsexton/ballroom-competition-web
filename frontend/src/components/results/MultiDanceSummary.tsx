@@ -3,6 +3,7 @@ import { EventResult } from '../../types';
 interface MultiDanceSummaryProps {
   results: EventResult[];
   dances: string[];
+  highlightBib?: number;
 }
 
 const DANCE_ABBREVIATIONS: Record<string, string> = {
@@ -26,7 +27,7 @@ function abbreviate(dance: string): string {
   return DANCE_ABBREVIATIONS[dance.toLowerCase()] || dance.substring(0, 2).toUpperCase();
 }
 
-export function MultiDanceSummary({ results, dances }: MultiDanceSummaryProps) {
+export function MultiDanceSummary({ results, dances, highlightBib }: MultiDanceSummaryProps) {
   if (results.length === 0 || dances.length === 0) return null;
 
   return (
@@ -44,7 +45,7 @@ export function MultiDanceSummary({ results, dances }: MultiDanceSummaryProps) {
         </thead>
         <tbody>
           {results.map((r, idx) => (
-            <tr key={r.bib} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+            <tr key={r.bib} className={r.bib === highlightBib ? 'bg-primary-50 font-semibold' : idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
               <td className="text-left px-2 py-1 text-sm border-b border-gray-100">{r.bib}</td>
               <td className="text-left px-2 py-1 text-sm border-b border-gray-100">{r.leaderName} &amp; {r.followerName}</td>
               {dances.map((dance) => {

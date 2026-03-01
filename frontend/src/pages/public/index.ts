@@ -4,3 +4,6 @@ export { default as PublicHeatListsPage } from './PublicHeatListsPage';
 export { default as PaymentPage } from './PaymentPage';
 export { default as PricingPage } from './PricingPage';
 export { default as FaqPage } from './FaqPage';
+export { default as PublicPersonResultsPage } from './PublicPersonResultsPage';
+export { default as PublicHeatListSearchPage } from './PublicHeatListSearchPage';
+export { default as PublicPersonHeatListPage } from './PublicPersonHeatListPage';

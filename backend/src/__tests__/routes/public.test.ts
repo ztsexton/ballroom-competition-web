@@ -120,8 +120,8 @@ describe('Public API', () => {
       const comp = res.body[0];
       expect(comp.name).toBe('Test');
       expect(comp.id).toBeDefined();
-      // Should not include sensitive fields
-      expect(comp.resultsPublic).toBeUndefined();
+      // resultsPublic should be included (defaults to true)
+      expect(comp.resultsPublic).toBe(true);
     });
   });
 
@@ -392,6 +392,171 @@ describe('Public API', () => {
         .expect(200);
 
       expect(res.body).toHaveLength(1);
+    });
+  });
+
+  describe('GET /api/public/competitions/:id/people/:personId/heatlists', () => {
+    it('should return 404 for non-existent competition', async () => {
+      await request(app)
+        .get('/api/public/competitions/999/people/1/heatlists')
+        .expect(404);
+    });
+
+    it('should return 404 for hidden competition', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Hidden', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: false,
+      });
+
+      await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/1/heatlists`)
+        .expect(404);
+    });
+
+    it('should return 403 when heat lists are not published', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true,
+        heatListsPublished: false,
+      });
+      const person = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student', competitionId: comp.id,
+      });
+
+      await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/${person.id}/heatlists`)
+        .expect(403);
+    });
+
+    it('should return 404 for person not in this competition', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true, heatListsPublished: true,
+      });
+
+      await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/999/heatlists`)
+        .expect(404);
+    });
+
+    it('should return person heatlist grouped by partner when schedule exists', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true, heatListsPublished: true,
+      });
+      const leader = await dataService.addPerson({ firstName: 'Travis', lastName: 'Tuft', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower1 = await dataService.addPerson({ firstName: 'Zina', lastName: 'M', role: 'follower', status: 'student', competitionId: comp.id });
+      const follower2 = await dataService.addPerson({ firstName: 'Selene', lastName: 'S', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple1 = await dataService.addCouple(leader.id, follower1.id, comp.id);
+      const couple2 = await dataService.addCouple(leader.id, follower2.id, comp.id);
+      const event1 = await dataService.addEvent('Silver Waltz', [couple1!.bib], [], comp.id, undefined, undefined, undefined, 'Smooth');
+      const event2 = await dataService.addEvent('Gold Tango', [couple2!.bib], [], comp.id, undefined, undefined, undefined, 'Rhythm');
+
+      // Create a schedule with both events
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          {
+            id: 'h1',
+            entries: [{ eventId: event1.id, round: 'final' }],
+            estimatedStartTime: '2026-06-01T09:00:00.000Z',
+          },
+          {
+            id: 'h2',
+            entries: [{ eventId: event2.id, round: 'final' }],
+            estimatedStartTime: '2026-06-01T09:05:00.000Z',
+          },
+        ],
+        styleOrder: [],
+        levelOrder: [],
+        currentHeatIndex: 0,
+        heatStatuses: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/${leader.id}/heatlists`)
+        .expect(200);
+
+      expect(res.body.personId).toBe(leader.id);
+      expect(res.body.firstName).toBe('Travis');
+      expect(res.body.lastName).toBe('Tuft');
+      expect(res.body.partnerships).toHaveLength(2);
+
+      // Check first partnership
+      const p1 = res.body.partnerships.find((p: { bib: number }) => p.bib === couple1!.bib);
+      expect(p1).toBeDefined();
+      expect(p1.partnerName).toBe('Zina M');
+      expect(p1.heats).toHaveLength(1);
+      expect(p1.heats[0].heatNumber).toBe(1);
+      expect(p1.heats[0].eventName).toBe('Silver Waltz');
+      expect(p1.heats[0].style).toBe('Smooth');
+      expect(p1.heats[0].estimatedTime).toBeDefined();
+
+      // Check second partnership
+      const p2 = res.body.partnerships.find((p: { bib: number }) => p.bib === couple2!.bib);
+      expect(p2).toBeDefined();
+      expect(p2.partnerName).toBe('Selene S');
+      expect(p2.heats).toHaveLength(1);
+      expect(p2.heats[0].heatNumber).toBe(2);
+      expect(p2.heats[0].eventName).toBe('Gold Tango');
+      expect(p2.heats[0].style).toBe('Rhythm');
+    });
+
+    it('should return person data with empty partnerships when no schedule exists', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true, heatListsPublished: true,
+      });
+      const person = await dataService.addPerson({
+        firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student', competitionId: comp.id,
+      });
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/${person.id}/heatlists`)
+        .expect(200);
+
+      expect(res.body.personId).toBe(person.id);
+      expect(res.body.firstName).toBe('John');
+      expect(res.body.partnerships).toEqual([]);
+    });
+
+    it('should skip break heats in heatlist numbering', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true, heatListsPublished: true,
+      });
+      const leader = await dataService.addPerson({ firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      const event1 = await dataService.addEvent('Event A', [couple!.bib], [], comp.id);
+      const event2 = await dataService.addEvent('Event B', [couple!.bib], [], comp.id);
+
+      await dataService.saveSchedule({
+        competitionId: comp.id,
+        heatOrder: [
+          { id: 'h1', entries: [{ eventId: event1.id, round: 'final' }] },
+          { id: 'break1', entries: [], isBreak: true, breakLabel: 'Lunch' },
+          { id: 'h2', entries: [{ eventId: event2.id, round: 'final' }] },
+        ],
+        styleOrder: [],
+        levelOrder: [],
+        currentHeatIndex: 0,
+        heatStatuses: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/${leader.id}/heatlists`)
+        .expect(200);
+
+      const heats = res.body.partnerships[0].heats;
+      expect(heats).toHaveLength(2);
+      // Heat numbers should skip the break: 1, 3 (not 1, 2)
+      expect(heats[0].heatNumber).toBe(1);
+      expect(heats[1].heatNumber).toBe(3);
     });
   });
 });

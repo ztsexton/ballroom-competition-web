@@ -75,7 +75,7 @@ const PublicHeatListsPage = () => {
       <Link to={`/results/${competitionId}`} className="text-primary-500 text-sm hover:underline">
         &larr; Back to competition
       </Link>
-      <h2 className="text-xl font-bold text-gray-800 mt-2 mb-1">Heat Lists</h2>
+      <h2 className="text-xl font-bold text-gray-800 mt-2 mb-1">Program</h2>
       <div className="text-sm text-gray-500 mb-5">
         {competition.name} &middot; {formatDate(competition.date)}
       </div>

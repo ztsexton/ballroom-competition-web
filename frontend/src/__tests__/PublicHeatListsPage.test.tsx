@@ -133,7 +133,7 @@ describe('PublicHeatListsPage', () => {
 
     renderWithRoute();
 
-    expect(await screen.findByText('Heat Lists')).toBeInTheDocument();
+    expect(await screen.findByText('Program')).toBeInTheDocument();
     expect(screen.getByText(/Spring Classic/)).toBeInTheDocument();
   });
 

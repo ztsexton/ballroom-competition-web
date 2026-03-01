@@ -1,0 +1,961 @@
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NDCA Premier Online Heatlists</title>
+
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script type="text/javascript" src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="/co/scripts/cookies.js"></script>
+
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/co/fonts/font-awesome/v5/css/all.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <script type="text/javascript">
+    /* Site-specific variables */
+    var baseURL = "";
+    var contentDiv = "#main";
+    var cyi = getQS("cyi");
+  </script>
+  <script type="text/javascript" src="/heatlists/heatlists.js?d=1772358549"></script>
+
+  <style>
+    #main {
+      position: relative;
+      margin-bottom: 30px;
+    }
+
+    #premier-heatlists-publish-date {
+      position: absolute;
+      right: 15px;
+      text-align: right;
+      color: #999;
+      font-style: italic;
+      padding-right: 5px;
+    }
+
+    #premier-heatlists h3 {
+      margin: 0 0 30px 0;
+    }
+
+    #premier-heatlists h3 .superheader {
+      display: block;
+      font-size: 14pt;
+      margin-bottom: 5px;
+    }
+
+    #premier-heatlists #heatlist-filter-wrapper {
+      width: 100%;
+    }
+
+    #premier-heatlists #heatlist-filter {
+      width: 100%;
+      padding: 10px 15px;
+      font-size: 13pt;
+      border: 1px solid #aaa;
+      margin-bottom: 15px;
+    }
+
+    #premier-heatlists #return-link {
+      margin-top: -20px;
+    }
+
+    #premier-heatlists #heatlist-list {
+      list-style-type: none;
+      width: 100%;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+      border-radius: 5px;
+      border: 1px solid #aaa;
+    }
+
+    #premier-heatlists #heatlist-list li {
+      width: 100%;
+      padding: 10px 15px;
+      border-bottom: 1px solid #aaa;
+      cursor: pointer;
+    }
+
+    #premier-heatlists #heatlist-list li:hover {
+      background-color: #ffffcc;
+    }
+
+    #premier-heatlists #heatlist-list li:last-child {
+      border-bottom: none;
+    }
+
+    #premier-heatlists .heatlist-round {
+      font-size: 10pt;
+      color: #666;
+      padding-left: 30px;
+    }
+
+    #premier-heatlists h5.partner-name {
+      margin: 30px 0 10px 5px;
+      color: #428bca;
+      font-size: 15pt;
+    }
+
+    #premier-heatlists #heatlist-details table {
+      border-collapse: collapse;
+      background-color: #fff;
+      border: 1px solid #aaa;
+      width: 100%;
+    }
+
+    #premier-heatlists #heatlist-details table td,
+    #premier-heatlists #heatlist-details table th {
+      border: 1px solid #aaa;
+      padding: 5px 10px;
+    }
+
+    #premier-heatlists #heatlist-details table th {
+      text-align: left;
+      vertical-align: middle;
+      background-color: #999;
+      border: 1px solid #999;
+      color: #fff;
+    }
+
+    #premier-heatlists #heatlist-details table td {
+      width: 0;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    #premier-heatlists #heatlist-details table tr td:last-child {
+      width: 50%;
+      white-space: normal;
+    }
+
+    #premier-heatlists #ndca-warning .modal-header,
+    #premier-heatlists #ndca-warning .modal-title,
+    #premier-heatlists #ndca-warning .modal-footer {
+      text-align: center;
+      border: none;
+    }
+
+    #premier-heatlists #ndca-warning .modal-header {
+      background-color: #ae2e32;
+      padding: 5px 15px;
+      border-top-left-radius: 5px;
+      border-top-right-radius: 5px;
+    }
+
+    #premier-heatlists #ndca-warning .modal-title {
+      color: #fff;
+    }
+
+    #premier-heatlists #ndca-warning .modal-footer {
+      padding: 0 15px 15px 15px;
+    }
+
+    #premier-heatlists #ndca-warning .close {
+      color: #fff;
+      margin: 5px 0;
+    }
+
+    @media print {
+
+      body,
+      html {
+        height: auto !important;
+        overflow-y: visible !important;
+        background: none !important;
+      }
+
+      #myNav,
+      #ndca-top,
+      #ndca-logo,
+      #return-link,
+      #heatlist-filter-wrapper {
+        display: none !important;
+      }
+
+      #premier-heatlists #heatlist-details table th {
+        background-color: #000 !important;
+        color: #fff !important;
+      }
+
+      #premier-heatlists #heatlist-details table tr td {
+        background-color: #eee !important;
+      }
+
+      #premier-heatlists #heatlist-details table tr:nth-child(odd) td {
+        background-color: #ddd !important;
+      }
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <nav id="myNav" class="navbar navbar-inverse navbar-fixed-top" role="navigation"></nav>
+  <div class="navbuffer"></div>
+  <div id="ndca-top">
+    <img id="ndca-logo" src="/images/ndca-logo.svg">
+    <div id="comp-logo"></div>
+  </div>
+
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-sm-12" id="main">
+        <div id="premier-heatlists">
+          <h3 id="premier-heatlists-header-competitor" class="text-center"><span class="superheader">Heatlists
+              for</span>Travis Tuft</h3>
+          <p id="return-link" class="text-center"><a href="#" onclick="renderHeatlistCompetitors(); return false;">Back
+              to Competitor List</a></p>
+          <div id="heatlist-details">
+            <h5 class="partner-name">With Zinaida Mikhalevsky</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 9:44am</td>
+                  <td class="heat-number">563</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Silver Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 9:46am</td>
+                  <td class="heat-number">565</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Silver Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 9:48am</td>
+                  <td class="heat-number">564</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Silver Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 9:50am</td>
+                  <td class="heat-number">566</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Silver Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 10:45am</td>
+                  <td class="heat-number">607</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Inter Silver Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 12:05pm</td>
+                  <td class="heat-number">659</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Silver S1 Amer. Smooth Championship (W,T,F,VW)</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 1:14pm</td>
+                  <td class="heat-number">665</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Silver Scholarship S1 Amer. Smooth (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Selene Steelman</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:34pm</td>
+                  <td class="heat-number">681</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:35pm</td>
+                  <td class="heat-number">682</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:36pm</td>
+                  <td class="heat-number">683</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:38pm</td>
+                  <td class="heat-number">684</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Christie Clark</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:43pm</td>
+                  <td class="heat-number">689</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Inter Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:44pm</td>
+                  <td class="heat-number">690</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Inter Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:45pm</td>
+                  <td class="heat-number">691</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Inter Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:46pm</td>
+                  <td class="heat-number">692</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Inter Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Jenny Thompson</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:48pm</td>
+                  <td class="heat-number">694</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Inter Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:50pm</td>
+                  <td class="heat-number">695</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Inter Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:51pm</td>
+                  <td class="heat-number">696</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Inter Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 2:52pm</td>
+                  <td class="heat-number">697</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Inter Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Christie Clark</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:08pm</td>
+                  <td class="heat-number">704</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Full Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:09pm</td>
+                  <td class="heat-number">705</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Full Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:10pm</td>
+                  <td class="heat-number">706</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Full Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:11pm</td>
+                  <td class="heat-number">707</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B1 Full Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Jenny Thompson</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:19pm</td>
+                  <td class="heat-number">709</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:21pm</td>
+                  <td class="heat-number">710</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:22pm</td>
+                  <td class="heat-number">711</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:23pm</td>
+                  <td class="heat-number">712</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-B2 Full Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Selene Steelman</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:47pm</td>
+                  <td class="heat-number">730</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Advanced Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:48pm</td>
+                  <td class="heat-number">731</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Advanced Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:49pm</td>
+                  <td class="heat-number">732</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Advanced Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:50pm</td>
+                  <td class="heat-number">733</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A3 Open Advanced Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Clara Xing</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:51pm</td>
+                  <td class="heat-number">734</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Gold Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:52pm</td>
+                  <td class="heat-number">735</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Gold Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:53pm</td>
+                  <td class="heat-number">736</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Gold Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 3:55pm</td>
+                  <td class="heat-number">737</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Gold Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 4:36pm</td>
+                  <td class="heat-number">763</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Advanced Amer. Waltz</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 4:37pm</td>
+                  <td class="heat-number">764</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Advanced Amer. Tango</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 4:38pm</td>
+                  <td class="heat-number">765</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Advanced Amer. Foxtrot</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 4:40pm</td>
+                  <td class="heat-number">766</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div> L-A2 Open Advanced Amer. Viennese Waltz</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Selene Steelman</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 5:08pm</td>
+                  <td class="heat-number">772</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>WDS Open B Amer. Smooth Championship (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Christie Clark</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 5:18pm</td>
+                  <td class="heat-number">773</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Gold C Amer. Smooth Championship (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Clara Xing</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 5:45pm</td>
+                  <td class="heat-number">776</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>WDS Open A Amer. Smooth Championship (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Jenny Thompson</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 6:11pm</td>
+                  <td class="heat-number">780</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Gold S1 Amer. Smooth Championship (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Selene Steelman</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 6:46pm</td>
+                  <td class="heat-number">781</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Open Advanced Scholarship B Amer. Smooth <a href="#"><img
+                          src="https://ndcapremier.com/images/premier-star-small.png"
+                          style="width:25px; height:25px;"></a> (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Clara Xing</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 7:46pm</td>
+                  <td class="heat-number">786</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Open Advanced Scholarship A Amer. Smooth <a href="#"><img
+                          src="https://ndcapremier.com/images/premier-star-small.png"
+                          style="width:25px; height:25px;"></a> (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Christie Clark</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 7:52pm</td>
+                  <td class="heat-number">787</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Gold Scholarship C Amer. Smooth (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Jenny Thompson</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">3</td>
+                  <td class="heat-time">Fri @ 7:58pm</td>
+                  <td class="heat-number">788</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Closed Gold Scholarship S1 Amer. Smooth (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h5 class="partner-name">With Jaimee Tuft</h5>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Sess</th>
+                  <th class="heat-time">Time</th>
+                  <th class="heat-number">Heat</th>
+                  <th class="heat-ballroom" style="display: none;">Ballroom</th>
+                  <th class="heat-floor" style="display: none;">Floor</th>
+                  <th class="heat-event">Event</th>
+                </tr>
+                <tr>
+                  <td class="heat-session">9</td>
+                  <td class="heat-time">Sun @ 9:34pm</td>
+                  <td class="heat-number">11</td>
+                  <td class="heat-ballroom" style="display: none;"></td>
+                  <td class="heat-floor" style="display: none;"></td>
+                  <td class="heat-event">
+                    <div>Professional Open Amer. Smooth Championship <a href="#"><img
+                          src="https://ndcapremier.com/images/premier-star-small.png"
+                          style="width:25px; height:25px;"></a> (W,T,F,VW)</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="ndca-warning" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Alert</h3><button type="button" class="close" data-dismiss="modal"
+            aria-hidden="true">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="ndca-warning-0" class="ndca-warning-inner">
+            <p>There appears to be a problem with your NDCA registration. Please contact the competition organizer to
+              resolve the issue.</p>
+          </div>
+          <div id="ndca-warning-1" class="ndca-warning-inner" style="display:none;">
+            <p>According to our records, your NDCA registration number is missing. If you have previously registered
+              with the NDCA, please look up your NDCA number at <a href="https://www.ndca.org/member_directory/"
+                target="_blank">https://www.ndca.org/member_directory/</a> and provide it to the organizer. Otherwise,
+              please register with the NDCA at <a href="https://www.ndca.org/register/"
+                target="_blank">https://www.ndca.org/register/</a>.</p>
+          </div>
+          <div id="ndca-warning-2" class="ndca-warning-inner" style="display:none;">
+            <p>Our records indicate that your NDCA registration is expired. Please renew your membership at <a
+                href="https://www.ndca.org/register/" target="_blank">https://www.ndca.org/register/</a>. If you believe
+              this is an error, please contact the competition organizer.</p>
+            <p>Note: Registrants who do not renew their NDCA registration prior to the date of the competition will not
+              be eligible to earn points in the national ranking system</p>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="button btn btn-primary" data-dismiss="modal">Close</button></div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

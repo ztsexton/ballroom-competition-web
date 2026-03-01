@@ -28,6 +28,9 @@ vi.mock('../api/client', () => ({
   competitionsApi: {
     getAll: vi.fn(() => Promise.resolve({ data: [] })),
   },
+  publicCompetitionsApi: {
+    getAll: vi.fn(() => Promise.resolve({ data: [] })),
+  },
 }));
 
 // Router wrapper with v7 future flags to suppress deprecation warnings

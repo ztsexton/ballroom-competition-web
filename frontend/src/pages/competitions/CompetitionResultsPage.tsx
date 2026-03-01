@@ -312,6 +312,7 @@ function ByPersonTab({ competitionId }: { competitionId: number }) {
             <PersonResultCard
               key={person.id}
               personName={`${person.firstName} ${person.lastName}`}
+              linkTo={`/results/${competitionId}/person/${person.id}`}
               partnerships={person.partnerships}
               loadPartnerships={async () => {
                 // Load events for each of this person's bibs

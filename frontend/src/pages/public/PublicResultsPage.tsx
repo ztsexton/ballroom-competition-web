@@ -230,6 +230,7 @@ function PublicByPersonTab({ competitionId }: { competitionId: number }) {
             <PersonResultCard
               key={person.id}
               personName={`${person.firstName} ${person.lastName}`}
+              linkTo={`/results/${competitionId}/person/${person.id}`}
               partnerships={person.partnerships}
               loadPartnerships={async () => {
                 // Search by last name to find all events this person is in
@@ -457,8 +458,11 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
           <Link to={`/pay/${competitionId}`} className={`${btnBase} bg-success-500 hover:bg-success-600`}>
             Pay
           </Link>
-          <Link to={`/results/${competitionId}/heats`} className={`${btnBase} bg-orange-500 hover:bg-orange-600`}>
-            Heat Lists
+          <Link to={`/results/${competitionId}/heatlists`} className={`${btnBase} bg-orange-500 hover:bg-orange-600`}>
+            Heatlists
+          </Link>
+          <Link to={`/results/${competitionId}/heats`} className={`${btnBase} bg-gray-500 hover:bg-gray-600`}>
+            Program
           </Link>
           {isCompetitionRoute && (
             <Link to={`/results/${competitionId}`} className={`${btnBase} bg-purple-500 hover:bg-purple-600`}>
