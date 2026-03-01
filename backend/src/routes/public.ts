@@ -219,26 +219,56 @@ router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
     const couples = await dataService.getCouples(competitionId);
     const couplesByBib = new Map(couples.map(c => [c.bib, c]));
 
+    const resultsPublic = competition.resultsPublic !== false;
+
     // Return events with heat details (bibs + couple names), excluding scratched
-    const events = Object.values(eventsMap).map(event => {
+    const events = [];
+    for (const event of Object.values(eventsMap)) {
       const eventScratched = new Set(event.scratchedBibs || []);
-      return {
-        ...sanitizeEvent(event),
-        heats: event.heats.map(heat => ({
-          round: heat.round,
-          couples: heat.bibs
-            .filter(bib => !eventScratched.has(bib))
-            .map(bib => {
-              const couple = couplesByBib.get(bib);
-              return {
-                bib,
-                leaderName: couple?.leaderName || '',
-                followerName: couple?.followerName || '',
-              };
-            }),
-        })),
-      };
-    });
+      const heats = [];
+      for (const heat of event.heats) {
+        const couples = heat.bibs
+          .filter(bib => !eventScratched.has(bib))
+          .map(bib => {
+            const couple = couplesByBib.get(bib);
+            return {
+              bib,
+              leaderName: couple?.leaderName || '',
+              followerName: couple?.followerName || '',
+            } as { bib: number; leaderName: string; followerName: string; place?: number; recalled?: boolean };
+          });
+
+        // Enrich with results if available
+        if (resultsPublic) {
+          try {
+            const results = await scoringService.calculateResults(event.id, heat.round);
+            if (results.length > 0) {
+              if (heat.round === 'final') {
+                await scoringService.enrichRecallStatus(results, event.id, heat.round);
+                const resultsByBib = new Map(results.map(r => [r.bib, r]));
+                for (const c of couples) {
+                  const r = resultsByBib.get(c.bib);
+                  if (r?.place) c.place = r.place;
+                }
+                couples.sort((a, b) => (a.place ?? 999) - (b.place ?? 999));
+              } else {
+                await scoringService.enrichRecallStatus(results, event.id, heat.round);
+                const resultsByBib = new Map(results.map(r => [r.bib, r]));
+                for (const c of couples) {
+                  const r = resultsByBib.get(c.bib);
+                  if (r?.recalled !== undefined) c.recalled = r.recalled;
+                }
+              }
+            }
+          } catch {
+            // Skip results enrichment if scoring fails (no scores submitted yet)
+          }
+        }
+
+        heats.push({ round: heat.round, couples });
+      }
+      events.push({ ...sanitizeEvent(event), heats });
+    }
 
     res.json(events);
   } catch (error) {

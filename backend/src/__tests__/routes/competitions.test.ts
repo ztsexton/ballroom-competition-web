@@ -137,6 +137,38 @@ describe('Competitions API', () => {
       }
     });
 
+    it('should default levels for NDCA competition', async () => {
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'NDCA Comp', type: 'NDCA', date: '2025-06-01' })
+        .expect(201);
+
+      expect(res.body.levels).toEqual([
+        'Newcomer', 'Bronze', 'Silver', 'Gold',
+        'Novice', 'Pre-Championship', 'Championship',
+      ]);
+    });
+
+    it('should default levels for STUDIO competition to simplified', async () => {
+      const studio = await dataService.addStudio({ name: 'Test Studio 2' });
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Studio Comp', type: 'STUDIO', date: '2025-06-01', studioId: studio.id })
+        .expect(201);
+
+      expect(res.body.levels).toEqual(['Bronze', 'Silver', 'Gold']);
+    });
+
+    it('should use explicitly provided levels over defaults', async () => {
+      const customLevels = ['Beginner', 'Intermediate', 'Advanced'];
+      const res = await request(app)
+        .post('/api/competitions')
+        .send({ name: 'Custom Comp', type: 'NDCA', date: '2025-06-01', levels: customLevels })
+        .expect(201);
+
+      expect(res.body.levels).toEqual(customLevels);
+    });
+
     it('should store optional fields', async () => {
       const res = await request(app)
         .post('/api/competitions')

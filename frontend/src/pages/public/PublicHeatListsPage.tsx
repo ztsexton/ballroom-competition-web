@@ -123,23 +123,41 @@ const PublicHeatListsPage = () => {
 
                     {expanded && (
                       <div className="border-t border-gray-200 px-4 py-3">
-                        {evt.heats.map((heat, heatIdx) => (
-                          <div key={heat.round} className={heatIdx < evt.heats.length - 1 ? 'mb-4' : ''}>
-                            <div className="font-semibold text-xs text-gray-600 capitalize mb-2">
-                              {heat.round.replace('-', ' ')}
+                        {evt.heats.map((heat, heatIdx) => {
+                          const isFinal = heat.round === 'final';
+                          const hasResults = heat.couples.some(c => c.place || c.recalled !== undefined);
+                          return (
+                            <div key={heat.round} className={heatIdx < evt.heats.length - 1 ? 'mb-4' : ''}>
+                              <div className="font-semibold text-xs text-gray-600 capitalize mb-2">
+                                {heat.round.replace('-', ' ')}
+                              </div>
+                              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1.5">
+                                {heat.couples.map(couple => (
+                                  <div
+                                    key={couple.bib}
+                                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded text-[0.8125rem] ${
+                                      hasResults && !isFinal && couple.recalled
+                                        ? 'bg-green-50'
+                                        : 'bg-gray-50'
+                                    }`}
+                                  >
+                                    {isFinal && couple.place ? (
+                                      <span className="font-bold text-amber-600 min-w-[1.5rem] text-center">{couple.place}</span>
+                                    ) : !isFinal && couple.recalled ? (
+                                      <span className="font-bold text-green-600 min-w-[1.5rem] text-center text-xs">R</span>
+                                    ) : hasResults ? (
+                                      <span className="min-w-[1.5rem]" />
+                                    ) : null}
+                                    <span className="font-semibold text-primary-500 min-w-[2.5rem]">#{couple.bib}</span>
+                                    <span className="text-gray-800">
+                                      {couple.leaderName} &amp; {couple.followerName}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-1.5">
-                              {heat.couples.map(couple => (
-                                <div key={couple.bib} className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded text-[0.8125rem]">
-                                  <span className="font-semibold text-primary-500 min-w-[2.5rem]">#{couple.bib}</span>
-                                  <span className="text-gray-800">
-                                    {couple.leaderName} &amp; {couple.followerName}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

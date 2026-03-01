@@ -1235,19 +1235,19 @@ describe('Schedules API', () => {
   describe('Dance ordering in schedule generation', () => {
     it('should order events by dance within same style and level', async () => {
       const comp = await setupCompetition();
-      const bibs = await createCouples(comp.id, 6);
+      const bibs = await createCouples(comp.id, 9);
 
-      // Create events in reverse dance order for Smooth
+      // Create events in reverse dance order for Smooth, non-overlapping bibs
       await dataService.addEvent(
         'Bronze Smooth VW', bibs.slice(0, 3), [], comp.id,
         'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Viennese Waltz'], 'standard',
       );
       await dataService.addEvent(
-        'Bronze Smooth Foxtrot', bibs.slice(0, 3), [], comp.id,
+        'Bronze Smooth Foxtrot', bibs.slice(3, 6), [], comp.id,
         'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Foxtrot'], 'standard',
       );
       await dataService.addEvent(
-        'Bronze Smooth Waltz', bibs.slice(3, 6), [], comp.id,
+        'Bronze Smooth Waltz', bibs.slice(6, 9), [], comp.id,
         'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
       );
 
@@ -1546,6 +1546,289 @@ describe('Schedules API', () => {
         .patch(`/api/schedules/${comp.id}/heat/fake-id/judges`)
         .send({})
         .expect(400);
+    });
+  });
+
+  describe('Style-block ordering (default) vs deferFinals', () => {
+    async function setupMultiStyleComp() {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 12);
+
+      // Smooth event with semi + final (7+ couples)
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      // Smooth event with final only (few couples)
+      await dataService.addEvent(
+        'Silver Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard',
+      );
+      // Rhythm event with final only
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(4, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      return comp;
+    }
+
+    it('should place Smooth finals before Rhythm events (default style-block)', async () => {
+      const comp = await setupMultiStyleComp();
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      // Find the first Rhythm heat
+      const firstRhythmIdx = heats.findIndex((h: any) =>
+        h.entries.some((e: any) => eventsMap[e.eventId]?.style === 'Rhythm')
+      );
+
+      // Find the last Smooth heat
+      let lastSmoothIdx = -1;
+      heats.forEach((h: any, idx: number) => {
+        if (h.entries.some((e: any) => eventsMap[e.eventId]?.style === 'Smooth')) {
+          lastSmoothIdx = idx;
+        }
+      });
+
+      // All Smooth heats (including finals) should come before any Rhythm heat
+      expect(lastSmoothIdx).toBeLessThan(firstRhythmIdx);
+    });
+
+    it('should defer all finals when deferFinals=true', async () => {
+      const comp = await setupMultiStyleComp();
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm'], deferFinals: true })
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      // With deferFinals, all non-final rounds should come before any final round
+      let lastNonFinalIdx = -1;
+      let firstFinalIdx = heats.length;
+      heats.forEach((h: any, idx: number) => {
+        const isFinal = h.entries.every((e: any) => e.round === 'final');
+        if (isFinal) {
+          firstFinalIdx = Math.min(firstFinalIdx, idx);
+        } else {
+          lastNonFinalIdx = idx;
+        }
+      });
+
+      expect(lastNonFinalIdx).toBeLessThan(firstFinalIdx);
+    });
+  });
+
+  describe('event-type ordering', () => {
+    it('should order single dances before multi-dance before scholarship within a style', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 7 });
+      const bibs = await createCouples(comp.id, 9);
+
+      // Scholarship (should be last)
+      await dataService.addEvent(
+        'Bronze Smooth Scholarship', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz', 'Tango'], 'standard', true,
+      );
+      // Multi-dance (should be middle)
+      await dataService.addEvent(
+        'Bronze Smooth Multi', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz', 'Tango'], 'standard', false,
+      );
+      // Single dance (should be first)
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(6, 9), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard', false,
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      // Find the first heat for each event type
+      let firstSingleIdx = -1, firstMultiIdx = -1, firstScholarshipIdx = -1;
+      heats.forEach((h: any, idx: number) => {
+        for (const entry of h.entries) {
+          const event = eventsMap[entry.eventId];
+          if (!event) continue;
+          if (event.isScholarship && firstScholarshipIdx === -1) firstScholarshipIdx = idx;
+          else if (event.dances?.length > 1 && !event.isScholarship && firstMultiIdx === -1) firstMultiIdx = idx;
+          else if ((!event.dances || event.dances.length <= 1) && !event.isScholarship && firstSingleIdx === -1) firstSingleIdx = idx;
+        }
+      });
+
+      expect(firstSingleIdx).toBeLessThan(firstMultiIdx);
+      expect(firstMultiIdx).toBeLessThan(firstScholarshipIdx);
+    });
+  });
+
+  describe('level ordering', () => {
+    it('should preserve natural level order (low to high)', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Level Order Comp',
+        type: 'NDCA',
+        date: '2026-06-01',
+        maxCouplesPerHeat: 7,
+        levels: ['Bronze', 'Silver', 'Gold', 'Championship'],
+      });
+
+      const bibs = await createCouples(comp.id, 12);
+
+      // One event per level, all same style/dance, non-overlapping bibs
+      await dataService.addEvent(
+        'Bronze Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Silver Waltz', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Gold Waltz', bibs.slice(6, 9), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Gold', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Championship Waltz', bibs.slice(9, 12), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Championship', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      // Get the level sequence from the generated schedule
+      const levelSequence: string[] = [];
+      for (const heat of heats) {
+        for (const entry of heat.entries) {
+          const event = eventsMap[entry.eventId];
+          if (event?.level && !levelSequence.includes(event.level)) {
+            levelSequence.push(event.level);
+          }
+        }
+      }
+
+      // Levels should appear in natural order: Bronze → Silver → Gold → Championship
+      expect(levelSequence).toEqual(['Bronze', 'Silver', 'Gold', 'Championship']);
+    });
+
+    it('should interleave levels within heats when events share the same dance (NDCA pattern)', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'NDCA Pattern Comp',
+        type: 'NDCA',
+        date: '2026-06-01',
+        maxCouplesPerHeat: 7,
+        levels: ['Newcomer', 'Pre Bronze', 'Int. Bronze', 'Full Bronze', 'Pre Silver'],
+      });
+
+      // Create 5 levels × 2 dances = 10 events, 2 couples each
+      // With maxCouplesPerHeat=7, three 2-couple events merge into one heat (6 ≤ 7)
+      const bibs = await createCouples(comp.id, 20);
+      let bibIdx = 0;
+
+      for (const level of ['Newcomer', 'Pre Bronze', 'Int. Bronze', 'Full Bronze', 'Pre Silver']) {
+        for (const dance of ['Waltz', 'Tango']) {
+          await dataService.addEvent(
+            `${level} Smooth ${dance}`, bibs.slice(bibIdx, bibIdx + 2), [], comp.id,
+            'Pro-Am', 'Syllabus', level, 'Smooth', [dance], 'standard',
+          );
+          bibIdx += 2;
+        }
+      }
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      // Verify merged heats contain events from different levels (NDCA-style interleaving)
+      const mergedHeats = heats.filter((h: any) => h.entries.length > 1);
+      expect(mergedHeats.length).toBeGreaterThan(0);
+
+      // Check that at least one merged heat has events from different levels
+      let hasCrossLevelMerge = false;
+      for (const heat of mergedHeats) {
+        const levels = new Set(heat.entries.map((e: any) => eventsMap[e.eventId]?.level));
+        if (levels.size > 1) hasCrossLevelMerge = true;
+      }
+      expect(hasCrossLevelMerge).toBe(true);
+
+      // Verify that heats cycle through dances (dance-by-dance pattern):
+      // merged heats sharing the same set of events should alternate between Waltz and Tango
+      const danceSequence: string[] = [];
+      for (const heat of heats) {
+        const firstEvent = eventsMap[heat.entries[0]?.eventId];
+        if (firstEvent?.dances?.[0]) {
+          danceSequence.push(firstEvent.dances[0]);
+        }
+      }
+      // We should see alternating dances (W, T, W, T, ...) not all Waltz then all Tango
+      const waltzIndices = danceSequence.map((d, i) => d === 'Waltz' ? i : -1).filter(i => i >= 0);
+      const tangoIndices = danceSequence.map((d, i) => d === 'Tango' ? i : -1).filter(i => i >= 0);
+      // The first Tango heat should appear before the last Waltz heat (interleaved, not blocked)
+      if (waltzIndices.length > 1 && tangoIndices.length > 0) {
+        expect(tangoIndices[0]).toBeLessThan(waltzIndices[waltzIndices.length - 1]);
+      }
+    });
+  });
+
+  describe('round separation', () => {
+    it('should not place same-event rounds in consecutive heats', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 7 });
+      const bibs = await createCouples(comp.id, 10);
+
+      // Create event with enough couples to generate semi+final
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs, [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      // Create another event at different level to provide swap targets
+      const bibs2 = await createCouples(comp.id, 3);
+      await dataService.addEvent(
+        'Silver Smooth Waltz', bibs2, [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+
+      // Check that no two adjacent heats share an eventId
+      for (let i = 0; i < heats.length - 1; i++) {
+        const currEventIds = new Set(heats[i].entries.map((e: any) => e.eventId));
+        const nextEventIds = new Set(heats[i + 1].entries.map((e: any) => e.eventId));
+        let overlap = false;
+        for (const id of currEventIds) {
+          if (nextEventIds.has(id)) overlap = true;
+        }
+        // If there's only one event with multiple rounds, overlap may be unavoidable
+        // but with 2 events, at least one swap should be possible
+        if (heats.length > 2) {
+          expect(overlap).toBe(false);
+        }
+      }
     });
   });
 });

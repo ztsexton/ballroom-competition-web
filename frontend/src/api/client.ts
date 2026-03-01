@@ -174,8 +174,8 @@ export const eventsApi = {
 export const schedulesApi = {
   get: (competitionId: number) =>
     api.get<CompetitionSchedule>(`/schedules/${competitionId}`),
-  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig) =>
-    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks }),
+  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig, deferFinals?: boolean) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals }),
   updateTiming: (competitionId: number, timingSettings: TimingSettings) =>
     api.patch<CompetitionSchedule>(`/schedules/${competitionId}/timing`, { timingSettings }),
   reorder: (competitionId: number, fromIndex: number, toIndex: number) =>

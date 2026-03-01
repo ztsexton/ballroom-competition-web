@@ -39,7 +39,7 @@ router.get('/:competitionId', async (req: Request, res: Response) => {
 router.post('/:competitionId/generate', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks } = req.body;
+    const { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals } = req.body;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) {
@@ -55,7 +55,7 @@ router.post('/:competitionId/generate', async (req: Request, res: Response) => {
       await dataService.updateCompetition(competitionId, updates);
     }
 
-    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks);
+    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks, deferFinals);
     res.status(201).json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate schedule' });

@@ -39,3 +39,14 @@ export const LEVEL_TEMPLATES: Record<string, { label: string; levels: string[]; 
     levelMode: 'integrated',
   },
 };
+
+import { CompetitionType } from '../types';
+
+export const DEFAULT_LEVELS_BY_TYPE: Record<CompetitionType, string[]> = {
+  NDCA: LEVEL_TEMPLATES.standard.levels,
+  USA_DANCE: LEVEL_TEMPLATES.standard.levels,
+  WDC: LEVEL_TEMPLATES.standard.levels,
+  WDSF: LEVEL_TEMPLATES.standard.levels,
+  UNAFFILIATED: LEVEL_TEMPLATES.standard.levels,
+  STUDIO: LEVEL_TEMPLATES.simplified.levels,
+};

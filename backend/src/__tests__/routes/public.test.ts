@@ -262,6 +262,75 @@ describe('Public API', () => {
       expect(res.body[0].heats[0].couples).toBeDefined();
       expect(res.body[0].heats[0].couples[0].bib).toBe(couple!.bib);
     });
+
+    it('should include place in heats when results are available for finals', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Scored', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true,
+        heatListsPublished: true,
+        resultsPublic: true,
+      });
+
+      // Create 3 couples
+      const bibs: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const leader = await dataService.addPerson({ firstName: `L${i}`, lastName: 'Test', role: 'leader', status: 'student', competitionId: comp.id });
+        const follower = await dataService.addPerson({ firstName: `F${i}`, lastName: 'Test', role: 'follower', status: 'student', competitionId: comp.id });
+        const c = await dataService.addCouple(leader.id, follower.id, comp.id);
+        bibs.push(c!.bib);
+      }
+
+      const judge = await dataService.addJudge('Judge1', comp.id);
+      const event = await dataService.addEvent('Waltz Final', bibs, [judge.id], comp.id);
+
+      // Submit final round scores: judge ranks bib[0]=1, bib[1]=2, bib[2]=3
+      await request(app)
+        .post(`/api/events/${event.id}/scores/final`)
+        .send({
+          scores: bibs.map((bib, idx) => ({ judgeIndex: 0, bib, score: idx + 1 })),
+        })
+        .expect(200);
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/heats`)
+        .expect(200);
+
+      const heatCouples = res.body[0].heats[0].couples;
+      // With results, couples should be sorted by placement
+      expect(heatCouples[0].place).toBe(1);
+      expect(heatCouples[0].bib).toBe(bibs[0]);
+      expect(heatCouples[1].place).toBe(2);
+      expect(heatCouples[2].place).toBe(3);
+    });
+
+    it('should not include results when resultsPublic is false', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'No Results', type: 'NDCA', date: '2026-06-01',
+        publiclyVisible: true,
+        heatListsPublished: true,
+        resultsPublic: false,
+      });
+
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'Test', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'Test', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const judge = await dataService.addJudge('Judge1', comp.id);
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [judge.id], comp.id);
+
+      // Submit scores
+      await request(app)
+        .post(`/api/events/${event.id}/scores/final`)
+        .send({ scores: [{ judgeIndex: 0, bib: couple!.bib, score: 1 }] })
+        .expect(200);
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/heats`)
+        .expect(200);
+
+      // Results should NOT be included
+      expect(res.body[0].heats[0].couples[0].place).toBeUndefined();
+    });
   });
 
   describe('GET /api/public/competitions/:id/events/:eventId/results/:round', () => {

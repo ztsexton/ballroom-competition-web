@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { DEFAULT_LEVELS_BY_TYPE } from '../constants/levels';
+import { CompetitionType } from '../types';
 
 const router = Router();
 
@@ -122,7 +124,7 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
       organizationId,
       description,
       defaultScoringType,
-      levels,
+      levels: levels || DEFAULT_LEVELS_BY_TYPE[type as CompetitionType] || [],
       publiclyVisible: publiclyVisible !== undefined ? publiclyVisible : true,
       resultsPublic: resultsPublic !== undefined ? resultsPublic : (type === 'STUDIO' ? false : true),
       websiteUrl,

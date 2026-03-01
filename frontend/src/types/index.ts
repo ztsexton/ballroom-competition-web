@@ -491,6 +491,8 @@ export interface PublicHeatCouple {
   bib: number;
   leaderName: string;
   followerName: string;
+  place?: number;
+  recalled?: boolean;
 }
 
 export interface PublicHeat {

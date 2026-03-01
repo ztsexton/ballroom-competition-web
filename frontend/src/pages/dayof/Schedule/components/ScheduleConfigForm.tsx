@@ -13,6 +13,7 @@ interface ScheduleConfigFormProps {
   dayConfigs: ScheduleDayConfig[];
   generating?: boolean;
   autoBreaks: AutoBreaksConfig;
+  deferFinals: boolean;
   onStyleOrderChange: (order: string[]) => void;
   onLevelOrderChange: (order: string[]) => void;
   onDanceOrderChange: (order: Record<string, string[]>) => void;
@@ -20,6 +21,7 @@ interface ScheduleConfigFormProps {
   onTimingSettingsChange: (fn: (prev: TimingSettings) => TimingSettings) => void;
   onDayConfigsChange: (configs: ScheduleDayConfig[]) => void;
   onAutoBreaksChange: (config: AutoBreaksConfig) => void;
+  onDeferFinalsChange: (value: boolean) => void;
   onGenerate: () => void;
 }
 
@@ -33,6 +35,7 @@ export default function ScheduleConfigForm({
   dayConfigs,
   generating,
   autoBreaks,
+  deferFinals,
   onStyleOrderChange,
   onLevelOrderChange,
   onDanceOrderChange,
@@ -40,6 +43,7 @@ export default function ScheduleConfigForm({
   onTimingSettingsChange,
   onDayConfigsChange,
   onAutoBreaksChange,
+  onDeferFinalsChange,
   onGenerate,
 }: ScheduleConfigFormProps) {
   const numberOfDays = dayConfigs.length || 1;
@@ -414,6 +418,29 @@ export default function ScheduleConfigForm({
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3>Finals Scheduling</h3>
+        <p className="text-gray-500 text-sm mb-2">
+          Control where final rounds appear in the schedule.
+        </p>
+        <div className="flex flex-col gap-2 max-w-[400px]">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={deferFinals}
+              onChange={(e) => onDeferFinalsChange(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="font-semibold text-sm">Defer all finals to end of schedule</span>
+          </label>
+          <p className="text-gray-400 text-xs ml-6">
+            {deferFinals
+              ? 'All preliminary rounds run first across all styles, then all finals. Useful for morning prelims / evening finals.'
+              : 'Finals run within their style block, immediately after prelims.'}
+          </p>
         </div>
       </div>
 

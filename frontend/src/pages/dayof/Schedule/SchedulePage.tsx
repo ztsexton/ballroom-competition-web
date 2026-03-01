@@ -31,6 +31,7 @@ const SchedulePage = () => {
   const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVELS);
   const [danceOrder, setDanceOrder] = useState<Record<string, string[]>>(DEFAULT_DANCE_ORDER);
   const [autoBreaks, setAutoBreaks] = useState<AutoBreaksConfig>({ enabled: false });
+  const [deferFinals, setDeferFinals] = useState(false);
   const [judgeSettings, setJudgeSettings] = useState<JudgeSettings>({ defaultCount: 3, levelOverrides: {} });
   const [timingSettings, setTimingSettings] = useState<TimingSettings>({
     defaultDanceDurationSeconds: 75,
@@ -176,7 +177,7 @@ const SchedulePage = () => {
         scheduleDayConfigs: dayConfigs,
         danceOrder,
       });
-      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder, autoBreaks);
+      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder, autoBreaks, deferFinals);
       setSchedule(res.data);
       setUnscheduledEvents([]);
       setError('');
@@ -438,6 +439,7 @@ const SchedulePage = () => {
             dayConfigs={dayConfigs}
             generating={generating}
             autoBreaks={autoBreaks}
+            deferFinals={deferFinals}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
             onDanceOrderChange={setDanceOrder}
@@ -445,6 +447,7 @@ const SchedulePage = () => {
             onTimingSettingsChange={setTimingSettings}
             onDayConfigsChange={setDayConfigs}
             onAutoBreaksChange={setAutoBreaks}
+            onDeferFinalsChange={setDeferFinals}
             onGenerate={handleGenerate}
           />
         ) : (
