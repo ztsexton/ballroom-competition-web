@@ -15,6 +15,7 @@ import { JudgeGrid } from '../../components/results/JudgeGrid';
 import { SkatingBreakdown } from '../../components/results/SkatingBreakdown';
 import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
 import { Skeleton } from '../../components/Skeleton';
+import JudgeScheduleView from './Schedule/components/JudgeScheduleView';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
 
@@ -61,6 +62,7 @@ const ScrutineerPage = () => {
     const saved = localStorage.getItem('scrutineer-input-method');
     return (['tap', 'picker', 'keyboard', 'quickscore'].includes(saved || '') ? saved : 'keyboard') as InputMethod;
   });
+  const [scrutineerView, setScrutineerView] = useState<'events' | 'judges'>('events');
 
   useEffect(() => {
     if (activeCompetition) loadData();
@@ -659,6 +661,27 @@ const ScrutineerPage = () => {
           Select an event and round to enter scores from paper judging sheets.
         </p>
 
+        {/* View toggle */}
+        <div className="flex gap-1 mb-4 border-b border-gray-200">
+          {([['events', 'Events'], ['judges', 'Judge Schedule']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setScrutineerView(key)}
+              className={`px-4 py-2 text-sm cursor-pointer transition-colors ${
+                scrutineerView === key
+                  ? 'border-b-2 border-primary-500 text-primary-600 font-semibold'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {scrutineerView === 'judges' ? (
+          <JudgeScheduleView competitionId={activeCompetition.id} />
+        ) : (
+        <>
         {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm mb-4">{error}</div>}
 
         {events.length === 0 ? (
@@ -716,6 +739,8 @@ const ScrutineerPage = () => {
               </div>
             );
           })
+        )}
+        </>
         )}
       </div>
     </div>

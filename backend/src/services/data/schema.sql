@@ -214,3 +214,27 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS scratched_bibs JSONB DEFAULT '[]';
 
 -- Migration: add dance_order to competitions (custom dance ordering per style)
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS dance_order JSONB;
+
+-- Migration: add max_judge_hours_without_break to competitions
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS max_judge_hours_without_break REAL;
+
+-- Site settings table (singleton row)
+CREATE TABLE IF NOT EXISTS site_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  max_judge_hours_without_break REAL
+);
+
+-- Judge profiles table (site-level judge qualifications)
+CREATE TABLE IF NOT EXISTS judge_profiles (
+  id SERIAL PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  email TEXT,
+  user_uid TEXT,
+  certifications JSONB DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Migration: add profile_id to judges (link to site-level judge profile)
+ALTER TABLE judges ADD COLUMN IF NOT EXISTS profile_id INTEGER;

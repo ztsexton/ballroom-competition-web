@@ -31,7 +31,7 @@ router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
 
 // Add a new judge
 router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
-  const { name, competitionId } = req.body;
+  const { name, competitionId, profileId } = req.body;
 
   if (!name || !competitionId) {
     return res.status(400).json({ error: 'Name and competition ID are required' });
@@ -40,6 +40,13 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   if (!(await assertCompetitionAccess(req, res, parseInt(competitionId)))) return;
 
   const newJudge = await dataService.addJudge(name, parseInt(competitionId));
+
+  // If profileId provided, link it
+  if (profileId) {
+    const updated = await dataService.updateJudge(newJudge.id, { profileId: parseInt(profileId) });
+    if (updated) return res.status(201).json(updated);
+  }
+
   res.status(201).json(newJudge);
 });
 

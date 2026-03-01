@@ -63,7 +63,7 @@ const AdminDashboardPage = () => {
       {isAdmin && (
         <div className="mb-6">
           <h3 className="text-gray-600 font-semibold mb-3">Site Administration</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <Link
               to="/users"
               className="bg-white rounded-lg shadow p-5 no-underline text-inherit transition-shadow hover:shadow-md"
@@ -84,6 +84,20 @@ const AdminDashboardPage = () => {
             >
               <div className="font-semibold text-gray-800 mb-1">Organizations</div>
               <p className="text-sm text-gray-500 m-0">Manage competition organizations and rule presets</p>
+            </Link>
+            <Link
+              to="/site-settings"
+              className="bg-white rounded-lg shadow p-5 no-underline text-inherit transition-shadow hover:shadow-md"
+            >
+              <div className="font-semibold text-gray-800 mb-1">Site Settings</div>
+              <p className="text-sm text-gray-500 m-0">Global defaults for judge breaks and scheduling</p>
+            </Link>
+            <Link
+              to="/judge-profiles"
+              className="bg-white rounded-lg shadow p-5 no-underline text-inherit transition-shadow hover:shadow-md"
+            >
+              <div className="font-semibold text-gray-800 mb-1">Judges</div>
+              <p className="text-sm text-gray-500 m-0">Manage judge profiles and qualifications</p>
             </Link>
           </div>
         </div>

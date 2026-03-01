@@ -214,6 +214,24 @@ export default function ScheduleConfigForm({
               />
             </div>
           ))}
+          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100">
+            <label className="flex-1 font-semibold">Target stint (min)</label>
+            <input
+              type="number"
+              min={5}
+              placeholder="45"
+              value={judgeSettings.targetStintMinutes ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                onJudgeSettingsChange({
+                  ...judgeSettings,
+                  targetStintMinutes: val === '' ? undefined : Math.max(5, parseInt(val) || 45),
+                });
+              }}
+              className="w-16 p-1.5 rounded border border-gray-200 text-center"
+            />
+          </div>
+          <p className="text-gray-400 text-xs mt-1">How long judges work before rotating out. Default: 45 min.</p>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { competitionsApi, organizationsApi } from '../../api/client';
+import { competitionsApi, organizationsApi, settingsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
@@ -17,6 +17,7 @@ import {
   VisibilityAccessSection,
   CURRENCY_OPTIONS,
 } from './components/settings';
+import JudgeScheduleView from '../dayof/Schedule/components/JudgeScheduleView';
 
 // ─── Tabs ───
 
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'general', label: 'General' },
   { key: 'rules', label: 'Rules' },
   { key: 'events', label: 'Events' },
+  { key: 'judges', label: 'Judges' },
   { key: 'billing', label: 'Billing' },
   { key: 'access', label: 'Access' },
 ] as const;
@@ -61,6 +63,14 @@ const CompetitionSettingsPage = () => {
   const [ageCategories, setAgeCategories] = useState<AgeCategory[]>([]);
   const [orgName, setOrgName] = useState('');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [siteDefaultBreakHours, setSiteDefaultBreakHours] = useState<number | undefined>();
+
+  // Fetch site settings for default break hours
+  useEffect(() => {
+    settingsApi.get()
+      .then(res => setSiteDefaultBreakHours(res.data.maxJudgeHoursWithoutBreak))
+      .catch(() => {});
+  }, []);
 
   // Initialize from competition - also sync when data changes (e.g., after save)
   useEffect(() => {
@@ -345,6 +355,43 @@ const CompetitionSettingsPage = () => {
             levels={levels}
             saveField={saveField}
           />
+        </>
+      )}
+
+      {/* ─── Judges Tab ─── */}
+      {activeTab === 'judges' && (
+        <>
+          <Section title="Judge Breaks" savedKey="judgeBreaks" savedMap={savedMap}>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-600 mb-1">
+                Max Judge Hours Without Break
+              </label>
+              <input
+                type="number"
+                min="0.5"
+                max="24"
+                step="0.5"
+                value={comp.maxJudgeHoursWithoutBreak ?? ''}
+                onChange={e => {
+                  const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                  saveField('maxJudgeHoursWithoutBreak', val, 'judgeBreaks');
+                }}
+                placeholder={`${siteDefaultBreakHours ?? 6}${siteDefaultBreakHours !== undefined ? ' (site default)' : ' (default)'}`}
+                className="w-[160px] px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              />
+              <small className="text-gray-500 text-sm mt-1 block">
+                Override the site default ({siteDefaultBreakHours ?? 6}h) for this competition. Leave empty to use the {siteDefaultBreakHours !== undefined ? 'site' : 'system'} default.
+              </small>
+            </div>
+          </Section>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-1">Judge Schedule</h3>
+            <p className="text-gray-500 text-sm mb-4">
+              View each judge's assigned heats, working time, and break segments. Generate a schedule first to see assignments.
+            </p>
+            <JudgeScheduleView competitionId={competitionId} />
+          </div>
         </>
       )}
 

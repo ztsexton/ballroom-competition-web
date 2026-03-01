@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { dataService } from '../services/dataService';
-import { scheduleService, ScheduleService } from '../services/schedule';
+import { scheduleService, ScheduleService, buildJudgeSchedule } from '../services/schedule';
 import { scoringService, computeAdvancementBibs } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { getRecallCount } from '../constants/rounds';
@@ -605,6 +605,75 @@ router.post('/:competitionId/optimize', async (req: Request, res: Response) => {
     sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to apply optimizations' });
+  }
+});
+
+// Get judge schedule for a competition
+router.get('/:competitionId/judge-schedule', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+
+    let schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) {
+      return res.status(404).json({ error: 'No schedule found' });
+    }
+    schedule = ScheduleService.migrateSchedule(schedule);
+
+    const [events, judges, competition, siteSettings] = await Promise.all([
+      dataService.getEvents(competitionId),
+      dataService.getJudges(competitionId),
+      dataService.getCompetitionById(competitionId),
+      dataService.getSiteSettings(),
+    ]);
+
+    const maxHours = competition?.maxJudgeHoursWithoutBreak
+      ?? siteSettings.maxJudgeHoursWithoutBreak
+      ?? 6;
+    const maxMinutesWithoutBreak = maxHours * 60;
+
+    const entries = buildJudgeSchedule(schedule.heatOrder, events, judges, maxMinutesWithoutBreak);
+    res.json({ entries, maxMinutesWithoutBreak });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to build judge schedule' });
+  }
+});
+
+// Update judges assigned to a specific heat
+router.patch('/:competitionId/heat/:heatId/judges', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const heatId = req.params.heatId;
+    const { judgeIds } = req.body;
+
+    if (!Array.isArray(judgeIds)) {
+      return res.status(400).json({ error: 'judgeIds array is required' });
+    }
+
+    let schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) return res.status(404).json({ error: 'Schedule not found' });
+    schedule = ScheduleService.migrateSchedule(schedule);
+
+    const heat = schedule.heatOrder.find(h => h.id === heatId);
+    if (!heat) return res.status(404).json({ error: 'Heat not found' });
+    if (heat.isBreak) return res.status(400).json({ error: 'Cannot assign judges to a break' });
+
+    const events = await dataService.getEvents(competitionId);
+
+    // Update judges on each entry's event heat
+    for (const entry of heat.entries) {
+      const event = events[entry.eventId];
+      if (!event) continue;
+      const eventHeat = event.heats.find(h => h.round === entry.round);
+      if (eventHeat) {
+        eventHeat.judges = judgeIds;
+      }
+      await dataService.updateEvent(event.id, { heats: event.heats });
+    }
+
+    const updatedEvents = await dataService.getEvents(competitionId);
+    res.json(updatedEvents);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update heat judges' });
   }
 });
 

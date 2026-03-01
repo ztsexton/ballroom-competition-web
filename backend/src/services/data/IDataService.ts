@@ -6,12 +6,14 @@ import {
   Person,
   Couple,
   Judge,
+  JudgeProfile,
   Event,
   Heat,
   User,
   UserProfileUpdate,
   CompetitionSchedule,
   EntryPayment,
+  SiteSettings,
 } from '../../types';
 
 export interface IDataService {
@@ -132,10 +134,21 @@ export interface IDataService {
   removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
   isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
 
+  // Site Settings
+  getSiteSettings(): Promise<SiteSettings>;
+  updateSiteSettings(updates: Partial<SiteSettings>): Promise<SiteSettings>;
+
   // Schedules
   getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined>;
   saveSchedule(schedule: CompetitionSchedule): Promise<CompetitionSchedule>;
   deleteSchedule(competitionId: number): Promise<boolean>;
+
+  // Judge Profiles
+  getJudgeProfiles(): Promise<JudgeProfile[]>;
+  getJudgeProfileById(id: number): Promise<JudgeProfile | undefined>;
+  addJudgeProfile(profile: Omit<JudgeProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<JudgeProfile>;
+  updateJudgeProfile(id: number, updates: Partial<Omit<JudgeProfile, 'id'>>): Promise<JudgeProfile | null>;
+  deleteJudgeProfile(id: number): Promise<boolean>;
 
   // Cache management (no-op for non-caching implementations)
   clearCache(): void;

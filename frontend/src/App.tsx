@@ -51,6 +51,8 @@ const AdminDashboardPage = React.lazy(() => import('./pages/admin').then(m => ({
 const UsersPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.UsersPage })));
 const StudioPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.StudioPage })));
 const OrganizationsPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.OrganizationsPage })));
+const SiteSettingsPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.SiteSettingsPage })));
+const JudgeProfilesPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.JudgeProfilesPage })));
 
 // -- Day-of pages --
 const LiveCompetitionPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.LiveCompetitionPage })));
@@ -150,6 +152,8 @@ const App = () => {
                     <Route path="/studios" element={<StudioPage />} />
                     <Route path="/organizations" element={<OrganizationsPage />} />
                     <Route path="/users" element={<UsersPage />} />
+                    <Route path="/site-settings" element={<SiteSettingsPage />} />
+                    <Route path="/judge-profiles" element={<JudgeProfilesPage />} />
                   </Routes>
                 </CompetitionProvider>
               </ProtectedRoute>

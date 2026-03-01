@@ -1448,4 +1448,104 @@ describe('Schedules API', () => {
       expect(breaks[0].breakDuration).toBe(10);
     });
   });
+
+  describe('GET /:competitionId/judge-schedule', () => {
+    it('should return judge schedule entries', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 4);
+
+      const judge = await dataService.addJudge('Judge A', comp.id);
+      const event = await dataService.addEvent(
+        'Bronze Waltz', bibs, [judge.id], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      // Generate a schedule
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/judge-schedule`)
+        .expect(200);
+
+      expect(res.body.entries).toBeDefined();
+      expect(res.body.maxMinutesWithoutBreak).toBe(360); // default 6h * 60
+      expect(res.body.entries.length).toBeGreaterThanOrEqual(1);
+
+      const judgeEntry = res.body.entries.find((e: any) => e.judgeId === judge.id);
+      expect(judgeEntry).toBeDefined();
+      expect(judgeEntry.judgeName).toBe('Judge A');
+    });
+
+    it('should use competition-level maxJudgeHoursWithoutBreak', async () => {
+      const comp = await setupCompetition();
+      await dataService.updateCompetition(comp.id, { maxJudgeHoursWithoutBreak: 3 });
+
+      const bibs = await createCouples(comp.id, 3);
+      await dataService.addJudge('Judge B', comp.id);
+      await dataService.addEvent(
+        'Silver Tango', bibs, [], comp.id,
+        undefined, undefined, undefined, 'Standard', ['Tango'], 'standard',
+      );
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/judge-schedule`)
+        .expect(200);
+
+      expect(res.body.maxMinutesWithoutBreak).toBe(180); // 3h * 60
+    });
+
+    it('should return 404 when no schedule exists', async () => {
+      const comp = await setupCompetition();
+      await request(app)
+        .get(`/api/schedules/${comp.id}/judge-schedule`)
+        .expect(404);
+    });
+  });
+
+  describe('PATCH /:competitionId/heat/:heatId/judges', () => {
+    it('should update judges on a heat', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 4);
+
+      const judge1 = await dataService.addJudge('Judge 1', comp.id);
+      const judge2 = await dataService.addJudge('Judge 2', comp.id);
+      await dataService.addEvent(
+        'Bronze Waltz', bibs, [judge1.id], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const genRes = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const firstHeat = genRes.body.heatOrder.find((h: any) => !h.isBreak);
+      expect(firstHeat).toBeDefined();
+
+      const res = await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/${firstHeat.id}/judges`)
+        .send({ judgeIds: [judge1.id, judge2.id] })
+        .expect(200);
+
+      // Check that the returned events have updated judges
+      const eventKeys = Object.keys(res.body);
+      expect(eventKeys.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should return 400 when judgeIds is missing', async () => {
+      const comp = await setupCompetition();
+      await request(app)
+        .patch(`/api/schedules/${comp.id}/heat/fake-id/judges`)
+        .send({})
+        .expect(400);
+    });
+  });
 });

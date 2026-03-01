@@ -40,6 +40,13 @@ vi.mock('../api/client', () => ({
     getById: vi.fn(() => Promise.resolve({ data: { id: 1, name: 'Test Org' } })),
     create: vi.fn(() => Promise.resolve({ data: { id: 2, name: 'New Org' } })),
   },
+  settingsApi: {
+    get: vi.fn(() => Promise.resolve({ data: { maxJudgeHoursWithoutBreak: 4.5 } })),
+    update: vi.fn(() => Promise.resolve({ data: {} })),
+  },
+  schedulesApi: {
+    getJudgeSchedule: vi.fn(() => Promise.resolve({ data: { entries: [], maxMinutesWithoutBreak: 270 } })),
+  },
 }));
 
 // Import component after all mocks are set up
@@ -188,5 +195,90 @@ describe('CompetitionSettingsPage', () => {
 
     // Location input should have the value from the mock competition
     expect(screen.getByDisplayValue('New York, NY')).toBeInTheDocument();
+  });
+
+  it('should show Judges tab with Judge Breaks section', async () => {
+    (globalThis as Record<string, unknown>).__mockActiveCompetition = mockCompetition;
+
+    render(
+      <RouterWrapper>
+        <CompetitionSettingsPage />
+      </RouterWrapper>
+    );
+
+    // Click the Judges tab
+    fireEvent.click(await screen.findByRole('button', { name: 'Judges' }));
+
+    // Judge Breaks section should be present
+    expect(await screen.findByText('Judge Breaks')).toBeInTheDocument();
+    expect(screen.getByText('Max Judge Hours Without Break')).toBeInTheDocument();
+  });
+
+  it('should show site default value in Judge Breaks placeholder', async () => {
+    (globalThis as Record<string, unknown>).__mockActiveCompetition = mockCompetition;
+
+    render(
+      <RouterWrapper>
+        <CompetitionSettingsPage />
+      </RouterWrapper>
+    );
+
+    // Click the Judges tab
+    fireEvent.click(await screen.findByRole('button', { name: 'Judges' }));
+
+    // Wait for the section to render
+    await screen.findByText('Max Judge Hours Without Break');
+
+    // The input should have the site default in the placeholder (4.5 from mock)
+    const input = screen.getByPlaceholderText('4.5 (site default)');
+    expect(input).toBeInTheDocument();
+  });
+
+  it('should show site default in help text', async () => {
+    (globalThis as Record<string, unknown>).__mockActiveCompetition = mockCompetition;
+
+    render(
+      <RouterWrapper>
+        <CompetitionSettingsPage />
+      </RouterWrapper>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Judges' }));
+
+    // Help text should reference the actual site default
+    expect(await screen.findByText(/Override the site default \(4\.5h\)/)).toBeInTheDocument();
+  });
+
+  it('should show Judge Schedule section in Judges tab', async () => {
+    (globalThis as Record<string, unknown>).__mockActiveCompetition = mockCompetition;
+
+    render(
+      <RouterWrapper>
+        <CompetitionSettingsPage />
+      </RouterWrapper>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Judges' }));
+
+    expect(await screen.findByText('Judge Schedule')).toBeInTheDocument();
+  });
+
+  it('should not show Judge Breaks in Events tab', async () => {
+    (globalThis as Record<string, unknown>).__mockActiveCompetition = mockCompetition;
+
+    render(
+      <RouterWrapper>
+        <CompetitionSettingsPage />
+      </RouterWrapper>
+    );
+
+    // Click the Events tab
+    fireEvent.click(await screen.findByRole('button', { name: 'Events' }));
+
+    // Wait for Events tab content to load
+    await screen.findByText('Dance Order');
+
+    // Judge Breaks should NOT be in the Events tab
+    expect(screen.queryByText('Judge Breaks')).not.toBeInTheDocument();
   });
 });

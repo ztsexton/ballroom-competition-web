@@ -25,6 +25,8 @@ import participantRoutes from './routes/participant';
 import scrutineerRoutes from './routes/scrutineer';
 import publicRoutes from './routes/public';
 import databaseRoutes from './routes/database';
+import settingsRoutes from './routes/settings';
+import judgeProfileRoutes from './routes/judgeProfiles';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -97,6 +99,8 @@ app.use('/api/scrutineer', scrutineerRoutes);
 app.use('/api/studios', requireAdmin, studiosRoutes);
 app.use('/api/organizations', requireAdmin, organizationsRoutes);
 app.use('/api/mindbody', requireAdmin, mindbodyRoutes);
+app.use('/api/settings', requireAdmin, settingsRoutes);
+app.use('/api/judge-profiles', requireAdmin, judgeProfileRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { Event, CompetitionSchedule, ScheduledHeat } from '../../../../types';
+import React, { useRef, useEffect, useState } from 'react';
+import { Event, CompetitionSchedule, ScheduledHeat, Judge } from '../../../../types';
+import JudgeAssignmentModal from './JudgeAssignmentModal';
 import {
   getEventById,
   getHeatLabel,
@@ -16,6 +17,9 @@ import {
 interface ScheduleHeatTableProps {
   schedule: CompetitionSchedule;
   events: Event[];
+  judges?: Judge[];
+  eventsMap?: Record<number, Event>;
+  competitionId?: number;
   mergeSource: { heatId: string; idx: number } | null;
   mergeSelected: Set<string>;
   expandedHeats: Record<string, boolean>;
@@ -32,11 +36,15 @@ interface ScheduleHeatTableProps {
   onRemoveBreak: (heatIndex: number) => void;
   onSplitEntry: (heatId: string, eventId: number, round: string) => void;
   onStartMerge: (heatId: string, idx: number) => void;
+  onEventsUpdated?: (events: Record<number, Event>) => void;
 }
 
 export default function ScheduleHeatTable({
   schedule,
   events,
+  judges,
+  eventsMap,
+  competitionId,
   mergeSource,
   mergeSelected,
   expandedHeats,
@@ -53,8 +61,34 @@ export default function ScheduleHeatTable({
   onRemoveBreak,
   onSplitEntry,
   onStartMerge,
+  onEventsUpdated,
 }: ScheduleHeatTableProps) {
   const movedRowRef = useRef<HTMLTableRowElement | null>(null);
+  const [judgeModalHeat, setJudgeModalHeat] = useState<ScheduledHeat | null>(null);
+
+  // Build a map of judge id → judge for quick lookup
+  const judgeMap = new Map<number, Judge>();
+  if (judges) {
+    for (const j of judges) judgeMap.set(j.id, j);
+  }
+
+  // Get judge numbers for a heat
+  const getHeatJudgeNumbers = (heat: ScheduledHeat): number[] => {
+    if (!eventsMap) return [];
+    const judgeIds = new Set<number>();
+    for (const entry of heat.entries) {
+      const event = eventsMap[entry.eventId];
+      if (!event) continue;
+      const eventHeat = event.heats.find(h => h.round === entry.round);
+      if (eventHeat) {
+        for (const jId of eventHeat.judges) judgeIds.add(jId);
+      }
+    }
+    return [...judgeIds]
+      .map(id => judgeMap.get(id)?.judgeNumber ?? 0)
+      .filter(n => n > 0)
+      .sort((a, b) => a - b);
+  };
 
   useEffect(() => {
     if (movedHeat && movedRowRef.current) {
@@ -86,6 +120,9 @@ export default function ScheduleHeatTable({
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Round</th>
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Style</th>
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Level</th>
+            {judges && judges.length > 0 && (
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Judges</th>
+            )}
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Time</th>
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Status</th>
             <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide w-36">Actions</th>
@@ -173,7 +210,7 @@ export default function ScheduleHeatTable({
                   </td>
                   <td className="px-3 py-2 align-top"><strong>{idx + 1}</strong></td>
                   {isBreak ? (
-                    <td colSpan={5} className="px-3 py-2">
+                    <td colSpan={judges && judges.length > 0 ? 6 : 5} className="px-3 py-2">
                       <span className="text-amber-800">
                         {scheduledHeat.breakLabel || 'Break'}
                         {scheduledHeat.breakDuration && (
@@ -210,6 +247,24 @@ export default function ScheduleHeatTable({
                       <td className="px-3 py-2 capitalize align-top">{getHeatRound(scheduledHeat)}</td>
                       <td className="px-3 py-2 align-top">{getHeatStyle(scheduledHeat, events)}</td>
                       <td className="px-3 py-2 align-top">{getHeatLevel(scheduledHeat, events)}</td>
+                      {judges && judges.length > 0 && (
+                        <td className="px-3 py-2 align-top">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-600">
+                              {getHeatJudgeNumbers(scheduledHeat).map(n => `J${n}`).join(', ') || '\u2014'}
+                            </span>
+                            {eventsMap && competitionId && !mergeSource && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setJudgeModalHeat(scheduledHeat); }}
+                                className="ml-1 text-xs text-primary-500 hover:text-primary-700 cursor-pointer"
+                                title="Edit judge assignments"
+                              >
+                                ✎
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-3 py-2 align-top text-[0.8125rem] text-gray-600 whitespace-nowrap">
                         {scheduledHeat.estimatedStartTime ? formatTime(scheduledHeat.estimatedStartTime) : ''}
                       </td>
@@ -279,6 +334,20 @@ export default function ScheduleHeatTable({
           })}
         </tbody>
       </table>
+
+      {judgeModalHeat && judges && eventsMap && competitionId && (
+        <JudgeAssignmentModal
+          heat={judgeModalHeat}
+          judges={judges}
+          events={eventsMap}
+          competitionId={competitionId}
+          onClose={() => setJudgeModalHeat(null)}
+          onSaved={(updated) => {
+            setJudgeModalHeat(null);
+            if (onEventsUpdated) onEventsUpdated(updated);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment } from '../../types';
+import { AppData, Person, Couple, Judge, JudgeProfile, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment, SiteSettings } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 import logger from '../../utils/logger';
@@ -18,6 +18,8 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ORGANIZATIONS_FILE = path.join(DATA_DIR, 'organizations.json');
 const SCHEDULES_FILE = path.join(DATA_DIR, 'schedules.json');
 const COMPETITION_ADMINS_FILE = path.join(DATA_DIR, 'competition_admins.json');
+const SITE_SETTINGS_FILE = path.join(DATA_DIR, 'site_settings.json');
+const JUDGE_PROFILES_FILE = path.join(DATA_DIR, 'judge_profiles.json');
 
 const ADMIN_EMAIL = 'zsexton2011@gmail.com';
 
@@ -34,10 +36,12 @@ if (!fs.existsSync(DATA_DIR)) {
 export class JsonDataService implements IDataService {
   private data: AppData;
   private competitionAdmins: CompetitionAdmin[];
+  private siteSettings: SiteSettings;
 
   constructor() {
     this.data = this.loadAllData();
     this.competitionAdmins = this.loadCompetitionAdmins();
+    this.siteSettings = this.loadSiteSettings();
   }
 
   private loadAllData(): AppData {
@@ -60,6 +64,8 @@ export class JsonDataService implements IDataService {
       nextBib: this.getNextBib(this.loadCouples()),
       nextJudgeId: this.getNextId(this.loadJudges()),
       nextEventId: this.getNextEventId(this.loadEvents()),
+      judgeProfiles: this.loadJudgeProfiles(),
+      nextJudgeProfileId: this.getNextId(this.loadJudgeProfiles()),
     };
   }
 
@@ -281,6 +287,38 @@ export class JsonDataService implements IDataService {
   private saveCompetitionAdmins(): void {
     const data = { competitionAdmins: this.competitionAdmins };
     fs.writeFileSync(COMPETITION_ADMINS_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private loadJudgeProfiles(): JudgeProfile[] {
+    try {
+      if (fs.existsSync(JUDGE_PROFILES_FILE)) {
+        const data = JSON.parse(fs.readFileSync(JUDGE_PROFILES_FILE, 'utf-8'));
+        return data.judgeProfiles || [];
+      }
+    } catch (error) {
+      logError('Error loading judge profiles:', error);
+    }
+    return [];
+  }
+
+  private saveJudgeProfiles(): void {
+    const data = { judgeProfiles: this.data.judgeProfiles, next_id: this.data.nextJudgeProfileId };
+    fs.writeFileSync(JUDGE_PROFILES_FILE, JSON.stringify(data, null, 2));
+  }
+
+  private loadSiteSettings(): SiteSettings {
+    try {
+      if (fs.existsSync(SITE_SETTINGS_FILE)) {
+        return JSON.parse(fs.readFileSync(SITE_SETTINGS_FILE, 'utf-8'));
+      }
+    } catch (error) {
+      logError('Error loading site settings:', error);
+    }
+    return {};
+  }
+
+  private saveSiteSettings(): void {
+    fs.writeFileSync(SITE_SETTINGS_FILE, JSON.stringify(this.siteSettings, null, 2));
   }
 
   // Competition methods
@@ -991,6 +1029,17 @@ export class JsonDataService implements IDataService {
     return user;
   }
 
+  // Site Settings methods
+  async getSiteSettings(): Promise<SiteSettings> {
+    return this.siteSettings;
+  }
+
+  async updateSiteSettings(updates: Partial<SiteSettings>): Promise<SiteSettings> {
+    Object.assign(this.siteSettings, updates);
+    this.saveSiteSettings();
+    return this.siteSettings;
+  }
+
   // Schedule methods
   async getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined> {
     return this.data.schedules[competitionId];
@@ -1073,6 +1122,47 @@ export class JsonDataService implements IDataService {
     );
   }
 
+  // Judge Profile methods
+  async getJudgeProfiles(): Promise<JudgeProfile[]> {
+    return this.data.judgeProfiles;
+  }
+
+  async getJudgeProfileById(id: number): Promise<JudgeProfile | undefined> {
+    return this.data.judgeProfiles.find(p => p.id === id);
+  }
+
+  async addJudgeProfile(profile: Omit<JudgeProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<JudgeProfile> {
+    const now = new Date().toISOString();
+    const newProfile: JudgeProfile = {
+      ...profile,
+      id: this.data.nextJudgeProfileId++,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.judgeProfiles.push(newProfile);
+    this.saveJudgeProfiles();
+    return newProfile;
+  }
+
+  async updateJudgeProfile(id: number, updates: Partial<Omit<JudgeProfile, 'id'>>): Promise<JudgeProfile | null> {
+    const profile = this.data.judgeProfiles.find(p => p.id === id);
+    if (!profile) return null;
+    Object.assign(profile, updates);
+    profile.updatedAt = new Date().toISOString();
+    this.saveJudgeProfiles();
+    return profile;
+  }
+
+  async deleteJudgeProfile(id: number): Promise<boolean> {
+    const initialLength = this.data.judgeProfiles.length;
+    this.data.judgeProfiles = this.data.judgeProfiles.filter(p => p.id !== id);
+    if (this.data.judgeProfiles.length < initialLength) {
+      this.saveJudgeProfiles();
+      return true;
+    }
+    return false;
+  }
+
   clearCache(): void {}
 
   async resetAllData(): Promise<void> {
@@ -1095,8 +1185,11 @@ export class JsonDataService implements IDataService {
       nextBib: 1,
       nextJudgeId: 1,
       nextEventId: 1,
+      judgeProfiles: [],
+      nextJudgeProfileId: 1,
     };
     this.competitionAdmins = [];
+    this.siteSettings = {};
     this.saveCompetitions();
     this.saveStudios();
     this.saveOrganizations();
@@ -1107,5 +1200,7 @@ export class JsonDataService implements IDataService {
     this.saveUsers();
     this.saveSchedules();
     this.saveCompetitionAdmins();
+    this.saveSiteSettings();
+    this.saveJudgeProfiles();
   }
 }

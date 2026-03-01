@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { eventsApi, schedulesApi, competitionsApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig } from '../../../types';
+import { eventsApi, schedulesApi, competitionsApi, judgesApi } from '../../../api/client';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, Judge } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
 import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER } from '../../../constants/dances';
@@ -13,6 +13,7 @@ import BreakForm from './components/BreakForm';
 import MergePanel from './components/MergePanel';
 import ScheduleHeatTable from './components/ScheduleHeatTable';
 import ScheduleOptimizer from './components/ScheduleOptimizer';
+import JudgeScheduleView from './components/JudgeScheduleView';
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +61,11 @@ const SchedulePage = () => {
   const moveCounterRef = useRef(0);
   const movedTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Judges
+  const [judges, setJudges] = useState<Judge[]>([]);
+  const [eventsMap, setEventsMap] = useState<Record<number, Event>>({});
+  const [scheduleView, setScheduleView] = useState<'heats' | 'judges'>('heats');
+
   // Break insertion state
   const [showBreakForm, setShowBreakForm] = useState(false);
   const [breakLabel, setBreakLabel] = useState('');
@@ -70,11 +76,14 @@ const SchedulePage = () => {
     if (!competitionId) return;
 
     try {
-      const [compRes, eventsRes] = await Promise.all([
+      const [compRes, eventsRes, judgesRes] = await Promise.all([
         competitionsApi.getById(competitionId),
         eventsApi.getAll(competitionId),
+        judgesApi.getAll(competitionId),
       ]);
       setCompetition(compRes.data);
+      setJudges(judgesRes.data);
+      setEventsMap(eventsRes.data);
       if (compRes.data.levels && compRes.data.levels.length > 0) {
         setLevelOrder(compRes.data.levels);
       }
@@ -577,26 +586,61 @@ const SchedulePage = () => {
               );
             })()}
 
-            <ScheduleHeatTable
-              schedule={schedule}
-              events={events}
-              mergeSource={mergeSource}
-              mergeSelected={mergeSelected}
-              expandedHeats={expandedHeats}
-              dragIndex={dragIndex}
-              dragOverIndex={dragOverIndex}
-              movedHeat={movedHeat}
-              maxCouplesPerHeat={maxCouplesPerHeat}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-              onToggleExpanded={toggleExpanded}
-              onToggleMergeSelection={toggleMergeSelection}
-              onMoveEvent={handleMoveEvent}
-              onRemoveBreak={handleRemoveBreak}
-              onSplitEntry={handleSplitEntry}
-              onStartMerge={(heatId, idx) => { setMergeSource({ heatId, idx }); setMergeSelected(new Set()); }}
-            />
+            {/* View toggle */}
+            <div className="mt-4 flex gap-1 border-b border-gray-200">
+              <button
+                onClick={() => setScheduleView('heats')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  scheduleView === 'heats'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Heat Order
+              </button>
+              <button
+                onClick={() => setScheduleView('judges')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  scheduleView === 'judges'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Judge Schedule
+              </button>
+            </div>
+
+            {scheduleView === 'heats' ? (
+              <ScheduleHeatTable
+                schedule={schedule}
+                events={events}
+                judges={judges}
+                eventsMap={eventsMap}
+                competitionId={competitionId}
+                mergeSource={mergeSource}
+                mergeSelected={mergeSelected}
+                expandedHeats={expandedHeats}
+                dragIndex={dragIndex}
+                dragOverIndex={dragOverIndex}
+                movedHeat={movedHeat}
+                maxCouplesPerHeat={maxCouplesPerHeat}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onToggleExpanded={toggleExpanded}
+                onToggleMergeSelection={toggleMergeSelection}
+                onMoveEvent={handleMoveEvent}
+                onRemoveBreak={handleRemoveBreak}
+                onSplitEntry={handleSplitEntry}
+                onStartMerge={(heatId, idx) => { setMergeSource({ heatId, idx }); setMergeSelected(new Set()); }}
+                onEventsUpdated={(updated) => {
+                  setEventsMap(updated);
+                  setEvents(Object.values(updated));
+                }}
+              />
+            ) : (
+              <JudgeScheduleView competitionId={competitionId} />
+            )}
           </>
         )}
 

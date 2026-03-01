@@ -3,6 +3,11 @@ export const DEFAULT_LEVELS = [
   'Novice', 'Pre-Championship', 'Championship',
 ];
 
+export const CERTIFICATION_LEVEL_ORDER = [
+  'Newcomer', 'Bronze', 'Silver', 'Gold', 'Novice', 'Pre-Championship', 'Championship',
+];
+export const DEFAULT_MAX_LEVEL = 'Silver';  // Index 2 — judges can judge 0-2 by default
+
 export const LEVEL_TEMPLATES: Record<string, { label: string; levels: string[]; levelMode?: 'combined' | 'integrated' }> = {
   standard: {
     label: 'Standard',

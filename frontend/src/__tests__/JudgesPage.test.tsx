@@ -11,6 +11,9 @@ vi.mock('../api/client', () => ({
     update: vi.fn(() => Promise.resolve({ data: {} })),
     delete: vi.fn(() => Promise.resolve({})),
   },
+  judgeProfilesApi: {
+    getAll: vi.fn(() => Promise.resolve({ data: [] })),
+  },
 }));
 
 const getMockCompetition = () => (globalThis as any).__mockActiveCompetition || null;

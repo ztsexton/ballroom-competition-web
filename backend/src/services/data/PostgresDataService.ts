@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import {
-  Competition, CompetitionAdmin, Studio, Organization, Person, Couple, Judge, Event, Heat, User, UserProfileUpdate,
-  CompetitionSchedule, EntryPayment,
+  Competition, CompetitionAdmin, Studio, Organization, Person, Couple, Judge, JudgeProfile, Event, Heat, User, UserProfileUpdate,
+  CompetitionSchedule, EntryPayment, SiteSettings,
 } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
@@ -38,6 +38,7 @@ export class PostgresDataService implements IDataService {
       entryValidation: row.entry_validation || undefined,
       ageCategories: row.age_categories || undefined,
       danceOrder: row.dance_order || undefined,
+      maxJudgeHoursWithoutBreak: row.max_judge_hours_without_break ?? undefined,
       registrationOpen: row.registration_open ?? undefined,
       registrationOpenAt: row.registration_open_at || undefined,
       publiclyVisible: row.publicly_visible ?? undefined,
@@ -109,6 +110,20 @@ export class PostgresDataService implements IDataService {
       judgeNumber: row.judge_number,
       competitionId: row.competition_id,
       isChairman: row.is_chairman ?? undefined,
+      profileId: row.profile_id ?? undefined,
+    };
+  }
+
+  private judgeProfileFromRow(row: any): JudgeProfile {
+    return {
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email || undefined,
+      userUid: row.user_uid || undefined,
+      certifications: row.certifications || {},
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
@@ -248,6 +263,7 @@ export class PostgresDataService implements IDataService {
       defaultScoringType: 'default_scoring_type', levelMode: 'level_mode',
       currency: 'currency',
       maxCouplesPerHeat: 'max_couples_per_heat', maxCouplesOnFloor: 'max_couples_on_floor',
+      maxJudgeHoursWithoutBreak: 'max_judge_hours_without_break',
       registrationOpen: 'registration_open', registrationOpenAt: 'registration_open_at',
       publiclyVisible: 'publicly_visible', publiclyVisibleAt: 'publicly_visible_at',
       resultsPublic: 'results_public',
@@ -627,6 +643,62 @@ export class PostgresDataService implements IDataService {
     return this.judgeFromRow(rows[0]);
   }
 
+  // ─── Judge Profiles ───────────────────────────────────────────
+
+  async getJudgeProfiles(): Promise<JudgeProfile[]> {
+    const { rows } = await this.pool.query('SELECT * FROM judge_profiles ORDER BY last_name, first_name');
+    return rows.map(r => this.judgeProfileFromRow(r));
+  }
+
+  async getJudgeProfileById(id: number): Promise<JudgeProfile | undefined> {
+    const { rows } = await this.pool.query('SELECT * FROM judge_profiles WHERE id = $1', [id]);
+    return rows.length > 0 ? this.judgeProfileFromRow(rows[0]) : undefined;
+  }
+
+  async addJudgeProfile(profile: Omit<JudgeProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<JudgeProfile> {
+    const now = new Date().toISOString();
+    const { rows } = await this.pool.query(
+      `INSERT INTO judge_profiles (first_name, last_name, email, user_uid, certifications, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [profile.firstName, profile.lastName, profile.email || null, profile.userUid || null, JSON.stringify(profile.certifications || {}), now, now]
+    );
+    return this.judgeProfileFromRow(rows[0]);
+  }
+
+  async updateJudgeProfile(id: number, updates: Partial<Omit<JudgeProfile, 'id'>>): Promise<JudgeProfile | null> {
+    const existing = await this.getJudgeProfileById(id);
+    if (!existing) return null;
+
+    const setClauses: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+
+    if (updates.firstName !== undefined) { setClauses.push(`first_name = $${paramIdx++}`); values.push(updates.firstName); }
+    if (updates.lastName !== undefined) { setClauses.push(`last_name = $${paramIdx++}`); values.push(updates.lastName); }
+    if (updates.email !== undefined) { setClauses.push(`email = $${paramIdx++}`); values.push(updates.email || null); }
+    if (updates.userUid !== undefined) { setClauses.push(`user_uid = $${paramIdx++}`); values.push(updates.userUid || null); }
+    if (updates.certifications !== undefined) { setClauses.push(`certifications = $${paramIdx++}`); values.push(JSON.stringify(updates.certifications)); }
+
+    setClauses.push(`updated_at = $${paramIdx++}`);
+    values.push(new Date().toISOString());
+
+    if (setClauses.length === 1) return existing; // only updated_at
+
+    values.push(id);
+    const { rows } = await this.pool.query(
+      `UPDATE judge_profiles SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
+    );
+    return this.judgeProfileFromRow(rows[0]);
+  }
+
+  async deleteJudgeProfile(id: number): Promise<boolean> {
+    // Clear profile_id references from judges first
+    await this.pool.query('UPDATE judges SET profile_id = NULL WHERE profile_id = $1', [id]);
+    const { rowCount } = await this.pool.query('DELETE FROM judge_profiles WHERE id = $1', [id]);
+    return (rowCount ?? 0) > 0;
+  }
+
   async updateJudge(id: number, updates: Partial<Omit<Judge, 'id'>>): Promise<Judge | null> {
     const existing = await this.getJudgeById(id);
     if (!existing) return null;
@@ -653,6 +725,10 @@ export class PostgresDataService implements IDataService {
     if (updates.isChairman !== undefined) {
       setClauses.push(`is_chairman = $${paramIdx++}`);
       values.push(updates.isChairman);
+    }
+    if (updates.profileId !== undefined) {
+      setClauses.push(`profile_id = $${paramIdx++}`);
+      values.push(updates.profileId || null);
     }
 
     if (setClauses.length === 0) return existing;
@@ -1109,6 +1185,34 @@ export class PostgresDataService implements IDataService {
 
   // ─── Schedules ──────────────────────────────────────────────────
 
+  // ─── Site Settings ──────────────────────────────────────────
+
+  async getSiteSettings(): Promise<SiteSettings> {
+    try {
+      const { rows } = await this.pool.query('SELECT * FROM site_settings WHERE id = 1');
+      if (rows.length > 0) {
+        return {
+          maxJudgeHoursWithoutBreak: rows[0].max_judge_hours_without_break ?? undefined,
+        };
+      }
+    } catch {
+      // Table may not exist yet
+    }
+    return {};
+  }
+
+  async updateSiteSettings(updates: Partial<SiteSettings>): Promise<SiteSettings> {
+    const maxHours = updates.maxJudgeHoursWithoutBreak ?? null;
+    await this.pool.query(
+      `INSERT INTO site_settings (id, max_judge_hours_without_break) VALUES (1, $1)
+       ON CONFLICT (id) DO UPDATE SET max_judge_hours_without_break = $1`,
+      [maxHours]
+    );
+    return this.getSiteSettings();
+  }
+
+  // ─── Schedules ─────────────────────────────────────────────
+
   async getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined> {
     const { rows } = await this.pool.query(
       'SELECT * FROM schedules WHERE competition_id = $1', [competitionId]
@@ -1224,5 +1328,7 @@ export class PostgresDataService implements IDataService {
 
   async resetAllData(): Promise<void> {
     await this.pool.query('TRUNCATE competition_admins, judge_scores, scores, schedules, events, couples, judges, people, competitions, studios, organizations, users RESTART IDENTITY CASCADE');
+    try { await this.pool.query('DELETE FROM site_settings'); } catch { /* table may not exist */ }
+    try { await this.pool.query('TRUNCATE judge_profiles RESTART IDENTITY CASCADE'); } catch { /* table may not exist */ }
   }
 }

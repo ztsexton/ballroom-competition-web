@@ -47,6 +47,7 @@ export interface MindbodyClient {
 export interface JudgeSettings {
   defaultCount: number;
   levelOverrides: Record<string, number>;
+  targetStintMinutes?: number;  // Target work time before rotation (default: 45)
 }
 
 export interface TimingSettings {
@@ -134,6 +135,7 @@ export interface Competition {
   heatListsPublishedAt?: string; // ISO date string for scheduled publish
   websiteUrl?: string;
   organizerEmail?: string;
+  maxJudgeHoursWithoutBreak?: number;
   createdBy?: string;
   createdAt: string;
 }
@@ -169,12 +171,24 @@ export interface Couple {
   competitionId: number;
 }
 
+export interface JudgeProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  userUid?: string;
+  certifications: Record<string, string[]>;  // Per-style: additional levels beyond Silver
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Judge {
   id: number;
   name: string;
   judgeNumber: number;
   competitionId: number;
   isChairman?: boolean;
+  profileId?: number;
 }
 
 export interface Heat {
@@ -403,6 +417,37 @@ export interface InvoiceSummary {
   invoices: PersonInvoice[];
 }
 
+export interface SiteSettings {
+  maxJudgeHoursWithoutBreak?: number;
+}
+
+export interface JudgeScheduleEntry {
+  judgeId: number;
+  judgeName: string;
+  judgeNumber: number;
+  isChairman?: boolean;
+  heats: JudgeScheduleHeat[];
+  totalHeatCount: number;
+  estimatedWorkingMinutes: number;
+  segments: JudgeWorkSegment[];
+}
+
+export interface JudgeScheduleHeat {
+  heatIndex: number;
+  heatId: string;
+  eventNames: string[];
+  round: string;
+  estimatedStartTime?: string;
+  estimatedDurationSeconds?: number;
+}
+
+export interface JudgeWorkSegment {
+  startHeatIndex: number;
+  endHeatIndex: number;
+  durationMinutes: number;
+  exceedsLimit: boolean;
+}
+
 export interface AppData {
   competitions: Competition[];
   studios: Studio[];
@@ -422,4 +467,6 @@ export interface AppData {
   nextBib: number;
   nextJudgeId: number;
   nextEventId: number;
+  judgeProfiles: JudgeProfile[];
+  nextJudgeProfileId: number;
 }

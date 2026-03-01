@@ -5,6 +5,7 @@ import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigati
 import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, splitHeatEntry, splitRoundIntoFloorHeats, unsplitFloorHeats, suggestPosition, resplitPendingHeats } from './scheduleModification';
 import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
+export { buildJudgeSchedule } from './judgeSchedule';
 import { detectBackToBack, minimizeBackToBack, BackToBackConflict } from './backToBack';
 import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion } from './scheduleOptimizer';
 

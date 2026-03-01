@@ -7,12 +7,14 @@ import {
   Person,
   Couple,
   Judge,
+  JudgeProfile,
   Event,
   Heat,
   User,
   UserProfileUpdate,
   CompetitionSchedule,
   EntryPayment,
+  SiteSettings,
 } from '../../types';
 
 interface CacheEntry<T> {
@@ -486,6 +488,16 @@ export class CachingDataService implements IDataService {
     return result;
   }
 
+  // -- Site Settings (pass-through) --
+
+  async getSiteSettings(): Promise<SiteSettings> {
+    return this.inner.getSiteSettings();
+  }
+
+  async updateSiteSettings(updates: Partial<SiteSettings>): Promise<SiteSettings> {
+    return this.inner.updateSiteSettings(updates);
+  }
+
   // -- Schedules --
 
   async getSchedule(competitionId: number): Promise<CompetitionSchedule | undefined> {
@@ -610,6 +622,28 @@ export class CachingDataService implements IDataService {
 
   async isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
     return this.inner.isCompetitionAdmin(competitionId, userUid);
+  }
+
+  // -- Judge Profiles (pass-through) --
+
+  async getJudgeProfiles(): Promise<JudgeProfile[]> {
+    return this.inner.getJudgeProfiles();
+  }
+
+  async getJudgeProfileById(id: number): Promise<JudgeProfile | undefined> {
+    return this.inner.getJudgeProfileById(id);
+  }
+
+  async addJudgeProfile(profile: Omit<JudgeProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<JudgeProfile> {
+    return this.inner.addJudgeProfile(profile);
+  }
+
+  async updateJudgeProfile(id: number, updates: Partial<Omit<JudgeProfile, 'id'>>): Promise<JudgeProfile | null> {
+    return this.inner.updateJudgeProfile(id, updates);
+  }
+
+  async deleteJudgeProfile(id: number): Promise<boolean> {
+    return this.inner.deleteJudgeProfile(id);
   }
 
   // -- Cache management --

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig } from '../types';
+import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, SiteSettings, JudgeScheduleEntry } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -103,14 +103,23 @@ export const couplesApi = {
 
 // Judges API
 export const judgesApi = {
-  getAll: (competitionId?: number) => 
+  getAll: (competitionId?: number) =>
     api.get<Judge[]>('/judges', { params: { competitionId } }),
   getById: (id: number) => api.get<Judge>(`/judges/${id}`),
-  create: (name: string, competitionId: number) =>
-    api.post<Judge>('/judges', { name, competitionId }),
+  create: (name: string, competitionId: number, profileId?: number) =>
+    api.post<Judge>('/judges', { name, competitionId, profileId }),
   update: (id: number, updates: Partial<Judge>) =>
     api.patch<Judge>(`/judges/${id}`, updates),
   delete: (id: number) => api.delete(`/judges/${id}`),
+};
+
+// Judge Profiles API (site admin)
+export const judgeProfilesApi = {
+  getAll: () => api.get<JudgeProfile[]>('/judge-profiles'),
+  getById: (id: number) => api.get<JudgeProfile>(`/judge-profiles/${id}`),
+  create: (data: Partial<JudgeProfile>) => api.post<JudgeProfile>('/judge-profiles', data),
+  update: (id: number, updates: Partial<JudgeProfile>) => api.patch<JudgeProfile>(`/judge-profiles/${id}`, updates),
+  delete: (id: number) => api.delete(`/judge-profiles/${id}`),
 };
 
 // Events API
@@ -222,6 +231,11 @@ export const schedulesApi = {
     }>(`/schedules/${competitionId}/analyze`),
   optimize: (competitionId: number, suggestions: number[]) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/optimize`, { suggestions }),
+  getJudgeSchedule: (competitionId: number) =>
+    api.get<{ entries: JudgeScheduleEntry[]; maxMinutesWithoutBreak: number }>(
+      `/schedules/${competitionId}/judge-schedule`),
+  updateHeatJudges: (competitionId: number, heatId: string, judgeIds: number[]) =>
+    api.patch<Record<number, Event>>(`/schedules/${competitionId}/heat/${heatId}/judges`, { judgeIds }),
 };
 
 // Judging API (non-admin, for judges and SSE)
@@ -352,6 +366,12 @@ export const mindbodyApi = {
 export const databaseApi = {
   seed: () => api.post<{ success: boolean; message: string }>('/database/seed'),
   seedFinished: () => api.post<{ success: boolean; message: string }>('/database/seed-finished'),
+};
+
+// Settings API (site admin only)
+export const settingsApi = {
+  get: () => api.get<SiteSettings>('/settings'),
+  update: (updates: Partial<SiteSettings>) => api.patch<SiteSettings>('/settings', updates),
 };
 
 // Public API client (no auth token)

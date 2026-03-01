@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { judgesApi } from '../../api/client';
-import { Judge } from '../../types';
+import { judgesApi, judgeProfilesApi } from '../../api/client';
+import { Judge, JudgeProfile } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
 import { Skeleton } from '../../components/Skeleton';
@@ -10,8 +10,10 @@ const JudgesPage = () => {
   const { activeCompetition } = useCompetition();
   const { isAdmin, loading: authLoading } = useAuth();
   const [judges, setJudges] = useState<Judge[]>([]);
+  const [profiles, setProfiles] = useState<JudgeProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [newJudgeName, setNewJudgeName] = useState('');
+  const [selectedProfileId, setSelectedProfileId] = useState<number | ''>('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -21,7 +23,13 @@ const JudgesPage = () => {
       setJudges([]);
       setLoading(false);
     }
-  }, [activeCompetition]);
+    // Load profiles for the dropdown (site admin only)
+    if (isAdmin) {
+      judgeProfilesApi.getAll()
+        .then(res => setProfiles(res.data))
+        .catch(() => {});
+    }
+  }, [activeCompetition, isAdmin]);
 
   const loadJudges = async () => {
     if (!activeCompetition) return;
@@ -43,13 +51,28 @@ const JudgesPage = () => {
     if (!newJudgeName.trim() || !activeCompetition) return;
 
     try {
-      await judgesApi.create(newJudgeName.trim(), activeCompetition.id);
+      await judgesApi.create(
+        newJudgeName.trim(),
+        activeCompetition.id,
+        selectedProfileId ? Number(selectedProfileId) : undefined,
+      );
       setNewJudgeName('');
+      setSelectedProfileId('');
       setError('');
       loadJudges();
     } catch (error) {
       console.error('Failed to add judge:', error);
       setError('Failed to add judge');
+    }
+  };
+
+  const handleProfileSelect = (profileId: number | '') => {
+    setSelectedProfileId(profileId);
+    if (profileId) {
+      const profile = profiles.find(p => p.id === profileId);
+      if (profile) {
+        setNewJudgeName(`${profile.firstName} ${profile.lastName}`);
+      }
     }
   };
 
@@ -121,7 +144,22 @@ const JudgesPage = () => {
         {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded mb-4 text-sm mt-3">{error}</div>}
 
         <form onSubmit={handleAdd} className="mt-6">
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end flex-wrap">
+            {profiles.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">From Profile</label>
+                <select
+                  value={selectedProfileId}
+                  onChange={e => handleProfileSelect(e.target.value ? Number(e.target.value) : '')}
+                  className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">Manual entry</option>
+                  {profiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex-1">
               <label className="block text-sm font-semibold text-gray-600 mb-1">Judge Name</label>
               <input
@@ -156,7 +194,14 @@ const JudgesPage = () => {
               {judges.map(judge => (
                 <tr key={judge.id}>
                   <td className="px-3 py-2 border-t border-gray-100"><strong>#{judge.judgeNumber}</strong></td>
-                  <td className="px-3 py-2 border-t border-gray-100">{judge.name}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">
+                    {judge.name}
+                    {judge.profileId && (
+                      <span className="ml-2 inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded" title="Linked to site profile">
+                        Profile
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 border-t border-gray-100">
                     <button
                       onClick={() => handleToggleChairman(judge.id, !!judge.isChairman)}
