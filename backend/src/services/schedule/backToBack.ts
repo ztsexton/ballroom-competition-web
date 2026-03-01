@@ -13,6 +13,17 @@ export interface BackToBackConflict {
   eventName2: string;
 }
 
+export interface PersonBackToBackConflict {
+  personId: number;
+  personName: string;
+  heatIndex1: number;
+  heatIndex2: number;
+  heatId1: string;
+  heatId2: string;
+  eventName1: string;
+  eventName2: string;
+}
+
 /**
  * Detect couples scheduled in consecutive heats.
  */
@@ -69,6 +80,101 @@ export async function detectBackToBack(
           bib,
           leaderName: couple.leaderName,
           followerName: couple.followerName,
+          heatIndex1: i,
+          heatIndex2: i + 1,
+          heatId1: curr.id,
+          heatId2: next.id,
+          eventName1,
+          eventName2,
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Detect persons scheduled in consecutive heats.
+ * Unlike couple-level detection, this catches cases where the same person
+ * appears in multiple couples (e.g., a pro dancing with several students).
+ */
+export async function detectPersonBackToBack(
+  heatOrder: ScheduledHeat[],
+  competitionId: number,
+  excludePros: boolean = false,
+): Promise<PersonBackToBackConflict[]> {
+  const events = await dataService.getEvents(competitionId);
+  const couples = await dataService.getCouples(competitionId);
+  const people = await dataService.getPeople(competitionId);
+
+  // Build personId → name map
+  const personNameMap = new Map<number, string>();
+  for (const p of people) {
+    personNameMap.set(p.id, `${p.firstName} ${p.lastName}`);
+  }
+
+  // Build set of professional person IDs
+  const proPersonIds = new Set<number>();
+  if (excludePros) {
+    for (const p of people) {
+      if (p.status === 'professional') proPersonIds.add(p.id);
+    }
+  }
+
+  // Build bib → person IDs mapping
+  const bibToPersonIds = new Map<number, number[]>();
+  for (const couple of couples) {
+    const ids: number[] = [];
+    if (couple.leaderId) ids.push(couple.leaderId);
+    if (couple.followerId) ids.push(couple.followerId);
+    bibToPersonIds.set(couple.bib, ids);
+  }
+
+  // Get person IDs for a heat (excluding pros if requested)
+  function getPersonIds(heat: ScheduledHeat): Set<number> {
+    const personIds = new Set<number>();
+    for (const entry of heat.entries) {
+      const event = events[entry.eventId];
+      if (!event) continue;
+      const roundHeat = event.heats.find(h => h.round === entry.round);
+      if (!roundHeat) continue;
+      for (const bib of roundHeat.bibs) {
+        const ids = bibToPersonIds.get(bib);
+        if (ids) {
+          for (const id of ids) {
+            if (!excludePros || !proPersonIds.has(id)) {
+              personIds.add(id);
+            }
+          }
+        }
+      }
+    }
+    return personIds;
+  }
+
+  const conflicts: PersonBackToBackConflict[] = [];
+
+  for (let i = 0; i < heatOrder.length - 1; i++) {
+    const curr = heatOrder[i];
+    const next = heatOrder[i + 1];
+    if (curr.isBreak || next.isBreak) continue;
+
+    const currPersons = getPersonIds(curr);
+    const nextPersons = getPersonIds(next);
+
+    for (const personId of currPersons) {
+      if (nextPersons.has(personId)) {
+        const eventName1 = curr.entries
+          .map(e => events[e.eventId]?.name || `Event ${e.eventId}`)
+          .join(', ');
+        const eventName2 = next.entries
+          .map(e => events[e.eventId]?.name || `Event ${e.eventId}`)
+          .join(', ');
+
+        conflicts.push({
+          personId,
+          personName: personNameMap.get(personId) || `Person ${personId}`,
           heatIndex1: i,
           heatIndex2: i + 1,
           heatId1: curr.id,

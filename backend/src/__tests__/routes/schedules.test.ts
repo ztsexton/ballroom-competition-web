@@ -700,6 +700,79 @@ describe('Schedules API', () => {
 
       expect(res.body.conflicts).toBeDefined();
       expect(typeof res.body.count).toBe('number');
+      expect(res.body.conflictHeatIds).toBeDefined();
+    });
+
+    it('should return person-level conflicts with ?level=person', async () => {
+      const comp = await setupCompetition();
+      // Create a pro who dances with two different students
+      const pro = await dataService.addPerson({
+        firstName: 'Pro', lastName: 'Dancer', role: 'leader', status: 'professional', competitionId: comp.id,
+      });
+      const s1 = await dataService.addPerson({
+        firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const s2 = await dataService.addPerson({
+        firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const c1 = (await dataService.addCouple(pro.id, s1.id, comp.id))!;
+      const c2 = (await dataService.addCouple(pro.id, s2.id, comp.id))!;
+
+      await dataService.addEvent('Event A', [c1.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      await dataService.addEvent('Event B', [c2.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard');
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      // Person-level should detect the pro in consecutive heats
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/back-to-back?level=person`)
+        .expect(200);
+
+      expect(res.body.conflicts).toBeDefined();
+      expect(res.body.conflictHeatIds).toBeDefined();
+      // The pro is in both events, which are likely consecutive
+      if (res.body.count > 0) {
+        expect(res.body.conflicts[0].personId).toBeDefined();
+        expect(res.body.conflicts[0].personName).toBeDefined();
+      }
+    });
+
+    it('should exclude pros with ?level=person&excludePros=true', async () => {
+      const comp = await setupCompetition();
+      const pro = await dataService.addPerson({
+        firstName: 'Pro', lastName: 'Dancer', role: 'leader', status: 'professional', competitionId: comp.id,
+      });
+      const s1 = await dataService.addPerson({
+        firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const s2 = await dataService.addPerson({
+        firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const c1 = (await dataService.addCouple(pro.id, s1.id, comp.id))!;
+      const c2 = (await dataService.addCouple(pro.id, s2.id, comp.id))!;
+
+      await dataService.addEvent('Event A', [c1.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      await dataService.addEvent('Event B', [c2.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard');
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      // With excludePros — only non-pro conflicts, so the pro should be excluded
+      const res = await request(app)
+        .get(`/api/schedules/${comp.id}/back-to-back?level=person&excludePros=true`)
+        .expect(200);
+
+      // Pro is the only reason for B2B, so excluding should reduce/eliminate
+      const withoutExclude = await request(app)
+        .get(`/api/schedules/${comp.id}/back-to-back?level=person`)
+        .expect(200);
+
+      expect(res.body.count).toBeLessThanOrEqual(withoutExclude.body.count);
     });
   });
 

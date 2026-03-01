@@ -27,6 +27,7 @@ interface ScheduleHeatTableProps {
   dragOverIndex: number | null;
   movedHeat: { id: string; key: number } | null;
   maxCouplesPerHeat: number;
+  backToBackHeatIds?: Set<string>;
   onDragStart: (idx: number) => void;
   onDragOver: (e: React.DragEvent, idx: number) => void;
   onDragEnd: () => void;
@@ -52,6 +53,7 @@ export default function ScheduleHeatTable({
   dragOverIndex,
   movedHeat,
   maxCouplesPerHeat,
+  backToBackHeatIds,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -149,6 +151,8 @@ export default function ScheduleHeatTable({
               : [];
             const isMergeCompatible = isMergeTarget && incompatibilityReason === null;
 
+            const isBackToBack = !isBreak && backToBackHeatIds?.has(scheduledHeat.id);
+
             const rowBg = isBreak
               ? (isDragOver ? 'bg-gray-200' : 'bg-amber-50/60')
               : isMergeSource
@@ -159,9 +163,11 @@ export default function ScheduleHeatTable({
                     ? 'bg-gray-200'
                     : isCurrent
                       ? 'bg-blue-50'
-                      : idx % 2 === 1
-                        ? 'bg-gray-50/50'
-                        : 'bg-white';
+                      : isBackToBack
+                        ? 'bg-orange-50'
+                        : idx % 2 === 1
+                          ? 'bg-gray-50/50'
+                          : 'bg-white';
 
             const rowOpacity = isDragging
               ? 'opacity-40'
@@ -184,6 +190,7 @@ export default function ScheduleHeatTable({
                     rowOpacity,
                     isBreak ? 'italic border-y border-dashed border-amber-200' : 'hover:bg-blue-50/40',
                     isCurrent && !isBreak ? 'border-l-[3px] border-l-blue-500' : '',
+                    isBackToBack && !isCurrent ? 'border-l-[3px] border-l-orange-400' : '',
                     mergeSource && isMergeTarget ? 'cursor-pointer' : '',
                   ].filter(Boolean).join(' ')}
                   style={{

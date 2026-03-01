@@ -1,5 +1,5 @@
 import { dataService } from '../../services/dataService';
-import { detectBackToBack, minimizeBackToBack } from '../../services/schedule/backToBack';
+import { detectBackToBack, detectPersonBackToBack, minimizeBackToBack } from '../../services/schedule/backToBack';
 import { ScheduledHeat } from '../../types';
 
 describe('Back-to-Back Detection', () => {
@@ -65,6 +65,120 @@ describe('Back-to-Back Detection', () => {
 
     const conflicts = await detectBackToBack(heatOrder, comp.id);
     // Break separates them, so consecutive non-break heats don't share the couple
+    expect(conflicts).toHaveLength(0);
+  });
+});
+
+describe('Person-Level Back-to-Back Detection', () => {
+  beforeEach(async () => {
+    await dataService.resetAllData();
+  });
+
+  it('should detect person-level conflicts across different couples', async () => {
+    // Pro dancer (leader) dances with two different students (followers)
+    const comp = await dataService.addCompetition({
+      name: 'Test', type: 'NDCA', date: '2026-06-01',
+    });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
+    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
+    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+
+    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
+    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+
+    const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
+    const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);
+
+    const heatOrder: ScheduledHeat[] = [
+      { id: 'h1', entries: [{ eventId: e1.id, round: 'final' }] },
+      { id: 'h2', entries: [{ eventId: e2.id, round: 'final' }] },
+    ];
+
+    // Couple-level detection should NOT detect this (different bibs)
+    const coupleConflicts = await detectBackToBack(heatOrder, comp.id);
+    expect(coupleConflicts).toHaveLength(0);
+
+    // Person-level detection SHOULD detect the pro in consecutive heats
+    const personConflicts = await detectPersonBackToBack(heatOrder, comp.id);
+    expect(personConflicts.length).toBeGreaterThanOrEqual(1);
+    expect(personConflicts.some(c => c.personId === pro.id)).toBe(true);
+  });
+
+  it('should exclude pros when excludePros is true', async () => {
+    const comp = await dataService.addCompetition({
+      name: 'Test', type: 'NDCA', date: '2026-06-01',
+    });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
+    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
+    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+
+    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
+    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+
+    const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
+    const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);
+
+    const heatOrder: ScheduledHeat[] = [
+      { id: 'h1', entries: [{ eventId: e1.id, round: 'final' }] },
+      { id: 'h2', entries: [{ eventId: e2.id, round: 'final' }] },
+    ];
+
+    // Without excludePros — should detect the pro
+    const withPros = await detectPersonBackToBack(heatOrder, comp.id, false);
+    expect(withPros.length).toBeGreaterThanOrEqual(1);
+
+    // With excludePros — should NOT detect the pro (only non-pro conflicts matter)
+    const withoutPros = await detectPersonBackToBack(heatOrder, comp.id, true);
+    expect(withoutPros).toHaveLength(0);
+  });
+
+  it('should still detect student conflicts when excludePros is true', async () => {
+    const comp = await dataService.addCompetition({
+      name: 'Test', type: 'NDCA', date: '2026-06-01',
+    });
+    const leader1 = await dataService.addPerson({ firstName: 'Leader', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id });
+    const follower1 = await dataService.addPerson({ firstName: 'Follower', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
+
+    const c1 = (await dataService.addCouple(leader1.id, follower1.id, comp.id))!;
+
+    const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
+    const e2 = await dataService.addEvent('Event 2', [c1.bib], [], comp.id);
+
+    const heatOrder: ScheduledHeat[] = [
+      { id: 'h1', entries: [{ eventId: e1.id, round: 'final' }] },
+      { id: 'h2', entries: [{ eventId: e2.id, round: 'final' }] },
+    ];
+
+    // Even with excludePros, student conflicts should be detected
+    const conflicts = await detectPersonBackToBack(heatOrder, comp.id, true);
+    expect(conflicts.length).toBeGreaterThanOrEqual(1);
+    // Both the leader and follower should be detected (both are students)
+    const personIds = new Set(conflicts.map(c => c.personId));
+    expect(personIds.has(leader1.id)).toBe(true);
+    expect(personIds.has(follower1.id)).toBe(true);
+  });
+
+  it('should not flag conflicts separated by a break', async () => {
+    const comp = await dataService.addCompetition({
+      name: 'Test', type: 'NDCA', date: '2026-06-01',
+    });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
+    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
+    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+
+    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
+    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+
+    const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
+    const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);
+
+    const heatOrder: ScheduledHeat[] = [
+      { id: 'h1', entries: [{ eventId: e1.id, round: 'final' }] },
+      { id: 'break', entries: [], isBreak: true, breakLabel: 'Break' },
+      { id: 'h2', entries: [{ eventId: e2.id, round: 'final' }] },
+    ];
+
+    const conflicts = await detectPersonBackToBack(heatOrder, comp.id);
     expect(conflicts).toHaveLength(0);
   });
 });

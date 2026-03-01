@@ -73,6 +73,12 @@ const SchedulePage = () => {
   const [breakDuration, setBreakDuration] = useState<number | ''>('');
   const [breakPosition, setBreakPosition] = useState<number>(0);
 
+  // Back-to-back highlighting
+  const [showBackToBack, setShowBackToBack] = useState(false);
+  const [excludePros, setExcludePros] = useState(false);
+  const [backToBackHeatIds, setBackToBackHeatIds] = useState<Set<string>>(new Set());
+  const [backToBackCount, setBackToBackCount] = useState(0);
+
   const loadData = useCallback(async () => {
     if (!competitionId) return;
 
@@ -166,6 +172,31 @@ const SchedulePage = () => {
       setLoading(false);
     }
   }, [competitionId, loadData]);
+
+  // Fetch back-to-back conflicts when highlighting is enabled
+  useEffect(() => {
+    if (!showBackToBack || !competitionId || !schedule) {
+      setBackToBackHeatIds(new Set());
+      setBackToBackCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await schedulesApi.getBackToBack(competitionId, { level: 'person', excludePros });
+        if (!cancelled) {
+          setBackToBackHeatIds(new Set(res.data.conflictHeatIds));
+          setBackToBackCount(res.data.count);
+        }
+      } catch {
+        if (!cancelled) {
+          setBackToBackHeatIds(new Set());
+          setBackToBackCount(0);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showBackToBack, excludePros, competitionId, schedule]);
 
   const handleGenerate = async () => {
     if (!competitionId) return;
@@ -589,6 +620,40 @@ const SchedulePage = () => {
               );
             })()}
 
+            {/* Back-to-back highlighting controls */}
+            <div className="mt-4 flex items-center gap-4 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showBackToBack}
+                  onChange={(e) => setShowBackToBack(e.target.checked)}
+                  className="rounded"
+                />
+                <span>Highlight back-to-back</span>
+              </label>
+              {showBackToBack && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={excludePros}
+                      onChange={(e) => setExcludePros(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Exclude pros</span>
+                  </label>
+                  {backToBackCount > 0 && (
+                    <span className="text-orange-700 font-medium">
+                      {backToBackCount} conflict{backToBackCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {backToBackCount === 0 && backToBackHeatIds.size === 0 && (
+                    <span className="text-green-700 font-medium">No conflicts</span>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* View toggle */}
             <div className="mt-4 flex gap-1 border-b border-gray-200">
               <button
@@ -627,6 +692,7 @@ const SchedulePage = () => {
                 dragOverIndex={dragOverIndex}
                 movedHeat={movedHeat}
                 maxCouplesPerHeat={maxCouplesPerHeat}
+                backToBackHeatIds={showBackToBack ? backToBackHeatIds : undefined}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}

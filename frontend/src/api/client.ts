@@ -212,8 +212,10 @@ export const schedulesApi = {
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/split-floor`, { groupCount }),
   unsplitFloorHeat: (competitionId: number, heatId: string) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/heat/${heatId}/unsplit`),
-  getBackToBack: (competitionId: number) =>
-    api.get<{ conflicts: Array<{ bib: number; leaderName: string; followerName: string; heatIndex1: number; heatIndex2: number; eventName1: string; eventName2: string }>; count: number }>(`/schedules/${competitionId}/back-to-back`),
+  getBackToBack: (competitionId: number, options?: { level?: 'couple' | 'person'; excludePros?: boolean }) =>
+    api.get<{ conflicts: Array<{ personId?: number; personName?: string; bib?: number; leaderName?: string; followerName?: string; heatIndex1: number; heatIndex2: number; heatId1: string; heatId2: string; eventName1: string; eventName2: string }>; count: number; conflictHeatIds: string[] }>(`/schedules/${competitionId}/back-to-back`, {
+      params: { level: options?.level, excludePros: options?.excludePros },
+    }),
   minimizeBackToBack: (competitionId: number) =>
     api.post<{ schedule: CompetitionSchedule; conflictsRemaining: number }>(`/schedules/${competitionId}/minimize-back-to-back`),
   analyze: (competitionId: number) =>

@@ -549,11 +549,31 @@ router.patch('/:competitionId/timing', async (req: Request, res: Response) => {
 });
 
 // Detect back-to-back scheduling conflicts
+// Query params: ?level=person (default: couple), ?excludePros=true
 router.get('/:competitionId/back-to-back', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const conflicts = await scheduleService.detectBackToBack(competitionId);
-    res.json({ conflicts, count: conflicts.length });
+    const level = req.query.level as string | undefined;
+    const excludePros = req.query.excludePros === 'true';
+
+    if (level === 'person') {
+      const conflicts = await scheduleService.detectPersonBackToBack(competitionId, excludePros);
+      // Collect unique heat IDs involved in conflicts for easy frontend highlighting
+      const conflictHeatIds = new Set<string>();
+      for (const c of conflicts) {
+        conflictHeatIds.add(c.heatId1);
+        conflictHeatIds.add(c.heatId2);
+      }
+      res.json({ conflicts, count: conflicts.length, conflictHeatIds: [...conflictHeatIds] });
+    } else {
+      const conflicts = await scheduleService.detectBackToBack(competitionId);
+      const conflictHeatIds = new Set<string>();
+      for (const c of conflicts) {
+        conflictHeatIds.add(c.heatId1);
+        conflictHeatIds.add(c.heatId2);
+      }
+      res.json({ conflicts, count: conflicts.length, conflictHeatIds: [...conflictHeatIds] });
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to detect back-to-back conflicts' });
   }

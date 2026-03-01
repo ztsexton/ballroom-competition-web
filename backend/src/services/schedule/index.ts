@@ -6,7 +6,7 @@ import { reorderHeat, insertEvent, addBreak, removeBreak, updateHeatEntries, spl
 import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
 export { buildJudgeSchedule } from './judgeSchedule';
-import { detectBackToBack, minimizeBackToBack, BackToBackConflict } from './backToBack';
+import { detectBackToBack, detectPersonBackToBack, minimizeBackToBack, BackToBackConflict, PersonBackToBackConflict } from './backToBack';
 import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion } from './scheduleOptimizer';
 
 export class ScheduleService {
@@ -98,6 +98,15 @@ export class ScheduleService {
       if (!schedule) return [];
       const migrated = migrateSchedule(schedule);
       return detectBackToBack(migrated.heatOrder, competitionId);
+    })();
+  }
+
+  detectPersonBackToBack(competitionId: number, excludePros: boolean = false): Promise<PersonBackToBackConflict[]> {
+    return (async () => {
+      const schedule = await (await import('../dataService')).dataService.getSchedule(competitionId);
+      if (!schedule) return [];
+      const migrated = migrateSchedule(schedule);
+      return detectPersonBackToBack(migrated.heatOrder, competitionId, excludePros);
     })();
   }
 
