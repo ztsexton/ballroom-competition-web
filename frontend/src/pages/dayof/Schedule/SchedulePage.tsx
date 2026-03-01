@@ -25,6 +25,7 @@ const SchedulePage = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [schedule, setSchedule] = useState<CompetitionSchedule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [styleOrder, setStyleOrder] = useState<string[]>(DEFAULT_STYLE_ORDER);
   const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVELS);
@@ -144,6 +145,7 @@ const SchedulePage = () => {
 
   const handleGenerate = async () => {
     if (!competitionId) return;
+    setGenerating(true);
     try {
       // Save day configs to competition
       await competitionsApi.update(competitionId, {
@@ -156,6 +158,8 @@ const SchedulePage = () => {
       setError('');
     } catch {
       setError('Failed to generate schedule');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -389,6 +393,16 @@ const SchedulePage = () => {
 
         {error && <div className="px-4 py-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
 
+        {generating && schedule && (
+          <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+            <svg className="animate-spin h-5 w-5 text-blue-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span>Regenerating schedule... This may take a moment.</span>
+          </div>
+        )}
+
         {!schedule ? (
           <ScheduleConfigForm
             styleOrder={styleOrder}
@@ -397,6 +411,7 @@ const SchedulePage = () => {
             timingSettings={timingSettings}
             eventCount={events.length}
             dayConfigs={dayConfigs}
+            generating={generating}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
             onJudgeSettingsChange={setJudgeSettings}
@@ -426,23 +441,32 @@ const SchedulePage = () => {
                 Run Competition
               </button>
               <button
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 text-sm font-medium transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                 onClick={handleRegenerate}
+                disabled={generating}
               >
-                Regenerate Schedule
+                {generating && (
+                  <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {generating ? 'Regenerating...' : 'Regenerate Schedule'}
               </button>
               <button
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => {
                   if (schedule) setBreakPosition(schedule.heatOrder.length);
                   setShowBreakForm(!showBreakForm);
                 }}
+                disabled={generating}
               >
                 {showBreakForm ? 'Cancel Break' : 'Add Break'}
               </button>
               <button
-                className="px-4 py-2 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
+                className="px-4 py-2 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleDelete}
+                disabled={generating}
               >
                 Delete Schedule
               </button>
