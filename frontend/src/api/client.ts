@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse } from '../types';
+import { Person, Couple, Judge, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -165,8 +165,8 @@ export const eventsApi = {
 export const schedulesApi = {
   get: (competitionId: number) =>
     api.get<CompetitionSchedule>(`/schedules/${competitionId}`),
-  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>) =>
-    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings }),
+  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks }),
   updateTiming: (competitionId: number, timingSettings: TimingSettings) =>
     api.patch<CompetitionSchedule>(`/schedules/${competitionId}/timing`, { timingSettings }),
   reorder: (competitionId: number, fromIndex: number, toIndex: number) =>

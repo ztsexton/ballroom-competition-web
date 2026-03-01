@@ -1352,4 +1352,100 @@ describe('Schedules API', () => {
       expect(updated?.danceOrder).toEqual(customOrder);
     });
   });
+
+  describe('Auto-breaks between styles', () => {
+    it('should insert breaks between different styles when autoBreaks is enabled', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Rhythm Cha Cha', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ autoBreaks: { enabled: true } })
+        .expect(201);
+
+      const breaks = res.body.heatOrder.filter((h: any) => h.isBreak);
+      expect(breaks.length).toBeGreaterThanOrEqual(1);
+      expect(breaks[0].breakLabel).toBe('Break');
+      expect(breaks[0].breakDuration).toBe(5);
+    });
+
+    it('should not insert breaks when all events are the same style', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Smooth Tango', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Tango'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ autoBreaks: { enabled: true } })
+        .expect(201);
+
+      const breaks = res.body.heatOrder.filter((h: any) => h.isBreak);
+      expect(breaks).toHaveLength(0);
+    });
+
+    it('should not insert breaks when autoBreaks is disabled', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Rhythm Cha Cha', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ autoBreaks: { enabled: false } })
+        .expect(201);
+
+      const breaks = res.body.heatOrder.filter((h: any) => h.isBreak);
+      expect(breaks).toHaveLength(0);
+    });
+
+    it('should use custom label and duration for auto-breaks', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Rhythm Cha Cha', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({
+          autoBreaks: { enabled: true, label: 'Style Change', durationMinutes: 10 },
+        })
+        .expect(201);
+
+      const breaks = res.body.heatOrder.filter((h: any) => h.isBreak);
+      expect(breaks.length).toBeGreaterThanOrEqual(1);
+      expect(breaks[0].breakLabel).toBe('Style Change');
+      expect(breaks[0].breakDuration).toBe(10);
+    });
+  });
 });

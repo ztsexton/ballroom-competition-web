@@ -1,5 +1,6 @@
 import { Competition } from '../../../../types';
 import { DEFAULT_LEVELS } from '../../../../constants/levels';
+import { getAvailableStyles } from '../../../../constants/dances';
 import { RegistrationState } from '../../hooks/useRegistrationPanel';
 
 interface CoupleRegistrationPanelProps {
@@ -95,7 +96,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">Style</label>
           <div className="flex gap-1.5 flex-wrap">
-            {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(opt => (
+            {getAvailableStyles(activeCompetition?.danceOrder).map(opt => (
               <button key={opt} type="button" className={toggleBtnClass(regStyle === opt)}
                 onClick={() => {
                   if (regStyle === opt) {

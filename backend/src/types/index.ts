@@ -273,6 +273,12 @@ export interface UserProfileUpdate {
   studioTeamName?: string;
 }
 
+export interface AutoBreaksConfig {
+  enabled: boolean;
+  label?: string;
+  durationMinutes?: number;
+}
+
 export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 
 export interface HeatEntry {

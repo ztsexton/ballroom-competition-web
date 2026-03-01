@@ -1,4 +1,4 @@
-import { CompetitionSchedule, HeatEntry, ScheduledHeat } from '../../types';
+import { CompetitionSchedule, HeatEntry, ScheduledHeat, AutoBreaksConfig } from '../../types';
 import { migrateSchedule, getDancesForHeat } from './helpers';
 import { generateSchedule } from './scheduleGenerator';
 import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigation';
@@ -15,8 +15,8 @@ export class ScheduleService {
     return getDancesForHeat(heat);
   }
 
-  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[], danceOrder?: Record<string, string[]>): Promise<CompetitionSchedule> {
-    return generateSchedule(competitionId, styleOrder, levelOrder, danceOrder);
+  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[], danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig): Promise<CompetitionSchedule> {
+    return generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks);
   }
 
   autoAssignJudges(competitionId: number): Promise<void> {

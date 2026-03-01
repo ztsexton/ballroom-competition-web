@@ -3,7 +3,7 @@ import { competitionsApi, organizationsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
+import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 import {
   Section,
@@ -356,6 +356,7 @@ function DanceOrderSettingsSection({
   const danceOrder = comp.danceOrder || DEFAULT_DANCE_ORDER;
   const styles = Object.keys(danceOrder).length > 0 ? Object.keys(danceOrder) : Object.keys(DEFAULT_DANCE_ORDER);
   const [newDanceInputs, setNewDanceInputs] = useState<Record<string, string>>({});
+  const [newStyleInput, setNewStyleInput] = useState('');
 
   const moveItem = (list: string[], fromIdx: number, direction: 'up' | 'down'): string[] => {
     const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
@@ -401,7 +402,23 @@ function DanceOrderSettingsSection({
           const dances = getDancesForStyle(style, danceOrder);
           return (
             <div key={style}>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">{style}</label>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="block text-sm font-semibold text-gray-700">{style}</label>
+                {!DEFAULT_STYLE_ORDER.includes(style) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newOrder = { ...danceOrder };
+                      delete newOrder[style];
+                      updateOrder(newOrder);
+                    }}
+                    className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                    title="Remove custom style"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col gap-1">
                 {dances.map((dance, idx) => (
                   <div key={dance} className="flex items-center gap-1.5 py-1 px-2 bg-gray-50 border border-gray-100 rounded text-sm">
@@ -454,6 +471,38 @@ function DanceOrderSettingsSection({
             </div>
           );
         })}
+        <div className="flex gap-1.5 mt-2">
+          <input
+            type="text"
+            placeholder="Add custom style..."
+            value={newStyleInput}
+            onChange={(e) => setNewStyleInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const name = newStyleInput.trim();
+                if (name && !styles.includes(name)) {
+                  updateOrder({ ...danceOrder, [name]: [] });
+                  setNewStyleInput('');
+                }
+              }
+            }}
+            className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const name = newStyleInput.trim();
+              if (name && !styles.includes(name)) {
+                updateOrder({ ...danceOrder, [name]: [] });
+                setNewStyleInput('');
+              }
+            }}
+            className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
+          >
+            Add Style
+          </button>
+        </div>
       </div>
     </Section>
   );

@@ -5,7 +5,7 @@ import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Competition, Person, Couple, Event, AgeCategory } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { getDancesForStyle } from '../../constants/dances';
+import { getDancesForStyle, getAvailableStyles } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 
 interface ScheduleItem {
@@ -515,7 +515,7 @@ const ParticipantPortalPage = () => {
                   <div>
                     <label className="block font-semibold text-sm mb-1">Style</label>
                     <div className="flex gap-1.5 flex-wrap">
-                      {['Smooth', 'Standard', 'Rhythm', 'Latin'].map(opt => (
+                      {getAvailableStyles(selectedComp?.danceOrder).map(opt => (
                         <button key={opt} type="button" className={toggleBtnCls(regStyle === opt)}
                           onClick={() => {
                             if (regStyle === opt) {

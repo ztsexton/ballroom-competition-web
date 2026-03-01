@@ -7,7 +7,7 @@ import { Couple, Judge, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { getDancesForStyle } from '../../constants/dances';
+import { getDancesForStyle, getAvailableStyles } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 
 const toggleCls = (active: boolean) =>
@@ -385,7 +385,7 @@ const EventFormPage = () => {
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-600 mb-2">Style</label>
               <div className="flex gap-2 flex-wrap">
-                {['Standard', 'Latin', 'Smooth', 'Rhythm'].map(option => (
+                {getAvailableStyles(activeCompetition?.danceOrder).map(option => (
                   <button
                     key={option}
                     type="button"

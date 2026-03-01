@@ -1,3 +1,11 @@
+export const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
+
+export function getAvailableStyles(danceOrder?: Record<string, string[]>): string[] {
+  if (!danceOrder) return [...DEFAULT_STYLE_ORDER];
+  const custom = Object.keys(danceOrder).filter(s => !DEFAULT_STYLE_ORDER.includes(s));
+  return [...DEFAULT_STYLE_ORDER, ...custom];
+}
+
 export const DEFAULT_DANCE_ORDER: Record<string, string[]> = {
   Smooth: ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'],
   Standard: ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'],

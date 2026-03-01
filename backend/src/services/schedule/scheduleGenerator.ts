@@ -1,11 +1,9 @@
-import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus } from '../../types';
+import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus, AutoBreaksConfig } from '../../types';
 import { dataService } from '../dataService';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
+import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { heatKey, generateHeatId, recalculateTimingIfConfigured, splitBibsEvenly } from './helpers';
 import { autoAssignJudges } from './judgeAssignment';
-
-const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
 const DEFAULT_MAX_COUPLES_PER_HEAT = 6;
 
 export async function generateSchedule(
@@ -13,6 +11,7 @@ export async function generateSchedule(
   styleOrder?: string[],
   levelOrder?: string[],
   danceOrder?: Record<string, string[]>,
+  autoBreaks?: AutoBreaksConfig,
 ): Promise<CompetitionSchedule> {
   const competition = await dataService.getCompetitionById(competitionId);
   const events = await dataService.getEvents(competitionId);
@@ -76,7 +75,32 @@ export async function generateSchedule(
   }
 
   const rawHeatOrder = [...mergedBuckets[0], ...mergedBuckets[1], ...mergedBuckets[2]];
-  const heatOrder = await applyFloorHeatSplitting(rawHeatOrder, competitionId);
+  let heatOrder = await applyFloorHeatSplitting(rawHeatOrder, competitionId);
+
+  if (autoBreaks?.enabled) {
+    const breakLabel = autoBreaks.label || 'Break';
+    const breakDuration = autoBreaks.durationMinutes ?? 5;
+    const withBreaks: ScheduledHeat[] = [];
+    let lastStyle: string | null = null;
+
+    for (const heat of heatOrder) {
+      const firstEntry = heat.entries[0];
+      const event = firstEntry ? eventList.find(e => e.id === firstEntry.eventId) : undefined;
+      const style = event?.style || null;
+      if (style && lastStyle && style !== lastStyle) {
+        withBreaks.push({
+          id: generateHeatId(),
+          entries: [],
+          isBreak: true,
+          breakLabel,
+          breakDuration,
+        });
+      }
+      withBreaks.push(heat);
+      if (style) lastStyle = style;
+    }
+    heatOrder = withBreaks;
+  }
 
   const heatStatuses: Record<string, EventRunStatus> = {};
   heatOrder.forEach(h => { heatStatuses[heatKey(h)] = 'pending'; });

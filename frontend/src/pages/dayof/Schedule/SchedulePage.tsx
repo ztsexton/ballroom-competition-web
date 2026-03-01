@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig } from '../../../types';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
-import { DEFAULT_DANCE_ORDER } from '../../../constants/dances';
+import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER } from '../../../constants/dances';
 import { formatTime } from './utils';
 import { Skeleton } from '../../../components/Skeleton';
 import ScheduleConfigForm from './components/ScheduleConfigForm';
@@ -13,8 +13,6 @@ import BreakForm from './components/BreakForm';
 import MergePanel from './components/MergePanel';
 import ScheduleHeatTable from './components/ScheduleHeatTable';
 import ScheduleOptimizer from './components/ScheduleOptimizer';
-
-const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +29,7 @@ const SchedulePage = () => {
   const [styleOrder, setStyleOrder] = useState<string[]>(DEFAULT_STYLE_ORDER);
   const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVELS);
   const [danceOrder, setDanceOrder] = useState<Record<string, string[]>>(DEFAULT_DANCE_ORDER);
+  const [autoBreaks, setAutoBreaks] = useState<AutoBreaksConfig>({ enabled: false });
   const [judgeSettings, setJudgeSettings] = useState<JudgeSettings>({ defaultCount: 3, levelOverrides: {} });
   const [timingSettings, setTimingSettings] = useState<TimingSettings>({
     defaultDanceDurationSeconds: 75,
@@ -90,6 +89,16 @@ const SchedulePage = () => {
       }
       if (compRes.data.danceOrder) {
         setDanceOrder(compRes.data.danceOrder);
+        // Sync styleOrder with any custom styles from danceOrder
+        const customStyles = Object.keys(compRes.data.danceOrder).filter(
+          s => !DEFAULT_STYLE_ORDER.includes(s)
+        );
+        if (customStyles.length > 0) {
+          setStyleOrder(prev => {
+            const missing = customStyles.filter(s => !prev.includes(s));
+            return missing.length > 0 ? [...prev, ...missing] : prev;
+          });
+        }
       }
       const eventList = Object.values(eventsRes.data);
       setEvents(eventList);
@@ -158,7 +167,7 @@ const SchedulePage = () => {
         scheduleDayConfigs: dayConfigs,
         danceOrder,
       });
-      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder);
+      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder, autoBreaks);
       setSchedule(res.data);
       setUnscheduledEvents([]);
       setError('');
@@ -419,12 +428,14 @@ const SchedulePage = () => {
             eventCount={events.length}
             dayConfigs={dayConfigs}
             generating={generating}
+            autoBreaks={autoBreaks}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
             onDanceOrderChange={setDanceOrder}
             onJudgeSettingsChange={setJudgeSettings}
             onTimingSettingsChange={setTimingSettings}
             onDayConfigsChange={setDayConfigs}
+            onAutoBreaksChange={setAutoBreaks}
             onGenerate={handleGenerate}
           />
         ) : (

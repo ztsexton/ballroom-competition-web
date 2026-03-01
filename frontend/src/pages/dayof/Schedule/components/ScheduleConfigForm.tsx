@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { JudgeSettings, TimingSettings, ScheduleDayConfig } from '../../../../types';
+import { JudgeSettings, TimingSettings, ScheduleDayConfig, AutoBreaksConfig } from '../../../../types';
+import { DEFAULT_STYLE_ORDER } from '../../../../constants/dances';
 import { moveItem } from '../utils';
 
 interface ScheduleConfigFormProps {
@@ -11,12 +12,14 @@ interface ScheduleConfigFormProps {
   eventCount: number;
   dayConfigs: ScheduleDayConfig[];
   generating?: boolean;
+  autoBreaks: AutoBreaksConfig;
   onStyleOrderChange: (order: string[]) => void;
   onLevelOrderChange: (order: string[]) => void;
   onDanceOrderChange: (order: Record<string, string[]>) => void;
   onJudgeSettingsChange: (settings: JudgeSettings) => void;
   onTimingSettingsChange: (fn: (prev: TimingSettings) => TimingSettings) => void;
   onDayConfigsChange: (configs: ScheduleDayConfig[]) => void;
+  onAutoBreaksChange: (config: AutoBreaksConfig) => void;
   onGenerate: () => void;
 }
 
@@ -29,15 +32,18 @@ export default function ScheduleConfigForm({
   eventCount,
   dayConfigs,
   generating,
+  autoBreaks,
   onStyleOrderChange,
   onLevelOrderChange,
   onDanceOrderChange,
   onJudgeSettingsChange,
   onTimingSettingsChange,
   onDayConfigsChange,
+  onAutoBreaksChange,
   onGenerate,
 }: ScheduleConfigFormProps) {
   const numberOfDays = dayConfigs.length || 1;
+  const [newStyleInput, setNewStyleInput] = useState('');
 
   const handleDaysChange = (newCount: number) => {
     const count = Math.max(1, Math.min(newCount, 7));
@@ -82,8 +88,56 @@ export default function ScheduleConfigForm({
               >
                 ▼
               </button>
+              {!DEFAULT_STYLE_ORDER.includes(style) && (
+                <button
+                  onClick={() => {
+                    onStyleOrderChange(styleOrder.filter(s => s !== style));
+                    const newDanceOrder = { ...danceOrder };
+                    delete newDanceOrder[style];
+                    onDanceOrderChange(newDanceOrder);
+                  }}
+                  className="py-0 px-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                  title="Remove custom style"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
+          <div className="flex gap-1.5 mt-1">
+            <input
+              type="text"
+              placeholder="Add custom style..."
+              value={newStyleInput}
+              onChange={(e) => setNewStyleInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const name = newStyleInput.trim();
+                  if (name && !styleOrder.includes(name)) {
+                    onStyleOrderChange([...styleOrder, name]);
+                    onDanceOrderChange({ ...danceOrder, [name]: [] });
+                    setNewStyleInput('');
+                  }
+                }
+              }}
+              className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const name = newStyleInput.trim();
+                if (name && !styleOrder.includes(name)) {
+                  onStyleOrderChange([...styleOrder, name]);
+                  onDanceOrderChange({ ...danceOrder, [name]: [] });
+                  setNewStyleInput('');
+                }
+              }}
+              className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
+            >
+              Add
+            </button>
+          </div>
         </div>
       </div>
 
@@ -293,6 +347,55 @@ export default function ScheduleConfigForm({
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3>Auto Breaks</h3>
+        <p className="text-gray-500 text-sm mb-2">
+          Automatically insert breaks between style transitions in the generated schedule.
+        </p>
+        <div className="flex flex-col gap-2 max-w-[400px]">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoBreaks.enabled}
+              onChange={(e) => onAutoBreaksChange({ ...autoBreaks, enabled: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <span className="font-semibold text-sm">Insert breaks between styles</span>
+          </label>
+          {autoBreaks.enabled && (
+            <div className="flex flex-col gap-2 ml-6">
+              <div className="flex items-center gap-3">
+                <label className="flex-1 text-sm text-gray-600">Break label</label>
+                <input
+                  type="text"
+                  placeholder="Break"
+                  value={autoBreaks.label || ''}
+                  onChange={(e) => onAutoBreaksChange({ ...autoBreaks, label: e.target.value || undefined })}
+                  className="w-40 p-1.5 rounded border border-gray-200 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex-1 text-sm text-gray-600">Duration (minutes)</label>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="5"
+                  value={autoBreaks.durationMinutes ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onAutoBreaksChange({
+                      ...autoBreaks,
+                      durationMinutes: val === '' ? undefined : Math.max(1, parseInt(val) || 5),
+                    });
+                  }}
+                  className="w-20 p-1.5 rounded border border-gray-200 text-center text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
