@@ -124,6 +124,7 @@ export interface Competition {
   recallRules?: RecallRules;
   entryValidation?: EntryValidation;
   ageCategories?: AgeCategory[];
+  danceOrder?: Record<string, string[]>;
   registrationOpen?: boolean;
   registrationOpenAt?: string;  // ISO date string for scheduled open
   publiclyVisible?: boolean;

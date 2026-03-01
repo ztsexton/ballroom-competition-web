@@ -3,6 +3,7 @@ import { competitionsApi, organizationsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 import {
   Section,
@@ -277,6 +278,12 @@ const CompetitionSettingsPage = () => {
         saveLevels={saveLevels}
       />
 
+      <DanceOrderSettingsSection
+        comp={comp}
+        savedMap={savedMap}
+        saveField={saveField}
+      />
+
       <EntryValidationSection
         comp={comp}
         savedMap={savedMap}
@@ -336,5 +343,120 @@ const CompetitionSettingsPage = () => {
     </div>
   );
 };
+
+function DanceOrderSettingsSection({
+  comp,
+  savedMap,
+  saveField,
+}: {
+  comp: { danceOrder?: Record<string, string[]> };
+  savedMap: Record<string, boolean>;
+  saveField: (field: string, value: unknown, section: string) => void;
+}) {
+  const danceOrder = comp.danceOrder || DEFAULT_DANCE_ORDER;
+  const styles = Object.keys(danceOrder).length > 0 ? Object.keys(danceOrder) : Object.keys(DEFAULT_DANCE_ORDER);
+  const [newDanceInputs, setNewDanceInputs] = useState<Record<string, string>>({});
+
+  const moveItem = (list: string[], fromIdx: number, direction: 'up' | 'down'): string[] => {
+    const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
+    if (toIdx < 0 || toIdx >= list.length) return list;
+    const newList = [...list];
+    [newList[fromIdx], newList[toIdx]] = [newList[toIdx], newList[fromIdx]];
+    return newList;
+  };
+
+  const updateOrder = (newOrder: Record<string, string[]>) => {
+    saveField('danceOrder', newOrder, 'dances');
+  };
+
+  const moveDance = (style: string, fromIdx: number, direction: 'up' | 'down') => {
+    const dances = getDancesForStyle(style, danceOrder);
+    const moved = moveItem(dances, fromIdx, direction);
+    updateOrder({ ...danceOrder, [style]: moved });
+  };
+
+  const removeDance = (style: string, idx: number) => {
+    const dances = [...getDancesForStyle(style, danceOrder)];
+    dances.splice(idx, 1);
+    updateOrder({ ...danceOrder, [style]: dances });
+  };
+
+  const addDance = (style: string) => {
+    const name = (newDanceInputs[style] || '').trim();
+    if (!name) return;
+    const dances = [...getDancesForStyle(style, danceOrder)];
+    if (dances.includes(name)) return;
+    dances.push(name);
+    updateOrder({ ...danceOrder, [style]: dances });
+    setNewDanceInputs(prev => ({ ...prev, [style]: '' }));
+  };
+
+  return (
+    <Section title="Dance Order" savedKey="dances" savedMap={savedMap}>
+      <p className="text-gray-500 text-sm mb-3">
+        Control the order dances appear in event forms and schedule generation. Add custom dances per style.
+      </p>
+      <div className="flex flex-col gap-3 max-w-md">
+        {styles.map(style => {
+          const dances = getDancesForStyle(style, danceOrder);
+          return (
+            <div key={style}>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">{style}</label>
+              <div className="flex flex-col gap-1">
+                {dances.map((dance, idx) => (
+                  <div key={dance} className="flex items-center gap-1.5 py-1 px-2 bg-gray-50 border border-gray-100 rounded text-sm">
+                    <span className="text-gray-400 min-w-[1.2rem] text-xs">{idx + 1}.</span>
+                    <span className="flex-1">{dance}</span>
+                    <button
+                      type="button"
+                      onClick={() => moveDance(style, idx, 'up')}
+                      disabled={idx === 0}
+                      className={`py-0 px-1 text-xs ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDance(style, idx, 'down')}
+                      disabled={idx === dances.length - 1}
+                      className={`py-0 px-1 text-xs ${idx === dances.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeDance(style, idx)}
+                      className="py-0 px-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                      title="Remove dance"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1.5 mt-1.5">
+                <input
+                  type="text"
+                  placeholder="Add custom dance..."
+                  value={newDanceInputs[style] || ''}
+                  onChange={(e) => setNewDanceInputs(prev => ({ ...prev, [style]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDance(style); } }}
+                  className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => addDance(style)}
+                  className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
 
 export default CompetitionSettingsPage;

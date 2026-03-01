@@ -37,6 +37,7 @@ export class PostgresDataService implements IDataService {
       recallRules: row.recall_rules || undefined,
       entryValidation: row.entry_validation || undefined,
       ageCategories: row.age_categories || undefined,
+      danceOrder: row.dance_order || undefined,
       registrationOpen: row.registration_open ?? undefined,
       registrationOpenAt: row.registration_open_at || undefined,
       publiclyVisible: row.publicly_visible ?? undefined,
@@ -181,13 +182,13 @@ export class PostgresDataService implements IDataService {
       `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
         judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
         entry_payments, max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
-        recall_rules, entry_validation, age_categories,
+        recall_rules, entry_validation, age_categories, dance_order,
         registration_open, registration_open_at,
         publicly_visible, publicly_visible_at, results_public,
         heat_lists_published, heat_lists_published_at,
         website_url, organizer_email, created_by, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
        RETURNING *`,
       [
         competition.name, competition.type, competition.date,
@@ -208,6 +209,7 @@ export class PostgresDataService implements IDataService {
         competition.recallRules ? JSON.stringify(competition.recallRules) : null,
         competition.entryValidation ? JSON.stringify(competition.entryValidation) : null,
         competition.ageCategories ? JSON.stringify(competition.ageCategories) : null,
+        competition.danceOrder ? JSON.stringify(competition.danceOrder) : null,
         competition.registrationOpen ?? false,
         competition.registrationOpenAt || null,
         competition.publiclyVisible ?? null,
@@ -257,7 +259,7 @@ export class PostgresDataService implements IDataService {
       levels: 'levels', pricing: 'pricing', entryPayments: 'entry_payments',
       maxCouplesOnFloorByLevel: 'max_couples_on_floor_by_level',
       recallRules: 'recall_rules', entryValidation: 'entry_validation',
-      ageCategories: 'age_categories',
+      ageCategories: 'age_categories', danceOrder: 'dance_order',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {

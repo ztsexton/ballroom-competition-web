@@ -1,6 +1,7 @@
 import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus } from '../../types';
 import { dataService } from '../dataService';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { heatKey, generateHeatId, recalculateTimingIfConfigured, splitBibsEvenly } from './helpers';
 import { autoAssignJudges } from './judgeAssignment';
 
@@ -11,6 +12,7 @@ export async function generateSchedule(
   competitionId: number,
   styleOrder?: string[],
   levelOrder?: string[],
+  danceOrder?: Record<string, string[]>,
 ): Promise<CompetitionSchedule> {
   const competition = await dataService.getCompetitionById(competitionId);
   const events = await dataService.getEvents(competitionId);
@@ -19,6 +21,7 @@ export async function generateSchedule(
   const styles = styleOrder || DEFAULT_STYLE_ORDER;
   const levels = levelOrder || competition?.levels || DEFAULT_LEVELS;
   const maxCouples = competition?.maxCouplesPerHeat ?? DEFAULT_MAX_COUPLES_PER_HEAT;
+  const dances = danceOrder || competition?.danceOrder || DEFAULT_DANCE_ORDER;
 
   const sortByStyleLevel = (a: Event, b: Event) => {
     const sA = styles.indexOf(a.style || '');
@@ -31,7 +34,17 @@ export async function generateSchedule(
     const lB = levels.indexOf(b.level || '');
     const levelA = lA === -1 ? levels.length : lA;
     const levelB = lB === -1 ? levels.length : lB;
-    return levelA - levelB;
+    if (levelA !== levelB) return levelA - levelB;
+
+    // Within the same style and level, sort by first dance position in the dance order
+    const styleDances = getDancesForStyle(a.style || '', dances);
+    const dA = a.dances?.[0] || '';
+    const dB = b.dances?.[0] || '';
+    const dIdxA = styleDances.indexOf(dA);
+    const dIdxB = styleDances.indexOf(dB);
+    const danceA = dIdxA === -1 ? styleDances.length : dIdxA;
+    const danceB = dIdxB === -1 ? styleDances.length : dIdxB;
+    return danceA - danceB;
   };
 
   // Build entry lists per round depth, sorted by style+level

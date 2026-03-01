@@ -5,6 +5,7 @@ import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Competition, Person, Couple, Event, AgeCategory } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 
 interface ScheduleItem {
@@ -15,13 +16,6 @@ interface ScheduleItem {
   round: string;
 }
 
-const getDanceOptions = (s: string) => {
-  if (s === 'Standard') return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
-  if (s === 'Latin') return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
-  if (s === 'Smooth') return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
-  if (s === 'Rhythm') return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
-  return [];
-};
 
 const toggleBtnCls = (active: boolean) =>
   active
@@ -542,7 +536,7 @@ const ParticipantPortalPage = () => {
                     <div>
                       <label className="block font-semibold text-sm mb-1">Dances</label>
                       <div className="flex gap-1.5 flex-wrap">
-                        {getDanceOptions(regStyle).map(dance => (
+                        {getDancesForStyle(regStyle, selectedComp?.danceOrder).map(dance => (
                           <button key={dance} type="button" className={toggleBtnCls(regDances.includes(dance))}
                             onClick={() => toggleDance(dance)}>
                             {dance}

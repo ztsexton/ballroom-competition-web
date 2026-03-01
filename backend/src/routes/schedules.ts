@@ -39,22 +39,23 @@ router.get('/:competitionId', async (req: Request, res: Response) => {
 router.post('/:competitionId/generate', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const { styleOrder, levelOrder, judgeSettings, timingSettings } = req.body;
+    const { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings } = req.body;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) {
       return res.status(404).json({ error: 'Competition not found' });
     }
 
-    // Save judge settings and timing settings to competition if provided
+    // Save judge settings, timing settings, and dance order to competition if provided
     const updates: Partial<typeof competition> = {};
     if (judgeSettings) updates.judgeSettings = judgeSettings;
     if (timingSettings) updates.timingSettings = timingSettings;
+    if (danceOrder) updates.danceOrder = danceOrder;
     if (Object.keys(updates).length > 0) {
       await dataService.updateCompetition(competitionId, updates);
     }
 
-    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder);
+    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder, danceOrder);
     res.status(201).json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate schedule' });

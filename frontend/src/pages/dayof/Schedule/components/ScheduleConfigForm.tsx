@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { JudgeSettings, TimingSettings, ScheduleDayConfig } from '../../../../types';
 import { moveItem } from '../utils';
 
 interface ScheduleConfigFormProps {
   styleOrder: string[];
   levelOrder: string[];
+  danceOrder: Record<string, string[]>;
   judgeSettings: JudgeSettings;
   timingSettings: TimingSettings;
   eventCount: number;
@@ -11,6 +13,7 @@ interface ScheduleConfigFormProps {
   generating?: boolean;
   onStyleOrderChange: (order: string[]) => void;
   onLevelOrderChange: (order: string[]) => void;
+  onDanceOrderChange: (order: Record<string, string[]>) => void;
   onJudgeSettingsChange: (settings: JudgeSettings) => void;
   onTimingSettingsChange: (fn: (prev: TimingSettings) => TimingSettings) => void;
   onDayConfigsChange: (configs: ScheduleDayConfig[]) => void;
@@ -20,6 +23,7 @@ interface ScheduleConfigFormProps {
 export default function ScheduleConfigForm({
   styleOrder,
   levelOrder,
+  danceOrder,
   judgeSettings,
   timingSettings,
   eventCount,
@@ -27,6 +31,7 @@ export default function ScheduleConfigForm({
   generating,
   onStyleOrderChange,
   onLevelOrderChange,
+  onDanceOrderChange,
   onJudgeSettingsChange,
   onTimingSettingsChange,
   onDayConfigsChange,
@@ -110,6 +115,12 @@ export default function ScheduleConfigForm({
           ))}
         </div>
       </div>
+
+      <DanceOrderSection
+        styleOrder={styleOrder}
+        danceOrder={danceOrder}
+        onDanceOrderChange={onDanceOrderChange}
+      />
 
       <div className="mt-6">
         <h3>Judge Assignment</h3>
@@ -301,5 +312,124 @@ export default function ScheduleConfigForm({
         </button>
       </div>
     </>
+  );
+}
+
+function DanceOrderSection({
+  styleOrder,
+  danceOrder,
+  onDanceOrderChange,
+}: {
+  styleOrder: string[];
+  danceOrder: Record<string, string[]>;
+  onDanceOrderChange: (order: Record<string, string[]>) => void;
+}) {
+  const [expandedStyles, setExpandedStyles] = useState<Record<string, boolean>>({});
+  const [newDanceInputs, setNewDanceInputs] = useState<Record<string, string>>({});
+
+  const toggleStyle = (style: string) => {
+    setExpandedStyles(prev => ({ ...prev, [style]: !prev[style] }));
+  };
+
+  const moveDance = (style: string, fromIdx: number, direction: 'up' | 'down') => {
+    const dances = danceOrder[style] || [];
+    const moved = moveItem(dances, fromIdx, direction);
+    onDanceOrderChange({ ...danceOrder, [style]: moved });
+  };
+
+  const removeDance = (style: string, idx: number) => {
+    const dances = [...(danceOrder[style] || [])];
+    dances.splice(idx, 1);
+    onDanceOrderChange({ ...danceOrder, [style]: dances });
+  };
+
+  const addDance = (style: string) => {
+    const name = (newDanceInputs[style] || '').trim();
+    if (!name) return;
+    const dances = [...(danceOrder[style] || [])];
+    if (dances.includes(name)) return;
+    dances.push(name);
+    onDanceOrderChange({ ...danceOrder, [style]: dances });
+    setNewDanceInputs(prev => ({ ...prev, [style]: '' }));
+  };
+
+  return (
+    <div className="mt-6">
+      <h3>Dance Order</h3>
+      <p className="text-gray-500 text-sm mb-2">
+        Within each style and level, events are sorted by their first dance in this order.
+      </p>
+      <div className="flex flex-col gap-2 max-w-[350px]">
+        {styleOrder.map(style => {
+          const dances = danceOrder[style] || [];
+          const isExpanded = expandedStyles[style];
+          return (
+            <div key={style} className="border border-gray-200 rounded">
+              <button
+                type="button"
+                onClick={() => toggleStyle(style)}
+                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 cursor-pointer text-left font-semibold text-sm"
+              >
+                <span>{style} ({dances.length})</span>
+                <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+              </button>
+              {isExpanded && (
+                <div className="p-2 pt-1">
+                  <div className="flex flex-col gap-1">
+                    {dances.map((dance, idx) => (
+                      <div key={dance} className="flex items-center gap-1.5 py-1 px-2 bg-white border border-gray-100 rounded text-sm">
+                        <span className="text-gray-400 min-w-[1.2rem] text-xs">{idx + 1}.</span>
+                        <span className="flex-1">{dance}</span>
+                        <button
+                          type="button"
+                          onClick={() => moveDance(style, idx, 'up')}
+                          disabled={idx === 0}
+                          className={`py-0 px-1 text-xs ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveDance(style, idx, 'down')}
+                          disabled={idx === dances.length - 1}
+                          className={`py-0 px-1 text-xs ${idx === dances.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeDance(style, idx)}
+                          className="py-0 px-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                          title="Remove dance"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Add custom dance..."
+                      value={newDanceInputs[style] || ''}
+                      onChange={(e) => setNewDanceInputs(prev => ({ ...prev, [style]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDance(style); } }}
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addDance(style)}
+                      className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

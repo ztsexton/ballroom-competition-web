@@ -211,3 +211,6 @@ CREATE INDEX IF NOT EXISTS idx_competition_admins_user ON competition_admins(use
 
 -- Migration: add scratched_bibs to events (for day-of scratch/withdraw)
 ALTER TABLE events ADD COLUMN IF NOT EXISTS scratched_bibs JSONB DEFAULT '[]';
+
+-- Migration: add dance_order to competitions (custom dance ordering per style)
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS dance_order JSONB;

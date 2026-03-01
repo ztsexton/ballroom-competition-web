@@ -1231,4 +1231,125 @@ describe('Schedules API', () => {
         .expect(400);
     });
   });
+
+  describe('Dance ordering in schedule generation', () => {
+    it('should order events by dance within same style and level', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      // Create events in reverse dance order for Smooth
+      await dataService.addEvent(
+        'Bronze Smooth VW', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Viennese Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Foxtrot', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Foxtrot'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      // Extract event names in heat order
+      const events = await dataService.getEvents(comp.id);
+      const eventNames = res.body.heatOrder
+        .filter((h: any) => !h.isBreak)
+        .flatMap((h: any) => h.entries.map((e: any) => events[e.eventId]?.name));
+
+      // Default Smooth order: Waltz, Tango, Foxtrot, Viennese Waltz
+      const waltzIdx = eventNames.indexOf('Bronze Smooth Waltz');
+      const foxtrotIdx = eventNames.indexOf('Bronze Smooth Foxtrot');
+      const vwIdx = eventNames.indexOf('Bronze Smooth VW');
+
+      expect(waltzIdx).toBeLessThan(foxtrotIdx);
+      expect(foxtrotIdx).toBeLessThan(vwIdx);
+    });
+
+    it('should use custom danceOrder when passed in generate body', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Foxtrot', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Foxtrot'], 'standard',
+      );
+
+      // Custom order: Foxtrot before Waltz
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({
+          danceOrder: { Smooth: ['Foxtrot', 'Waltz', 'Tango', 'Viennese Waltz'] },
+        })
+        .expect(201);
+
+      const events = await dataService.getEvents(comp.id);
+      const eventNames = res.body.heatOrder
+        .filter((h: any) => !h.isBreak)
+        .flatMap((h: any) => h.entries.map((e: any) => events[e.eventId]?.name));
+
+      const foxtrotIdx = eventNames.indexOf('Bronze Smooth Foxtrot');
+      const waltzIdx = eventNames.indexOf('Bronze Smooth Waltz');
+
+      expect(foxtrotIdx).toBeLessThan(waltzIdx);
+    });
+
+    it('should sort unknown dances to the end', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 6);
+
+      await dataService.addEvent(
+        'Bronze Smooth Peabody', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Peabody'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(3, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({})
+        .expect(201);
+
+      const events = await dataService.getEvents(comp.id);
+      const eventNames = res.body.heatOrder
+        .filter((h: any) => !h.isBreak)
+        .flatMap((h: any) => h.entries.map((e: any) => events[e.eventId]?.name));
+
+      const waltzIdx = eventNames.indexOf('Bronze Smooth Waltz');
+      const peabodyIdx = eventNames.indexOf('Bronze Smooth Peabody');
+
+      expect(waltzIdx).toBeLessThan(peabodyIdx);
+    });
+
+    it('should save danceOrder to competition when provided', async () => {
+      const comp = await setupCompetition();
+      const bibs = await createCouples(comp.id, 2);
+
+      await dataService.addEvent(
+        'Event 1', bibs, [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const customOrder = { Smooth: ['Tango', 'Waltz', 'Foxtrot', 'Viennese Waltz'] };
+
+      await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ danceOrder: customOrder })
+        .expect(201);
+
+      const updated = await dataService.getCompetitionById(comp.id);
+      expect(updated?.danceOrder).toEqual(customOrder);
+    });
+  });
 });

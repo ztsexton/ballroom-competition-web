@@ -4,6 +4,7 @@ import { eventsApi, schedulesApi, competitionsApi } from '../../../api/client';
 import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
+import { DEFAULT_DANCE_ORDER } from '../../../constants/dances';
 import { formatTime } from './utils';
 import { Skeleton } from '../../../components/Skeleton';
 import ScheduleConfigForm from './components/ScheduleConfigForm';
@@ -29,6 +30,7 @@ const SchedulePage = () => {
   const [error, setError] = useState('');
   const [styleOrder, setStyleOrder] = useState<string[]>(DEFAULT_STYLE_ORDER);
   const [levelOrder, setLevelOrder] = useState<string[]>(DEFAULT_LEVELS);
+  const [danceOrder, setDanceOrder] = useState<Record<string, string[]>>(DEFAULT_DANCE_ORDER);
   const [judgeSettings, setJudgeSettings] = useState<JudgeSettings>({ defaultCount: 3, levelOverrides: {} });
   const [timingSettings, setTimingSettings] = useState<TimingSettings>({
     defaultDanceDurationSeconds: 75,
@@ -85,6 +87,9 @@ const SchedulePage = () => {
       }
       if (compRes.data.scheduleDayConfigs && compRes.data.scheduleDayConfigs.length > 0) {
         setDayConfigs(compRes.data.scheduleDayConfigs);
+      }
+      if (compRes.data.danceOrder) {
+        setDanceOrder(compRes.data.danceOrder);
       }
       const eventList = Object.values(eventsRes.data);
       setEvents(eventList);
@@ -147,12 +152,13 @@ const SchedulePage = () => {
     if (!competitionId) return;
     setGenerating(true);
     try {
-      // Save day configs to competition
+      // Save day configs and dance order to competition
       await competitionsApi.update(competitionId, {
         numberOfDays: dayConfigs.length,
         scheduleDayConfigs: dayConfigs,
+        danceOrder,
       });
-      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings);
+      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder);
       setSchedule(res.data);
       setUnscheduledEvents([]);
       setError('');
@@ -407,6 +413,7 @@ const SchedulePage = () => {
           <ScheduleConfigForm
             styleOrder={styleOrder}
             levelOrder={levelOrder}
+            danceOrder={danceOrder}
             judgeSettings={judgeSettings}
             timingSettings={timingSettings}
             eventCount={events.length}
@@ -414,6 +421,7 @@ const SchedulePage = () => {
             generating={generating}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
+            onDanceOrderChange={setDanceOrder}
             onJudgeSettingsChange={setJudgeSettings}
             onTimingSettingsChange={setTimingSettings}
             onDayConfigsChange={setDayConfigs}

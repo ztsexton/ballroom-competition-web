@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { couplesApi, eventsApi } from '../../../api/client';
 import { Event, AgeCategory, Competition } from '../../../types';
+import { getDancesForStyle } from '../../../constants/dances';
 
 export interface RegistrationState {
   registerBib: number | null;
@@ -54,13 +55,7 @@ export function useRegistrationPanel(
   const [coupleEvents, setCoupleEvents] = useState<Event[]>([]);
   const [coupleEventsLoading, setCoupleEventsLoading] = useState(false);
 
-  const getDanceOptions = (s: string) => {
-    if (s === 'Standard') return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
-    if (s === 'Latin') return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
-    if (s === 'Smooth') return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
-    if (s === 'Rhythm') return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
-    return [];
-  };
+  const getDanceOptions = (s: string) => getDancesForStyle(s, activeCompetition?.danceOrder);
 
   const openRegisterPanel = async (bib: number) => {
     if (registerBib === bib) {

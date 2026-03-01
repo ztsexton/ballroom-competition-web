@@ -15,8 +15,8 @@ export class ScheduleService {
     return getDancesForHeat(heat);
   }
 
-  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[]): Promise<CompetitionSchedule> {
-    return generateSchedule(competitionId, styleOrder, levelOrder);
+  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[], danceOrder?: Record<string, string[]>): Promise<CompetitionSchedule> {
+    return generateSchedule(competitionId, styleOrder, levelOrder, danceOrder);
   }
 
   autoAssignJudges(competitionId: number): Promise<void> {

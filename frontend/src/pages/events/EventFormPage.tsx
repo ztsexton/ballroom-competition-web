@@ -7,6 +7,7 @@ import { Couple, Judge, Event, AgeCategory } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_LEVELS } from '../../constants/levels';
+import { getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 
 const toggleCls = (active: boolean) =>
@@ -125,13 +126,7 @@ const EventFormPage = () => {
     );
   };
 
-  const getDanceOptions = () => {
-    if (style === 'Standard') return ['Waltz', 'Tango', 'Viennese Waltz', 'Foxtrot', 'Quickstep'];
-    if (style === 'Latin') return ['Cha Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'];
-    if (style === 'Smooth') return ['Waltz', 'Tango', 'Foxtrot', 'Viennese Waltz'];
-    if (style === 'Rhythm') return ['Cha Cha', 'Rumba', 'East Coast Swing', 'Bolero', 'Mambo'];
-    return [];
-  };
+  const getDanceOptions = () => getDancesForStyle(style, activeCompetition?.danceOrder);
 
   const filteredCouples = couples.filter(couple => {
     if (!coupleSearch.trim()) return true;
