@@ -27,6 +27,7 @@ import publicRoutes from './routes/public';
 import databaseRoutes from './routes/database';
 import settingsRoutes from './routes/settings';
 import judgeProfileRoutes from './routes/judgeProfiles';
+import importRoutes from './routes/import';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -87,6 +88,7 @@ app.use('/api/participant', participantRoutes);
 
 // Competition-scoped routes (site admin OR competition admin — access checks inside handlers)
 app.use('/api/competitions', competitionsRoutes);
+app.use('/api/competitions', importRoutes);
 app.use('/api/people', peopleRoutes);
 app.use('/api/couples', couplesRoutes);
 app.use('/api/judges', judgesRoutes);
