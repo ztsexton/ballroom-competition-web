@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { invoicesApi, competitionsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
+import { useToast } from '../../context/ToastContext';
 import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup } from '../../types';
 import { Skeleton } from '../../components/Skeleton';
 
@@ -95,6 +96,7 @@ const TierTable = ({
 
 const InvoicesPage = () => {
   const { activeCompetition, setActiveCompetition } = useCompetition();
+  const { showToast } = useToast();
   const competitionId = activeCompetition?.id || 0;
 
   const [summary, setSummary] = useState<InvoiceSummary | null>(null);
@@ -159,7 +161,7 @@ const InvoicesPage = () => {
       setActiveCompetition(res.data);
       await loadInvoices();
     } catch {
-      alert('Failed to save pricing');
+      showToast('Failed to save pricing', 'error');
     } finally {
       setSavingPricing(false);
     }
@@ -170,7 +172,7 @@ const InvoicesPage = () => {
       await invoicesApi.updatePayment(competitionId, entries, paid, paidBy);
       await loadInvoices();
     } catch {
-      alert('Failed to update payment');
+      showToast('Failed to update payment', 'error');
     }
   };
 
@@ -185,17 +187,17 @@ const InvoicesPage = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert('Failed to download PDF');
+      showToast('Failed to download PDF', 'error');
     }
   };
 
   const emailInvoice = async (personId: number) => {
     try {
       const res = await invoicesApi.emailInvoice(competitionId, personId);
-      alert(`Invoice emailed to ${res.data.sentTo}`);
+      showToast(`Invoice emailed to ${res.data.sentTo}`, 'success');
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to send email' : 'Failed to send email';
-      alert(msg);
+      showToast(msg, 'error');
     }
   };
 

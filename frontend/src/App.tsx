@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CompetitionProvider } from './context/CompetitionContext';
+import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 import PublicLayout from './components/PublicLayout';
@@ -91,6 +92,7 @@ const App = () => {
     >
       <ThemeProvider>
       <AuthProvider>
+      <ToastProvider>
         <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Public routes — no auth required */}
@@ -171,6 +173,7 @@ const App = () => {
           />
         </Routes>
         </Suspense>
+      </ToastProvider>
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

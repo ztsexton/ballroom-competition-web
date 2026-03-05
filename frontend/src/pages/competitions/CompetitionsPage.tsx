@@ -4,14 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { competitionsApi, studiosApi, organizationsApi } from '../../api/client';
 import { Competition, CompetitionType, Studio, Organization } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { useCompetition } from '../../context/CompetitionContext';
 import { DEFAULT_LEVELS, LEVEL_TEMPLATES } from '../../constants/levels';
 import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
 const CompetitionsPage = () => {
   const navigate = useNavigate();
   const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const { refreshCompetitions } = useCompetition();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
@@ -19,6 +22,8 @@ const CompetitionsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: number; name: string} | null>(null);
 
   const [levels, setLevels] = useState<string[]>([...DEFAULT_LEVELS]);
   const [newLevelName, setNewLevelName] = useState('');
@@ -37,8 +42,8 @@ const CompetitionsPage = () => {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!authLoading) loadData();
+  }, [authLoading, isAdmin]);
 
   const loadData = async () => {
     try {
@@ -76,6 +81,7 @@ const CompetitionsPage = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       await competitionsApi.create({
         name: formData.name,
@@ -110,20 +116,20 @@ const CompetitionsPage = () => {
       refreshCompetitions();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to create competition');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"? This will delete all associated people, couples, judges, and events.`)) {
-      return;
-    }
-
+  const handleDelete = async (id: number) => {
     try {
       await competitionsApi.delete(id);
       loadData();
       refreshCompetitions();
     } catch (error) {
-      setError('Failed to delete competition');
+      showToast('Failed to delete competition', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -234,7 +240,7 @@ const CompetitionsPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="mb-4">
                   <label className="block mb-2 font-medium">Date *</label>
                   <input
@@ -296,7 +302,7 @@ const CompetitionsPage = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="mb-4">
                   <label className="block mb-2 font-medium">Website URL</label>
                   <input
@@ -468,7 +474,7 @@ const CompetitionsPage = () => {
               </div>
 
               <div className="flex gap-2">
-                <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Create Competition</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Creating...' : 'Create Competition'}</button>
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-600">
                   Cancel
                 </button>
@@ -524,7 +530,7 @@ const CompetitionsPage = () => {
                       </button>
                       {isAdmin && (
                         <button
-                          onClick={() => handleDelete(competition.id, competition.name)}
+                          onClick={() => setDeleteTarget({ id: competition.id, name: competition.name })}
                           className="px-4 py-2 bg-red-50 text-red-700 rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-red-100"
                         >
                           Delete
@@ -537,6 +543,15 @@ const CompetitionsPage = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        variant="danger"
+        title="Delete Competition"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This will delete all associated people, couples, judges, and events.`}
+        confirmLabel="Delete"
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

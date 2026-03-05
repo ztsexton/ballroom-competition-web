@@ -11,6 +11,13 @@ vi.mock('../context/AuthContext', () => ({
   }),
 }));
 
+// Mock the toast context
+vi.mock('../context/ToastContext', () => ({
+  useToast: () => ({
+    showToast: vi.fn(),
+  }),
+}));
+
 // Mock the competition context
 vi.mock('../context/CompetitionContext', () => ({
   useCompetition: () => ({

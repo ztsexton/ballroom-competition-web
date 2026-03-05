@@ -26,7 +26,7 @@ vi.mock('../context/CompetitionContext', () => ({
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     isAdmin: (globalThis as any).__mockIsAdmin ?? true,
-    isAnyAdmin: true,
+    isAnyAdmin: (globalThis as any).__mockIsAdmin ?? true,
     loading: false,
   }),
 }));
@@ -187,7 +187,7 @@ describe('EventsPage', () => {
     expect(screen.getByRole('link', { name: 'Edit' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Score' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Results' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Delete/ })).toBeInTheDocument();
   });
 
   it('should show style section jump nav when events exist', async () => {

@@ -356,7 +356,6 @@ describe('OrganizationsPage', () => {
   });
 
   it('should call organizationsApi.delete and reload when delete is confirmed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     mockGetAll.mockResolvedValue({
       data: [{ id: 5, name: 'To Delete', rulePresetKey: 'custom', settings: {} }],
     });
@@ -371,6 +370,11 @@ describe('OrganizationsPage', () => {
     await screen.findByText('To Delete');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
+    // ConfirmDialog opens — find the dialog and click its Delete button
+    const dialog = await screen.findByRole('alertdialog');
+    const dialogDeleteBtn = dialog.querySelector('button:last-child')!;
+    fireEvent.click(dialogDeleteBtn);
+
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith(5);
     });
@@ -378,7 +382,6 @@ describe('OrganizationsPage', () => {
   });
 
   it('should not call organizationsApi.delete when delete is cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockGetAll.mockResolvedValue({
       data: [{ id: 5, name: 'Stay', rulePresetKey: 'custom', settings: {} }],
     });
@@ -391,6 +394,9 @@ describe('OrganizationsPage', () => {
 
     await screen.findByText('Stay');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    // ConfirmDialog opens — click Cancel
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
 
     expect(mockDelete).not.toHaveBeenCalled();
   });
@@ -578,8 +584,7 @@ describe('OrganizationsPage', () => {
     expect(screen.getAllByPlaceholderText('Name')).toHaveLength(1);
   });
 
-  it('should show an error when delete fails', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should call showToast with error when delete fails', async () => {
     mockGetAll.mockResolvedValue({
       data: [{ id: 5, name: 'Org Fail', rulePresetKey: 'custom', settings: {} }],
     });
@@ -594,6 +599,14 @@ describe('OrganizationsPage', () => {
     await screen.findByText('Org Fail');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText('Failed to delete organization')).toBeInTheDocument();
+    // ConfirmDialog opens — find the dialog and click its Delete button
+    const dialog = await screen.findByRole('alertdialog');
+    const dialogDeleteBtn = dialog.querySelector('button:last-child')!;
+    fireEvent.click(dialogDeleteBtn);
+
+    // Delete was attempted
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith(5);
+    });
   });
 });

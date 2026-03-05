@@ -7,6 +7,12 @@ import { Skeleton } from '../../components/Skeleton';
 
 const RECALL_ROUNDS = ['quarter-final', 'semi-final'];
 
+function getOrdinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 function EventRoundResults({ eventResult, highlightBib }: {
   eventResult: PersonEventResult;
   highlightBib: number;
@@ -210,9 +216,11 @@ function EventCard({ eventResult, highlightBib }: { eventResult: PersonEventResu
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div
+      <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-50"
+        aria-expanded={expanded}
+        className="w-full text-left px-4 py-3 cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-50 bg-transparent border-none"
       >
         <div>
           <div className="font-semibold text-gray-800">{eventResult.eventName}</div>
@@ -226,14 +234,14 @@ function EventCard({ eventResult, highlightBib }: { eventResult: PersonEventResu
         <div className="flex items-center gap-3">
           {place != null && (
             <span className={`text-sm font-bold ${place <= 3 ? 'text-primary-500' : 'text-gray-600'}`}>
-              {place === 1 ? '1st' : place === 2 ? '2nd' : place === 3 ? '3rd' : `${place}th`}
+              {getOrdinal(place)}
             </span>
           )}
           <span className="text-gray-400 text-lg">
             {expanded ? '\u25B2' : '\u25BC'}
           </span>
         </div>
-      </div>
+      </button>
 
       {expanded && (
         <div className="border-t border-gray-200 px-4">

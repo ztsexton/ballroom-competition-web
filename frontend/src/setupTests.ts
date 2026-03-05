@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Mock ToastContext globally so components using useToast work in tests
+vi.mock('./context/ToastContext', () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock Firebase modules
 vi.mock('firebase/app', () => ({
   initializeApp: vi.fn(),

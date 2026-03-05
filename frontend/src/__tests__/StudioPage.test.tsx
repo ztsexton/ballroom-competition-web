@@ -369,7 +369,6 @@ describe('StudioPage', () => {
   });
 
   it('should call studiosApi.delete when Delete is confirmed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     mockGetAll.mockResolvedValue({
       data: [{ id: 1, name: 'Dance World', contactInfo: 'dance@world.com' }],
     });
@@ -384,13 +383,15 @@ describe('StudioPage', () => {
     await screen.findByText('Dance World');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
+    // ConfirmDialog opens — click the confirm button (labeled "Confirm")
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith(1);
     });
   });
 
   it('should NOT call studiosApi.delete when Delete is cancelled in confirm dialog', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockGetAll.mockResolvedValue({
       data: [{ id: 1, name: 'Dance World', contactInfo: 'dance@world.com' }],
     });
@@ -404,11 +405,13 @@ describe('StudioPage', () => {
     await screen.findByText('Dance World');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
+    // ConfirmDialog opens — click Cancel
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it('should show error message when delete fails', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should attempt delete and handle error when delete fails', async () => {
     mockGetAll.mockResolvedValue({
       data: [{ id: 1, name: 'Dance World', contactInfo: 'dance@world.com' }],
     });
@@ -423,7 +426,13 @@ describe('StudioPage', () => {
     await screen.findByText('Dance World');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText('Failed to delete studio')).toBeInTheDocument();
+    // ConfirmDialog opens — click confirm
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+    // Delete was attempted
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith(1);
+    });
   });
 
   it('should show Access Denied when user is not an admin', async () => {

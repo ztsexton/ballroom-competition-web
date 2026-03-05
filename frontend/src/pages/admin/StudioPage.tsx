@@ -3,11 +3,15 @@ import axios from "axios";
 import { studiosApi, mindbodyApi } from "../../api/client";
 import { Studio } from "../../types";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { Skeleton } from "../../components/Skeleton";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 const StudioPage: React.FC = () => {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [studios, setStudios] = useState<Studio[]>([]);
+  const [confirmAction, setConfirmAction] = useState<{title: string; message: string; action: () => void} | null>(null);
   const [loading, setLoading] = useState(true);
   const [studioName, setStudioName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -56,14 +60,19 @@ const StudioPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Delete studio "${name}"? This cannot be undone.`)) return;
-    try {
-      await studiosApi.delete(id);
-      loadStudios();
-    } catch {
-      setError("Failed to delete studio");
-    }
+  const handleDelete = (id: number, name: string) => {
+    setConfirmAction({
+      title: 'Delete Studio',
+      message: `Delete studio "${name}"? This cannot be undone.`,
+      action: async () => {
+        try {
+          await studiosApi.delete(id);
+          loadStudios();
+        } catch {
+          showToast("Failed to delete studio", "error");
+        }
+      },
+    });
   };
 
   const handleConnect = async (studioId: number) => {
@@ -83,14 +92,19 @@ const StudioPage: React.FC = () => {
     }
   };
 
-  const handleDisconnect = async (studioId: number) => {
-    if (!confirm("Disconnect this studio from MindBody?")) return;
-    try {
-      await mindbodyApi.disconnect(studioId);
-      loadStudios();
-    } catch {
-      setError("Failed to disconnect from MindBody");
-    }
+  const handleDisconnect = (studioId: number) => {
+    setConfirmAction({
+      title: 'Disconnect MindBody',
+      message: 'Disconnect this studio from MindBody?',
+      action: async () => {
+        try {
+          await mindbodyApi.disconnect(studioId);
+          loadStudios();
+        } catch {
+          showToast("Failed to disconnect from MindBody", "error");
+        }
+      },
+    });
   };
 
   if (authLoading || loading) {
@@ -129,7 +143,7 @@ const StudioPage: React.FC = () => {
         <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-6">
           <h3 className="mt-0">Add a Studio</h3>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="mb-4">
                 <label htmlFor="studioName" className="block text-sm font-medium text-gray-700 mb-1">Studio Name *</label>
                 <input
@@ -286,6 +300,16 @@ const StudioPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        variant="danger"
+        confirmLabel="Confirm"
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

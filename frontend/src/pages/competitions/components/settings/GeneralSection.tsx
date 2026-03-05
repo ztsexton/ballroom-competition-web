@@ -20,7 +20,7 @@ interface GeneralSectionProps {
   saveOnBlur: (field: string, value: string, section: string) => void;
   handleOrgSwitch: (targetOrg: Organization | null, targetType: CompetitionType) => Promise<void>;
   isOrgActive: (targetOrg: Organization | null, targetType: CompetitionType) => boolean;
-  confirmOrgSwitch: (label: string, hasOrg: boolean) => boolean;
+  confirmOrgSwitch: (label: string, hasOrg: boolean, onConfirm: () => void) => void;
 }
 
 const GeneralSection = ({
@@ -66,21 +66,22 @@ const GeneralSection = ({
             <button
               key={preset.key}
               type="button"
-              onClick={async () => {
-                let org = existingOrg || null;
+              onClick={() => {
                 const targetType = PRESET_TO_TYPE[preset.key] || 'UNAFFILIATED';
-                if (isOrgActive(org, targetType)) return;
-                if (!confirmOrgSwitch(preset.label, true)) return;
-                if (!org) {
-                  const newOrg = await organizationsApi.create({
-                    name: preset.label,
-                    rulePresetKey: preset.key,
-                    settings: {},
-                  });
-                  org = newOrg.data;
-                  setOrganizations(prev => [...prev, org!]);
-                }
-                await handleOrgSwitch(org, targetType);
+                if (isOrgActive(existingOrg || null, targetType)) return;
+                confirmOrgSwitch(preset.label, true, async () => {
+                  let org = existingOrg || null;
+                  if (!org) {
+                    const newOrg = await organizationsApi.create({
+                      name: preset.label,
+                      rulePresetKey: preset.key,
+                      settings: {},
+                    });
+                    org = newOrg.data;
+                    setOrganizations(prev => [...prev, org!]);
+                  }
+                  await handleOrgSwitch(org, targetType);
+                });
               }}
               className={`px-4 py-2 rounded cursor-pointer transition-all ${active ? 'border-2 font-bold' : 'border border-gray-300 bg-white text-gray-700 font-normal'}`}
               style={{
@@ -105,8 +106,9 @@ const GeneralSection = ({
                 onClick={() => {
                   const targetType = PRESET_TO_TYPE[org.rulePresetKey] || 'UNAFFILIATED';
                   if (isOrgActive(org, targetType)) return;
-                  if (!confirmOrgSwitch(org.name, true)) return;
-                  handleOrgSwitch(org, targetType);
+                  confirmOrgSwitch(org.name, true, () => {
+                    handleOrgSwitch(org, targetType);
+                  });
                 }}
                 className={`px-4 py-2 rounded cursor-pointer transition-all ${active ? 'border-2 font-bold' : 'border border-gray-300 bg-white text-gray-700 font-normal'}`}
                 style={{
@@ -130,8 +132,9 @@ const GeneralSection = ({
               type="button"
               onClick={() => {
                 if (isOrgActive(null, opt.type)) return;
-                if (!confirmOrgSwitch(opt.label, false)) return;
-                handleOrgSwitch(null, opt.type);
+                confirmOrgSwitch(opt.label, false, () => {
+                  handleOrgSwitch(null, opt.type);
+                });
               }}
               className={`px-4 py-2 rounded cursor-pointer transition-all ${active ? 'border-2 font-bold' : 'border border-gray-300 bg-white text-gray-700 font-normal'}`}
               style={{
@@ -147,7 +150,7 @@ const GeneralSection = ({
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="mb-4">
         <label className="block text-sm font-semibold text-gray-600 mb-1">Date</label>
         <input

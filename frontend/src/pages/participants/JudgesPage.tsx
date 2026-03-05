@@ -4,17 +4,23 @@ import { judgesApi, judgeProfilesApi } from '../../api/client';
 import { Judge, JudgeProfile } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
 const JudgesPage = () => {
   const { activeCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [judges, setJudges] = useState<Judge[]>([]);
   const [profiles, setProfiles] = useState<JudgeProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [newJudgeName, setNewJudgeName] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState<number | ''>('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Judge | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (activeCompetition) {
@@ -50,6 +56,7 @@ const JudgesPage = () => {
     e.preventDefault();
     if (!newJudgeName.trim() || !activeCompetition) return;
 
+    setSubmitting(true);
     try {
       await judgesApi.create(
         newJudgeName.trim(),
@@ -63,6 +70,8 @@ const JudgesPage = () => {
     } catch (error) {
       console.error('Failed to add judge:', error);
       setError('Failed to add judge');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -88,14 +97,12 @@ const JudgesPage = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this judge?')) return;
-
     try {
       await judgesApi.delete(id);
       setError('');
       loadJudges();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete judge');
+      showToast(error.response?.data?.error || 'Failed to delete judge', 'error');
     }
   };
 
@@ -108,7 +115,7 @@ const JudgesPage = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -171,16 +178,38 @@ const JudgesPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Add Judge</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Adding...' : 'Add Judge'}</button>
           </div>
         </form>
 
-        {judges.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 mt-4">
-            <h3 className="font-semibold mb-1">No judges registered yet</h3>
-            <p>Add your first judge using the form above!</p>
-          </div>
-        ) : (
+        <div className="mt-4 mb-2">
+          <input
+            type="text"
+            placeholder="Search by name..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            aria-label="Search judges"
+          />
+        </div>
+
+        {(() => {
+          const filteredJudges = judges.filter(j => {
+            const term = searchTerm.toLowerCase();
+            return !term || j.name.toLowerCase().includes(term);
+          });
+
+          if (filteredJudges.length === 0) {
+            return (
+              <div className="text-center py-8 text-gray-500 mt-4">
+                <h3 className="font-semibold mb-1">{searchTerm ? 'No judges match your search' : 'No judges registered yet'}</h3>
+                {!searchTerm && <p>Add your first judge using the form above!</p>}
+              </div>
+            );
+          }
+
+          return (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm mt-4">
             <thead>
               <tr>
@@ -191,7 +220,7 @@ const JudgesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {judges.map(judge => (
+              {filteredJudges.map(judge => (
                 <tr key={judge.id}>
                   <td className="px-3 py-2 border-t border-gray-100"><strong>#{judge.judgeNumber}</strong></td>
                   <td className="px-3 py-2 border-t border-gray-100">
@@ -213,8 +242,9 @@ const JudgesPage = () => {
                   </td>
                   <td className="px-3 py-2 border-t border-gray-100">
                     <button
-                      onClick={() => handleDelete(judge.id)}
+                      onClick={() => setDeleteTarget(judge)}
                       className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
+                      aria-label={`Delete ${judge.name}`}
                     >
                       Delete
                     </button>
@@ -223,7 +253,9 @@ const JudgesPage = () => {
               ))}
             </tbody>
           </table>
-        )}
+          </div>
+          );
+        })()}
       </div>
 
       {judges.length > 0 && (
@@ -233,6 +265,15 @@ const JudgesPage = () => {
           <p className="text-gray-600">Chairman: <strong>{judges.find(j => j.isChairman)?.name || 'Not assigned'}</strong></p>
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Judge"
+        message={deleteTarget ? `Are you sure you want to delete judge ${deleteTarget.name}?` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

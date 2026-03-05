@@ -4,6 +4,8 @@ import { eventsApi } from '../../api/client';
 import { Event } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
 const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
@@ -12,10 +14,13 @@ const EventsPage = () => {
   const { id: hubId } = useParams<{ id: string }>();
   const insideHub = !!hubId;
   const { activeCompetition, competitions, setActiveCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [deleteEventId, setDeleteEventId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const location = useLocation();
 
   useEffect(() => {
@@ -52,21 +57,17 @@ const EventsPage = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this event? This will also delete all associated scores.')) {
-      return;
-    }
-
     try {
       await eventsApi.delete(id);
       loadEvents();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete event');
+      showToast(error.response?.data?.error || 'Failed to delete event', 'error');
     }
   };
 
   if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
-  if (!insideHub && !isAdmin) {
+  if (!insideHub && !isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -96,20 +97,38 @@ const EventsPage = () => {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2>Manage Events{!insideHub && activeCompetition ? ` - ${activeCompetition.name}` : ''}</h2>
-          <Link to="/events/new" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 no-underline">Create New Event</Link>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search events..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-64 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              aria-label="Search events"
+            />
+            <Link to="/events/new" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 no-underline whitespace-nowrap">Create New Event</Link>
+          </div>
         </div>
 
-        {events.length === 0 ? (
-          <div className="text-center p-8 text-gray-500">
-            <h3>No events created yet</h3>
-            <p>Create your first event to get started!</p>
-          </div>
-        ) : (
-          (() => {
-            const eventsByStyle: Record<string, Event[]> = {};
-            for (const s of STYLE_SECTIONS) eventsByStyle[s] = [];
-            const otherEvents: Event[] = [];
-            for (const event of events) {
+        {(() => {
+          const filteredEvents = events.filter(e => {
+            const term = searchTerm.toLowerCase();
+            return !term || e.name.toLowerCase().includes(term);
+          });
+
+          if (filteredEvents.length === 0) {
+            return (
+              <div className="text-center p-8 text-gray-500">
+                <h3>{searchTerm ? 'No events match your search' : 'No events created yet'}</h3>
+                {!searchTerm && <p>Create your first event to get started!</p>}
+              </div>
+            );
+          }
+
+          const eventsByStyle: Record<string, Event[]> = {};
+          for (const s of STYLE_SECTIONS) eventsByStyle[s] = [];
+          const otherEvents: Event[] = [];
+          for (const event of filteredEvents) {
               const section = STYLE_SECTIONS.find(s => s === event.style);
               if (section) {
                 eventsByStyle[section].push(event);
@@ -193,8 +212,9 @@ const EventsPage = () => {
                               Results
                             </Link>
                             <button
-                              onClick={() => handleDelete(event.id)}
+                              onClick={() => setDeleteEventId(event.id)}
                               className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
+                              aria-label={`Delete ${event.name}`}
                             >
                               Delete
                             </button>
@@ -207,7 +227,7 @@ const EventsPage = () => {
               </table>
             );
 
-            return (
+          return (
               <>
                 {/* Jump nav */}
                 <div className="flex gap-2 flex-wrap mb-6 p-3 bg-gray-50 rounded-md border border-gray-200">
@@ -265,9 +285,8 @@ const EventsPage = () => {
                   );
                 })}
               </>
-            );
-          })()
-        )}
+          );
+        })()}
       </div>
 
       {events.length > 0 && (
@@ -289,7 +308,20 @@ const EventsPage = () => {
     </>
   );
 
-  return <div className="max-w-7xl mx-auto p-8">{content}</div>;
+  return (
+    <div className="max-w-7xl mx-auto p-8">
+      {content}
+      <ConfirmDialog
+        open={deleteEventId !== null}
+        title="Delete Event"
+        message="Are you sure you want to delete this event? This will also delete all associated scores."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteEventId !== null) handleDelete(deleteEventId); setDeleteEventId(null); }}
+        onCancel={() => setDeleteEventId(null)}
+      />
+    </div>
+  );
 };
 
 export default EventsPage;

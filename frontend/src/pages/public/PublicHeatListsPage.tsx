@@ -102,9 +102,11 @@ const PublicHeatListsPage = () => {
                 const expanded = expandedEvents[evt.id];
                 return (
                   <div key={evt.id} className="bg-white rounded-lg shadow overflow-hidden">
-                    <div
+                    <button
+                      type="button"
                       onClick={() => toggleEvent(evt.id)}
-                      className="flex justify-between items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+                      aria-expanded={!!expanded}
+                      className="w-full text-left flex justify-between items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-50 transition-colors bg-transparent border-none"
                     >
                       <div>
                         <div className="font-semibold text-gray-800">{evt.name}</div>
@@ -119,7 +121,7 @@ const PublicHeatListsPage = () => {
                         </span>
                         <span className="text-gray-400">{expanded ? '\u25BE' : '\u25B8'}</span>
                       </div>
-                    </div>
+                    </button>
 
                     {expanded && (
                       <div className="border-t border-gray-200 px-4 py-3">

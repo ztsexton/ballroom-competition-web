@@ -3,8 +3,10 @@ import axios from 'axios';
 import { organizationsApi } from '../../api/client';
 import { Organization, RulePresetKey, AgeCategory } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { AGE_CATEGORY_PRESETS } from '../../constants/ageCategories';
 import { Skeleton } from '../../components/Skeleton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 const presetColorCls: Record<RulePresetKey, { bg: string; text: string }> = {
   ndca: { bg: 'bg-red-100', text: 'text-red-600' },
@@ -32,11 +34,13 @@ const presetLabels: Record<RulePresetKey, string> = {
 
 const OrganizationsPage = () => {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const [formName, setFormName] = useState('');
   const [formPreset, setFormPreset] = useState<RulePresetKey>('custom');
@@ -79,13 +83,12 @@ const OrganizationsPage = () => {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Delete organization "${name}"? This cannot be undone.`)) return;
+  const handleDelete = async (id: number) => {
     try {
       await organizationsApi.delete(id);
       loadOrganizations();
     } catch {
-      setError('Failed to delete organization');
+      showToast('Failed to delete organization', 'error');
     }
   };
 
@@ -270,7 +273,7 @@ const OrganizationsPage = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(org.id, org.name)}
+                        onClick={() => setDeleteTarget({ id: org.id, name: org.name })}
                         className="px-3 py-1 bg-red-50 text-red-600 rounded border border-red-200 cursor-pointer text-xs font-medium transition-colors hover:bg-red-100"
                       >
                         Delete
@@ -378,6 +381,16 @@ const OrganizationsPage = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Organization"
+        message={`Delete organization "${deleteTarget?.name}"? This cannot be undone.`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

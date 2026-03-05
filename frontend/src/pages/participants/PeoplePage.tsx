@@ -5,14 +5,22 @@ import { peopleApi, studiosApi } from '../../api/client';
 import { Person, Studio } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
 const PeoplePage = () => {
   const { activeCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [people, setPeople] = useState<Person[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<Partial<Person>>({});
   const [newPerson, setNewPerson] = useState({
     firstName: '',
     lastName: '',
@@ -60,6 +68,7 @@ const PeoplePage = () => {
     e.preventDefault();
     if (!newPerson.firstName || !newPerson.lastName || !activeCompetition) return;
 
+    setSubmitting(true);
     try {
       await peopleApi.create({
         ...newPerson,
@@ -72,17 +81,34 @@ const PeoplePage = () => {
       loadPeople();
     } catch (error) {
       console.error('Failed to add person:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this person?')) return;
-
     try {
       await peopleApi.delete(id);
       loadPeople();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete person');
+      showToast(error.response?.data?.error || 'Failed to delete person', 'error');
+    }
+  };
+
+  const startEdit = (person: Person) => {
+    setEditingId(person.id);
+    setEditValues({ firstName: person.firstName, lastName: person.lastName, dateOfBirth: person.dateOfBirth || '', email: person.email || '', role: person.role, status: person.status, studioId: person.studioId });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    try {
+      await peopleApi.update(editingId, editValues);
+      setEditingId(null);
+      loadPeople();
+      showToast('Person updated', 'success');
+    } catch (error: any) {
+      showToast(error.response?.data?.error || 'Failed to update person', 'error');
     }
   };
 
@@ -95,7 +121,7 @@ const PeoplePage = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -192,13 +218,33 @@ const PeoplePage = () => {
                 ))}
               </select>
             </div>
-            <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Add</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Adding...' : 'Add'}</button>
           </div>
         </form>
 
-        {people.length === 0 ? (
-          <p className="text-center py-8 text-gray-500">No people added yet</p>
-        ) : (
+        <div className="mt-4 mb-2">
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            aria-label="Search people"
+          />
+        </div>
+
+        {(() => {
+          const filteredPeople = people.filter(p => {
+            const term = searchTerm.toLowerCase();
+            return !term || p.firstName.toLowerCase().includes(term) || p.lastName.toLowerCase().includes(term) || (p.email || '').toLowerCase().includes(term);
+          });
+
+          if (filteredPeople.length === 0) {
+            return <p className="text-center py-8 text-gray-500">{searchTerm ? 'No people match your search' : 'No people added yet'}</p>;
+          }
+
+          return (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm mt-4">
             <thead>
               <tr>
@@ -213,32 +259,70 @@ const PeoplePage = () => {
               </tr>
             </thead>
             <tbody>
-              {people.map(person => (
+              {filteredPeople.map(person => {
+                const isEditing = editingId === person.id;
+                const inputCls = "w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500";
+                return (
                 <tr key={person.id}>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.firstName}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.lastName}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.dateOfBirth || ''}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.email || ''}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.role}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{person.status}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">{studios.find(s => s.id === person.studioId)?.name || ''}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? <input type="text" value={editValues.firstName || ''} onChange={e => setEditValues({ ...editValues, firstName: e.target.value })} className={inputCls} /> : person.firstName}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? <input type="text" value={editValues.lastName || ''} onChange={e => setEditValues({ ...editValues, lastName: e.target.value })} className={inputCls} /> : person.lastName}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? <input type="date" value={editValues.dateOfBirth || ''} onChange={e => setEditValues({ ...editValues, dateOfBirth: e.target.value })} className={inputCls} /> : person.dateOfBirth || ''}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? <input type="email" value={editValues.email || ''} onChange={e => setEditValues({ ...editValues, email: e.target.value })} className={inputCls} /> : person.email || ''}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? (
+                    <select value={editValues.role || ''} onChange={e => setEditValues({ ...editValues, role: e.target.value as Person['role'] })} className={inputCls}>
+                      <option value="leader">Leader</option><option value="follower">Follower</option><option value="both">Both</option>
+                    </select>
+                  ) : person.role}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? (
+                    <select value={editValues.status || ''} onChange={e => setEditValues({ ...editValues, status: e.target.value as Person['status'] })} className={inputCls}>
+                      <option value="student">Student</option><option value="professional">Professional</option>
+                    </select>
+                  ) : person.status}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">{isEditing ? (
+                    <select value={editValues.studioId || ''} onChange={e => setEditValues({ ...editValues, studioId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
+                      <option value="">None</option>
+                      {studios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  ) : studios.find(s => s.id === person.studioId)?.name || ''}</td>
                   <td className="px-3 py-2 border-t border-gray-100 space-x-2">
-                    <Link
-                      to={`/competitions/${activeCompetition?.id}/heat-sheet?personId=${person.id}`}
-                      className="px-2 py-1 bg-primary-500 text-white rounded text-sm font-medium transition-colors hover:bg-primary-600 inline-block no-underline"
-                    >
-                      Heat Sheet
-                    </Link>
-                    <button onClick={() => handleDelete(person.id)} className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
-                      Delete
-                    </button>
+                    {isEditing ? (
+                      <>
+                        <button onClick={handleSaveEdit} className="px-2 py-1 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-success-600">Save</button>
+                        <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-gray-300 text-gray-700 rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-400">Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => startEdit(person)} className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">Edit</button>
+                        <Link
+                          to={`/competitions/${activeCompetition?.id}/heat-sheet?personId=${person.id}`}
+                          className="px-2 py-1 bg-primary-500 text-white rounded text-sm font-medium transition-colors hover:bg-primary-600 inline-block no-underline"
+                        >
+                          Heat Sheet
+                        </Link>
+                        <button onClick={() => setDeleteTarget(person)} className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600" aria-label={`Delete ${person.firstName} ${person.lastName}`}>
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
-        )}
+          </div>
+          );
+        })()}
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Person"
+        message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.firstName} ${deleteTarget.lastName}?` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

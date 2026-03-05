@@ -5,17 +5,23 @@ import { couplesApi, peopleApi } from '../../api/client';
 import { Couple, Person } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
 const CouplesPage = () => {
   const { activeCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [couples, setCouples] = useState<Couple[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [leaderId, setLeaderId] = useState('');
   const [followerId, setFollowerId] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteBib, setDeleteBib] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (activeCompetition) {
@@ -50,6 +56,7 @@ const CouplesPage = () => {
     e.preventDefault();
     if (!leaderId || !followerId || !activeCompetition) return;
 
+    setSubmitting(true);
     try {
       await couplesApi.create(parseInt(leaderId), parseInt(followerId), activeCompetition.id);
       setLeaderId('');
@@ -58,18 +65,18 @@ const CouplesPage = () => {
       loadData();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to add couple');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (bib: number) => {
-    if (!window.confirm('Are you sure you want to delete this couple?')) return;
-
     try {
       await couplesApi.delete(bib);
       setError('');
       loadData();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete couple');
+      showToast(error.response?.data?.error || 'Failed to delete couple', 'error');
     }
   };
 
@@ -85,7 +92,7 @@ const CouplesPage = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -155,17 +162,39 @@ const CouplesPage = () => {
                   ))}
                 </select>
               </div>
-              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600">Add Couple</button>
+              <button type="submit" disabled={submitting} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Adding...' : 'Add Couple'}</button>
             </div>
           </form>
         )}
 
-        {couples.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 mt-4">
-            <h3 className="font-semibold mb-1">No couples created yet</h3>
-            <p>Add your first couple using the form above!</p>
-          </div>
-        ) : (
+        <div className="mt-4 mb-2">
+          <input
+            type="text"
+            placeholder="Search by bib, leader, or follower..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            aria-label="Search couples"
+          />
+        </div>
+
+        {(() => {
+          const filteredCouples = couples.filter(c => {
+            const term = searchTerm.toLowerCase();
+            return !term || c.bib.toString().includes(term) || (c.leaderName || '').toLowerCase().includes(term) || (c.followerName || '').toLowerCase().includes(term);
+          });
+
+          if (filteredCouples.length === 0) {
+            return (
+              <div className="text-center py-8 text-gray-500 mt-4">
+                <h3 className="font-semibold mb-1">{searchTerm ? 'No couples match your search' : 'No couples created yet'}</h3>
+                {!searchTerm && <p>Add your first couple using the form above!</p>}
+              </div>
+            );
+          }
+
+          return (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm mt-4">
             <thead>
               <tr>
@@ -176,15 +205,16 @@ const CouplesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {couples.map(couple => (
+              {filteredCouples.map(couple => (
                 <tr key={couple.bib}>
                   <td className="px-3 py-2 border-t border-gray-100"><strong>#{couple.bib}</strong></td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.leaderName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.followerName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">
                     <button
-                      onClick={() => handleDelete(couple.bib)}
+                      onClick={() => setDeleteBib(couple.bib)}
                       className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
+                      aria-label={`Delete couple #${couple.bib}`}
                     >
                       Delete
                     </button>
@@ -193,7 +223,9 @@ const CouplesPage = () => {
               ))}
             </tbody>
           </table>
-        )}
+          </div>
+          );
+        })()}
       </div>
 
       {couples.length > 0 && (
@@ -202,6 +234,15 @@ const CouplesPage = () => {
           <p className="text-gray-600">Total Couples: <strong>{couples.length}</strong></p>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteBib !== null}
+        title="Delete Couple"
+        message={`Are you sure you want to delete couple #${deleteBib}?`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteBib !== null) handleDelete(deleteBib); setDeleteBib(null); }}
+        onCancel={() => setDeleteBib(null)}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { mindbodyApi } from '../../../../api/client';
+import { useToast } from '../../../../context/ToastContext';
 import { Studio, Person, MindbodyClient } from '../../../../types';
 
 interface MindBodyImportPanelProps {
@@ -10,6 +11,7 @@ interface MindBodyImportPanelProps {
 }
 
 const MindBodyImportPanel = ({ studios, competitionId, onImportComplete }: MindBodyImportPanelProps) => {
+  const { showToast } = useToast();
   const [mbStudioId, setMbStudioId] = useState<number | ''>('');
   const [mbSearchText, setMbSearchText] = useState('');
   const [mbClients, setMbClients] = useState<MindbodyClient[]>([]);
@@ -73,7 +75,7 @@ const MindBodyImportPanel = ({ studios, competitionId, onImportComplete }: MindB
           status: mbStatus,
         }));
       const res = await mindbodyApi.importClients(mbStudioId as number, competitionId, clients);
-      alert(`Imported ${res.data.imported} people.`);
+      showToast(`Imported ${res.data.imported} people.`, 'success');
       setMbClients([]);
       setMbSelected(new Set());
       onImportComplete();

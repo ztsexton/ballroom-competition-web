@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi, judgesApi } from '../../../api/client';
 import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, Judge } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
+import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
 import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER } from '../../../constants/dances';
 import { formatTime } from './utils';
@@ -17,7 +18,7 @@ import JudgeScheduleView from './components/JudgeScheduleView';
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const competitionId = parseInt(id || '0');
 
@@ -41,6 +42,8 @@ const SchedulePage = () => {
   const [dayConfigs, setDayConfigs] = useState<ScheduleDayConfig[]>([
     { day: 1, startTime: '08:00', endTime: '17:00' },
   ]);
+
+  const [confirmAction, setConfirmAction] = useState<{title: string; message: string; action: () => void} | null>(null);
 
   // Drag-and-drop state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -219,11 +222,12 @@ const SchedulePage = () => {
     }
   };
 
-  const handleRegenerate = async () => {
-    if (!window.confirm(
-      'This will regenerate the schedule from scratch, clearing any custom ordering and run progress. Continue?'
-    )) return;
-    await handleGenerate();
+  const handleRegenerate = () => {
+    setConfirmAction({
+      title: 'Regenerate Schedule',
+      message: 'This will regenerate the schedule from scratch, clearing any custom ordering and run progress. Continue?',
+      action: () => handleGenerate(),
+    });
   };
 
   const handleMoveEvent = async (fromIndex: number, toIndex: number) => {
@@ -264,17 +268,22 @@ const SchedulePage = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!competitionId) return;
-    if (!window.confirm('Delete the schedule? This will reset all run progress.')) return;
-    try {
-      await schedulesApi.delete(competitionId);
-      setSchedule(null);
-      setUnscheduledEvents([]);
-      setError('');
-    } catch {
-      setError('Failed to delete schedule');
-    }
+    setConfirmAction({
+      title: 'Delete Schedule',
+      message: 'Delete the schedule? This will reset all run progress.',
+      action: async () => {
+        try {
+          await schedulesApi.delete(competitionId);
+          setSchedule(null);
+          setUnscheduledEvents([]);
+          setError('');
+        } catch {
+          setError('Failed to delete schedule');
+        }
+      },
+    });
   };
 
   const handleAddBreak = async () => {
@@ -392,7 +401,7 @@ const SchedulePage = () => {
 
   if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -722,6 +731,15 @@ const SchedulePage = () => {
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        confirmLabel="Continue"
+        variant="warning"
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

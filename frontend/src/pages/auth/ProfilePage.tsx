@@ -92,7 +92,7 @@ const ProfilePage = () => {
       {/* Appearance */}
       <div className="bg-white rounded-lg shadow p-5 mb-6">
         <h3 className="text-sm font-semibold text-gray-600 mb-3">Appearance</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {themeKeys.map(key => {
             const t = themes[key];
             const selected = key === currentTheme;
@@ -124,7 +124,7 @@ const ProfilePage = () => {
       {/* Editable form */}
       <form onSubmit={handleSubmit}>
         <div className="bg-white rounded-lg shadow p-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">First Name</label>
               <input name="firstName" value={formData.firstName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
@@ -145,7 +145,7 @@ const ProfilePage = () => {
             <input name="studioTeamName" value={formData.studioTeamName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">City</label>
               <input name="city" value={formData.city} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />

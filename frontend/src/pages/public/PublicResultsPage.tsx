@@ -324,9 +324,11 @@ function PublicByEventTab({ competitionId }: { competitionId: number }) {
             const searchResult = 'matchingCouples' in evt ? evt as PublicEventSearchResult : null;
             return (
               <div key={evt.id} className="bg-white rounded-lg shadow overflow-hidden">
-                <div
+                <button
+                  type="button"
                   onClick={() => setExpandedEventId(isExpanded ? null : evt.id)}
-                  className="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-50"
+                  aria-expanded={isExpanded}
+                  className="w-full text-left px-4 py-3 cursor-pointer flex justify-between items-center transition-colors hover:bg-gray-50 bg-transparent border-none"
                 >
                   <div>
                     <div className="font-semibold text-gray-800">{evt.name}</div>
@@ -346,7 +348,7 @@ function PublicByEventTab({ competitionId }: { competitionId: number }) {
                   <span className="text-gray-400 text-lg">
                     {isExpanded ? '\u25B2' : '\u25BC'}
                   </span>
-                </div>
+                </button>
 
                 {isExpanded && evt.rounds.length > 0 && (
                   <div className="border-t border-gray-200 px-4">
@@ -435,7 +437,7 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
         <div className="flex gap-3 flex-wrap items-center mb-3">
           {competition.registrationOpen ? (
             !user ? (
-              <Link to={`/login?redirectTo=/competition/${competitionId}`} className={`${btnBase} bg-primary-500 hover:bg-primary-600`}>
+              <Link to={`/login?redirectTo=${encodeURIComponent(`/portal?competitionId=${competitionId}`)}`} className={`${btnBase} bg-primary-500 hover:bg-primary-600`}>
                 Sign in to Register
               </Link>
             ) : myPerson ? (

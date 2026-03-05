@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+
+function friendlyError(error: string): string {
+  if (error.includes('popup-closed')) return 'Sign-in was cancelled. Please try again.';
+  if (error.includes('network-request-failed')) return 'Network error. Please check your connection.';
+  if (error.includes('popup-blocked')) return 'Pop-up blocked. Please allow pop-ups for this site.';
+  return error;
+}
 
 const LoginPage = () => {
   const { user, loading, login, error } = useAuth();
@@ -41,13 +48,17 @@ const LoginPage = () => {
 
         {error && (
           <div className="mt-4 px-3 py-3 bg-red-100 text-red-700 rounded text-sm">
-            {error}
+            {friendlyError(error)}
           </div>
         )}
 
         <p className="mt-8 text-sm text-gray-400">
           Secure authentication powered by Google
         </p>
+
+        <Link to="/" className="inline-block mt-4 text-sm text-primary-500 no-underline hover:underline">
+          &larr; Back to home
+        </Link>
       </div>
     </div>
   );

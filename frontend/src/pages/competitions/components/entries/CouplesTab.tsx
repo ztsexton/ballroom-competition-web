@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import axios from 'axios';
 import { couplesApi } from '../../../../api/client';
 import { Person, Couple, Competition } from '../../../../types';
+import { useToast } from '../../../../context/ToastContext';
+import { ConfirmDialog } from '../../../../components/ConfirmDialog';
 import { useRegistrationPanel } from '../../hooks/useRegistrationPanel';
 import CoupleRegistrationPanel from './CoupleRegistrationPanel';
 
@@ -15,9 +17,11 @@ interface CouplesTabProps {
 }
 
 const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataChange }: CouplesTabProps) => {
+  const { showToast } = useToast();
   const [leaderId, setLeaderId] = useState('');
   const [followerId, setFollowerId] = useState('');
   const [coupleError, setCoupleError] = useState('');
+  const [deleteBib, setDeleteBib] = useState<number | null>(null);
 
   const registration = useRegistrationPanel(competitionId, activeCompetition);
 
@@ -39,13 +43,12 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
   };
 
   const handleDeleteCouple = async (bib: number) => {
-    if (!window.confirm('Delete this couple?')) return;
     try {
       await couplesApi.delete(bib);
       setCoupleError('');
       onDataChange();
     } catch (err: unknown) {
-      alert(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete couple' : 'Failed to delete couple');
+      showToast(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete couple' : 'Failed to delete couple', 'error');
     }
   };
 
@@ -109,7 +112,8 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
                         {isOpen ? 'Close' : 'Register'}
                       </button>
                       <button
-                        onClick={() => handleDeleteCouple(couple.bib)}
+                        onClick={() => setDeleteBib(couple.bib)}
+                        aria-label={`Delete couple #${couple.bib}`}
                         className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                       >
                         Delete
@@ -130,6 +134,15 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={deleteBib !== null}
+        title="Delete Couple"
+        message={deleteBib !== null ? `Are you sure you want to delete couple #${deleteBib}?` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteBib !== null) handleDeleteCouple(deleteBib); setDeleteBib(null); }}
+        onCancel={() => setDeleteBib(null)}
+      />
     </div>
   );
 };

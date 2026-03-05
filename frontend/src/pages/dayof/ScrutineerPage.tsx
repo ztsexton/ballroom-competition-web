@@ -30,7 +30,7 @@ interface JudgeInfo {
 
 const ScrutineerPage = () => {
   const { activeCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [couples, setCouples] = useState<Couple[]>([]);
   const [loading, setLoading] = useState(true);
@@ -307,7 +307,7 @@ const ScrutineerPage = () => {
   const sectionOrder = [...STYLE_SECTIONS, ...Object.keys(groupedEvents).filter(s => !STYLE_SECTIONS.includes(s))];
 
   if (authLoading || loading) return <Skeleton variant="card" />;
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8"><div className="bg-white rounded-lg shadow p-6">
         <h2>Access Denied</h2>

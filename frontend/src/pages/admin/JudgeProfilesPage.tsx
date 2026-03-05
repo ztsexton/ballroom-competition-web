@@ -3,16 +3,20 @@ import type { FormEvent } from 'react';
 import { judgeProfilesApi } from '../../api/client';
 import { JudgeProfile } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { Skeleton } from '../../components/Skeleton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 const DEFAULT_STYLE_ORDER = ['Smooth', 'Rhythm', 'Standard', 'Latin'];
 const CERTIFICATION_LEVELS = ['Gold', 'Novice', 'Pre-Championship', 'Championship'];
 
 const JudgeProfilesPage = () => {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [profiles, setProfiles] = useState<JudgeProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,13 +59,12 @@ const JudgeProfilesPage = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this judge profile? This will unlink it from any competition judges.')) return;
     try {
       await judgeProfilesApi.delete(id);
       if (expandedId === id) setExpandedId(null);
       loadProfiles();
     } catch {
-      setError('Failed to delete profile');
+      showToast('Failed to delete profile', 'error');
     }
   };
 
@@ -203,7 +206,7 @@ const JudgeProfilesPage = () => {
                           {expandedId === profile.id ? 'Close' : 'Qualifications'}
                         </button>
                         <button
-                          onClick={() => handleDelete(profile.id)}
+                          onClick={() => setDeleteTarget(profile.id)}
                           className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                         >
                           Delete
@@ -253,6 +256,15 @@ const JudgeProfilesPage = () => {
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Judge Profile"
+        message="Delete this judge profile? This will unlink it from any competition judges."
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteTarget !== null) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

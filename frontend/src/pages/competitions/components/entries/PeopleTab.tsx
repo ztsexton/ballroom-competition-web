@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { peopleApi } from '../../../../api/client';
 import { Person, Studio } from '../../../../types';
+import { useToast } from '../../../../context/ToastContext';
+import { ConfirmDialog } from '../../../../components/ConfirmDialog';
 import MindBodyImportPanel from './MindBodyImportPanel';
 
 interface PeopleTabProps {
@@ -12,6 +14,7 @@ interface PeopleTabProps {
 }
 
 const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabProps) => {
+  const { showToast } = useToast();
   const [newPerson, setNewPerson] = useState({
     firstName: '', lastName: '', email: '',
     role: 'both' as Person['role'],
@@ -19,6 +22,7 @@ const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabPr
     studioId: '' as string | number,
   });
   const [showMbImport, setShowMbImport] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
 
   const connectedStudios = studios.filter(s => !!s.mindbodySiteId);
 
@@ -40,12 +44,11 @@ const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabPr
   };
 
   const handleDeletePerson = async (id: number) => {
-    if (!window.confirm('Delete this person?')) return;
     try {
       await peopleApi.delete(id);
       onDataChange();
     } catch {
-      alert('Failed to delete person');
+      showToast('Failed to delete person', 'error');
     }
   };
 
@@ -145,7 +148,8 @@ const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabPr
                 <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.status}</td>
                 <td className="px-3 py-2 border-b border-gray-100 text-sm">{studios.find(s => s.id === person.studioId)?.name || ''}</td>
                 <td className="px-3 py-2 border-b border-gray-100 text-sm">
-                  <button onClick={() => handleDeletePerson(person.id)}
+                  <button onClick={() => setDeleteTarget(person)}
+                    aria-label={`Delete ${person.firstName} ${person.lastName}`}
                     className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
                     Delete
                   </button>
@@ -155,6 +159,15 @@ const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabPr
           </tbody>
         </table>
       )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Person"
+        message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.firstName} ${deleteTarget.lastName}?` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDeletePerson(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

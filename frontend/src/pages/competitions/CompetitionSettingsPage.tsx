@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { competitionsApi, organizationsApi, settingsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
+import { useToast } from '../../context/ToastContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
@@ -37,6 +39,7 @@ type TabKey = typeof TABS[number]['key'];
 
 const CompetitionSettingsPage = () => {
   const { activeCompetition, setActiveCompetition } = useCompetition();
+  const { showToast } = useToast();
   const competitionId = activeCompetition?.id || 0;
   const [activeTab, setActiveTab] = useState<TabKey>('general');
 
@@ -62,6 +65,7 @@ const CompetitionSettingsPage = () => {
   const [levels, setLevels] = useState<string[]>([]);
   const [newLevelName, setNewLevelName] = useState('');
   const [ageCategories, setAgeCategories] = useState<AgeCategory[]>([]);
+  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [orgName, setOrgName] = useState('');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [siteDefaultBreakHours, setSiteDefaultBreakHours] = useState<number | undefined>();
@@ -123,7 +127,7 @@ const CompetitionSettingsPage = () => {
       setActiveCompetition(res.data);
       flashSaved(section);
     } catch {
-      alert(`Failed to save ${field}`);
+      showToast(`Failed to save ${field}`, 'error');
     }
   };
 
@@ -140,7 +144,7 @@ const CompetitionSettingsPage = () => {
       setActiveCompetition(res.data);
       flashSaved('rules');
     } catch {
-      alert('Failed to save levels');
+      showToast('Failed to save levels', 'error');
     }
   };
 
@@ -149,11 +153,11 @@ const CompetitionSettingsPage = () => {
     return !activeCompetition?.organizationId && activeCompetition?.type === targetType;
   };
 
-  const confirmOrgSwitch = (label: string, hasOrg: boolean) => {
-    return window.confirm(
+  const confirmOrgSwitch = (label: string, hasOrg: boolean, onConfirm: () => void) => {
+    const message =
       `Switch to ${label}? This will update the competition type and age categories.` +
-      (hasOrg ? ' Default settings will be applied where you haven\'t made custom changes.' : '')
-    );
+      (hasOrg ? ' Default settings will be applied where you haven\'t made custom changes.' : '');
+    setConfirmAction({ message, onConfirm });
   };
 
   const handleOrgSwitch = async (
@@ -229,7 +233,7 @@ const CompetitionSettingsPage = () => {
       setActiveCompetition(res.data);
       flashSaved('age');
     } catch {
-      alert('Failed to save age categories');
+      showToast('Failed to save age categories', 'error');
     }
   };
 
@@ -285,7 +289,7 @@ const CompetitionSettingsPage = () => {
           />
 
           <Section title="Contact & Links" savedKey="contact" savedMap={savedMap}>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-600 mb-1">Website URL</label>
                 <input
@@ -447,6 +451,19 @@ const CompetitionSettingsPage = () => {
           <CompetitionAdminsSection competitionId={competitionId} savedMap={savedMap} flashSaved={flashSaved} />
         </>
       )}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title="Switch Organization"
+        message={confirmAction?.message || ''}
+        confirmLabel="Switch"
+        variant="warning"
+        onConfirm={() => {
+          confirmAction?.onConfirm();
+          setConfirmAction(null);
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

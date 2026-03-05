@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { schedulesApi, eventsApi, couplesApi, judgesApi, judgingApi, competitionsApi } from '../../../api/client';
 import { CompetitionSchedule, Competition, Event, Couple, Judge, ScoringProgress, ScheduledHeat } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
 import { useCompetitionSSE } from '../../../hooks/useCompetitionSSE';
 import { formatTime, getHeatLabel, getHeatRound } from './utils';
 import { Skeleton } from '../../../components/Skeleton';
@@ -22,7 +23,8 @@ function statusBadgeClasses(status: string): string {
 const RunCompetitionPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const competitionId = parseInt(id || '0');
 
   const [schedule, setSchedule] = useState<CompetitionSchedule | null>(null);
@@ -183,14 +185,14 @@ const RunCompetitionPage = () => {
       setSchedule(res.data);
       setUnsplitConfirm(null);
     } catch {
-      alert('Failed to unsplit heat');
+      showToast('Failed to unsplit heat', 'error');
       setUnsplitConfirm(null);
     }
   };
 
   if (loading || authLoading) return <Skeleton variant="card" />;
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -555,7 +557,7 @@ const RunCompetitionPage = () => {
                                 const res = await schedulesApi.splitFloorHeat(competitionId, currentScheduledHeat.id, n);
                                 setSchedule(res.data);
                               } catch {
-                                alert('Failed to split heat');
+                                showToast('Failed to split heat', 'error');
                               }
                             }}
                           >

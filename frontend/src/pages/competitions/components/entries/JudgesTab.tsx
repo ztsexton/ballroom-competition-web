@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { judgesApi } from '../../../../api/client';
 import { Judge } from '../../../../types';
+import { useToast } from '../../../../context/ToastContext';
+import { ConfirmDialog } from '../../../../components/ConfirmDialog';
 
 interface JudgesTabProps {
   judges: Judge[];
@@ -10,7 +12,9 @@ interface JudgesTabProps {
 }
 
 const JudgesTab = ({ judges, competitionId, onDataChange }: JudgesTabProps) => {
+  const { showToast } = useToast();
   const [newJudgeName, setNewJudgeName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Judge | null>(null);
 
   const handleAddJudge = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,12 +29,11 @@ const JudgesTab = ({ judges, competitionId, onDataChange }: JudgesTabProps) => {
   };
 
   const handleDeleteJudge = async (id: number) => {
-    if (!window.confirm('Delete this judge?')) return;
     try {
       await judgesApi.delete(id);
       onDataChange();
     } catch {
-      alert('Failed to delete judge');
+      showToast('Failed to delete judge', 'error');
     }
   };
 
@@ -66,7 +69,8 @@ const JudgesTab = ({ judges, competitionId, onDataChange }: JudgesTabProps) => {
                   <td className="px-3 py-2 border-b border-gray-100 text-sm"><strong>#{judge.judgeNumber}</strong></td>
                   <td className="px-3 py-2 border-b border-gray-100 text-sm">{judge.name}</td>
                   <td className="px-3 py-2 border-b border-gray-100 text-sm">
-                    <button onClick={() => handleDeleteJudge(judge.id)}
+                    <button onClick={() => setDeleteTarget(judge)}
+                      aria-label={`Delete ${judge.name}`}
                       className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
                       Delete
                     </button>
@@ -77,6 +81,15 @@ const JudgesTab = ({ judges, competitionId, onDataChange }: JudgesTabProps) => {
           </table>
         )}
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Judge"
+        message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name}?` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDeleteJudge(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

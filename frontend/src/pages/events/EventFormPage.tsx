@@ -25,13 +25,14 @@ const EventFormPage = () => {
   const isEditMode = !!id;
   const navigate = useNavigate();
   const { activeCompetition } = useCompetition();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAnyAdmin, loading: authLoading } = useAuth();
   const [originalEvent, setOriginalEvent] = useState<Event | null>(null);
   const [couples, setCouples] = useState<Couple[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showScoreWarning, setShowScoreWarning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [eventName, setEventName] = useState('');
   const [designation, setDesignation] = useState('');
@@ -151,62 +152,67 @@ const EventFormPage = () => {
       return;
     }
 
-    if (isEditMode) {
-      if (!originalEvent) return;
+    setSubmitting(true);
+    try {
+      if (isEditMode) {
+        if (!originalEvent) return;
 
-      if (selectedBibs.length === 0) {
-        setError('Please select at least one couple');
-        return;
-      }
+        if (selectedBibs.length === 0) {
+          setError('Please select at least one couple');
+          return;
+        }
 
-      const payload: Record<string, unknown> = {
-        name: eventName.trim(),
-        designation: designation || undefined,
-        syllabusType: syllabusType || undefined,
-        level: level || undefined,
-        style: style || undefined,
-        dances: selectedDances.length > 0 ? selectedDances : undefined,
-        bibs: selectedBibs,
-        judgeIds: selectedJudges,
-        scoringType,
-        isScholarship,
-        ageCategory: ageCategory || undefined,
-      };
+        const payload: Record<string, unknown> = {
+          name: eventName.trim(),
+          designation: designation || undefined,
+          syllabusType: syllabusType || undefined,
+          level: level || undefined,
+          style: style || undefined,
+          dances: selectedDances.length > 0 ? selectedDances : undefined,
+          bibs: selectedBibs,
+          judgeIds: selectedJudges,
+          scoringType,
+          isScholarship,
+          ageCategory: ageCategory || undefined,
+        };
 
-      if (forceOverwrite) {
-        payload.clearScores = true;
-      }
+        if (forceOverwrite) {
+          payload.clearScores = true;
+        }
 
-      try {
-        const response = await eventsApi.update(originalEvent.id, payload as any);
-        navigate(`/events/${response.data.id}`);
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err) && err.response?.status === 409 && err.response?.data?.warning) {
-          setShowScoreWarning(true);
-        } else {
-          setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update event' : 'Failed to update event');
+        try {
+          const response = await eventsApi.update(originalEvent.id, payload as any);
+          navigate(`/events/${response.data.id}`);
+        } catch (err: unknown) {
+          if (axios.isAxiosError(err) && err.response?.status === 409 && err.response?.data?.warning) {
+            setShowScoreWarning(true);
+          } else {
+            setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update event' : 'Failed to update event');
+          }
+        }
+      } else {
+        try {
+          const response = await eventsApi.create(
+            eventName.trim(),
+            selectedBibs,
+            selectedJudges,
+            activeCompetition.id,
+            designation || undefined,
+            syllabusType || undefined,
+            level || undefined,
+            style || undefined,
+            selectedDances.length > 0 ? selectedDances : undefined,
+            scoringType,
+            isScholarship || undefined,
+            ageCategory || undefined
+          );
+          navigate(`/events/${response.data.id}`);
+        } catch (error: unknown) {
+          setError(axios.isAxiosError(error) ? error.response?.data?.error || 'Failed to create event' : 'Failed to create event');
         }
       }
-    } else {
-      try {
-        const response = await eventsApi.create(
-          eventName.trim(),
-          selectedBibs,
-          selectedJudges,
-          activeCompetition.id,
-          designation || undefined,
-          syllabusType || undefined,
-          level || undefined,
-          style || undefined,
-          selectedDances.length > 0 ? selectedDances : undefined,
-          scoringType,
-          isScholarship || undefined,
-          ageCategory || undefined
-        );
-        navigate(`/events/${response.data.id}`);
-      } catch (error: unknown) {
-        setError(axios.isAxiosError(error) ? error.response?.data?.error || 'Failed to create event' : 'Failed to create event');
-      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -216,7 +222,7 @@ const EventFormPage = () => {
 
   if (loading || authLoading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" /></div>;
 
-  if (!isAdmin) {
+  if (!isAnyAdmin) {
     return (
       <div className="max-w-7xl mx-auto p-8">
         <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -295,6 +301,7 @@ const EventFormPage = () => {
                     key={st}
                     type="button"
                     onClick={() => setScoringType(st)}
+                    aria-pressed={scoringType === st}
                     className={toggleCls(scoringType === st)}
                   >
                     {st === 'standard' ? 'Standard' : 'Proficiency'}
@@ -322,6 +329,7 @@ const EventFormPage = () => {
                     key={option}
                     type="button"
                     onClick={() => setDesignation(designation === option ? '' : option)}
+                    aria-pressed={designation === option}
                     className={toggleCls(designation === option)}
                   >
                     {option}
@@ -339,6 +347,7 @@ const EventFormPage = () => {
                       key={option}
                       type="button"
                       onClick={() => setSyllabusType(syllabusType === option ? '' : option)}
+                      aria-pressed={syllabusType === option}
                       className={toggleCls(syllabusType === option)}
                     >
                       {option}
@@ -356,6 +365,7 @@ const EventFormPage = () => {
                     key={option}
                     type="button"
                     onClick={() => setLevel(level === option ? '' : option)}
+                    aria-pressed={level === option}
                     className={toggleCls(level === option)}
                   >
                     {option}
@@ -373,6 +383,7 @@ const EventFormPage = () => {
                       key={cat.name}
                       type="button"
                       onClick={() => setAgeCategory(ageCategory === cat.name ? '' : cat.name)}
+                      aria-pressed={ageCategory === cat.name}
                       className={toggleCls(ageCategory === cat.name)}
                     >
                       {cat.name}
@@ -398,6 +409,7 @@ const EventFormPage = () => {
                         setSelectedDances([]);
                       }
                     }}
+                    aria-pressed={style === option}
                     className={toggleCls(style === option)}
                   >
                     {option}
@@ -649,8 +661,8 @@ const EventFormPage = () => {
             )}
 
             <div className="flex gap-2 mt-6">
-              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600" disabled={isEditMode && selectedBibs.length === 0}>
-                {isEditMode ? 'Save Changes' : 'Create Event'}
+              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled={submitting || (isEditMode && selectedBibs.length === 0)}>
+                {submitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Event'}
               </button>
               <button type="button" onClick={handleCancel} className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">
                 Cancel

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Outlet, NavLink, Link, useParams } from 'react-router-dom';
 import { competitionsApi } from '../api/client';
 import { useCompetition } from '../context/CompetitionContext';
@@ -7,14 +7,14 @@ import { Skeleton } from './Skeleton';
 
 const TABS = [
   { label: 'Overview', path: '', end: true },
+  { label: 'Settings', path: 'settings', end: false },
   { label: 'Participants', path: 'participants', end: false },
   { label: 'Events', path: 'events', end: false },
-  { label: 'Results', path: 'results', end: false },
-  { label: 'Invoices', path: 'invoices', end: false },
-  { label: 'Settings', path: 'settings', end: false },
   { label: 'Heat Lists', path: 'heat-lists', end: false },
   { label: 'Run', path: 'run', end: false },
   { label: 'Scrutineer', path: 'scrutineer', end: false },
+  { label: 'Results', path: 'results', end: false },
+  { label: 'Invoices', path: 'invoices', end: false },
   { label: 'Day-Of', path: 'day-of', end: false },
 ];
 
@@ -24,6 +24,27 @@ const CompetitionHubLayout = () => {
   const { activeCompetition, setActiveCompetition } = useCompetition();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftShadow, setShowLeftShadow] = useState(false);
+  const [showRightShadow, setShowRightShadow] = useState(false);
+
+  const updateShadows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setShowLeftShadow(el.scrollLeft > 4);
+    setShowRightShadow(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateShadows();
+    el.addEventListener('scroll', updateShadows, { passive: true });
+    const ro = new ResizeObserver(updateShadows);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateShadows); ro.disconnect(); };
+  }, [updateShadows]);
 
   useEffect(() => {
     if (!competitionId) return;
@@ -80,24 +101,36 @@ const CompetitionHubLayout = () => {
           <span className="text-gray-800 font-medium">{competitionName}</span>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex border-b-2 border-gray-200 gap-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {TABS.map(tab => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              end={tab.end}
-              className={({ isActive }) =>
-                `px-5 py-3 no-underline whitespace-nowrap text-[0.9375rem] transition-colors -mb-[2px] ${
-                  isActive
-                    ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold'
-                    : 'text-gray-600 border-b-[3px] border-transparent font-medium hover:text-primary-400'
-                }`
-              }
-            >
-              {tab.label}
-            </NavLink>
-          ))}
+        {/* Tab bar with scroll indicators */}
+        <div className="relative">
+          {showLeftShadow && (
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+          )}
+          <div
+            ref={scrollRef}
+            className="flex border-b-2 border-gray-200 gap-1 overflow-x-auto scrollbar-hide"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {TABS.map(tab => (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                end={tab.end}
+                className={({ isActive }) =>
+                  `px-5 py-3 no-underline whitespace-nowrap text-[0.9375rem] transition-colors -mb-[2px] ${
+                    isActive
+                      ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold'
+                      : 'text-gray-600 border-b-[3px] border-transparent font-medium hover:text-primary-400'
+                  }`
+                }
+              >
+                {tab.label}
+              </NavLink>
+            ))}
+          </div>
+          {showRightShadow && (
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+          )}
         </div>
       </div>
 

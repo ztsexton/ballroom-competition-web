@@ -6,6 +6,7 @@ import { useCompetition } from '../context/CompetitionContext';
 import { Competition, PublicCompetition } from '../types';
 import { CompetitionTypeBadge } from '../components/CompetitionTypeBadge';
 import { Skeleton } from '../components/Skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const Home = () => {
   const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
@@ -19,51 +20,56 @@ const Home = () => {
   const [seedFinishedMessage, setSeedFinishedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [recentResults, setRecentResults] = useState<PublicCompetition[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
+  const [confirmAction, setConfirmAction] = useState<{title: string; message: string; action: () => void} | null>(null);
 
-  const handleSeedTestCompetition = async () => {
-    if (!confirm('This will create a test competition "Galaxy Ballroom Classic 2026" with sample data. Continue?')) {
-      return;
-    }
+  const handleSeedTestCompetition = () => {
+    setConfirmAction({
+      title: 'Create Test Competition',
+      message: 'This will create a test competition "Galaxy Ballroom Classic 2026" with sample data. Continue?',
+      action: async () => {
+        setSeeding(true);
+        setSeedMessage(null);
 
-    setSeeding(true);
-    setSeedMessage(null);
-
-    try {
-      const res = await databaseApi.seed();
-      setSeedMessage({ type: 'success', text: res.data.message });
-      const compsRes = await competitionsApi.getAll();
-      setCompetitions(compsRes.data);
-      await refreshCompetitions();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
-      const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create test competition';
-      setSeedMessage({ type: 'error', text: message });
-    } finally {
-      setSeeding(false);
-    }
+        try {
+          const res = await databaseApi.seed();
+          setSeedMessage({ type: 'success', text: res.data.message });
+          const compsRes = await competitionsApi.getAll();
+          setCompetitions(compsRes.data);
+          await refreshCompetitions();
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+          const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create test competition';
+          setSeedMessage({ type: 'error', text: message });
+        } finally {
+          setSeeding(false);
+        }
+      },
+    });
   };
 
-  const handleSeedFinishedCompetition = async () => {
-    if (!confirm('This will create a fully scored "Stardust Invitational 2026" with results for all events. This may take a moment. Continue?')) {
-      return;
-    }
+  const handleSeedFinishedCompetition = () => {
+    setConfirmAction({
+      title: 'Create Finished Competition',
+      message: 'This will create a fully scored "Stardust Invitational 2026" with results for all events. This may take a moment. Continue?',
+      action: async () => {
+        setSeedingFinished(true);
+        setSeedFinishedMessage(null);
 
-    setSeedingFinished(true);
-    setSeedFinishedMessage(null);
-
-    try {
-      const res = await databaseApi.seedFinished();
-      setSeedFinishedMessage({ type: 'success', text: res.data.message });
-      const compsRes = await competitionsApi.getAll();
-      setCompetitions(compsRes.data);
-      await refreshCompetitions();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
-      const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create finished competition';
-      setSeedFinishedMessage({ type: 'error', text: message });
-    } finally {
-      setSeedingFinished(false);
-    }
+        try {
+          const res = await databaseApi.seedFinished();
+          setSeedFinishedMessage({ type: 'success', text: res.data.message });
+          const compsRes = await competitionsApi.getAll();
+          setCompetitions(compsRes.data);
+          await refreshCompetitions();
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+          const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create finished competition';
+          setSeedFinishedMessage({ type: 'error', text: message });
+        } finally {
+          setSeedingFinished(false);
+        }
+      },
+    });
   };
 
   useEffect(() => {
@@ -267,6 +273,14 @@ const Home = () => {
           </div>
         )}
       </div>}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

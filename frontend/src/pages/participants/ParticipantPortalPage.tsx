@@ -81,6 +81,13 @@ const ParticipantPortalPage = () => {
       .finally(() => setLoadingComps(false));
   }, []);
 
+  // Auto-select bib when there's exactly one couple
+  useEffect(() => {
+    if (myCouples.length === 1 && !regBib) {
+      setRegBib(myCouples[0].bib);
+    }
+  }, [myCouples, regBib]);
+
   // Load data when competition selected
   useEffect(() => {
     if (selectedComp) {
@@ -440,7 +447,6 @@ const ParticipantPortalPage = () => {
               </select>
             </div>
           )}
-          {myCouples.length === 1 && !regBib && (() => { setRegBib(myCouples[0].bib); return null; })()}
 
           {regBib && (
             <>
@@ -578,6 +584,7 @@ const ParticipantPortalPage = () => {
                     <h4 className="mt-0 mb-2 text-sm">
                       Current Entries ({coupleEntries.length})
                     </h4>
+                    <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr>
@@ -604,6 +611,7 @@ const ParticipantPortalPage = () => {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 );
               })()}
@@ -625,6 +633,7 @@ const ParticipantPortalPage = () => {
             </Link>
           </div>
           {schedule.length > 0 ? (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr>
@@ -647,6 +656,7 @@ const ParticipantPortalPage = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <div className="text-center p-6 bg-amber-50 border border-amber-400 rounded-md">
               <p className="m-0 mb-2 font-semibold">Schedule not yet available</p>
