@@ -33,6 +33,7 @@ const CouplesPage = React.lazy(() => import('./pages/participants').then(m => ({
 const JudgesPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.JudgesPage })));
 const ParticipantPortalPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.ParticipantPortalPage })));
 const InvoicesPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.InvoicesPage })));
+const PersonHeatListPage = React.lazy(() => import('./pages/participants').then(m => ({ default: m.PersonHeatListPage })));
 
 // -- Event pages --
 const EventsPage = React.lazy(() => import('./pages/events').then(m => ({ default: m.EventsPage })));
@@ -136,6 +137,9 @@ const App = () => {
                       <Route path="scrutineer" element={<ScrutineerPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />
                     </Route>
+
+                    {/* Person heat sheet (authenticated, works before heat lists are published) */}
+                    <Route path="/competitions/:id/heat-sheet" element={<PersonHeatListPage />} />
 
                     {/* Day-of standalone pages (NOT inside hub tabs) */}
                     <Route path="/competitions/:id/ondeck" element={<OnDeckPage />} />

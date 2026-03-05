@@ -300,6 +300,8 @@ export const participantApi = {
       coupleLevel: string | null;
       allLevels: string[];
     }>(`/participant/competitions/${competitionId}/allowed-levels/${bib}`),
+  getPersonHeatlists: (competitionId: number, personId: number) =>
+    api.get<PersonHeatListResponse>(`/participant/competitions/${competitionId}/people/${personId}/heatlists`),
 };
 
 // Scrutineer API (admin-only, schedule-free scoring for paper judging)

@@ -102,10 +102,13 @@ export async function minimizePersonBackToBack(
   const events = await dataService.getEvents(competitionId);
   const couples = await dataService.getCouples(competitionId);
   const people = await dataService.getPeople(competitionId);
+  const competition = await dataService.getCompetitionById(competitionId);
 
   // Build personId → Set<bib> map, excluding professionals
+  // When allowDuplicateEntries is on, include pros so section events get spaced apart
+  const excludePros = !competition?.allowDuplicateEntries;
   const proPersonIds = new Set(
-    people.filter(p => p.status === 'professional').map(p => p.id)
+    excludePros ? people.filter(p => p.status === 'professional').map(p => p.id) : []
   );
 
   const personToBibs = new Map<number, Set<number>>();
@@ -462,7 +465,7 @@ function buildStyleBlockEntries(
  * their combined couple count doesn't exceed maxCouples, and neither event has
  * multiple rounds (events with multiple rounds are never combined).
  */
-function mergeEntries(
+export function mergeEntries(
   items: Array<{ entry: HeatEntry; event: Event; coupleCount: number }>,
   maxCouples: number,
 ): ScheduledHeat[] {
@@ -500,6 +503,14 @@ function mergeEntries(
       let placed = false;
       for (const heat of heats) {
         if (heat.totalCouples + item.coupleCount <= maxCouples) {
+          // Section events with the same sectionGroupId must never share a heat
+          if (item.event.sectionGroupId) {
+            const hasGroupConflict = heat.entries.some(existingEntry => {
+              const existingItem = sorted.find(s => s.entry.eventId === existingEntry.eventId);
+              return existingItem?.event.sectionGroupId === item.event.sectionGroupId;
+            });
+            if (hasGroupConflict) continue;
+          }
           heat.entries.push(item.entry);
           heat.totalCouples += item.coupleCount;
           placed = true;

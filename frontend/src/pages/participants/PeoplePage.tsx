@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { peopleApi, studiosApi } from '../../api/client';
 import { Person, Studio } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
@@ -221,7 +222,13 @@ const PeoplePage = () => {
                   <td className="px-3 py-2 border-t border-gray-100">{person.role}</td>
                   <td className="px-3 py-2 border-t border-gray-100">{person.status}</td>
                   <td className="px-3 py-2 border-t border-gray-100">{studios.find(s => s.id === person.studioId)?.name || ''}</td>
-                  <td className="px-3 py-2 border-t border-gray-100">
+                  <td className="px-3 py-2 border-t border-gray-100 space-x-2">
+                    <Link
+                      to={`/competitions/${activeCompetition?.id}/heat-sheet?personId=${person.id}`}
+                      className="px-2 py-1 bg-primary-500 text-white rounded text-sm font-medium transition-colors hover:bg-primary-600 inline-block no-underline"
+                    >
+                      Heat Sheet
+                    </Link>
                     <button onClick={() => handleDelete(person.id)} className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
                       Delete
                     </button>

@@ -166,6 +166,7 @@ const competition = {
       { minEntries: 1, pricePerEntry: 175 },
     ],
   },
+  allowDuplicateEntries: true,
   entryPayments: {} as Record<string, { paid: boolean; paidBy?: number; paidAt?: string; notes?: string }>,
   createdAt: now,
 };
@@ -340,6 +341,8 @@ interface EventData {
   competitionId: number;
   scoringType: 'standard' | 'proficiency';
   isScholarship: boolean;
+  sectionGroupId?: string;
+  sectionLetter?: string;
 }
 
 const events: EventData[] = [];
@@ -551,6 +554,66 @@ for (const style of ['Smooth', 'Rhythm'] as const) {
   });
 }
 
+// 5. SECTION EVENTS — duplicate entries for pro-am (same pro, different students)
+//    malePro[0] (id=1) appears in bibs: 1, 11, 21
+//    malePro[1] (id=2) appears in bibs: 2, 12, 22
+//    femalePro[0] (id=11) appears in bibs: 26, 36, 46
+
+function addSectionEvent(opts: {
+  designation: string;
+  syllabusType: string;
+  level: string;
+  style: string;
+  dances: string[];
+  bibs: number[];
+  scoringType: 'standard' | 'proficiency';
+  sectionGroupId: string;
+  sectionLetter: string;
+}): void {
+  const rounds = determineRounds(opts.bibs.length, opts.scoringType);
+  const danceLabel = opts.dances.length > 1 ? opts.dances.join('/') : opts.dances[0];
+  const name = `${opts.designation} ${opts.syllabusType} ${opts.level} ${opts.style} ${danceLabel} - ${opts.sectionLetter}`;
+
+  const judgeCount = (competition.judgeSettings.levelOverrides as Record<string, number>)[opts.level]
+    ?? competition.judgeSettings.defaultCount;
+  const eventJudgeIds = allJudgeIds.slice(0, Math.min(judgeCount, allJudgeIds.length));
+
+  const heats: HeatData[] = rounds.map((round, idx) => ({
+    round,
+    bibs: idx === 0 ? opts.bibs : [],
+    judges: eventJudgeIds,
+  }));
+
+  events.push({
+    id: nextEventId++,
+    name,
+    designation: opts.designation,
+    syllabusType: opts.syllabusType,
+    level: opts.level,
+    style: opts.style,
+    dances: opts.dances,
+    heats,
+    competitionId: COMP_ID,
+    scoringType: opts.scoringType,
+    isScholarship: false,
+    sectionGroupId: opts.sectionGroupId,
+    sectionLetter: opts.sectionLetter,
+  });
+}
+
+// Group 1: Pro-Am Syllabus Bronze Smooth Waltz — 3 sections (malePro[0])
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Bronze', style: 'Smooth', dances: ['Waltz'], bibs: [1, 3, 4, 5], scoringType: 'standard', sectionGroupId: 'sg-sample-1', sectionLetter: 'A' });
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Bronze', style: 'Smooth', dances: ['Waltz'], bibs: [11, 6, 7, 8], scoringType: 'standard', sectionGroupId: 'sg-sample-1', sectionLetter: 'B' });
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Bronze', style: 'Smooth', dances: ['Waltz'], bibs: [21, 9, 10, 13], scoringType: 'standard', sectionGroupId: 'sg-sample-1', sectionLetter: 'C' });
+
+// Group 2: Pro-Am Syllabus Silver Rhythm Cha Cha — 2 sections (malePro[1])
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Silver', style: 'Rhythm', dances: ['Cha Cha'], bibs: [2, 14, 15, 16, 17, 18], scoringType: 'standard', sectionGroupId: 'sg-sample-2', sectionLetter: 'A' });
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Silver', style: 'Rhythm', dances: ['Cha Cha'], bibs: [12, 19, 20, 23, 24, 25], scoringType: 'standard', sectionGroupId: 'sg-sample-2', sectionLetter: 'B' });
+
+// Group 3: Pro-Am Syllabus Bronze Latin Rumba — 2 sections, proficiency (femalePro[0])
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Bronze', style: 'Latin', dances: ['Rumba'], bibs: [26, 27, 28, 29], scoringType: 'proficiency', sectionGroupId: 'sg-sample-3', sectionLetter: 'A' });
+addSectionEvent({ designation: 'Pro-Am', syllabusType: 'Syllabus', level: 'Bronze', style: 'Latin', dances: ['Rumba'], bibs: [36, 37, 38, 39], scoringType: 'proficiency', sectionGroupId: 'sg-sample-3', sectionLetter: 'B' });
+
 // ────────────────────────────────────────────────────────────────────
 // Build JSON file structures
 // ────────────────────────────────────────────────────────────────────
@@ -620,6 +683,7 @@ let scholarshipCount = 0;
 let multiDanceCount = 0;
 let semiCount = 0;
 let quarterCount = 0;
+let sectionEventCount = 0;
 
 for (const e of events) {
   styleCounts[e.style] = (styleCounts[e.style] || 0) + 1;
@@ -630,6 +694,7 @@ for (const e of events) {
   if (e.dances.length > 1) multiDanceCount++;
   if (e.heats.some(h => h.round === 'semi-final')) semiCount++;
   if (e.heats.some(h => h.round === 'quarter-final')) quarterCount++;
+  if (e.sectionGroupId) sectionEventCount++;
 }
 
 console.log('=== Sample Data Generated ===');
@@ -646,6 +711,7 @@ console.log(`    Scholarship: ${scholarshipCount}`);
 console.log(`    Multi-dance: ${multiDanceCount}`);
 console.log(`    With semi-final: ${semiCount}`);
 console.log(`    With quarter-final: ${quarterCount}`);
+console.log(`    Section events: ${sectionEventCount}`);
 console.log(`\nJSON files written to: ${dataDir}/`);
 
 // ────────────────────────────────────────────────────────────────────
@@ -678,8 +744,8 @@ if (process.argv.includes('--sql') || true) {
   // Competition
   lines.push('-- Competition');
   const c = competition;
-  lines.push(`INSERT INTO competitions (id, name, type, date, location, studio_id, description, judge_settings, default_scoring_type, levels, pricing, entry_payments, created_at)`);
-  lines.push(`  VALUES (${c.id}, ${esc(c.name)}, ${esc(c.type)}, ${esc(c.date)}, ${esc(c.location)}, ${c.studioId}, ${esc(c.description)}, ${jsonVal(c.judgeSettings)}, ${esc(c.defaultScoringType)}, ${jsonVal(c.levels)}, ${jsonVal(c.pricing)}, '{}', ${esc(c.createdAt)})`);
+  lines.push(`INSERT INTO competitions (id, name, type, date, location, studio_id, description, judge_settings, default_scoring_type, levels, pricing, entry_payments, allow_duplicate_entries, created_at)`);
+  lines.push(`  VALUES (${c.id}, ${esc(c.name)}, ${esc(c.type)}, ${esc(c.date)}, ${esc(c.location)}, ${c.studioId}, ${esc(c.description)}, ${jsonVal(c.judgeSettings)}, ${esc(c.defaultScoringType)}, ${jsonVal(c.levels)}, ${jsonVal(c.pricing)}, '{}', ${c.allowDuplicateEntries ?? false}, ${esc(c.createdAt)})`);
   lines.push(`  ON CONFLICT (id) DO NOTHING;`);
   lines.push(`SELECT setval('competitions_id_seq', ${c.id});`);
   lines.push('');
@@ -687,34 +753,39 @@ if (process.argv.includes('--sql') || true) {
   // People
   lines.push('-- People');
   for (const p of people) {
-    lines.push(`INSERT INTO people (id, first_name, last_name, email, role, status, competition_id, studio_id) VALUES (${p.id}, ${esc(p.firstName)}, ${esc(p.lastName)}, ${esc(p.email)}, ${esc(p.role)}, ${esc(p.status)}, ${p.competitionId}, ${p.studioId});`);
+    lines.push(`INSERT INTO people (id, first_name, last_name, email, role, status, competition_id, studio_id) VALUES (${p.id}, ${esc(p.firstName)}, ${esc(p.lastName)}, ${esc(p.email)}, ${esc(p.role)}, ${esc(p.status)}, ${p.competitionId}, ${p.studioId}) ON CONFLICT (id) DO NOTHING;`);
   }
-  lines.push(`SELECT setval('people_id_seq', ${personId - 1});`);
+  lines.push(`SELECT setval('people_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM people), ${personId - 1}));`);
   lines.push('');
 
   // Couples
   lines.push('-- Couples');
   for (const cp of couples) {
-    lines.push(`INSERT INTO couples (bib, leader_id, follower_id, leader_name, follower_name, competition_id) VALUES (${cp.bib}, ${cp.leaderId}, ${cp.followerId}, ${esc(cp.leaderName)}, ${esc(cp.followerName)}, ${cp.competitionId});`);
+    lines.push(`INSERT INTO couples (bib, leader_id, follower_id, leader_name, follower_name, competition_id) VALUES (${cp.bib}, ${cp.leaderId}, ${cp.followerId}, ${esc(cp.leaderName)}, ${esc(cp.followerName)}, ${cp.competitionId}) ON CONFLICT (bib) DO NOTHING;`);
   }
-  lines.push(`SELECT setval('couples_bib_seq', ${nextBib - 1});`);
+  lines.push(`SELECT setval('couples_bib_seq', GREATEST((SELECT COALESCE(MAX(bib), 0) FROM couples), ${nextBib - 1}));`);
   lines.push('');
 
   // Judges
   lines.push('-- Judges');
   for (const j of judges) {
-    lines.push(`INSERT INTO judges (id, name, judge_number, competition_id) VALUES (${j.id}, ${esc(j.name)}, ${j.judgeNumber}, ${j.competitionId});`);
+    lines.push(`INSERT INTO judges (id, name, judge_number, competition_id) VALUES (${j.id}, ${esc(j.name)}, ${j.judgeNumber}, ${j.competitionId}) ON CONFLICT (id) DO NOTHING;`);
   }
-  lines.push(`SELECT setval('judges_id_seq', ${judges.length});`);
+  lines.push(`SELECT setval('judges_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM judges), ${judges.length}));`);
   lines.push('');
 
   // Events
   lines.push('-- Events');
   for (const e of events) {
-    lines.push(`INSERT INTO events (id, name, designation, syllabus_type, level, style, dances, heats, competition_id, scoring_type, is_scholarship)`);
-    lines.push(`  VALUES (${e.id}, ${esc(e.name)}, ${esc(e.designation)}, ${esc(e.syllabusType)}, ${esc(e.level)}, ${esc(e.style)}, ${jsonVal(e.dances)}, ${jsonVal(e.heats)}, ${e.competitionId}, ${esc(e.scoringType)}, ${e.isScholarship});`);
+    if (e.sectionGroupId) {
+      lines.push(`INSERT INTO events (id, name, designation, syllabus_type, level, style, dances, heats, competition_id, scoring_type, is_scholarship, section_group_id, section_letter)`);
+      lines.push(`  VALUES (${e.id}, ${esc(e.name)}, ${esc(e.designation)}, ${esc(e.syllabusType)}, ${esc(e.level)}, ${esc(e.style)}, ${jsonVal(e.dances)}, ${jsonVal(e.heats)}, ${e.competitionId}, ${esc(e.scoringType)}, ${e.isScholarship}, ${esc(e.sectionGroupId)}, ${esc(e.sectionLetter)}) ON CONFLICT (id) DO NOTHING;`);
+    } else {
+      lines.push(`INSERT INTO events (id, name, designation, syllabus_type, level, style, dances, heats, competition_id, scoring_type, is_scholarship)`);
+      lines.push(`  VALUES (${e.id}, ${esc(e.name)}, ${esc(e.designation)}, ${esc(e.syllabusType)}, ${esc(e.level)}, ${esc(e.style)}, ${jsonVal(e.dances)}, ${jsonVal(e.heats)}, ${e.competitionId}, ${esc(e.scoringType)}, ${e.isScholarship}) ON CONFLICT (id) DO NOTHING;`);
+    }
   }
-  lines.push(`SELECT setval('events_id_seq', ${nextEventId - 1});`);
+  lines.push(`SELECT setval('events_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM events), ${nextEventId - 1}));`);
   lines.push('');
 
   lines.push('COMMIT;');

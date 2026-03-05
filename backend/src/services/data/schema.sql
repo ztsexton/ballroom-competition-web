@@ -238,3 +238,11 @@ CREATE TABLE IF NOT EXISTS judge_profiles (
 
 -- Migration: add profile_id to judges (link to site-level judge profile)
 ALTER TABLE judges ADD COLUMN IF NOT EXISTS profile_id INTEGER;
+
+-- Migration: add section events and duplicate entries support
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS allow_duplicate_entries BOOLEAN DEFAULT FALSE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS section_group_id TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS section_letter TEXT;
+
+-- Migration: unique index on people email so the same person can be reused across competitions
+CREATE UNIQUE INDEX IF NOT EXISTS idx_people_unique_email ON people(LOWER(email)) WHERE email IS NOT NULL;

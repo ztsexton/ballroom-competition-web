@@ -151,6 +151,7 @@ export async function seedFinishedCompetition(
     },
     publiclyVisible: true,
     resultsPublic: true,
+    allowDuplicateEntries: true,
   });
   const compId = comp.id;
   logger.info({ competitionId: compId }, 'Created finished seed competition');
@@ -183,14 +184,17 @@ export async function seedFinishedCompetition(
     ['Elena', 'Torres'], ['Maya', 'Larsson'], ['Alice', 'Hughes'], ['Clara', 'Cruz'],
     ['Freya', 'Meyer'], ['Hana', 'Tanaka'], ['Iris', 'Singh'], ['Layla', 'Johansson'],
     ['Nina', 'Ivanov'], ['Rosa', 'Brennan'], ['Thea', 'Almeida'], ['Vera', 'Chang'],
+    ['Alina', 'Kozlov'], ['Diana', 'Petrova'], ['Katya', 'Sokolov'], ['Marina', 'Volkov'],
   ];
 
-  for (const [first, last] of leaderNames) {
+  for (let i = 0; i < leaderNames.length; i++) {
+    const [first, last] = leaderNames[i];
     const p = await ds.addPerson({
       firstName: first,
       lastName: last,
+      email: `${first.toLowerCase()}.${last.toLowerCase().replace(/'/g, '')}@seed.example.com`,
       role: 'leader',
-      status: 'student',
+      status: i < 3 ? 'professional' : 'student',
       competitionId: compId,
     });
     leaders.push(p);
@@ -200,6 +204,7 @@ export async function seedFinishedCompetition(
     const p = await ds.addPerson({
       firstName: first,
       lastName: last,
+      email: `${first.toLowerCase()}.${last.toLowerCase().replace(/'/g, '')}@seed.example.com`,
       role: 'follower',
       status: 'student',
       competitionId: compId,
@@ -211,6 +216,17 @@ export async function seedFinishedCompetition(
   const couples: Couple[] = [];
   for (let i = 0; i < 40; i++) {
     const c = await ds.addCouple(leaders[i].id, followers[i].id, compId);
+    if (c) couples.push(c);
+  }
+  // Additional pro-am couples for section events (pros dancing with multiple students)
+  // Leader[0] gets 2 extra partners (indices 40, 41) → 3 couples total
+  // Leader[1] gets 1 extra partner (index 42) → 2 couples total
+  // Leader[2] gets 1 extra partner (index 43) → 2 couples total
+  const extraPairings = [
+    [0, 40], [0, 41], [1, 42], [2, 43],
+  ];
+  for (const [li, fi] of extraPairings) {
+    const c = await ds.addCouple(leaders[li].id, followers[fi].id, compId);
     if (c) couples.push(c);
   }
   logger.info({ coupleCount: couples.length }, 'Created couples');
@@ -308,6 +324,99 @@ export async function seedFinishedCompetition(
     // Score the event through all rounds
     await scoreEvent(ds, scoringService, event, def, eventBibs);
     logger.info({ eventId: event.id, name: def.name, rounds: event.heats.length }, 'Scored event');
+  }
+
+  // ── Section event groups (pro-am duplicate entries) ─────────────
+  interface SectionGroupDef {
+    baseName: string;
+    style: string;
+    level: string;
+    dances?: string[];
+    scoringType: 'standard' | 'proficiency';
+    sectionGroupId: string;
+    sections: number[][]; // each sub-array is list of couple indices
+  }
+
+  const sectionGroups: SectionGroupDef[] = [
+    // Group 1: Smooth Bronze Waltz — 3 sections (leader[0] in couples 0, 40, 41)
+    {
+      baseName: 'Smooth Bronze Waltz',
+      style: 'Smooth',
+      level: 'Bronze',
+      scoringType: 'standard',
+      sectionGroupId: 'sg-seed-1',
+      sections: [
+        [0, 3, 4, 5, 6],     // Section A: couple[0] has leader[0]
+        [40, 7, 8, 9, 10],   // Section B: couple[40] has leader[0]
+        [41, 11, 12, 13, 14], // Section C: couple[41] has leader[0]
+      ],
+    },
+    // Group 2: Rhythm Silver Cha Cha — 2 sections, semi+final (leader[1] in couples 1, 42)
+    {
+      baseName: 'Rhythm Silver Cha Cha',
+      style: 'Rhythm',
+      level: 'Silver',
+      scoringType: 'standard',
+      sectionGroupId: 'sg-seed-2',
+      sections: [
+        [1, 15, 16, 17, 18, 19, 20, 21], // Section A: couple[1] has leader[1]
+        [42, 22, 23, 24, 25, 26, 27, 28], // Section B: couple[42] has leader[1]
+      ],
+    },
+    // Group 3: Latin Bronze Rumba — 2 sections, proficiency (leader[2] in couples 2, 43)
+    {
+      baseName: 'Latin Bronze Rumba',
+      style: 'Latin',
+      level: 'Bronze',
+      scoringType: 'proficiency',
+      sectionGroupId: 'sg-seed-3',
+      sections: [
+        [2, 29, 30, 31],  // Section A: couple[2] has leader[2]
+        [43, 32, 33, 34],  // Section B: couple[43] has leader[2]
+      ],
+    },
+  ];
+
+  const sectionLetters = ['A', 'B', 'C', 'D', 'E'];
+
+  for (const group of sectionGroups) {
+    for (let si = 0; si < group.sections.length; si++) {
+      const letter = sectionLetters[si];
+      const sectionBibs = group.sections[si].map(idx => couples[idx].bib);
+      const sectionName = `${group.baseName} - ${letter}`;
+
+      const event = await ds.addEvent(
+        sectionName,
+        sectionBibs,
+        judgeIds,
+        compId,
+        undefined,
+        undefined,
+        group.level,
+        group.style,
+        group.dances,
+        group.scoringType,
+      );
+
+      // Set section metadata
+      await ds.updateEvent(event.id, {
+        sectionGroupId: group.sectionGroupId,
+        sectionLetter: letter,
+      });
+
+      // Score the section event
+      const sectionDef: EventDef = {
+        name: sectionName,
+        style: group.style,
+        level: group.level,
+        dances: group.dances,
+        coupleCount: sectionBibs.length,
+        scoringType: group.scoringType,
+      };
+      await scoreEvent(ds, scoringService, event, sectionDef, sectionBibs);
+      createdEvents.push(event);
+      logger.info({ eventId: event.id, name: sectionName, section: letter, groupId: group.sectionGroupId }, 'Scored section event');
+    }
   }
 
   // ── Generate schedule and mark completed ─────────────────────────

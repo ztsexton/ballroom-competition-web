@@ -13,6 +13,7 @@ import {
   EntryValidationSection,
   AgeCategoriesSection,
   FloorSizeSection,
+  DuplicateEntriesSection,
   RecallAdvancementSection,
   VisibilityAccessSection,
   CURRENCY_OPTIONS,
@@ -353,6 +354,12 @@ const CompetitionSettingsPage = () => {
             comp={comp}
             savedMap={savedMap}
             levels={levels}
+            saveField={saveField}
+          />
+
+          <DuplicateEntriesSection
+            comp={comp}
+            savedMap={savedMap}
             saveField={saveField}
           />
         </>

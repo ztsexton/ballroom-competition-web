@@ -571,7 +571,6 @@ export class JsonDataService implements IDataService {
     const leader = await this.getPersonById(leaderId);
     const follower = await this.getPersonById(followerId);
     if (!leader || !follower) return null;
-    if (leader.competitionId !== competitionId || follower.competitionId !== competitionId) return null;
 
     const leaderName = leader.firstName + (leader.lastName ? ' ' + leader.lastName : '');
     const followerName = follower.firstName + (follower.lastName ? ' ' + follower.lastName : '');

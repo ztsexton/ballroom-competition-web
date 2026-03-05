@@ -39,7 +39,8 @@ export function getHeatRound(heat: ScheduledHeat): string {
   const entry = heat.entries[0];
   let round = entry.round;
   if (entry.totalFloorHeats && entry.totalFloorHeats > 1) {
-    round += ` (Heat ${(entry.floorHeatIndex ?? 0) + 1} of ${entry.totalFloorHeats})`;
+    const letter = String.fromCharCode(65 + (entry.floorHeatIndex ?? 0));
+    round += ` (Heat ${letter})`;
   }
   if (entry.dance) {
     round += ` — ${entry.dance}`;

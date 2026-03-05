@@ -48,6 +48,7 @@ export class PostgresDataService implements IDataService {
       heatListsPublishedAt: row.heat_lists_published_at || undefined,
       websiteUrl: row.website_url || undefined,
       organizerEmail: row.organizer_email || undefined,
+      allowDuplicateEntries: row.allow_duplicate_entries ?? undefined,
       createdBy: row.created_by || undefined,
       createdAt: row.created_at,
     };
@@ -142,6 +143,8 @@ export class PostgresDataService implements IDataService {
       isScholarship: row.is_scholarship || undefined,
       ageCategory: row.age_category || undefined,
       scratchedBibs: row.scratched_bibs && row.scratched_bibs.length > 0 ? row.scratched_bibs : undefined,
+      sectionGroupId: row.section_group_id || undefined,
+      sectionLetter: row.section_letter || undefined,
     };
   }
 
@@ -193,8 +196,7 @@ export class PostgresDataService implements IDataService {
 
   async addCompetition(competition: Omit<Competition, 'id' | 'createdAt'>): Promise<Competition> {
     const now = new Date().toISOString();
-    const { rows } = await this.pool.query(
-      `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
+    const query = `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
         judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
         entry_payments, max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
         recall_rules, entry_validation, age_categories, dance_order,
@@ -204,40 +206,50 @@ export class PostgresDataService implements IDataService {
         website_url, organizer_email, created_by, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
         $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
-       RETURNING *`,
-      [
-        competition.name, competition.type, competition.date,
-        competition.location || null, competition.studioId || null,
-        competition.organizationId || null,
-        competition.description || null,
-        competition.judgeSettings ? JSON.stringify(competition.judgeSettings) : null,
-        competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
-        competition.defaultScoringType || null,
-        competition.levels ? JSON.stringify(competition.levels) : null,
-        competition.levelMode || null,
-        competition.pricing ? JSON.stringify(competition.pricing) : null,
-        competition.currency || null,
-        JSON.stringify(competition.entryPayments || {}),
-        competition.maxCouplesPerHeat ?? null,
-        competition.maxCouplesOnFloor ?? null,
-        competition.maxCouplesOnFloorByLevel ? JSON.stringify(competition.maxCouplesOnFloorByLevel) : null,
-        competition.recallRules ? JSON.stringify(competition.recallRules) : null,
-        competition.entryValidation ? JSON.stringify(competition.entryValidation) : null,
-        competition.ageCategories ? JSON.stringify(competition.ageCategories) : null,
-        competition.danceOrder ? JSON.stringify(competition.danceOrder) : null,
-        competition.registrationOpen ?? false,
-        competition.registrationOpenAt || null,
-        competition.publiclyVisible ?? null,
-        competition.publiclyVisibleAt || null,
-        competition.resultsPublic ?? null,
-        competition.heatListsPublished ?? null,
-        competition.heatListsPublishedAt || null,
-        competition.websiteUrl || null,
-        competition.organizerEmail || null,
-        competition.createdBy || null,
-        now,
-      ]
-    );
+       RETURNING *`;
+    const params = [
+      competition.name, competition.type, competition.date,
+      competition.location || null, competition.studioId || null,
+      competition.organizationId || null,
+      competition.description || null,
+      competition.judgeSettings ? JSON.stringify(competition.judgeSettings) : null,
+      competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
+      competition.defaultScoringType || null,
+      competition.levels ? JSON.stringify(competition.levels) : null,
+      competition.levelMode || null,
+      competition.pricing ? JSON.stringify(competition.pricing) : null,
+      competition.currency || null,
+      JSON.stringify(competition.entryPayments || {}),
+      competition.maxCouplesPerHeat ?? null,
+      competition.maxCouplesOnFloor ?? null,
+      competition.maxCouplesOnFloorByLevel ? JSON.stringify(competition.maxCouplesOnFloorByLevel) : null,
+      competition.recallRules ? JSON.stringify(competition.recallRules) : null,
+      competition.entryValidation ? JSON.stringify(competition.entryValidation) : null,
+      competition.ageCategories ? JSON.stringify(competition.ageCategories) : null,
+      competition.danceOrder ? JSON.stringify(competition.danceOrder) : null,
+      competition.registrationOpen ?? false,
+      competition.registrationOpenAt || null,
+      competition.publiclyVisible ?? null,
+      competition.publiclyVisibleAt || null,
+      competition.resultsPublic ?? null,
+      competition.heatListsPublished ?? null,
+      competition.heatListsPublishedAt || null,
+      competition.websiteUrl || null,
+      competition.organizerEmail || null,
+      competition.createdBy || null,
+      now,
+    ];
+    let rows;
+    try {
+      ({ rows } = await this.pool.query(query, params));
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'competitions_pkey') {
+        await this.pool.query(`SELECT setval('competitions_id_seq', COALESCE((SELECT MAX(id) FROM competitions), 0))`);
+        ({ rows } = await this.pool.query(query, params));
+      } else {
+        throw err;
+      }
+    }
     const comp = this.competitionFromRow(rows[0]);
 
     // Auto-add creator as competition admin
@@ -269,6 +281,7 @@ export class PostgresDataService implements IDataService {
       resultsPublic: 'results_public',
       heatListsPublished: 'heat_lists_published', heatListsPublishedAt: 'heat_lists_published_at',
       websiteUrl: 'website_url', organizerEmail: 'organizer_email',
+      allowDuplicateEntries: 'allow_duplicate_entries',
     };
     const jsonFields: Record<string, string> = {
       judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
@@ -492,16 +505,34 @@ export class PostgresDataService implements IDataService {
   }
 
   async addPerson(person: Omit<Person, 'id'>): Promise<Person> {
-    const { rows } = await this.pool.query(
-      `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [
-        person.firstName, person.lastName, person.email || null,
-        person.role, person.status, person.competitionId, person.studioId || null,
-        person.userId || null,
-      ]
-    );
-    return this.personFromRow(rows[0]);
+    // If email provided, return existing person rather than creating a duplicate
+    if (person.email) {
+      const { rows: existing } = await this.pool.query(
+        'SELECT * FROM people WHERE LOWER(email) = LOWER($1) LIMIT 1',
+        [person.email]
+      );
+      if (existing.length > 0) return this.personFromRow(existing[0]);
+    }
+
+    const query = `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+    const params = [
+      person.firstName, person.lastName, person.email || null,
+      person.role, person.status, person.competitionId, person.studioId || null,
+      person.userId || null,
+    ];
+    try {
+      const { rows } = await this.pool.query(query, params);
+      return this.personFromRow(rows[0]);
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'people_pkey') {
+        // Sequence out of sync — fix it and retry
+        await this.pool.query(`SELECT setval('people_id_seq', COALESCE((SELECT MAX(id) FROM people), 0))`);
+        const { rows } = await this.pool.query(query, params);
+        return this.personFromRow(rows[0]);
+      }
+      throw err;
+    }
   }
 
   async updatePerson(id: number, updates: Partial<Omit<Person, 'id'>>): Promise<Person | null> {
@@ -574,17 +605,24 @@ export class PostgresDataService implements IDataService {
     const leader = await this.getPersonById(leaderId);
     const follower = await this.getPersonById(followerId);
     if (!leader || !follower) return null;
-    if (leader.competitionId !== competitionId || follower.competitionId !== competitionId) return null;
 
     const leaderName = leader.firstName + (leader.lastName ? ' ' + leader.lastName : '');
     const followerName = follower.firstName + (follower.lastName ? ' ' + follower.lastName : '');
 
-    const { rows } = await this.pool.query(
-      `INSERT INTO couples (leader_id, follower_id, leader_name, follower_name, competition_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [leaderId, followerId, leaderName, followerName, competitionId]
-    );
-    return this.coupleFromRow(rows[0]);
+    const query = `INSERT INTO couples (leader_id, follower_id, leader_name, follower_name, competition_id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+    const params = [leaderId, followerId, leaderName, followerName, competitionId];
+    try {
+      const { rows } = await this.pool.query(query, params);
+      return this.coupleFromRow(rows[0]);
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'couples_pkey') {
+        await this.pool.query(`SELECT setval('couples_bib_seq', COALESCE((SELECT MAX(bib) FROM couples), 0))`);
+        const { rows } = await this.pool.query(query, params);
+        return this.coupleFromRow(rows[0]);
+      }
+      throw err;
+    }
   }
 
   async deleteCouple(bib: number): Promise<boolean> {
@@ -635,12 +673,20 @@ export class PostgresDataService implements IDataService {
     );
     const judgeNumber = (existing[0].max_num || 0) + 1;
 
-    const { rows } = await this.pool.query(
-      `INSERT INTO judges (name, judge_number, competition_id)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [name, judgeNumber, competitionId]
-    );
-    return this.judgeFromRow(rows[0]);
+    const query = `INSERT INTO judges (name, judge_number, competition_id)
+       VALUES ($1, $2, $3) RETURNING *`;
+    const params = [name, judgeNumber, competitionId];
+    try {
+      const { rows } = await this.pool.query(query, params);
+      return this.judgeFromRow(rows[0]);
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'judges_pkey') {
+        await this.pool.query(`SELECT setval('judges_id_seq', COALESCE((SELECT MAX(id) FROM judges), 0))`);
+        const { rows } = await this.pool.query(query, params);
+        return this.judgeFromRow(rows[0]);
+      }
+      throw err;
+    }
   }
 
   // ─── Judge Profiles ───────────────────────────────────────────
@@ -805,18 +851,26 @@ export class PostgresDataService implements IDataService {
       judges: judgeIds,
     }));
 
-    const { rows } = await this.pool.query(
-      `INSERT INTO events (name, designation, syllabus_type, level, style, dances,
+    const query = `INSERT INTO events (name, designation, syllabus_type, level, style, dances,
         heats, competition_id, scoring_type, is_scholarship, age_category)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [
-        name, designation || null, syllabusType || null, level || null,
-        style || null, dances ? JSON.stringify(dances) : null,
-        JSON.stringify(heats), competitionId, scoringType || null,
-        isScholarship || false, ageCategory || null,
-      ]
-    );
-    return this.eventFromRow(rows[0]);
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
+    const params = [
+      name, designation || null, syllabusType || null, level || null,
+      style || null, dances ? JSON.stringify(dances) : null,
+      JSON.stringify(heats), competitionId, scoringType || null,
+      isScholarship || false, ageCategory || null,
+    ];
+    try {
+      const { rows } = await this.pool.query(query, params);
+      return this.eventFromRow(rows[0]);
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'events_pkey') {
+        await this.pool.query(`SELECT setval('events_id_seq', COALESCE((SELECT MAX(id) FROM events), 0))`);
+        const { rows } = await this.pool.query(query, params);
+        return this.eventFromRow(rows[0]);
+      }
+      throw err;
+    }
   }
 
   async updateEvent(id: number, updates: Partial<Omit<Event, 'id'>>): Promise<Event | null> {
@@ -832,6 +886,7 @@ export class PostgresDataService implements IDataService {
       level: 'level', style: 'style', competitionId: 'competition_id',
       scoringType: 'scoring_type', isScholarship: 'is_scholarship',
       ageCategory: 'age_category',
+      sectionGroupId: 'section_group_id', sectionLetter: 'section_letter',
     };
     const jsonMap: Record<string, string> = {
       dances: 'dances', heats: 'heats', scratchedBibs: 'scratched_bibs',

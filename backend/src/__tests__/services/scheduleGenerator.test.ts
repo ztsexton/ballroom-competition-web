@@ -1,5 +1,5 @@
-import { getEventTypePriority, interleaveLevels, separateEventRounds } from '../../services/schedule/scheduleGenerator';
-import { Event, ScheduledHeat } from '../../types';
+import { getEventTypePriority, interleaveLevels, separateEventRounds, mergeEntries } from '../../services/schedule/scheduleGenerator';
+import { Event, HeatEntry, ScheduledHeat } from '../../types';
 
 describe('getEventTypePriority', () => {
   const baseEvent: Event = {
@@ -121,5 +121,78 @@ describe('separateEventRounds', () => {
     const result = separateEventRounds(heats);
     // Should still have all heats
     expect(result).toHaveLength(3);
+  });
+});
+
+describe('mergeEntries', () => {
+  it('should not merge section events with same sectionGroupId', () => {
+    const eventA: Event = {
+      id: 1, name: 'Bronze Waltz - A', heats: [{ round: 'final', bibs: [1, 2], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+      sectionGroupId: 'sg-123', sectionLetter: 'A',
+    };
+    const eventB: Event = {
+      id: 2, name: 'Bronze Waltz - B', heats: [{ round: 'final', bibs: [3, 4], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+      sectionGroupId: 'sg-123', sectionLetter: 'B',
+    };
+
+    const items = [
+      { entry: { eventId: 1, round: 'final' } as HeatEntry, event: eventA, coupleCount: 2 },
+      { entry: { eventId: 2, round: 'final' } as HeatEntry, event: eventB, coupleCount: 2 },
+    ];
+
+    const result = mergeEntries(items, 10);
+
+    // Should be in separate heats despite fitting in one
+    expect(result.length).toBe(2);
+    const heat1Events = result[0].entries.map(e => e.eventId);
+    const heat2Events = result[1].entries.map(e => e.eventId);
+    expect(heat1Events).not.toEqual(expect.arrayContaining(heat2Events));
+  });
+
+  it('should merge events without sectionGroupId normally', () => {
+    const eventA: Event = {
+      id: 1, name: 'Bronze Waltz', heats: [{ round: 'final', bibs: [1, 2], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+    };
+    const eventB: Event = {
+      id: 2, name: 'Silver Waltz', heats: [{ round: 'final', bibs: [3, 4], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+    };
+
+    const items = [
+      { entry: { eventId: 1, round: 'final' } as HeatEntry, event: eventA, coupleCount: 2 },
+      { entry: { eventId: 2, round: 'final' } as HeatEntry, event: eventB, coupleCount: 2 },
+    ];
+
+    const result = mergeEntries(items, 10);
+
+    // Should be merged into one heat
+    expect(result.length).toBe(1);
+    expect(result[0].entries.length).toBe(2);
+  });
+
+  it('should allow merging section event with non-section event', () => {
+    const eventA: Event = {
+      id: 1, name: 'Bronze Waltz - A', heats: [{ round: 'final', bibs: [1, 2], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+      sectionGroupId: 'sg-123', sectionLetter: 'A',
+    };
+    const eventC: Event = {
+      id: 3, name: 'Silver Waltz', heats: [{ round: 'final', bibs: [5, 6], judges: [] }],
+      competitionId: 1, style: 'Smooth', dances: ['Waltz'], scoringType: 'standard',
+    };
+
+    const items = [
+      { entry: { eventId: 1, round: 'final' } as HeatEntry, event: eventA, coupleCount: 2 },
+      { entry: { eventId: 3, round: 'final' } as HeatEntry, event: eventC, coupleCount: 2 },
+    ];
+
+    const result = mergeEntries(items, 10);
+
+    // Should merge — different sectionGroupId (one has none)
+    expect(result.length).toBe(1);
+    expect(result[0].entries.length).toBe(2);
   });
 });

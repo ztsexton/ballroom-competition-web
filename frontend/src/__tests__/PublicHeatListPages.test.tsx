@@ -191,7 +191,7 @@ describe('PublicPersonHeatListPage', () => {
     renderPersonPage();
 
     // Person heading
-    expect(await screen.findByText(/Heatlists for/)).toBeInTheDocument();
+    expect(await screen.findByText(/Heat Sheet for/)).toBeInTheDocument();
     expect(screen.getByText('Travis Tuft')).toBeInTheDocument();
 
     // Partner groupings

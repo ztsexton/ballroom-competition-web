@@ -313,10 +313,11 @@ export function dataServiceContractTests(
       expect(couple).toBeNull();
     });
 
-    it('should return null when person belongs to different competition', async () => {
+    it('should allow creating couple with people from a different competition', async () => {
       const comp2 = await ds.addCompetition({ name: 'C2', type: 'NDCA', date: '2026-02-01' });
       const couple = await ds.addCouple(leaderId, followerId, comp2.id);
-      expect(couple).toBeNull();
+      expect(couple).not.toBeNull();
+      expect(couple!.competitionId).toBe(comp2.id);
     });
 
     it('should retrieve couple by bib', async () => {

@@ -3,3 +3,4 @@ export { default as CouplesPage } from './CouplesPage';
 export { default as JudgesPage } from './JudgesPage';
 export { default as ParticipantPortalPage } from './ParticipantPortalPage';
 export { default as InvoicesPage } from './InvoicesPage';
+export { default as PersonHeatListPage } from './PersonHeatListPage';

@@ -6,6 +6,7 @@ export { default as RulesAndScoringSection } from './RulesAndScoringSection';
 export { default as EntryValidationSection } from './EntryValidationSection';
 export { default as AgeCategoriesSection } from './AgeCategoriesSection';
 export { default as FloorSizeSection } from './FloorSizeSection';
+export { default as DuplicateEntriesSection } from './DuplicateEntriesSection';
 export { default as RecallAdvancementSection } from './RecallAdvancementSection';
 export { default as VisibilityAccessSection } from './VisibilityAccessSection';
 export { CURRENCY_OPTIONS, PRESET_TO_TYPE, PRESET_COLORS, KNOWN_PRESETS } from './constants';

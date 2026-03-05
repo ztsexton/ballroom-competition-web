@@ -410,6 +410,32 @@ describe('Events API', () => {
         .send({ bib: couple!.bib })
         .expect(409);
     });
+
+    it('should redirect to section when person conflict detected with allowDuplicateEntries', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Studio Comp', type: 'STUDIO', date: '2026-06-01',
+        allowDuplicateEntries: true,
+      });
+      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'D', role: 'leader', status: 'professional', competitionId: comp.id });
+      const s1 = await dataService.addPerson({ firstName: 'S', lastName: '1', role: 'follower', status: 'student', competitionId: comp.id });
+      const s2 = await dataService.addPerson({ firstName: 'S', lastName: '2', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple1 = await dataService.addCouple(pro.id, s1.id, comp.id);
+      const couple2 = await dataService.addCouple(pro.id, s2.id, comp.id);
+
+      const event = await dataService.addEvent(
+        'Bronze Waltz', [couple1!.bib], [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/events/${event.id}/entries`)
+        .send({ bib: couple2!.bib })
+        .expect(201);
+
+      expect(res.body.redirectedToSection).toBe(true);
+      expect(res.body.sectionLetter).toBe('B');
+      expect(res.body.name).toContain('- B');
+    });
   });
 
   describe('DELETE /api/events/:id/entries/:bib', () => {

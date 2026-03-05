@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
-import { registerCoupleForEvent } from '../services/registrationService';
+import { registerCoupleForEvent, checkPersonConflict, createSectionEvent, findAllMatchingEvents } from '../services/registrationService';
 import { Event, DetailedResultsResponse } from '../types';
 import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
@@ -135,6 +135,27 @@ router.post('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Respo
     const hasScores = await dataService.hasAnyScores(id);
     if (hasScores) {
       return res.status(409).json({ error: 'Cannot add couple: event has existing scores' });
+    }
+
+    // Check for person conflict when duplicate entries are enabled
+    const competition = await dataService.getCompetitionById(event.competitionId);
+    if (competition?.allowDuplicateEntries && existingBibs.length > 0) {
+      const hasConflict = await checkPersonConflict(bib, existingBibs, event.competitionId);
+      if (hasConflict) {
+        // Find all matching events and create/redirect to appropriate section
+        const combination = {
+          designation: event.designation,
+          syllabusType: event.syllabusType,
+          level: event.level,
+          style: event.style,
+          dances: event.dances,
+          scoringType: event.scoringType,
+          ageCategory: event.ageCategory,
+        };
+        const matchingEvents = await findAllMatchingEvents(event.competitionId, combination);
+        const sectionEvent = await createSectionEvent(event.competitionId, bib, combination, matchingEvents);
+        return res.status(201).json({ ...sectionEvent, redirectedToSection: true });
+      }
     }
 
     const newBibs = [...existingBibs, bib];

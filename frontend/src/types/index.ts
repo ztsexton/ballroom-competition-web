@@ -136,6 +136,7 @@ export interface Competition {
   websiteUrl?: string;
   organizerEmail?: string;
   maxJudgeHoursWithoutBreak?: number;
+  allowDuplicateEntries?: boolean;
   createdBy?: string;
   createdAt: string;
 }
@@ -210,6 +211,9 @@ export interface Event {
   scoringType?: 'standard' | 'proficiency';
   isScholarship?: boolean;
   ageCategory?: string;
+  scratchedBibs?: number[];
+  sectionGroupId?: string;
+  sectionLetter?: string;
 }
 
 export interface InvoiceLineItem {

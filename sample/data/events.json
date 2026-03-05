@@ -2,20 +2,22 @@
   "events": {
     "1": {
       "id": 1,
-      "name": "Pro-Am Syllabus Newcomer Smooth Tango",
+      "name": "Pro-Am Syllabus Newcomer Smooth Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            24,
-            71
+            7,
+            15,
+            32,
+            9
           ],
           "judges": [
             1,
@@ -30,19 +32,22 @@
     },
     "2": {
       "id": 2,
-      "name": "Pro-Am Syllabus Newcomer Smooth Waltz",
+      "name": "Pro-Am Syllabus Newcomer Smooth Tango",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Smooth",
       "dances": [
-        "Waltz"
+        "Tango"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            5
+            35,
+            1,
+            6,
+            32
           ],
           "judges": [
             1,
@@ -57,24 +62,36 @@
     },
     "3": {
       "id": 3,
-      "name": "Pro-Am Syllabus Bronze Smooth Foxtrot",
+      "name": "Pro-Am Syllabus Bronze Smooth Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Smooth",
       "dances": [
-        "Foxtrot"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            69,
-            37,
-            17,
-            53,
-            78
+            33,
+            38,
+            28,
+            24,
+            42,
+            16,
+            39,
+            48
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -88,22 +105,36 @@
     },
     "4": {
       "id": 4,
-      "name": "Pro-Am Syllabus Bronze Smooth Viennese Waltz",
+      "name": "Pro-Am Syllabus Bronze Smooth Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Smooth",
       "dances": [
-        "Viennese Waltz"
+        "Foxtrot"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            41,
-            29,
-            63
+            13,
+            20,
+            47,
+            2,
+            21,
+            46,
+            14,
+            10
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -117,25 +148,38 @@
     },
     "5": {
       "id": 5,
-      "name": "Pro-Am Syllabus Bronze Smooth Tango/Waltz/Viennese Waltz",
+      "name": "Pro-Am Syllabus Bronze Smooth Waltz/Tango/Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Smooth",
       "dances": [
-        "Tango",
         "Waltz",
+        "Tango",
         "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            53,
-            27,
-            98,
-            64
+            8,
+            22,
+            25,
+            5,
+            44,
+            41,
+            4,
+            10
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -161,7 +205,11 @@
         {
           "round": "final",
           "bibs": [
-            14,
+            18,
+            48,
+            1,
+            10,
+            28,
             39
           ],
           "judges": [
@@ -179,20 +227,24 @@
     },
     "7": {
       "id": 7,
-      "name": "Pro-Am Syllabus Silver Smooth Foxtrot",
+      "name": "Pro-Am Syllabus Silver Smooth Tango",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Smooth",
       "dances": [
-        "Foxtrot"
+        "Tango"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            62,
-            90
+            29,
+            45,
+            24,
+            50,
+            42,
+            46
           ],
           "judges": [
             1,
@@ -209,23 +261,26 @@
     },
     "8": {
       "id": 8,
-      "name": "Pro-Am Syllabus Silver Smooth Waltz/Viennese Waltz/Tango",
+      "name": "Pro-Am Syllabus Silver Smooth Waltz/Tango/Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Smooth",
       "dances": [
         "Waltz",
-        "Viennese Waltz",
-        "Tango"
+        "Tango",
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            55,
-            28,
-            87
+            33,
+            12,
+            44,
+            16,
+            19,
+            39
           ],
           "judges": [
             1,
@@ -242,40 +297,24 @@
     },
     "9": {
       "id": 9,
-      "name": "Pro-Am Syllabus Gold Smooth Tango",
+      "name": "Pro-Am Syllabus Gold Smooth Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "semi-final",
-          "bibs": [
-            18,
-            31,
-            25,
-            50,
-            81,
-            21,
-            40,
-            26,
-            48,
-            84
-          ],
-          "judges": [
-            1,
-            2,
-            3,
-            4,
-            5
-          ]
-        },
-        {
           "round": "final",
-          "bibs": [],
+          "bibs": [
+            27,
+            19,
+            34,
+            43,
+            5
+          ],
           "judges": [
             1,
             2,
@@ -291,21 +330,23 @@
     },
     "10": {
       "id": 10,
-      "name": "Pro-Am Syllabus Gold Smooth Foxtrot",
+      "name": "Pro-Am Syllabus Gold Smooth Tango",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Smooth",
       "dances": [
-        "Foxtrot"
+        "Tango"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            32,
-            53,
-            13
+            40,
+            35,
+            26,
+            24,
+            2
           ],
           "judges": [
             1,
@@ -322,23 +363,25 @@
     },
     "11": {
       "id": 11,
-      "name": "Pro-Am Syllabus Gold Smooth Tango/Viennese Waltz/Waltz",
+      "name": "Pro-Am Syllabus Gold Smooth Waltz/Tango/Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Smooth",
       "dances": [
+        "Waltz",
         "Tango",
-        "Viennese Waltz",
-        "Waltz"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            77,
-            90,
-            89
+            3,
+            17,
+            13,
+            47,
+            20
           ],
           "judges": [
             1,
@@ -367,14 +410,16 @@
         {
           "round": "semi-final",
           "bibs": [
-            72,
-            85,
-            13,
-            96,
-            90,
-            24,
-            69,
-            83
+            47,
+            34,
+            45,
+            29,
+            27,
+            38,
+            3,
+            43,
+            4,
+            9
           ],
           "judges": [
             1,
@@ -402,28 +447,28 @@
     },
     "13": {
       "id": 13,
-      "name": "Pro-Am Syllabus Novice Smooth Tango",
+      "name": "Pro-Am Syllabus Novice Smooth Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            26,
-            33,
-            9,
-            23,
-            66,
+            7,
+            44,
+            35,
+            3,
+            6,
             20,
-            19,
-            52,
-            79,
-            90
+            11,
+            47,
+            30,
+            14
           ],
           "judges": [
             1,
@@ -451,23 +496,42 @@
     },
     "14": {
       "id": 14,
-      "name": "Pro-Am Open Pre-Championship Smooth Viennese Waltz",
+      "name": "Pro-Am Open Pre-Championship Smooth Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Smooth",
       "dances": [
-        "Viennese Waltz"
+        "Foxtrot"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            64,
-            65,
-            68,
-            45
+            10,
+            6,
+            34,
+            15,
+            39,
+            23,
+            14,
+            25,
+            40,
+            20,
+            26,
+            43
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -483,23 +547,42 @@
     },
     "15": {
       "id": 15,
-      "name": "Pro-Am Open Pre-Championship Smooth Waltz",
+      "name": "Pro-Am Open Pre-Championship Smooth Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Smooth",
       "dances": [
-        "Waltz"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            35,
-            89,
-            79,
-            64
+            31,
+            43,
+            5,
+            48,
+            12,
+            14,
+            33,
+            29,
+            47,
+            26,
+            19,
+            44
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -525,20 +608,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            2,
-            50,
-            43,
-            73,
-            7,
+            26,
+            10,
             17,
-            27,
-            83,
-            72,
-            94,
-            12
+            4,
+            40,
+            49,
+            34,
+            1,
+            18,
+            37,
+            47,
+            23,
+            3,
+            38,
+            7,
+            30
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -579,20 +680,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            25,
-            61,
-            36,
-            18,
-            9,
-            98,
-            69,
-            38,
-            65,
-            8,
-            70
+            20,
+            45,
+            32,
+            11,
+            10,
+            28,
+            4,
+            22,
+            40,
+            14,
+            26,
+            35,
+            16,
+            23,
+            24,
+            21
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -633,17 +752,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            17,
-            34,
-            89,
-            44,
+            42,
+            41,
+            48,
+            28,
+            8,
+            15,
+            38,
+            40,
+            46,
+            39,
             21,
-            26,
-            61,
-            96
+            34,
+            19,
+            44,
+            18,
+            30
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -684,13 +824,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            90,
-            58,
-            93,
-            6
+            16,
+            14,
+            35,
+            25,
+            23,
+            10,
+            22,
+            2,
+            28,
+            50,
+            17,
+            31,
+            45,
+            32,
+            5,
+            33
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -722,11 +900,12 @@
         {
           "round": "final",
           "bibs": [
-            2,
-            55,
-            31,
-            64,
-            11
+            46,
+            11,
+            4,
+            39,
+            27,
+            50
           ],
           "judges": [
             1,
@@ -755,23 +934,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            83,
-            31,
-            96,
-            62,
-            2,
-            20,
-            54,
-            75,
-            65,
-            15,
-            60,
-            22,
-            74,
-            93
+            19,
+            39,
+            18,
+            4,
+            50,
+            9,
+            13,
+            11,
+            43,
+            42,
+            41,
+            46,
+            29,
+            47,
+            5,
+            2
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -814,7 +1008,10 @@
         {
           "round": "final",
           "bibs": [
-            53
+            40,
+            36,
+            35,
+            50
           ],
           "judges": [
             1,
@@ -829,21 +1026,22 @@
     },
     "23": {
       "id": 23,
-      "name": "Pro-Am Syllabus Newcomer Rhythm Cha Cha",
+      "name": "Pro-Am Syllabus Newcomer Rhythm East Coast Swing",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Rhythm",
       "dances": [
-        "Cha Cha"
+        "East Coast Swing"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            63,
-            14,
-            20
+            27,
+            28,
+            46,
+            23
           ],
           "judges": [
             1,
@@ -868,13 +1066,26 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            9,
-            63,
-            36,
-            23
+            6,
+            40,
+            20,
+            14,
+            43,
+            41,
+            42,
+            10
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -888,20 +1099,36 @@
     },
     "25": {
       "id": 25,
-      "name": "Pro-Am Syllabus Bronze Rhythm Rumba",
+      "name": "Pro-Am Syllabus Bronze Rhythm Bolero",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            75
+            29,
+            37,
+            1,
+            16,
+            26,
+            43,
+            27,
+            24
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -915,22 +1142,38 @@
     },
     "26": {
       "id": 26,
-      "name": "Pro-Am Syllabus Bronze Rhythm Bolero/Cha Cha/Mambo",
+      "name": "Pro-Am Syllabus Bronze Rhythm East Coast Swing/Rumba/Mambo",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Rhythm",
       "dances": [
-        "Bolero",
-        "Cha Cha",
+        "East Coast Swing",
+        "Rumba",
         "Mambo"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            37
+            45,
+            22,
+            3,
+            21,
+            32,
+            15,
+            14,
+            46
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -944,22 +1187,24 @@
     },
     "27": {
       "id": 27,
-      "name": "Pro-Am Syllabus Silver Rhythm Rumba",
+      "name": "Pro-Am Syllabus Silver Rhythm East Coast Swing",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "East Coast Swing"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            18,
-            10,
-            36,
-            54
+            34,
+            48,
+            46,
+            45,
+            3,
+            25
           ],
           "judges": [
             1,
@@ -976,23 +1221,24 @@
     },
     "28": {
       "id": 28,
-      "name": "Pro-Am Syllabus Silver Rhythm Cha Cha",
+      "name": "Pro-Am Syllabus Silver Rhythm Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Rhythm",
       "dances": [
-        "Cha Cha"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            98,
-            88,
-            81,
-            6,
-            77
+            23,
+            46,
+            21,
+            17,
+            50,
+            33
           ],
           "judges": [
             1,
@@ -1009,21 +1255,25 @@
     },
     "29": {
       "id": 29,
-      "name": "Pro-Am Syllabus Silver Rhythm Cha Cha/Bolero/Rumba",
+      "name": "Pro-Am Syllabus Silver Rhythm Bolero/Mambo/East Coast Swing",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Rhythm",
       "dances": [
-        "Cha Cha",
         "Bolero",
-        "Rumba"
+        "Mambo",
+        "East Coast Swing"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            14,
+            5,
+            42,
+            6,
+            37,
+            1,
             50
           ],
           "judges": [
@@ -1053,11 +1303,11 @@
         {
           "round": "final",
           "bibs": [
-            57,
-            92,
-            83,
-            100,
-            45
+            22,
+            6,
+            37,
+            17,
+            1
           ],
           "judges": [
             1,
@@ -1074,24 +1324,23 @@
     },
     "31": {
       "id": 31,
-      "name": "Pro-Am Syllabus Gold Rhythm Mambo",
+      "name": "Pro-Am Syllabus Gold Rhythm Cha Cha",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Rhythm",
       "dances": [
-        "Mambo"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            77,
-            82,
-            39,
-            17,
-            97,
-            38
+            38,
+            22,
+            42,
+            44,
+            34
           ],
           "judges": [
             1,
@@ -1108,22 +1357,25 @@
     },
     "32": {
       "id": 32,
-      "name": "Pro-Am Syllabus Gold Rhythm Bolero/Rumba/East Coast Swing",
+      "name": "Pro-Am Syllabus Gold Rhythm Cha Cha/Bolero/Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Rhythm",
       "dances": [
+        "Cha Cha",
         "Bolero",
-        "Rumba",
-        "East Coast Swing"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            24,
-            35
+            27,
+            39,
+            15,
+            7,
+            24
           ],
           "judges": [
             1,
@@ -1150,11 +1402,30 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            83,
-            19
+            9,
+            12,
+            44,
+            27,
+            18,
+            33,
+            25,
+            29,
+            35,
+            17
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1170,21 +1441,40 @@
     },
     "34": {
       "id": 34,
-      "name": "Pro-Am Syllabus Novice Rhythm East Coast Swing",
+      "name": "Pro-Am Syllabus Novice Rhythm Cha Cha",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Rhythm",
       "dances": [
-        "East Coast Swing"
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            8,
-            22
+            13,
+            7,
+            28,
+            1,
+            47,
+            32,
+            20,
+            49,
+            17,
+            4
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1200,26 +1490,30 @@
     },
     "35": {
       "id": 35,
-      "name": "Pro-Am Open Pre-Championship Rhythm Cha Cha",
+      "name": "Pro-Am Open Pre-Championship Rhythm Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Rhythm",
       "dances": [
-        "Cha Cha"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            37,
-            48,
-            73,
-            13,
+            45,
+            15,
+            20,
             3,
-            47,
-            22,
-            58
+            31,
+            5,
+            9,
+            11,
+            37,
+            24,
+            26,
+            25
           ],
           "judges": [
             1,
@@ -1247,29 +1541,30 @@
     },
     "36": {
       "id": 36,
-      "name": "Pro-Am Open Pre-Championship Rhythm East Coast Swing",
+      "name": "Pro-Am Open Pre-Championship Rhythm Mambo",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Rhythm",
       "dances": [
-        "East Coast Swing"
+        "Mambo"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            85,
-            56,
-            44,
-            55,
-            20,
-            78,
-            26,
-            100,
-            33,
-            16,
-            4
+            46,
+            14,
+            42,
+            1,
+            36,
+            28,
+            38,
+            5,
+            22,
+            41,
+            48,
+            6
           ],
           "judges": [
             1,
@@ -1307,15 +1602,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            13,
-            2,
-            85,
-            60,
-            57,
-            94
+            6,
+            43,
+            42,
+            5,
+            35,
+            31,
+            50,
+            8,
+            12,
+            9,
+            17,
+            32,
+            48,
+            22,
+            26,
+            49
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1343,22 +1674,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            88,
-            42,
-            98,
-            84,
-            68,
-            56,
-            72,
-            43,
-            55,
-            48,
-            96,
-            67,
-            54
+            3,
+            25,
+            23,
+            49,
+            38,
+            4,
+            19,
+            50,
+            35,
+            9,
+            40,
+            17,
+            33,
+            44,
+            5,
+            18
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1399,17 +1746,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            28,
-            85,
-            14,
+            1,
             17,
-            51,
-            75,
-            31,
-            42
+            3,
+            26,
+            8,
+            23,
+            37,
+            46,
+            21,
+            49,
+            6,
+            19,
+            48,
+            43,
+            10,
+            34
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1450,22 +1818,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            50,
+            48,
+            35,
+            38,
+            24,
             32,
-            69,
-            68,
-            26,
-            47,
-            67,
-            58,
-            40,
-            36,
-            27,
-            91,
-            37
+            13,
+            42,
+            34,
+            15,
+            29,
+            39,
+            1,
+            7,
+            18,
+            2,
+            44
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1506,17 +1890,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            47,
             45,
+            36,
+            6,
+            29,
+            9,
+            24,
+            43,
+            7,
+            13,
             27,
-            53,
-            46,
-            56,
-            31,
-            49
+            1,
+            32,
+            48,
+            50,
+            39,
+            35
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1561,12 +1966,12 @@
         {
           "round": "final",
           "bibs": [
-            43,
-            56,
-            22,
-            92,
-            79,
-            36
+            1,
+            17,
+            30,
+            26,
+            24,
+            20
           ],
           "judges": [
             1,
@@ -1595,18 +2000,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            20,
-            35,
+            36,
+            14,
+            13,
+            25,
+            22,
+            44,
             40,
-            90,
+            45,
+            20,
             47,
-            51,
-            60,
-            77,
-            14
+            34,
+            26,
+            23,
+            8,
+            24,
+            17
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1637,19 +2062,22 @@
     },
     "44": {
       "id": 44,
-      "name": "Pro-Am Syllabus Newcomer Standard Foxtrot",
+      "name": "Pro-Am Syllabus Newcomer Standard Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Standard",
       "dances": [
-        "Foxtrot"
+        "Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            13
+            19,
+            45,
+            27,
+            20
           ],
           "judges": [
             1,
@@ -1664,19 +2092,22 @@
     },
     "45": {
       "id": 45,
-      "name": "Pro-Am Syllabus Newcomer Standard Quickstep",
+      "name": "Pro-Am Syllabus Newcomer Standard Tango",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Standard",
       "dances": [
-        "Quickstep"
+        "Tango"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            66
+            40,
+            49,
+            20,
+            32
           ],
           "judges": [
             1,
@@ -1691,20 +2122,36 @@
     },
     "46": {
       "id": 46,
-      "name": "Pro-Am Syllabus Bronze Standard Quickstep",
+      "name": "Pro-Am Syllabus Bronze Standard Tango",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Standard",
       "dances": [
-        "Quickstep"
+        "Tango"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            74
+            48,
+            31,
+            23,
+            7,
+            33,
+            24,
+            46,
+            27
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1728,14 +2175,26 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            80,
-            25,
-            90,
-            79,
-            31
+            19,
+            29,
+            31,
+            33,
+            47,
+            11,
+            21,
+            10
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1749,22 +2208,38 @@
     },
     "48": {
       "id": 48,
-      "name": "Pro-Am Syllabus Bronze Standard Viennese Waltz/Foxtrot/Quickstep",
+      "name": "Pro-Am Syllabus Bronze Standard Waltz/Tango/Quickstep",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz",
-        "Foxtrot",
+        "Waltz",
+        "Tango",
         "Quickstep"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            6
+            44,
+            40,
+            26,
+            42,
+            32,
+            15,
+            35,
+            16
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -1778,19 +2253,24 @@
     },
     "49": {
       "id": 49,
-      "name": "Pro-Am Syllabus Silver Standard Waltz",
+      "name": "Pro-Am Syllabus Silver Standard Quickstep",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
-        "Waltz"
+        "Quickstep"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            45
+            2,
+            8,
+            31,
+            41,
+            37,
+            39
           ],
           "judges": [
             1,
@@ -1807,20 +2287,24 @@
     },
     "50": {
       "id": 50,
-      "name": "Pro-Am Syllabus Silver Standard Viennese Waltz",
+      "name": "Pro-Am Syllabus Silver Standard Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz"
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            84,
-            70
+            9,
+            1,
+            3,
+            50,
+            16,
+            44
           ],
           "judges": [
             1,
@@ -1837,21 +2321,26 @@
     },
     "51": {
       "id": 51,
-      "name": "Pro-Am Syllabus Silver Standard Waltz/Quickstep/Tango",
+      "name": "Pro-Am Syllabus Silver Standard Viennese Waltz/Tango/Quickstep",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
-        "Waltz",
-        "Quickstep",
-        "Tango"
+        "Viennese Waltz",
+        "Tango",
+        "Quickstep"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            45
+            19,
+            16,
+            23,
+            28,
+            11,
+            38
           ],
           "judges": [
             1,
@@ -1868,24 +2357,23 @@
     },
     "52": {
       "id": 52,
-      "name": "Pro-Am Syllabus Gold Standard Foxtrot",
+      "name": "Pro-Am Syllabus Gold Standard Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Standard",
       "dances": [
-        "Foxtrot"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            3,
-            13,
-            43,
-            51,
-            29,
-            2
+            11,
+            20,
+            12,
+            46,
+            22
           ],
           "judges": [
             1,
@@ -1902,24 +2390,23 @@
     },
     "53": {
       "id": 53,
-      "name": "Pro-Am Syllabus Gold Standard Waltz",
+      "name": "Pro-Am Syllabus Gold Standard Quickstep",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Standard",
       "dances": [
-        "Waltz"
+        "Quickstep"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            31,
-            79,
+            49,
+            44,
             36,
-            54,
-            11,
-            89
+            31,
+            35
           ],
           "judges": [
             1,
@@ -1936,22 +2423,25 @@
     },
     "54": {
       "id": 54,
-      "name": "Pro-Am Syllabus Gold Standard Foxtrot/Quickstep/Waltz",
+      "name": "Pro-Am Syllabus Gold Standard Waltz/Tango/Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Standard",
       "dances": [
-        "Foxtrot",
-        "Quickstep",
-        "Waltz"
+        "Waltz",
+        "Tango",
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            42,
-            36
+            11,
+            2,
+            49,
+            38,
+            46
           ],
           "judges": [
             1,
@@ -1978,14 +2468,30 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            29,
             31,
-            53,
-            61,
-            23
+            13,
+            10,
+            47,
+            30,
+            6,
+            48,
+            42,
+            14,
+            34
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2001,20 +2507,40 @@
     },
     "56": {
       "id": 56,
-      "name": "Pro-Am Syllabus Novice Standard Foxtrot",
+      "name": "Pro-Am Syllabus Novice Standard Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Standard",
       "dances": [
-        "Foxtrot"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            75
+            6,
+            40,
+            18,
+            47,
+            49,
+            14,
+            7,
+            1,
+            12,
+            3
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2030,25 +2556,30 @@
     },
     "57": {
       "id": 57,
-      "name": "Pro-Am Open Pre-Championship Standard Foxtrot",
+      "name": "Pro-Am Open Pre-Championship Standard Quickstep",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Standard",
       "dances": [
-        "Foxtrot"
+        "Quickstep"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            51,
-            60,
-            92,
-            100,
-            81,
-            62,
-            49
+            10,
+            8,
+            48,
+            31,
+            49,
+            42,
+            21,
+            6,
+            15,
+            16,
+            40,
+            37
           ],
           "judges": [
             1,
@@ -2086,15 +2617,32 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            63,
-            12,
-            16,
-            1,
-            67,
-            8
+            35,
+            4,
+            14,
+            50,
+            24,
+            37,
+            8,
+            45,
+            47,
+            5,
+            28,
+            26
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2120,18 +2668,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            71,
-            1,
-            32,
-            15,
-            17,
-            60,
-            78,
-            18,
-            24
+            27,
+            16,
+            47,
+            26,
+            45,
+            37,
+            7,
+            22,
+            42,
+            5,
+            50,
+            35,
+            46,
+            40,
+            44,
+            29
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2172,14 +2740,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            51,
-            62,
-            98,
-            48,
-            23
+            26,
+            37,
+            38,
+            42,
+            49,
+            29,
+            24,
+            36,
+            25,
+            18,
+            3,
+            30,
+            10,
+            20,
+            2,
+            4
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2207,15 +2812,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
+            6,
+            43,
+            16,
+            48,
             26,
-            88,
-            63,
+            49,
+            47,
+            1,
+            20,
+            38,
+            35,
+            14,
+            21,
+            22,
             4,
-            53,
-            92
+            17
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2243,19 +2884,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            39,
-            71,
-            44,
-            20,
-            14,
-            100,
-            38,
+            9,
             34,
+            26,
+            45,
+            19,
             15,
-            79
+            36,
+            7,
+            14,
+            48,
+            43,
+            41,
+            46,
+            29,
+            21,
+            22
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2296,22 +2956,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            94,
-            51,
-            59,
-            60,
-            91,
-            29,
-            76,
-            82,
-            5,
-            25,
-            40,
-            24,
-            35
+            27,
+            6,
+            10,
+            4,
+            17,
+            38,
+            41,
+            45,
+            36,
+            42,
+            44,
+            46,
+            31,
+            23,
+            3,
+            19
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2354,30 +3030,15 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
-          "bibs": [
-            6,
-            25,
-            75,
-            93,
-            38,
-            73,
-            68,
-            32,
-            78,
-            28
-          ],
-          "judges": [
-            1,
-            2,
-            3,
-            4,
-            5
-          ]
-        },
-        {
           "round": "final",
-          "bibs": [],
+          "bibs": [
+            34,
+            23,
+            28,
+            4,
+            35,
+            15
+          ],
           "judges": [
             1,
             2,
@@ -2405,17 +3066,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            85,
-            57,
-            29,
-            55,
-            1,
-            28,
-            25,
-            52
+            32,
+            33,
+            47,
+            40,
+            42,
+            46,
+            18,
+            13,
+            23,
+            12,
+            44,
+            11,
+            24,
+            4,
+            26,
+            27
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2446,19 +3128,22 @@
     },
     "66": {
       "id": 66,
-      "name": "Pro-Am Syllabus Newcomer Latin Cha Cha",
+      "name": "Pro-Am Syllabus Newcomer Latin Paso Doble",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Latin",
       "dances": [
-        "Cha Cha"
+        "Paso Doble"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            94
+            45,
+            48,
+            5,
+            46
           ],
           "judges": [
             1,
@@ -2473,21 +3158,22 @@
     },
     "67": {
       "id": 67,
-      "name": "Pro-Am Syllabus Newcomer Latin Jive",
+      "name": "Pro-Am Syllabus Newcomer Latin Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Latin",
       "dances": [
-        "Jive"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            73,
-            88,
-            86
+            21,
+            39,
+            46,
+            42
           ],
           "judges": [
             1,
@@ -2502,21 +3188,36 @@
     },
     "68": {
       "id": 68,
-      "name": "Pro-Am Syllabus Bronze Latin Cha Cha",
+      "name": "Pro-Am Syllabus Bronze Latin Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Latin",
       "dances": [
-        "Cha Cha"
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            16,
-            53
+            1,
+            2,
+            10,
+            31,
+            38,
+            24,
+            11,
+            17
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2540,10 +3241,26 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            43
+            47,
+            48,
+            24,
+            25,
+            31,
+            29,
+            21,
+            35
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2557,25 +3274,38 @@
     },
     "70": {
       "id": 70,
-      "name": "Pro-Am Syllabus Bronze Latin Samba/Cha Cha/Rumba",
+      "name": "Pro-Am Syllabus Bronze Latin Paso Doble/Rumba/Cha Cha",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Latin",
       "dances": [
-        "Samba",
-        "Cha Cha",
-        "Rumba"
+        "Paso Doble",
+        "Rumba",
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            20,
-            75,
-            13,
-            83
+            27,
+            11,
+            23,
+            49,
+            16,
+            28,
+            21,
+            37
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2589,21 +3319,24 @@
     },
     "71": {
       "id": 71,
-      "name": "Pro-Am Syllabus Silver Latin Samba",
+      "name": "Pro-Am Syllabus Silver Latin Jive",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
-        "Samba"
+        "Jive"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            59,
-            95,
-            5
+            36,
+            2,
+            29,
+            11,
+            17,
+            38
           ],
           "judges": [
             1,
@@ -2620,24 +3353,24 @@
     },
     "72": {
       "id": 72,
-      "name": "Pro-Am Syllabus Silver Latin Paso Doble",
+      "name": "Pro-Am Syllabus Silver Latin Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
-        "Paso Doble"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            90,
-            13,
-            3,
+            7,
+            20,
+            8,
+            16,
             43,
-            38,
-            58
+            49
           ],
           "judges": [
             1,
@@ -2654,24 +3387,26 @@
     },
     "73": {
       "id": 73,
-      "name": "Pro-Am Syllabus Silver Latin Paso Doble/Samba/Jive",
+      "name": "Pro-Am Syllabus Silver Latin Cha Cha/Paso Doble/Jive",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
+        "Cha Cha",
         "Paso Doble",
-        "Samba",
         "Jive"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            70,
-            21,
-            42,
-            87
+            38,
+            4,
+            1,
+            8,
+            45,
+            24
           ],
           "judges": [
             1,
@@ -2688,38 +3423,24 @@
     },
     "74": {
       "id": 74,
-      "name": "Pro-Am Syllabus Gold Latin Jive",
+      "name": "Pro-Am Syllabus Gold Latin Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Latin",
       "dances": [
-        "Jive"
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "semi-final",
-          "bibs": [
-            1,
-            46,
-            7,
-            2,
-            8,
-            76,
-            80,
-            42
-          ],
-          "judges": [
-            1,
-            2,
-            3,
-            4,
-            5
-          ]
-        },
-        {
           "round": "final",
-          "bibs": [],
+          "bibs": [
+            42,
+            45,
+            28,
+            14,
+            2
+          ],
           "judges": [
             1,
             2,
@@ -2735,22 +3456,23 @@
     },
     "75": {
       "id": 75,
-      "name": "Pro-Am Syllabus Gold Latin Cha Cha",
+      "name": "Pro-Am Syllabus Gold Latin Samba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Latin",
       "dances": [
-        "Cha Cha"
+        "Samba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            92,
-            76,
+            35,
             21,
-            68
+            8,
+            27,
+            10
           ],
           "judges": [
             1,
@@ -2767,22 +3489,25 @@
     },
     "76": {
       "id": 76,
-      "name": "Pro-Am Syllabus Gold Latin Jive/Samba/Paso Doble",
+      "name": "Pro-Am Syllabus Gold Latin Cha Cha/Samba/Rumba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Latin",
       "dances": [
-        "Jive",
+        "Cha Cha",
         "Samba",
-        "Paso Doble"
+        "Rumba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            62,
-            21
+            9,
+            8,
+            17,
+            10,
+            13
           ],
           "judges": [
             1,
@@ -2799,25 +3524,28 @@
     },
     "77": {
       "id": 77,
-      "name": "Pro-Am Syllabus Novice Latin Rumba",
+      "name": "Pro-Am Syllabus Novice Latin Cha Cha",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Latin",
       "dances": [
-        "Rumba"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            38,
-            65,
-            72,
-            99,
-            27,
-            81,
-            86
+            17,
+            3,
+            26,
+            10,
+            47,
+            22,
+            6,
+            19,
+            49,
+            45
           ],
           "judges": [
             1,
@@ -2845,22 +3573,40 @@
     },
     "78": {
       "id": 78,
-      "name": "Pro-Am Syllabus Novice Latin Jive",
+      "name": "Pro-Am Syllabus Novice Latin Samba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Latin",
       "dances": [
-        "Jive"
+        "Samba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            84,
-            87,
-            88
+            37,
+            42,
+            13,
+            19,
+            16,
+            40,
+            23,
+            18,
+            34,
+            43
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -2888,13 +3634,18 @@
         {
           "round": "semi-final",
           "bibs": [
-            46,
-            67,
-            91,
-            83,
+            40,
+            7,
+            20,
+            33,
+            45,
             34,
-            94,
-            10
+            30,
+            29,
+            6,
+            23,
+            14,
+            38
           ],
           "judges": [
             1,
@@ -2922,30 +3673,30 @@
     },
     "80": {
       "id": 80,
-      "name": "Pro-Am Open Pre-Championship Latin Rumba",
+      "name": "Pro-Am Open Pre-Championship Latin Samba",
       "designation": "Pro-Am",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Latin",
       "dances": [
-        "Rumba"
+        "Samba"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            25,
-            72,
+            11,
+            16,
+            9,
+            24,
+            14,
             12,
-            51,
-            60,
-            54,
-            42,
-            18,
-            83,
-            94,
-            92,
-            47
+            4,
+            27,
+            41,
+            2,
+            6,
+            3
           ],
           "judges": [
             1,
@@ -2983,22 +3734,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            40,
-            82,
-            36,
-            39,
+            33,
+            7,
+            31,
+            11,
+            44,
+            22,
+            25,
+            9,
+            38,
+            49,
             34,
-            73,
-            24,
-            43,
-            16,
-            74,
-            41,
-            13,
-            19
+            29,
+            30,
+            21,
+            47,
+            5
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3039,18 +3806,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            10,
-            50,
-            81,
-            61,
-            70,
-            98,
+            7,
+            24,
+            42,
+            38,
+            11,
+            41,
+            21,
+            46,
+            30,
+            31,
+            47,
+            8,
+            4,
             48,
-            82,
-            77
+            28,
+            34
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3091,17 +3878,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            8,
-            41,
-            81,
-            39,
-            5,
-            23,
-            87,
-            80
+            45,
+            44,
+            40,
+            7,
+            26,
+            42,
+            6,
+            9,
+            16,
+            46,
+            29,
+            43,
+            27,
+            10,
+            38,
+            15
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3142,12 +3950,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            68,
-            78,
-            100
+            20,
+            29,
+            43,
+            14,
+            49,
+            32,
+            27,
+            25,
+            11,
+            16,
+            17,
+            33,
+            22,
+            26,
+            7,
+            19
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3175,12 +4022,51 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            72,
-            36,
-            97
+            18,
+            9,
+            5,
+            3,
+            21,
+            49,
+            39,
+            37,
+            31,
+            26,
+            40,
+            32,
+            46,
+            10,
+            15,
+            20
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3212,8 +4098,12 @@
         {
           "round": "final",
           "bibs": [
+            39,
+            24,
+            29,
             7,
-            23
+            2,
+            41
           ],
           "judges": [
             1,
@@ -3242,20 +4132,38 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            90,
-            3,
-            93,
-            64,
-            8,
-            100,
-            96,
-            63,
-            17,
-            40,
-            65
+            49,
+            46,
+            31,
+            33,
+            23,
+            43,
+            30,
+            19,
+            21,
+            1,
+            45,
+            18,
+            32,
+            12,
+            38,
+            35
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3286,19 +4194,24 @@
     },
     "88": {
       "id": 88,
-      "name": "Amateur Syllabus Newcomer Smooth Waltz",
+      "name": "Amateur Syllabus Newcomer Smooth Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Smooth",
       "dances": [
-        "Waltz"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            36
+            61,
+            56,
+            75,
+            72,
+            74,
+            86
           ],
           "judges": [
             1,
@@ -3323,10 +4236,28 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            24
+            77,
+            91,
+            92,
+            54,
+            90,
+            80,
+            53,
+            55,
+            68,
+            98
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3340,24 +4271,38 @@
     },
     "90": {
       "id": 90,
-      "name": "Amateur Syllabus Silver Smooth Waltz",
+      "name": "Amateur Syllabus Silver Smooth Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Smooth",
       "dances": [
-        "Waltz"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            38,
-            68,
-            58,
-            75,
-            85
+            98,
+            70,
+            92,
+            95,
+            85,
+            71,
+            61,
+            75
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3373,27 +4318,28 @@
     },
     "91": {
       "id": 91,
-      "name": "Amateur Syllabus Silver Smooth Foxtrot/Tango/Waltz",
+      "name": "Amateur Syllabus Silver Smooth Waltz/Viennese Waltz/Tango",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Smooth",
       "dances": [
-        "Foxtrot",
-        "Tango",
-        "Waltz"
+        "Waltz",
+        "Viennese Waltz",
+        "Tango"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            58,
-            2,
-            51,
+            63,
+            95,
+            97,
             91,
-            94,
-            24,
-            46
+            78,
+            79,
+            89,
+            70
           ],
           "judges": [
             1,
@@ -3431,11 +4377,27 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            22,
-            51
+            60,
+            69,
+            63,
+            93,
+            51,
+            96,
+            52
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3451,27 +4413,39 @@
     },
     "93": {
       "id": 93,
-      "name": "Amateur Syllabus Gold Smooth Waltz/Foxtrot/Tango",
+      "name": "Amateur Syllabus Gold Smooth Tango/Waltz/Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Smooth",
       "dances": [
+        "Tango",
         "Waltz",
-        "Foxtrot",
-        "Tango"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            7,
-            41,
+            73,
             65,
-            10,
-            1,
-            56
+            55,
+            63,
+            60,
+            67,
+            66
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3487,27 +4461,30 @@
     },
     "94": {
       "id": 94,
-      "name": "Amateur Syllabus Novice Smooth Tango",
+      "name": "Amateur Syllabus Novice Smooth Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            34,
-            54,
-            43,
+            58,
+            85,
+            93,
+            76,
+            53,
+            69,
+            100,
+            60,
             72,
-            27,
             56,
-            86,
-            14,
-            46
+            95,
+            74
           ],
           "judges": [
             1,
@@ -3535,24 +4512,44 @@
     },
     "95": {
       "id": 95,
-      "name": "Amateur Syllabus Novice Smooth Waltz/Foxtrot/Tango",
+      "name": "Amateur Syllabus Novice Smooth Foxtrot/Tango/Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Smooth",
       "dances": [
-        "Waltz",
         "Foxtrot",
-        "Tango"
+        "Tango",
+        "Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            86,
-            8,
-            76
+            80,
+            98,
+            69,
+            84,
+            55,
+            64,
+            66,
+            75,
+            83,
+            61,
+            100,
+            88
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3568,23 +4565,44 @@
     },
     "96": {
       "id": 96,
-      "name": "Amateur Open Pre-Championship Smooth Foxtrot",
+      "name": "Amateur Open Pre-Championship Smooth Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Smooth",
       "dances": [
-        "Foxtrot"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
+            60,
+            84,
+            77,
+            91,
+            56,
+            86,
+            100,
             69,
-            49,
-            63,
-            7
+            61,
+            73,
+            58,
+            97,
+            87,
+            98
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3600,29 +4618,34 @@
     },
     "97": {
       "id": 97,
-      "name": "Amateur Open Pre-Championship Smooth Tango/Viennese Waltz/Waltz",
+      "name": "Amateur Open Pre-Championship Smooth Waltz/Foxtrot/Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Smooth",
       "dances": [
-        "Tango",
-        "Viennese Waltz",
-        "Waltz"
+        "Waltz",
+        "Foxtrot",
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            90,
-            20,
-            15,
-            49,
-            4,
-            34,
-            93,
-            42,
-            52
+            70,
+            66,
+            99,
+            97,
+            82,
+            75,
+            91,
+            71,
+            85,
+            62,
+            89,
+            79,
+            73,
+            59
           ],
           "judges": [
             1,
@@ -3650,33 +4673,50 @@
     },
     "98": {
       "id": 98,
-      "name": "Amateur Open Championship Smooth Foxtrot",
+      "name": "Amateur Open Championship Smooth Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Smooth",
       "dances": [
-        "Foxtrot"
+        "Waltz"
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            29,
-            38,
-            47,
-            33,
-            82,
-            74,
-            31,
+            56,
+            66,
+            92,
+            61,
+            62,
+            77,
             63,
-            27,
-            12,
-            65,
-            18,
-            73,
-            81
+            91,
+            72,
+            51,
+            90,
+            83,
+            60,
+            52,
+            68,
+            82,
+            81,
+            54
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3717,15 +4757,53 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            96,
-            61,
-            79,
-            50,
+            69,
+            91,
+            52,
+            53,
+            62,
+            57,
+            66,
+            80,
+            56,
+            63,
+            81,
+            85,
             77,
-            54
+            86,
+            74,
+            55,
+            83,
+            51
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3743,25 +4821,63 @@
     },
     "100": {
       "id": 100,
-      "name": "Amateur Open Championship Smooth Waltz",
+      "name": "Amateur Open Championship Smooth Tango",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Smooth",
       "dances": [
-        "Waltz"
+        "Tango"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            68,
-            94,
-            50,
-            22,
-            1,
-            40
+            85,
+            88,
+            51,
+            75,
+            53,
+            64,
+            96,
+            97,
+            86,
+            73,
+            79,
+            95,
+            57,
+            92,
+            90,
+            83,
+            70,
+            89
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3779,22 +4895,63 @@
     },
     "101": {
       "id": 101,
-      "name": "Amateur Open Championship Smooth Tango",
+      "name": "Amateur Open Championship Smooth Foxtrot",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Foxtrot"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            66,
-            63,
-            33
+            69,
+            57,
+            77,
+            71,
+            93,
+            89,
+            78,
+            58,
+            52,
+            55,
+            87,
+            95,
+            99,
+            64,
+            74,
+            67,
+            90,
+            56
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3812,7 +4969,7 @@
     },
     "102": {
       "id": 102,
-      "name": "Amateur Open Championship Smooth Waltz/Tango/Foxtrot",
+      "name": "Amateur Open Championship Smooth Waltz/Tango/Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
@@ -3820,18 +4977,57 @@
       "dances": [
         "Waltz",
         "Tango",
-        "Foxtrot"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            100,
-            3,
-            56,
-            25,
-            34
+            75,
+            74,
+            73,
+            61,
+            62,
+            94,
+            58,
+            57,
+            86,
+            63,
+            80,
+            66,
+            85,
+            78,
+            70,
+            83,
+            98,
+            65
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3861,9 +5057,12 @@
         {
           "round": "final",
           "bibs": [
-            60,
-            6,
-            34
+            55,
+            53,
+            93,
+            88,
+            75,
+            65
           ],
           "judges": [
             1,
@@ -3878,22 +5077,38 @@
     },
     "104": {
       "id": 104,
-      "name": "Amateur Syllabus Bronze Rhythm Bolero",
+      "name": "Amateur Syllabus Bronze Rhythm Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Rhythm",
       "dances": [
-        "Bolero"
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            21,
-            79,
-            80
+            53,
+            84,
+            74,
+            78,
+            98,
+            94,
+            76,
+            69,
+            73,
+            67
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3907,25 +5122,38 @@
     },
     "105": {
       "id": 105,
-      "name": "Amateur Syllabus Silver Rhythm Rumba",
+      "name": "Amateur Syllabus Silver Rhythm Bolero",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            74,
-            49,
-            82,
-            92,
-            89,
-            85
+            97,
+            90,
+            57,
+            62,
+            73,
+            72,
+            100,
+            59
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3941,24 +5169,40 @@
     },
     "106": {
       "id": 106,
-      "name": "Amateur Syllabus Silver Rhythm Bolero/Rumba/Cha Cha",
+      "name": "Amateur Syllabus Silver Rhythm Rumba/Cha Cha/East Coast Swing",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Rhythm",
       "dances": [
-        "Bolero",
         "Rumba",
-        "Cha Cha"
+        "Cha Cha",
+        "East Coast Swing"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            72,
-            10,
-            69
+            66,
+            56,
+            79,
+            98,
+            69,
+            91,
+            92,
+            58
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -3974,27 +5218,25 @@
     },
     "107": {
       "id": 107,
-      "name": "Amateur Syllabus Gold Rhythm Bolero",
+      "name": "Amateur Syllabus Gold Rhythm East Coast Swing",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Rhythm",
       "dances": [
-        "Bolero"
+        "East Coast Swing"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            26,
-            55,
-            37,
-            42,
-            95,
-            53,
-            48,
-            20,
-            33
+            90,
+            77,
+            71,
+            91,
+            73,
+            72,
+            60
           ],
           "judges": [
             1,
@@ -4034,13 +5276,27 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            65,
-            7,
-            91,
-            71
+            68,
+            70,
+            97,
+            51,
+            79,
+            95,
+            93
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4056,25 +5312,30 @@
     },
     "109": {
       "id": 109,
-      "name": "Amateur Syllabus Novice Rhythm Rumba",
+      "name": "Amateur Syllabus Novice Rhythm Bolero",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            67,
-            73,
-            3,
-            10,
-            7,
-            48,
-            17
+            52,
+            76,
+            57,
+            93,
+            79,
+            83,
+            62,
+            75,
+            59,
+            95,
+            64,
+            92
           ],
           "judges": [
             1,
@@ -4102,25 +5363,44 @@
     },
     "110": {
       "id": 110,
-      "name": "Amateur Syllabus Novice Rhythm Bolero/Rumba/Cha Cha",
+      "name": "Amateur Syllabus Novice Rhythm Mambo/East Coast Swing/Rumba",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Rhythm",
       "dances": [
-        "Bolero",
-        "Rumba",
-        "Cha Cha"
+        "Mambo",
+        "East Coast Swing",
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            99,
+            51,
+            82,
+            97,
+            64,
             88,
-            18,
-            82
+            63,
+            57,
+            70,
+            67,
+            68,
+            61,
+            54
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4148,18 +5428,20 @@
         {
           "round": "semi-final",
           "bibs": [
-            32,
-            39,
+            57,
+            59,
+            81,
+            72,
+            84,
+            100,
+            78,
+            82,
+            85,
+            52,
+            91,
+            71,
             65,
-            74,
-            14,
-            24,
-            29,
-            92,
-            63,
-            7,
-            56,
-            83
+            99
           ],
           "judges": [
             1,
@@ -4187,29 +5469,34 @@
     },
     "112": {
       "id": 112,
-      "name": "Amateur Open Pre-Championship Rhythm Rumba/East Coast Swing/Bolero",
+      "name": "Amateur Open Pre-Championship Rhythm Cha Cha/Rumba/East Coast Swing",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Rhythm",
       "dances": [
+        "Cha Cha",
         "Rumba",
-        "East Coast Swing",
-        "Bolero"
+        "East Coast Swing"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            51,
-            11,
-            55,
+            94,
+            71,
+            56,
+            72,
+            66,
+            75,
+            64,
             99,
-            32,
-            13,
-            68,
-            43,
-            1
+            51,
+            55,
+            92,
+            61,
+            93,
+            60
           ],
           "judges": [
             1,
@@ -4237,21 +5524,63 @@
     },
     "113": {
       "id": 113,
-      "name": "Amateur Open Championship Rhythm Rumba",
+      "name": "Amateur Open Championship Rhythm Bolero",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            79,
-            47
+            69,
+            96,
+            83,
+            76,
+            97,
+            90,
+            57,
+            99,
+            67,
+            78,
+            70,
+            54,
+            72,
+            87,
+            53,
+            71,
+            80,
+            100
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4279,20 +5608,40 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
+            89,
+            67,
+            64,
+            66,
+            62,
+            88,
+            86,
             74,
-            46,
-            59,
-            40,
-            7,
-            13,
-            61,
-            11,
-            3,
-            90,
-            92
+            73,
+            79,
+            96,
+            54,
+            71,
+            87,
+            95,
+            51,
+            97,
+            63
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4323,21 +5672,63 @@
     },
     "115": {
       "id": 115,
-      "name": "Amateur Open Championship Rhythm Mambo",
+      "name": "Amateur Open Championship Rhythm Rumba",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Rhythm",
       "dances": [
-        "Mambo"
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            48,
-            61
+            53,
+            67,
+            76,
+            65,
+            99,
+            60,
+            86,
+            83,
+            84,
+            85,
+            88,
+            62,
+            90,
+            68,
+            54,
+            59,
+            64,
+            73
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4365,14 +5756,53 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            30,
-            37,
-            48,
-            24,
-            100
+            62,
+            61,
+            91,
+            100,
+            57,
+            70,
+            63,
+            81,
+            80,
+            88,
+            90,
+            73,
+            58,
+            52,
+            95,
+            59,
+            74,
+            71
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4390,26 +5820,50 @@
     },
     "117": {
       "id": 117,
-      "name": "Amateur Open Championship Rhythm Bolero",
+      "name": "Amateur Open Championship Rhythm Mambo",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Rhythm",
       "dances": [
-        "Bolero"
+        "Mambo"
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            34,
-            61,
-            89,
+            94,
+            56,
+            66,
             90,
-            32,
-            64,
-            85
+            86,
+            51,
+            61,
+            65,
+            69,
+            88,
+            93,
+            59,
+            100,
+            87,
+            83,
+            75,
+            79,
+            96
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4440,23 +5894,65 @@
     },
     "118": {
       "id": 118,
-      "name": "Amateur Open Championship Rhythm Mambo/East Coast Swing/Rumba",
+      "name": "Amateur Open Championship Rhythm Cha Cha/Mambo/Bolero",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Rhythm",
       "dances": [
+        "Cha Cha",
         "Mambo",
-        "East Coast Swing",
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            19,
-            51
+            93,
+            60,
+            59,
+            61,
+            66,
+            54,
+            63,
+            62,
+            73,
+            71,
+            68,
+            88,
+            91,
+            70,
+            87,
+            92,
+            57,
+            95
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4474,19 +5970,24 @@
     },
     "119": {
       "id": 119,
-      "name": "Amateur Syllabus Newcomer Standard Viennese Waltz",
+      "name": "Amateur Syllabus Newcomer Standard Tango",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz"
+        "Tango"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            87
+            65,
+            67,
+            60,
+            83,
+            75,
+            76
           ],
           "judges": [
             1,
@@ -4511,10 +6012,28 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            17
+            82,
+            75,
+            88,
+            84,
+            51,
+            61,
+            85,
+            60,
+            69,
+            70
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4528,25 +6047,26 @@
     },
     "121": {
       "id": 121,
-      "name": "Amateur Syllabus Silver Standard Waltz",
+      "name": "Amateur Syllabus Silver Standard Foxtrot",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
-        "Waltz"
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            62,
-            37,
-            2,
-            27,
-            19,
-            39,
-            18
+            69,
+            58,
+            83,
+            86,
+            85,
+            65,
+            60,
+            73
           ],
           "judges": [
             1,
@@ -4574,28 +6094,28 @@
     },
     "122": {
       "id": 122,
-      "name": "Amateur Syllabus Silver Standard Viennese Waltz/Quickstep/Foxtrot",
+      "name": "Amateur Syllabus Silver Standard Foxtrot/Viennese Waltz/Waltz",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
+        "Foxtrot",
         "Viennese Waltz",
-        "Quickstep",
-        "Foxtrot"
+        "Waltz"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            71,
-            11,
-            54,
-            57,
-            75,
-            38,
+            92,
+            94,
             58,
-            55
+            57,
+            71,
+            56,
+            85,
+            61
           ],
           "judges": [
             1,
@@ -4633,14 +6153,27 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            21,
-            46,
-            6,
-            4,
-            56
+            80,
+            61,
+            94,
+            65,
+            79,
+            63,
+            90
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4656,23 +6189,39 @@
     },
     "124": {
       "id": 124,
-      "name": "Amateur Syllabus Gold Standard Foxtrot/Tango/Viennese Waltz",
+      "name": "Amateur Syllabus Gold Standard Viennese Waltz/Waltz/Tango",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Standard",
       "dances": [
-        "Foxtrot",
-        "Tango",
-        "Viennese Waltz"
+        "Viennese Waltz",
+        "Waltz",
+        "Tango"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            86,
-            78
+            59,
+            97,
+            84,
+            83,
+            94,
+            100,
+            51
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4688,28 +6237,30 @@
     },
     "125": {
       "id": 125,
-      "name": "Amateur Syllabus Novice Standard Waltz",
+      "name": "Amateur Syllabus Novice Standard Quickstep",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Standard",
       "dances": [
-        "Waltz"
+        "Quickstep"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            92,
-            2,
-            76,
-            18,
-            39,
-            47,
-            35,
-            10,
-            24,
-            82
+            63,
+            95,
+            77,
+            91,
+            83,
+            100,
+            61,
+            55,
+            62,
+            68,
+            86,
+            64
           ],
           "judges": [
             1,
@@ -4737,26 +6288,44 @@
     },
     "126": {
       "id": 126,
-      "name": "Amateur Syllabus Novice Standard Tango/Waltz/Quickstep",
+      "name": "Amateur Syllabus Novice Standard Waltz/Foxtrot/Tango",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Standard",
       "dances": [
-        "Tango",
         "Waltz",
-        "Quickstep"
+        "Foxtrot",
+        "Tango"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            72,
-            79,
-            19,
-            62,
-            27
+            91,
+            71,
+            59,
+            87,
+            60,
+            69,
+            99,
+            80,
+            68,
+            67,
+            55,
+            61
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4772,24 +6341,44 @@
     },
     "127": {
       "id": 127,
-      "name": "Amateur Open Pre-Championship Standard Viennese Waltz",
+      "name": "Amateur Open Pre-Championship Standard Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz"
+        "Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            17,
-            74,
             53,
-            35,
-            20
+            88,
+            70,
+            67,
+            65,
+            75,
+            51,
+            86,
+            61,
+            52,
+            95,
+            98,
+            59,
+            66
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4805,7 +6394,7 @@
     },
     "128": {
       "id": 128,
-      "name": "Amateur Open Pre-Championship Standard Waltz/Foxtrot/Quickstep",
+      "name": "Amateur Open Pre-Championship Standard Waltz/Foxtrot/Viennese Waltz",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
@@ -4813,19 +6402,38 @@
       "dances": [
         "Waltz",
         "Foxtrot",
-        "Quickstep"
+        "Viennese Waltz"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            32,
+            92,
+            55,
+            82,
+            57,
+            56,
+            67,
+            51,
+            99,
+            89,
+            91,
+            61,
+            87,
             100,
-            9,
-            35,
-            8,
-            26
+            65
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4841,23 +6449,63 @@
     },
     "129": {
       "id": 129,
-      "name": "Amateur Open Championship Standard Tango",
+      "name": "Amateur Open Championship Standard Quickstep",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Standard",
       "dances": [
-        "Tango"
+        "Quickstep"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            37,
-            7,
-            95,
-            44
+            60,
+            83,
+            69,
+            73,
+            88,
+            90,
+            59,
+            72,
+            86,
+            64,
+            91,
+            96,
+            62,
+            74,
+            53,
+            89,
+            87,
+            79
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4885,13 +6533,53 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            48,
-            13,
-            33,
-            9
+            82,
+            60,
+            74,
+            88,
+            94,
+            61,
+            90,
+            53,
+            78,
+            89,
+            71,
+            70,
+            83,
+            77,
+            62,
+            66,
+            81,
+            96
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4919,15 +6607,53 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            62,
-            67,
-            54,
-            93,
-            32,
-            47
+            73,
+            52,
+            55,
+            82,
+            90,
+            81,
+            97,
+            57,
+            87,
+            51,
+            85,
+            71,
+            61,
+            99,
+            86,
+            91,
+            96,
+            68
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -4945,29 +6671,50 @@
     },
     "132": {
       "id": 132,
-      "name": "Amateur Open Championship Standard Quickstep",
+      "name": "Amateur Open Championship Standard Tango",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Standard",
       "dances": [
-        "Quickstep"
+        "Tango"
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            95,
-            99,
-            96,
-            32,
+            81,
+            91,
+            100,
             92,
+            85,
+            52,
+            97,
+            57,
             70,
-            7,
-            13,
-            76,
-            39
+            84,
+            96,
+            69,
+            55,
+            75,
+            78,
+            93,
+            60,
+            74
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5008,16 +6755,40 @@
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            81,
-            26,
+            84,
+            77,
+            69,
+            64,
+            67,
+            96,
+            73,
+            91,
+            78,
+            92,
+            63,
+            76,
+            70,
             83,
-            51,
-            14,
-            94,
-            2
+            79,
+            54,
+            74,
+            87
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5048,27 +6819,65 @@
     },
     "134": {
       "id": 134,
-      "name": "Amateur Open Championship Standard Waltz/Tango/Foxtrot",
+      "name": "Amateur Open Championship Standard Viennese Waltz/Tango/Quickstep",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Standard",
       "dances": [
-        "Waltz",
+        "Viennese Waltz",
         "Tango",
-        "Foxtrot"
+        "Quickstep"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            64,
-            68,
-            34,
-            26,
-            52,
-            83
+            72,
+            78,
+            85,
+            60,
+            71,
+            82,
+            62,
+            76,
+            88,
+            59,
+            98,
+            95,
+            63,
+            74,
+            89,
+            87,
+            79,
+            65
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5086,21 +6895,24 @@
     },
     "135": {
       "id": 135,
-      "name": "Amateur Syllabus Newcomer Latin Samba",
+      "name": "Amateur Syllabus Newcomer Latin Jive",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Latin",
       "dances": [
-        "Samba"
+        "Jive"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            85,
-            26,
-            21
+            75,
+            69,
+            73,
+            92,
+            59,
+            91
           ],
           "judges": [
             1,
@@ -5115,24 +6927,38 @@
     },
     "136": {
       "id": 136,
-      "name": "Amateur Syllabus Bronze Latin Jive",
+      "name": "Amateur Syllabus Bronze Latin Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Latin",
       "dances": [
-        "Jive"
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
+            59,
+            100,
             82,
-            42,
-            86,
-            13,
-            89
+            73,
+            69,
+            97,
+            79,
+            54,
+            71,
+            72
           ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5146,25 +6972,26 @@
     },
     "137": {
       "id": 137,
-      "name": "Amateur Syllabus Silver Latin Samba",
+      "name": "Amateur Syllabus Silver Latin Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
-        "Samba"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            70,
-            25,
-            46,
-            59,
-            17,
-            94,
-            71
+            78,
+            91,
+            76,
+            88,
+            51,
+            54,
+            63,
+            85
           ],
           "judges": [
             1,
@@ -5192,24 +7019,40 @@
     },
     "138": {
       "id": 138,
-      "name": "Amateur Syllabus Silver Latin Jive/Samba/Paso Doble",
+      "name": "Amateur Syllabus Silver Latin Cha Cha/Samba/Rumba",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
-        "Jive",
+        "Cha Cha",
         "Samba",
-        "Paso Doble"
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            13,
-            92,
-            1
+            60,
+            95,
+            82,
+            65,
+            52,
+            53,
+            77,
+            85
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5225,26 +7068,25 @@
     },
     "139": {
       "id": 139,
-      "name": "Amateur Syllabus Gold Latin Paso Doble",
+      "name": "Amateur Syllabus Gold Latin Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Latin",
       "dances": [
-        "Paso Doble"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            77,
-            1,
-            44,
+            87,
+            69,
+            62,
+            72,
             70,
-            94,
-            35,
-            56,
-            50
+            54,
+            91
           ],
           "judges": [
             1,
@@ -5272,23 +7114,39 @@
     },
     "140": {
       "id": 140,
-      "name": "Amateur Syllabus Gold Latin Jive/Paso Doble/Rumba",
+      "name": "Amateur Syllabus Gold Latin Paso Doble/Samba/Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Gold",
       "style": "Latin",
       "dances": [
-        "Jive",
         "Paso Doble",
-        "Rumba"
+        "Samba",
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            39,
-            73
+            80,
+            94,
+            60,
+            73,
+            78,
+            56,
+            77
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5304,28 +7162,30 @@
     },
     "141": {
       "id": 141,
-      "name": "Amateur Syllabus Novice Latin Rumba",
+      "name": "Amateur Syllabus Novice Latin Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Latin",
       "dances": [
-        "Rumba"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
-            63,
-            71,
+            68,
+            52,
+            88,
             73,
-            98,
-            1,
-            82,
-            80,
-            54,
-            12,
-            8
+            59,
+            66,
+            69,
+            55,
+            83,
+            96,
+            84,
+            67
           ],
           "judges": [
             1,
@@ -5353,22 +7213,44 @@
     },
     "142": {
       "id": 142,
-      "name": "Amateur Syllabus Novice Latin Paso Doble/Samba/Cha Cha",
+      "name": "Amateur Syllabus Novice Latin Cha Cha/Rumba/Samba",
       "designation": "Amateur",
       "syllabusType": "Syllabus",
       "level": "Novice",
       "style": "Latin",
       "dances": [
-        "Paso Doble",
-        "Samba",
-        "Cha Cha"
+        "Cha Cha",
+        "Rumba",
+        "Samba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            18
+            93,
+            77,
+            95,
+            79,
+            90,
+            81,
+            60,
+            61,
+            67,
+            62,
+            63,
+            76
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5394,15 +7276,34 @@
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "semi-final",
           "bibs": [
-            24,
-            3,
+            74,
+            88,
             100,
-            94,
-            59,
-            1
+            55,
+            62,
+            64,
+            67,
+            71,
+            87,
+            63,
+            89,
+            98,
+            85,
+            94
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5418,29 +7319,34 @@
     },
     "144": {
       "id": 144,
-      "name": "Amateur Open Pre-Championship Latin Cha Cha/Samba/Jive",
+      "name": "Amateur Open Pre-Championship Latin Rumba/Paso Doble/Jive",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Pre-Championship",
       "style": "Latin",
       "dances": [
-        "Cha Cha",
-        "Samba",
+        "Rumba",
+        "Paso Doble",
         "Jive"
       ],
       "heats": [
         {
           "round": "semi-final",
           "bibs": [
+            90,
             52,
-            81,
-            73,
-            38,
-            29,
+            97,
+            86,
+            65,
+            89,
+            94,
+            67,
+            77,
+            79,
             64,
-            63,
-            91,
-            98
+            69,
+            78,
+            61
           ],
           "judges": [
             1,
@@ -5468,25 +7374,63 @@
     },
     "145": {
       "id": 145,
-      "name": "Amateur Open Championship Latin Samba",
+      "name": "Amateur Open Championship Latin Paso Doble",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Samba"
+        "Paso Doble"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            26,
-            69,
-            86,
             92,
-            4,
-            5
+            96,
+            54,
+            55,
+            95,
+            98,
+            87,
+            94,
+            86,
+            65,
+            58,
+            93,
+            85,
+            71,
+            88,
+            62,
+            60,
+            84
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5504,28 +7448,50 @@
     },
     "146": {
       "id": 146,
-      "name": "Amateur Open Championship Latin Jive",
+      "name": "Amateur Open Championship Latin Cha Cha",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Jive"
+        "Cha Cha"
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
-            56,
-            1,
-            54,
+            65,
+            95,
+            89,
+            87,
+            61,
+            81,
+            74,
+            72,
+            53,
+            84,
             92,
-            6,
-            42,
-            60,
-            19,
-            98
+            100,
+            58,
+            76,
+            52,
+            88,
+            66,
+            83
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5556,25 +7522,63 @@
     },
     "147": {
       "id": 147,
-      "name": "Amateur Open Championship Latin Rumba",
+      "name": "Amateur Open Championship Latin Samba",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Rumba"
+        "Samba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            32,
-            94,
-            19,
             83,
-            12,
-            23
+            70,
+            72,
+            100,
+            71,
+            94,
+            98,
+            99,
+            79,
+            65,
+            56,
+            64,
+            85,
+            63,
+            58,
+            66,
+            76,
+            69
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5592,28 +7596,50 @@
     },
     "148": {
       "id": 148,
-      "name": "Amateur Open Championship Latin Paso Doble",
+      "name": "Amateur Open Championship Latin Rumba",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Paso Doble"
+        "Rumba"
       ],
       "heats": [
         {
-          "round": "semi-final",
+          "round": "quarter-final",
           "bibs": [
+            79,
+            97,
+            94,
+            60,
+            62,
+            81,
+            100,
             80,
-            29,
-            85,
-            2,
-            21,
-            14,
-            75,
-            25,
-            88
+            83,
+            74,
+            56,
+            54,
+            72,
+            71,
+            86,
+            89,
+            78,
+            92
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5644,24 +7670,63 @@
     },
     "149": {
       "id": 149,
-      "name": "Amateur Open Championship Latin Cha Cha",
+      "name": "Amateur Open Championship Latin Jive",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Cha Cha"
+        "Jive"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            80,
-            1,
-            20,
+            74,
+            73,
+            76,
+            66,
+            99,
+            98,
+            87,
+            61,
+            51,
+            58,
+            92,
+            55,
+            65,
+            93,
             59,
-            44
+            54,
+            80,
+            81
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5679,26 +7744,65 @@
     },
     "150": {
       "id": 150,
-      "name": "Amateur Open Championship Latin Samba/Paso Doble/Cha Cha",
+      "name": "Amateur Open Championship Latin Rumba/Jive/Samba",
       "designation": "Amateur",
       "syllabusType": "Open",
       "level": "Championship",
       "style": "Latin",
       "dances": [
-        "Samba",
-        "Paso Doble",
-        "Cha Cha"
+        "Rumba",
+        "Jive",
+        "Samba"
       ],
       "heats": [
         {
-          "round": "final",
+          "round": "quarter-final",
           "bibs": [
-            34,
-            67,
-            46,
-            42,
-            38
+            79,
+            62,
+            76,
+            97,
+            63,
+            92,
+            88,
+            78,
+            81,
+            75,
+            58,
+            99,
+            93,
+            83,
+            61,
+            73,
+            82,
+            96
           ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "semi-final",
+          "bibs": [],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "round": "final",
+          "bibs": [],
           "judges": [
             1,
             2,
@@ -5716,21 +7820,21 @@
     },
     "151": {
       "id": 151,
-      "name": "Pro-Am Syllabus Newcomer Smooth Tango",
+      "name": "Pro-Am Syllabus Newcomer Smooth Viennese Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Smooth",
       "dances": [
-        "Tango"
+        "Viennese Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            49,
-            42,
-            57
+            35,
+            37,
+            22
           ],
           "judges": [
             1,
@@ -5757,8 +7861,10 @@
         {
           "round": "final",
           "bibs": [
-            86,
-            27,
+            15,
+            2,
+            44,
+            42,
             22
           ],
           "judges": [
@@ -5786,11 +7892,10 @@
         {
           "round": "final",
           "bibs": [
-            15,
-            95,
-            87,
-            73,
-            9
+            22,
+            37,
+            1,
+            21
           ],
           "judges": [
             1,
@@ -5819,8 +7924,9 @@
         {
           "round": "final",
           "bibs": [
-            16,
-            71
+            10,
+            37,
+            3
           ],
           "judges": [
             1,
@@ -5835,23 +7941,23 @@
     },
     "155": {
       "id": 155,
-      "name": "Pro-Am Syllabus Bronze Rhythm Rumba",
+      "name": "Pro-Am Syllabus Bronze Rhythm Bolero",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Rhythm",
       "dances": [
-        "Rumba"
+        "Bolero"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            60,
-            69,
-            51,
-            93,
-            45
+            2,
+            40,
+            33,
+            49,
+            17
           ],
           "judges": [
             1,
@@ -5878,9 +7984,10 @@
         {
           "round": "final",
           "bibs": [
-            70,
-            50,
-            47
+            29,
+            43,
+            30,
+            37
           ],
           "judges": [
             1,
@@ -5897,20 +8004,21 @@
     },
     "157": {
       "id": 157,
-      "name": "Pro-Am Syllabus Newcomer Standard Quickstep",
+      "name": "Pro-Am Syllabus Newcomer Standard Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Standard",
       "dances": [
-        "Quickstep"
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            3,
-            29
+            42,
+            14,
+            7
           ],
           "judges": [
             1,
@@ -5925,19 +8033,23 @@
     },
     "158": {
       "id": 158,
-      "name": "Pro-Am Syllabus Bronze Standard Viennese Waltz",
+      "name": "Pro-Am Syllabus Bronze Standard Foxtrot",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Bronze",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz"
+        "Foxtrot"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            76
+            26,
+            13,
+            39,
+            20,
+            21
           ],
           "judges": [
             1,
@@ -5952,20 +8064,21 @@
     },
     "159": {
       "id": 159,
-      "name": "Pro-Am Syllabus Silver Standard Viennese Waltz",
+      "name": "Pro-Am Syllabus Silver Standard Waltz",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Standard",
       "dances": [
-        "Viennese Waltz"
+        "Waltz"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            77,
-            28,
+            11,
+            42,
+            9,
             29
           ],
           "judges": [
@@ -5983,21 +8096,21 @@
     },
     "160": {
       "id": 160,
-      "name": "Pro-Am Syllabus Newcomer Latin Rumba",
+      "name": "Pro-Am Syllabus Newcomer Latin Samba",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Newcomer",
       "style": "Latin",
       "dances": [
-        "Rumba"
+        "Samba"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            97,
-            40,
-            88
+            26,
+            46,
+            29
           ],
           "judges": [
             1,
@@ -6024,7 +8137,11 @@
         {
           "round": "final",
           "bibs": [
-            66
+            4,
+            34,
+            33,
+            45,
+            41
           ],
           "judges": [
             1,
@@ -6039,19 +8156,22 @@
     },
     "162": {
       "id": 162,
-      "name": "Pro-Am Syllabus Silver Latin Paso Doble",
+      "name": "Pro-Am Syllabus Silver Latin Cha Cha",
       "designation": "Pro-Am",
       "syllabusType": "Syllabus",
       "level": "Silver",
       "style": "Latin",
       "dances": [
-        "Paso Doble"
+        "Cha Cha"
       ],
       "heats": [
         {
           "round": "final",
           "bibs": [
-            23
+            22,
+            3,
+            32,
+            8
           ],
           "judges": [
             1,
@@ -6080,9 +8200,11 @@
         {
           "round": "final",
           "bibs": [
-            45,
-            29,
-            88
+            66,
+            73,
+            80,
+            74,
+            93
           ],
           "judges": [
             1,
@@ -6109,7 +8231,11 @@
         {
           "round": "final",
           "bibs": [
-            80
+            67,
+            54,
+            62,
+            92,
+            96
           ],
           "judges": [
             1,
@@ -6121,10 +8247,242 @@
       "competitionId": 1,
       "scoringType": "proficiency",
       "isScholarship": false
+    },
+    "165": {
+      "id": 165,
+      "name": "Pro-Am Syllabus Bronze Smooth Waltz - A",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Bronze",
+      "style": "Smooth",
+      "dances": [
+        "Waltz"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            1,
+            3,
+            4,
+            5
+          ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "standard",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-1",
+      "sectionLetter": "A"
+    },
+    "166": {
+      "id": 166,
+      "name": "Pro-Am Syllabus Bronze Smooth Waltz - B",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Bronze",
+      "style": "Smooth",
+      "dances": [
+        "Waltz"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            11,
+            6,
+            7,
+            8
+          ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "standard",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-1",
+      "sectionLetter": "B"
+    },
+    "167": {
+      "id": 167,
+      "name": "Pro-Am Syllabus Bronze Smooth Waltz - C",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Bronze",
+      "style": "Smooth",
+      "dances": [
+        "Waltz"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            21,
+            9,
+            10,
+            13
+          ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "standard",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-1",
+      "sectionLetter": "C"
+    },
+    "168": {
+      "id": 168,
+      "name": "Pro-Am Syllabus Silver Rhythm Cha Cha - A",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Silver",
+      "style": "Rhythm",
+      "dances": [
+        "Cha Cha"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            2,
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "standard",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-2",
+      "sectionLetter": "A"
+    },
+    "169": {
+      "id": 169,
+      "name": "Pro-Am Syllabus Silver Rhythm Cha Cha - B",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Silver",
+      "style": "Rhythm",
+      "dances": [
+        "Cha Cha"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            12,
+            19,
+            20,
+            23,
+            24,
+            25
+          ],
+          "judges": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "standard",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-2",
+      "sectionLetter": "B"
+    },
+    "170": {
+      "id": 170,
+      "name": "Pro-Am Syllabus Bronze Latin Rumba - A",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Bronze",
+      "style": "Latin",
+      "dances": [
+        "Rumba"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            26,
+            27,
+            28,
+            29
+          ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "proficiency",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-3",
+      "sectionLetter": "A"
+    },
+    "171": {
+      "id": 171,
+      "name": "Pro-Am Syllabus Bronze Latin Rumba - B",
+      "designation": "Pro-Am",
+      "syllabusType": "Syllabus",
+      "level": "Bronze",
+      "style": "Latin",
+      "dances": [
+        "Rumba"
+      ],
+      "heats": [
+        {
+          "round": "final",
+          "bibs": [
+            36,
+            37,
+            38,
+            39
+          ],
+          "judges": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "competitionId": 1,
+      "scoringType": "proficiency",
+      "isScholarship": false,
+      "sectionGroupId": "sg-sample-3",
+      "sectionLetter": "B"
     }
   },
   "scores": {},
   "judgeScores": {},
-  "next_event_id": 165,
+  "next_event_id": 172,
   "next_bib": 101
 }

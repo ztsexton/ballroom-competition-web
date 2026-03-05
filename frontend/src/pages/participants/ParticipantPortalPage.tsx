@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -615,7 +615,15 @@ const ParticipantPortalPage = () => {
       {/* Section 5: My Schedule */}
       {selectedComp && myPerson && myEntries.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-4">
-          <h3 className="mt-0 mb-3">My Schedule</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="mt-0 mb-0">My Schedule</h3>
+            <Link
+              to={`/competitions/${selectedComp.id}/heat-sheet`}
+              className="px-3 py-1.5 text-sm bg-primary-500 text-white rounded no-underline font-medium hover:bg-primary-600 transition-colors"
+            >
+              View Full Heat Sheet
+            </Link>
+          </div>
           {schedule.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
