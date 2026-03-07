@@ -168,6 +168,10 @@ export const eventsApi = {
     style?: string; dances?: string[]; scoringType?: string;
     ageCategory?: string;
   }) => api.post<{ event: Event; created: boolean }>('/events/register', data),
+  scratch: (eventId: number, bib: number) =>
+    api.post<Event>(`/events/${eventId}/scratch`, { bib }),
+  unscratch: (eventId: number, bib: number) =>
+    api.delete<Event>(`/events/${eventId}/scratch/${bib}`),
 };
 
 // Schedules API

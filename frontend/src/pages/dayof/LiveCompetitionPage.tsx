@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { judgingApi } from '../../api/client';
-import { CompetitionSchedule, Event, Competition, ScheduledHeat } from '../../types';
+import { CompetitionSchedule, Event, Couple, Competition, ScheduledHeat } from '../../types';
 import { useCompetitionSSE } from '../../hooks/useCompetitionSSE';
 import { Skeleton } from '../../components/Skeleton';
 
@@ -13,20 +13,23 @@ const LiveCompetitionPage = () => {
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [schedule, setSchedule] = useState<CompetitionSchedule | null>(null);
   const [events, setEvents] = useState<Record<number, Event>>({});
+  const [couples, setCouples] = useState<Couple[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     if (!competitionId) return;
     try {
-      const [compRes, schedRes, eventsRes] = await Promise.all([
+      const [compRes, schedRes, eventsRes, couplesRes] = await Promise.all([
         judgingApi.getCompetition(competitionId),
         judgingApi.getSchedule(competitionId),
         judgingApi.getEvents(competitionId),
+        judgingApi.getCouples(competitionId),
       ]);
       setCompetition(compRes.data);
       setSchedule(schedRes.data);
       setEvents(eventsRes.data);
+      setCouples(couplesRes.data);
       setError('');
     } catch {
       setError('Failed to load competition data.');
@@ -139,6 +142,42 @@ const LiveCompetitionPage = () => {
     return round;
   };
 
+  const couplesByBib: Record<number, Couple> = {};
+  couples.forEach(c => { couplesByBib[c.bib] = c; });
+
+  const getHeatCouples = (heat: ScheduledHeat): Couple[] => {
+    const seen = new Set<number>();
+    const result: Couple[] = [];
+    for (const entry of heat.entries) {
+      const event = events[entry.eventId];
+      if (!event) continue;
+      const h = event.heats.find(h => h.round === entry.round);
+      if (!h) continue;
+      const bibs = entry.bibSubset || h.bibs;
+      for (const bib of bibs) {
+        if (!seen.has(bib) && couplesByBib[bib]) {
+          seen.add(bib);
+          result.push(couplesByBib[bib]);
+        }
+      }
+    }
+    return result.sort((a, b) => a.bib - b.bib);
+  };
+
+  const renderCoupleChips = (heat: ScheduledHeat) => {
+    const heatCouples = getHeatCouples(heat);
+    if (heatCouples.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {heatCouples.map(c => (
+          <span key={c.bib} className="px-2 py-0.5 bg-gray-50 border border-gray-200 rounded text-sm">
+            <strong>#{c.bib}</strong> {c.leaderName} & {c.followerName}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-[600px] mx-auto p-4">
       {/* Header */}
@@ -209,6 +248,7 @@ const LiveCompetitionPage = () => {
                 </span>
               )}
             </div>
+            {renderCoupleChips(currentHeat)}
           </div>
         ) : (
           <p className="text-gray-500 m-0">Unknown event</p>
@@ -246,6 +286,7 @@ const LiveCompetitionPage = () => {
                   </span>
                 )}
               </p>
+              {renderCoupleChips(nextHeat)}
             </div>
           ) : (
             <p className="text-gray-500 m-0">Unknown event</p>
@@ -262,6 +303,7 @@ const LiveCompetitionPage = () => {
           <div className="flex flex-col gap-2">
             {laterHeats.map((heat, idx) => {
               const heatNum = schedule.currentHeatIndex + 3 + idx;
+              const showCouples = idx === 0; // Show couples for the first upcoming heat
 
               if (heat.isBreak) {
                 return (
@@ -289,6 +331,7 @@ const LiveCompetitionPage = () => {
                     {coupleCount > 0 && ` · ${coupleCount}`}
                     {heat.estimatedStartTime && ` · ${formatTime(heat.estimatedStartTime)}`}
                   </span>
+                  {showCouples && renderCoupleChips(heat)}
                 </div>
               );
             })}
