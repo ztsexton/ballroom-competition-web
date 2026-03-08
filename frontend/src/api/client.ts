@@ -93,6 +93,34 @@ export const competitionsApi = {
     api.post(`/competitions/${competitionId}/pending-entries/${entryId}/approve`),
   rejectPendingEntry: (competitionId: number, entryId: string) =>
     api.delete(`/competitions/${competitionId}/pending-entries/${entryId}`),
+  getValidationResolutions: (id: number) => api.get<{
+    conflicts: Array<{
+      bib: number;
+      leaderName: string;
+      followerName: string;
+      entries: Array<{ eventId: number; eventName: string; level: string }>;
+      currentRange: string;
+      allowedRange: string[];
+      outOfRangeEntries: Array<{ eventId: number; eventName: string; level: string; reason: string }>;
+      suggestedResolutions: Array<{
+        id: string;
+        type: 'remove' | 'move';
+        description: string;
+        actions: Array<{
+          eventId: number;
+          eventName: string;
+          currentLevel: string;
+          action: 'remove' | 'move';
+          targetLevel?: string;
+        }>;
+      }>;
+    }>;
+    count: number;
+  }>(`/competitions/${id}/validation-resolutions`),
+  applyResolution: (id: number, actions: Array<{ eventId: number; action: 'remove' | 'move'; bib: number; targetLevel?: string }>) =>
+    api.post<{ results: Array<{ eventId: number; action: string; success: boolean; error?: string }>; allSuccess: boolean }>(
+      `/competitions/${id}/apply-resolution`, { actions }
+    ),
 };
 
 // Studios API
@@ -333,7 +361,7 @@ export const participantApi = {
     bib: number; designation?: string; syllabusType?: string; level?: string;
     style?: string; dances?: string[]; scoringType?: string;
     ageCategory?: string;
-  }) => api.post<{ event: Event; created: boolean }>(`/participant/competitions/${competitionId}/entries`, data),
+  }) => api.post<{ event?: Event; created?: boolean; pending?: boolean; message?: string; pendingEntry?: unknown }>(`/participant/competitions/${competitionId}/entries`, data),
   removeEntry: (competitionId: number, eventId: number, bib: number) =>
     api.delete(`/participant/competitions/${competitionId}/entries/${eventId}/${bib}`),
   getAllowedLevels: (competitionId: number, bib: number) =>

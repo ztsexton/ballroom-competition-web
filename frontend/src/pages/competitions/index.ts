@@ -5,3 +5,4 @@ export { default as CompetitionEntriesPage } from './CompetitionEntriesPage';
 export { default as CompetitionSettingsPage } from './CompetitionSettingsPage';
 export { default as CompetitionDayOfPage } from './CompetitionDayOfPage';
 export { default as CompetitionImportPage } from './CompetitionImportPage';
+export { default as ValidationPage } from './ValidationPage';

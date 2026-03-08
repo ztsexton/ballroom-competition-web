@@ -9,6 +9,7 @@ const TABS = [
   { label: 'Overview', path: '', end: true },
   { label: 'Settings', path: 'settings', end: false },
   { label: 'Import', path: 'import', end: false },
+  { label: 'Validation', path: 'validation', end: false },
   { label: 'Participants', path: 'participants', end: false },
   { label: 'Events', path: 'events', end: false },
   { label: 'Heat Lists', path: 'heat-lists', end: false },

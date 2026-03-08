@@ -51,6 +51,7 @@ const CompetitionEntriesPage = React.lazy(() => import('./pages/competitions').t
 const CompetitionSettingsPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionSettingsPage })));
 const CompetitionDayOfPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionDayOfPage })));
 const CompetitionImportPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.CompetitionImportPage })));
+const ValidationPage = React.lazy(() => import('./pages/competitions').then(m => ({ default: m.ValidationPage })));
 
 // -- Admin pages --
 const AdminDashboardPage = React.lazy(() => import('./pages/admin').then(m => ({ default: m.AdminDashboardPage })));
@@ -139,6 +140,7 @@ const App = () => {
                       <Route path="run" element={<RunCompetitionPage />} />
                       <Route path="scrutineer" element={<ScrutineerPage />} />
                       <Route path="import" element={<CompetitionImportPage />} />
+                      <Route path="validation" element={<ValidationPage />} />
                       <Route path="day-of" element={<CompetitionDayOfPage />} />
                     </Route>
 

@@ -5,7 +5,6 @@ import { useCompetition } from '../../context/CompetitionContext';
 import { Studio, Organization } from '../../types';
 import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
 import { Skeleton } from '../../components/Skeleton';
-import { useToast } from '../../context/ToastContext';
 
 interface WorkflowCounts {
   people: number;
@@ -18,50 +17,19 @@ interface WorkflowCounts {
   scheduleExists: boolean;
 }
 
-interface ValidationIssue {
-  eventId: number;
-  eventName: string;
-  eventLevel: string;
-  bib: number;
-  leaderName: string;
-  followerName: string;
-  coupleLevel: string | null;
-  allowedLevels: string[];
-  reason: string;
-}
-
-interface PendingEntryEnriched {
-  id: string;
-  bib: number;
-  combination: {
-    designation?: string;
-    syllabusType?: string;
-    level?: string;
-    style?: string;
-    dances?: string[];
-    scoringType?: string;
-    ageCategory?: string;
-  };
-  reason: string;
-  requestedAt: string;
-  leaderName: string;
-  followerName: string;
-}
 
 const CompetitionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const competitionId = parseInt(id || '0');
-  const { activeCompetition, refreshCompetitions } = useCompetition();
-  const { showToast } = useToast();
+  const { activeCompetition } = useCompetition();
   const [studio, setStudio] = useState<Studio | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [counts, setCounts] = useState<WorkflowCounts>({
     people: 0, couples: 0, judges: 0, events: 0,
     scheduleHeats: 0, currentHeatIndex: 0, completedCount: 0, scheduleExists: false,
   });
-  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
-  const [validationExpanded, setValidationExpanded] = useState(false);
-  const [pendingEntries, setPendingEntries] = useState<PendingEntryEnriched[]>([]);
+  const [validationIssueCount, setValidationIssueCount] = useState(0);
+  const [pendingEntryCount, setPendingEntryCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -100,45 +68,21 @@ const CompetitionDetailsPage = () => {
         } catch { /* ignore */ }
       }
 
-      // Load validation issues if entry validation is enabled
+      // Load validation issue & pending entry counts
       if (activeCompetition?.entryValidation?.enabled) {
         try {
           const valRes = await competitionsApi.getValidationIssues(competitionId);
-          setValidationIssues(valRes.data.issues);
+          setValidationIssueCount(valRes.data.count);
         } catch { /* ignore */ }
       }
-
-      // Load pending entries
       try {
         const pendingRes = await competitionsApi.getPendingEntries(competitionId);
-        setPendingEntries(pendingRes.data.pendingEntries);
+        setPendingEntryCount(pendingRes.data.count);
       } catch { /* ignore */ }
     } catch {
       // counts stay at defaults
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApprove = async (entryId: string) => {
-    try {
-      await competitionsApi.approvePendingEntry(competitionId, entryId);
-      showToast('Entry approved', 'success');
-      await refreshCompetitions();
-      await loadData();
-    } catch {
-      showToast('Failed to approve entry', 'error');
-    }
-  };
-
-  const handleReject = async (entryId: string) => {
-    try {
-      await competitionsApi.rejectPendingEntry(competitionId, entryId);
-      showToast('Entry rejected', 'info');
-      await refreshCompetitions();
-      await loadData();
-    } catch {
-      showToast('Failed to reject entry', 'error');
     }
   };
 
@@ -194,8 +138,6 @@ const CompetitionDetailsPage = () => {
     },
   ];
 
-  const formatCombination = (c: PendingEntryEnriched['combination']) =>
-    [c.designation, c.syllabusType, c.level, c.style, c.dances?.join(', ')].filter(Boolean).join(' \u2022 ') || '\u2014';
 
   return (
     <div className="max-w-7xl mx-auto p-8">
@@ -214,96 +156,30 @@ const CompetitionDetailsPage = () => {
         )}
       </div>
 
-      {/* Pending Entries Approval Queue */}
-      {pendingEntries.length > 0 && (
+      {/* Validation summary banner */}
+      {(pendingEntryCount > 0 || validationIssueCount > 0) && (
         <div className="bg-amber-50 border border-amber-300 rounded-lg shadow p-5 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-amber-600 text-xl">&#9888;</span>
-            <h3 className="text-base font-semibold text-amber-800">
-              {pendingEntries.length} Pending Entry Approval{pendingEntries.length !== 1 ? 's' : ''}
-            </h3>
-          </div>
-          <p className="text-sm text-amber-700 mb-3">
-            These entries are outside the couple's current level range and need your approval.
-          </p>
-          <div className="space-y-2">
-            {pendingEntries.map(entry => (
-              <div key={entry.id} className="bg-white border border-amber-200 rounded p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="text-sm">
-                      <span className="font-semibold text-gray-800">Bib {entry.bib}</span>
-                      <span className="text-gray-500 mx-1.5">&middot;</span>
-                      <span className="text-gray-700">{entry.leaderName} &amp; {entry.followerName}</span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {formatCombination(entry.combination)}
-                    </div>
-                    <p className="text-xs text-amber-600 mt-1">{entry.reason}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Requested {new Date(entry.requestedAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => handleApprove(entry.id)}
-                      className="px-3 py-1.5 bg-success-500 text-white rounded border-none cursor-pointer text-xs font-medium hover:bg-success-600 transition-colors"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(entry.id)}
-                      className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded border-none cursor-pointer text-xs font-medium hover:bg-gray-300 transition-colors"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Validation Issues */}
-      {validationIssues.length > 0 && (
-        <div className="bg-amber-50 border border-amber-300 rounded-lg shadow p-5 mb-6">
-          <button
-            onClick={() => setValidationExpanded(!validationExpanded)}
-            className="w-full flex items-center justify-between text-left"
-          >
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-amber-600 text-xl">&#9888;</span>
-              <h3 className="text-base font-semibold text-amber-800">
-                {validationIssues.length} Entry Validation Issue{validationIssues.length !== 1 ? 's' : ''}
-              </h3>
+              <div>
+                <h3 className="text-base font-semibold text-amber-800">
+                  Entry Validation Issues
+                </h3>
+                <p className="text-sm text-amber-700 mt-0.5">
+                  {validationIssueCount > 0 && `${validationIssueCount} level conflict${validationIssueCount !== 1 ? 's' : ''}`}
+                  {validationIssueCount > 0 && pendingEntryCount > 0 && ', '}
+                  {pendingEntryCount > 0 && `${pendingEntryCount} pending approval${pendingEntryCount !== 1 ? 's' : ''}`}
+                </p>
+              </div>
             </div>
-            <span className="text-amber-600 text-sm">{validationExpanded ? 'Hide' : 'Show details'}</span>
-          </button>
-          {validationExpanded && (
-            <div className="mt-3 space-y-2">
-              {validationIssues.map((issue, i) => (
-                <div key={i} className="bg-white border border-amber-200 rounded p-3 text-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-semibold text-gray-800">Bib {issue.bib}</span>
-                      <span className="text-gray-500 mx-1.5">&middot;</span>
-                      <span className="text-gray-700">{issue.leaderName} &amp; {issue.followerName}</span>
-                    </div>
-                    <Link
-                      to={`events`}
-                      className="text-xs text-primary-600 no-underline hover:underline whitespace-nowrap"
-                    >
-                      View Events
-                    </Link>
-                  </div>
-                  <p className="text-amber-700 mt-1 text-[0.8125rem]">
-                    <span className="font-medium">{issue.eventName}</span>: {issue.reason}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+            <Link
+              to="validation"
+              className="px-4 py-2 bg-amber-600 text-white rounded no-underline text-sm font-medium hover:bg-amber-700 transition-colors"
+            >
+              Review &amp; Resolve
+            </Link>
+          </div>
         </div>
       )}
 

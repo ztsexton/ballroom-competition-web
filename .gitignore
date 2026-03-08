@@ -60,3 +60,5 @@ node_modules/
 cypress/videos/
 cypress/screenshots/
 integration-tests/cypress-screenshots/
+
+all_entries.xlsx

@@ -3,7 +3,7 @@ import { dataService } from '../services/dataService';
 import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 import { DEFAULT_LEVELS_BY_TYPE } from '../constants/levels';
 import { CompetitionType } from '../types';
-import { getAllowedLevelsForCouple } from '../services/validationService';
+import { getAllowedLevelsForCouple, getMainLevel, groupLevelsByMain } from '../services/validationService';
 import { registerCoupleForEvent } from '../services/registrationService';
 import logger from '../utils/logger';
 
@@ -299,6 +299,283 @@ router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, r
     res.json({ issues, count: issues.length });
   } catch (error) {
     res.status(500).json({ error: 'Failed to check validation issues' });
+  }
+});
+
+// GET /competitions/:id/validation-resolutions — compute detailed conflict groups with suggested resolutions
+router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    if (!competition.entryValidation?.enabled || !competition.levels?.length) {
+      return res.json({ conflicts: [], count: 0 });
+    }
+
+    const eventsMap = await dataService.getEvents(competitionId);
+    const events = Object.values(eventsMap);
+    const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
+    const mode = competition.entryValidation.levelRestrictionMode || 'sublevel';
+
+    // Collect all entries per couple (bib → list of { eventId, eventName, eventLevel, levelIndex })
+    const coupleEntries = new Map<number, Array<{ eventId: number; eventName: string; level: string; levelIndex: number }>>();
+    for (const event of events) {
+      if (!event.level) continue;
+      const levelIdx = competition.levels.indexOf(event.level);
+      if (levelIdx === -1) continue;
+      for (const bib of event.heats[0]?.bibs || []) {
+        if (!coupleEntries.has(bib)) coupleEntries.set(bib, []);
+        coupleEntries.get(bib)!.push({
+          eventId: event.id,
+          eventName: event.name,
+          level: event.level,
+          levelIndex: levelIdx,
+        });
+      }
+    }
+
+    // Helper to compute allowed range for a given base level
+    function computeAllowedRange(baseLevelIdx: number): { minIdx: number; maxIdx: number; levels: string[] } {
+      if (mode === 'mainlevel') {
+        const groups = groupLevelsByMain(competition!.levels!);
+        const baseMain = getMainLevel(competition!.levels![baseLevelIdx]);
+        const baseGroupIdx = groups.findIndex(g => g.mainLevel === baseMain);
+        if (baseGroupIdx === -1) return { minIdx: baseLevelIdx, maxIdx: baseLevelIdx, levels: [competition!.levels![baseLevelIdx]] };
+        const maxGroupIdx = Math.min(baseGroupIdx + levelsAbove, groups.length - 1);
+        const allowed: string[] = [];
+        for (let i = baseGroupIdx; i <= maxGroupIdx; i++) {
+          allowed.push(...groups[i].subLevels);
+        }
+        const minIdx = competition!.levels!.indexOf(allowed[0]);
+        const maxIdx = competition!.levels!.indexOf(allowed[allowed.length - 1]);
+        return { minIdx, maxIdx, levels: allowed };
+      }
+      const maxIdx = Math.min(baseLevelIdx + levelsAbove, competition!.levels!.length - 1);
+      return { minIdx: baseLevelIdx, maxIdx, levels: competition!.levels!.slice(baseLevelIdx, maxIdx + 1) };
+    }
+
+    interface ConflictResolution {
+      id: string;
+      type: 'remove' | 'move';
+      description: string;
+      actions: Array<{
+        eventId: number;
+        eventName: string;
+        currentLevel: string;
+        action: 'remove' | 'move';
+        targetLevel?: string;
+      }>;
+    }
+
+    interface CoupleConflict {
+      bib: number;
+      leaderName: string;
+      followerName: string;
+      entries: Array<{ eventId: number; eventName: string; level: string }>;
+      currentRange: string;
+      allowedRange: string[];
+      outOfRangeEntries: Array<{ eventId: number; eventName: string; level: string; reason: string }>;
+      suggestedResolutions: ConflictResolution[];
+    }
+
+    const conflicts: CoupleConflict[] = [];
+
+    for (const [bib, entries] of coupleEntries) {
+      // Determine lowest level (base) and allowed range
+      const lowestIdx = Math.min(...entries.map(e => e.levelIndex));
+      const { levels: allowedLevels } = computeAllowedRange(lowestIdx);
+
+      // Find entries outside allowed range
+      const outOfRange = entries.filter(e => !allowedLevels.includes(e.level));
+      if (outOfRange.length === 0) continue;
+
+      const couple = await dataService.getCoupleByBib(bib);
+      if (!couple) continue;
+      const [leader, follower] = await Promise.all([
+        dataService.getPersonById(couple.leaderId),
+        dataService.getPersonById(couple.followerId),
+      ]);
+
+      const resolutions: ConflictResolution[] = [];
+      let resIdx = 0;
+
+      // Resolution 1: Remove the out-of-range entries
+      resolutions.push({
+        id: `res-${bib}-${resIdx++}`,
+        type: 'remove',
+        description: `Remove ${outOfRange.length === 1 ? `entry from ${outOfRange[0].eventName}` : `${outOfRange.length} out-of-range entries`}`,
+        actions: outOfRange.map(e => ({
+          eventId: e.eventId,
+          eventName: e.eventName,
+          currentLevel: e.level,
+          action: 'remove' as const,
+        })),
+      });
+
+      // Resolution 2+: For each possible "anchor level" that could accommodate all entries,
+      // compute what moves are needed. We try anchoring at each distinct level the couple is in.
+      const distinctLevels = [...new Set(entries.map(e => e.levelIndex))].sort((a, b) => a - b);
+
+      for (const anchorIdx of distinctLevels) {
+        const { levels: anchoredAllowed, minIdx, maxIdx } = computeAllowedRange(anchorIdx);
+        // Check if ALL entries can fit by moving conflicting ones
+        const needsMoves = entries.filter(e => !anchoredAllowed.includes(e.level));
+        if (needsMoves.length === 0) continue; // This anchor already works — no moves needed
+        if (needsMoves.length === entries.length) continue; // Would need to move everything — not helpful
+
+        // For each entry that doesn't fit, find the closest allowed level
+        const actions: ConflictResolution['actions'] = [];
+        for (const entry of needsMoves) {
+          let targetLevel: string;
+          if (entry.levelIndex < minIdx) {
+            // Entry is below range — move up to the lowest allowed level
+            targetLevel = competition.levels![minIdx];
+          } else {
+            // Entry is above range — move down to the highest allowed level
+            targetLevel = competition.levels![maxIdx];
+          }
+          actions.push({
+            eventId: entry.eventId,
+            eventName: entry.eventName,
+            currentLevel: entry.level,
+            action: 'move',
+            targetLevel,
+          });
+        }
+
+        // Only add if the target levels are different from current (meaningful move)
+        if (actions.every(a => a.currentLevel === a.targetLevel)) continue;
+
+        const anchorLevel = competition.levels![anchorIdx];
+        resolutions.push({
+          id: `res-${bib}-${resIdx++}`,
+          type: 'move',
+          description: `Keep ${anchorLevel} entries, move ${actions.length === 1 ? `${actions[0].eventName}` : `${actions.length} entries`} into allowed range`,
+          actions,
+        });
+      }
+
+      conflicts.push({
+        bib,
+        leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
+        followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
+        entries: entries.map(e => ({ eventId: e.eventId, eventName: e.eventName, level: e.level })),
+        currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...entries.map(e => e.levelIndex))]}`,
+        allowedRange: allowedLevels,
+        outOfRangeEntries: outOfRange.map(e => ({
+          eventId: e.eventId,
+          eventName: e.eventName,
+          level: e.level,
+          reason: `${e.level} is outside allowed range (${allowedLevels.join(', ')})`,
+        })),
+        suggestedResolutions: resolutions,
+      });
+    }
+
+    res.json({ conflicts, count: conflicts.length });
+  } catch (error) {
+    logger.error({ error }, 'Failed to compute validation resolutions');
+    res.status(500).json({ error: 'Failed to compute validation resolutions' });
+  }
+});
+
+// POST /competitions/:id/apply-resolution — apply a resolution (remove or move entries)
+router.post('/:id/apply-resolution', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const { actions } = req.body as {
+      actions: Array<{
+        eventId: number;
+        action: 'remove' | 'move';
+        bib: number;
+        targetLevel?: string;
+      }>;
+    };
+
+    if (!actions || !Array.isArray(actions) || actions.length === 0) {
+      return res.status(400).json({ error: 'No actions provided' });
+    }
+
+    const results: Array<{ eventId: number; action: string; success: boolean; error?: string }> = [];
+
+    for (const act of actions) {
+      const event = await dataService.getEventById(act.eventId);
+      if (!event) {
+        results.push({ eventId: act.eventId, action: act.action, success: false, error: 'Event not found' });
+        continue;
+      }
+
+      if (event.competitionId !== competitionId) {
+        results.push({ eventId: act.eventId, action: act.action, success: false, error: 'Event does not belong to this competition' });
+        continue;
+      }
+
+      const hasScores = await dataService.hasAnyScores(act.eventId);
+      if (hasScores) {
+        results.push({ eventId: act.eventId, action: act.action, success: false, error: 'Cannot modify: event has scores' });
+        continue;
+      }
+
+      if (act.action === 'remove') {
+        const existingBibs = event.heats[0]?.bibs || [];
+        if (!existingBibs.includes(act.bib)) {
+          results.push({ eventId: act.eventId, action: 'remove', success: false, error: 'Couple not in event' });
+          continue;
+        }
+        const newBibs = existingBibs.filter((b: number) => b !== act.bib);
+        const judgeIds = event.heats[0]?.judges || [];
+        const st = event.scoringType || 'standard';
+        const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
+        await dataService.updateEvent(act.eventId, { heats: newHeats });
+        results.push({ eventId: act.eventId, action: 'remove', success: true });
+      } else if (act.action === 'move') {
+        if (!act.targetLevel) {
+          results.push({ eventId: act.eventId, action: 'move', success: false, error: 'No target level specified' });
+          continue;
+        }
+
+        // Remove from current event
+        const existingBibs = event.heats[0]?.bibs || [];
+        if (!existingBibs.includes(act.bib)) {
+          results.push({ eventId: act.eventId, action: 'move', success: false, error: 'Couple not in event' });
+          continue;
+        }
+        const newBibs = existingBibs.filter((b: number) => b !== act.bib);
+        const judgeIds = event.heats[0]?.judges || [];
+        const st = event.scoringType || 'standard';
+        const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
+        await dataService.updateEvent(act.eventId, { heats: newHeats });
+
+        // Register into target level event (find or create)
+        const combination = {
+          designation: event.designation,
+          syllabusType: event.syllabusType,
+          level: act.targetLevel,
+          style: event.style,
+          dances: event.dances,
+          scoringType: event.scoringType,
+          ageCategory: event.ageCategory,
+        };
+        const regResult = await registerCoupleForEvent(competitionId, act.bib, combination);
+        if (regResult.error) {
+          results.push({ eventId: act.eventId, action: 'move', success: false, error: regResult.error });
+        } else {
+          results.push({ eventId: act.eventId, action: 'move', success: true });
+        }
+      }
+    }
+
+    const allSuccess = results.every(r => r.success);
+    logger.info({ competitionId, actionsCount: actions.length, allSuccess }, 'Applied validation resolution');
+    res.json({ results, allSuccess });
+  } catch (error) {
+    logger.error({ error }, 'Failed to apply resolution');
+    res.status(500).json({ error: 'Failed to apply resolution' });
   }
 });
 
