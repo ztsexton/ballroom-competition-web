@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Event, CompetitionSchedule, ScheduledHeat, Judge } from '../../../../types';
+import { Event, CompetitionSchedule, ScheduledHeat, Judge, Couple } from '../../../../types';
 import JudgeAssignmentModal from './JudgeAssignmentModal';
 import {
   getEventById,
@@ -14,9 +14,18 @@ import {
   statusBadge,
 } from '../utils';
 
+interface BackToBackConflict {
+  personId?: number; personName?: string;
+  bib?: number; leaderName?: string; followerName?: string;
+  heatIndex1: number; heatIndex2: number;
+  heatId1: string; heatId2: string;
+  eventName1: string; eventName2: string;
+}
+
 interface ScheduleHeatTableProps {
   schedule: CompetitionSchedule;
   events: Event[];
+  couples?: Couple[];
   judges?: Judge[];
   eventsMap?: Record<number, Event>;
   competitionId?: number;
@@ -28,6 +37,7 @@ interface ScheduleHeatTableProps {
   movedHeat: { id: string; key: number } | null;
   maxCouplesPerHeat: number;
   backToBackHeatIds?: Set<string>;
+  backToBackConflicts?: BackToBackConflict[];
   onDragStart: (idx: number) => void;
   onDragOver: (e: React.DragEvent, idx: number) => void;
   onDragEnd: () => void;
@@ -43,6 +53,7 @@ interface ScheduleHeatTableProps {
 export default function ScheduleHeatTable({
   schedule,
   events,
+  couples,
   judges,
   eventsMap,
   competitionId,
@@ -54,6 +65,7 @@ export default function ScheduleHeatTable({
   movedHeat,
   maxCouplesPerHeat,
   backToBackHeatIds,
+  backToBackConflicts,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -67,6 +79,18 @@ export default function ScheduleHeatTable({
 }: ScheduleHeatTableProps) {
   const movedRowRef = useRef<HTMLTableRowElement | null>(null);
   const [judgeModalHeat, setJudgeModalHeat] = useState<ScheduledHeat | null>(null);
+
+  // Build couple lookup map
+  const coupleByBib = new Map<number, Couple>();
+  if (couples) {
+    for (const c of couples) coupleByBib.set(c.bib, c);
+  }
+
+  // Get back-to-back conflict people for a specific heat
+  const getConflictsForHeat = (heatId: string): BackToBackConflict[] => {
+    if (!backToBackConflicts) return [];
+    return backToBackConflicts.filter(c => c.heatId1 === heatId || c.heatId2 === heatId);
+  };
 
   // Build a map of judge id → judge for quick lookup
   const judgeMap = new Map<number, Judge>();
@@ -248,8 +272,20 @@ export default function ScheduleHeatTable({
                             scheduledHeat={scheduledHeat}
                             events={events}
                             mergeSource={mergeSource}
+                            isExpanded={isExpanded}
+                            onToggleExpanded={couples ? onToggleExpanded : undefined}
                           />
                         )}
+                        {isBackToBack && !isExpanded && (() => {
+                          const conflicts = getConflictsForHeat(scheduledHeat.id);
+                          if (conflicts.length === 0) return null;
+                          const names = [...new Set(conflicts.map(c => c.personName).filter(Boolean))];
+                          return (
+                            <div className="mt-1 text-xs text-orange-700">
+                              B2B: {names.join(', ')}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2 capitalize align-top">{getHeatRound(scheduledHeat)}</td>
                       <td className="px-3 py-2 align-top">{getHeatStyle(scheduledHeat, events)}</td>
@@ -336,6 +372,87 @@ export default function ScheduleHeatTable({
                     </tr>
                   );
                 })}
+                {/* Expanded couple entries for any heat */}
+                {isExpanded && !mergeSource && !isBreak && couples && (() => {
+                  const heatConflicts = getConflictsForHeat(scheduledHeat.id);
+                  const conflictPersonNames = new Set(heatConflicts.map(c => c.personName).filter(Boolean));
+                  const colSpan = (judges && judges.length > 0) ? 8 : 7;
+
+                  return (
+                    <tr key={`${scheduledHeat.id}-couples`} className="bg-gray-50/30">
+                      <td></td>
+                      <td></td>
+                      <td colSpan={colSpan} className="px-3 py-3">
+                        {/* Back-to-back conflict people for this heat */}
+                        {heatConflicts.length > 0 && (
+                          <div className="mb-3 px-3 py-2 bg-orange-50 border border-orange-200 rounded-md text-sm">
+                            <span className="font-semibold text-orange-800">Back-to-back: </span>
+                            {(() => {
+                              // Group conflicts by person to show each person once
+                              const personMap = new Map<string, { name: string; events: string[] }>();
+                              for (const c of heatConflicts) {
+                                const name = c.personName || `Bib #${c.bib}`;
+                                if (!personMap.has(name)) {
+                                  personMap.set(name, { name, events: [] });
+                                }
+                                const p = personMap.get(name)!;
+                                const otherEvent = c.heatId1 === scheduledHeat.id ? c.eventName2 : c.eventName1;
+                                if (!p.events.includes(otherEvent)) p.events.push(otherEvent);
+                              }
+                              return [...personMap.values()].map((p, i) => (
+                                <span key={i} className="inline-block mr-3">
+                                  <span className="font-medium text-orange-900">{p.name}</span>
+                                  <span className="text-orange-600 text-xs ml-1">
+                                    (also in {p.events.join(', ')})
+                                  </span>
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                        )}
+                        {scheduledHeat.entries.map(entry => {
+                          const event = eventsMap?.[entry.eventId] || getEventById(events, entry.eventId);
+                          if (!event) return null;
+                          const heat = event.heats.find(h => h.round === entry.round);
+                          if (!heat) return null;
+                          const scratched = new Set(event.scratchedBibs || []);
+                          const bibs = (entry.bibSubset || heat.bibs).slice().sort((a, b) => a - b);
+                          const activeBibs = bibs.filter(b => !scratched.has(b));
+                          const entryCouples = activeBibs.map(b => coupleByBib.get(b)).filter(Boolean) as Couple[];
+
+                          return (
+                            <div key={`${entry.eventId}-${entry.round}`} className={scheduledHeat.entries.length > 1 ? 'mb-3' : ''}>
+                              {scheduledHeat.entries.length > 1 && (
+                                <p className="text-xs font-semibold text-gray-500 mb-1 mt-0">{event.name}</p>
+                              )}
+                              <div className="flex flex-wrap gap-1.5">
+                                {entryCouples.map(c => {
+                                  const isConflictPerson = conflictPersonNames.has(c.leaderName) || conflictPersonNames.has(c.followerName);
+                                  return (
+                                    <span
+                                      key={c.bib}
+                                      className={`inline-flex items-center px-2 py-1 rounded text-xs border ${
+                                        isConflictPerson
+                                          ? 'bg-orange-50 border-orange-300 text-orange-900'
+                                          : 'bg-white border-gray-200 text-gray-700'
+                                      }`}
+                                    >
+                                      <strong className="mr-1">#{c.bib}</strong>
+                                      {c.leaderName} & {c.followerName}
+                                    </span>
+                                  );
+                                })}
+                                {entryCouples.length === 0 && (
+                                  <span className="text-xs text-gray-400">No couples assigned</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })()}
               </React.Fragment>
             );
           })}
@@ -414,10 +531,14 @@ function SingleEntryCell({
   scheduledHeat,
   events,
   mergeSource,
+  isExpanded,
+  onToggleExpanded,
 }: {
   scheduledHeat: ScheduledHeat;
   events: Event[];
   mergeSource: { heatId: string; idx: number } | null;
+  isExpanded?: boolean;
+  onToggleExpanded?: (heatId: string) => void;
 }) {
   const entry = scheduledHeat.entries[0];
   const event = entry ? getEventById(events, entry.eventId) : undefined;
@@ -426,7 +547,15 @@ function SingleEntryCell({
   const coupleCount = allBibs.size;
   return (
     <div>
-      <span>
+      <span
+        className={onToggleExpanded && !mergeSource ? 'cursor-pointer hover:text-primary-600' : ''}
+        onClick={onToggleExpanded && !mergeSource ? (e) => { e.stopPropagation(); onToggleExpanded(scheduledHeat.id); } : undefined}
+      >
+        {onToggleExpanded && !mergeSource && (
+          <span className="text-[0.625rem] select-none mr-1.5 inline-block w-3">
+            {isExpanded ? '\u25bc' : '\u25b6'}
+          </span>
+        )}
         {getHeatLabel(scheduledHeat, events)}
         <span className="inline-flex items-center ml-2 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
           {coupleCount} couple{coupleCount !== 1 ? 's' : ''}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { eventsApi, schedulesApi, competitionsApi, judgesApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, Judge } from '../../../types';
+import { eventsApi, schedulesApi, competitionsApi, judgesApi, couplesApi } from '../../../api/client';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, Judge, Couple } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
@@ -76,24 +76,36 @@ const SchedulePage = () => {
   const [breakDuration, setBreakDuration] = useState<number | ''>('');
   const [breakPosition, setBreakPosition] = useState<number>(0);
 
+  // Couples for heat entry display
+  const [couples, setCouples] = useState<Couple[]>([]);
+
   // Back-to-back highlighting
   const [showBackToBack, setShowBackToBack] = useState(false);
   const [excludePros, setExcludePros] = useState(false);
   const [backToBackHeatIds, setBackToBackHeatIds] = useState<Set<string>>(new Set());
   const [backToBackCount, setBackToBackCount] = useState(0);
+  const [backToBackConflicts, setBackToBackConflicts] = useState<Array<{
+    personId?: number; personName?: string;
+    bib?: number; leaderName?: string; followerName?: string;
+    heatIndex1: number; heatIndex2: number;
+    heatId1: string; heatId2: string;
+    eventName1: string; eventName2: string;
+  }>>([]);
 
   const loadData = useCallback(async () => {
     if (!competitionId) return;
 
     try {
-      const [compRes, eventsRes, judgesRes] = await Promise.all([
+      const [compRes, eventsRes, judgesRes, couplesRes] = await Promise.all([
         competitionsApi.getById(competitionId),
         eventsApi.getAll(competitionId),
         judgesApi.getAll(competitionId),
+        couplesApi.getAll(competitionId),
       ]);
       setCompetition(compRes.data);
       setJudges(judgesRes.data);
       setEventsMap(eventsRes.data);
+      setCouples(couplesRes.data);
       if (compRes.data.levels && compRes.data.levels.length > 0) {
         setLevelOrder(compRes.data.levels);
       }
@@ -181,6 +193,7 @@ const SchedulePage = () => {
     if (!showBackToBack || !competitionId || !schedule) {
       setBackToBackHeatIds(new Set());
       setBackToBackCount(0);
+      setBackToBackConflicts([]);
       return;
     }
     let cancelled = false;
@@ -190,11 +203,13 @@ const SchedulePage = () => {
         if (!cancelled) {
           setBackToBackHeatIds(new Set(res.data.conflictHeatIds));
           setBackToBackCount(res.data.count);
+          setBackToBackConflicts(res.data.conflicts);
         }
       } catch {
         if (!cancelled) {
           setBackToBackHeatIds(new Set());
           setBackToBackCount(0);
+          setBackToBackConflicts([]);
         }
       }
     })();
@@ -691,6 +706,7 @@ const SchedulePage = () => {
               <ScheduleHeatTable
                 schedule={schedule}
                 events={events}
+                couples={couples}
                 judges={judges}
                 eventsMap={eventsMap}
                 competitionId={competitionId}
@@ -702,6 +718,7 @@ const SchedulePage = () => {
                 movedHeat={movedHeat}
                 maxCouplesPerHeat={maxCouplesPerHeat}
                 backToBackHeatIds={showBackToBack ? backToBackHeatIds : undefined}
+                backToBackConflicts={showBackToBack ? backToBackConflicts : undefined}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
