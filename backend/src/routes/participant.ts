@@ -3,7 +3,8 @@ import { AuthRequest } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { registerCoupleForEvent, removeEntryFromEvent } from '../services/registrationService';
 import { validateEntry, getAllowedLevelsForCouple } from '../services/validationService';
-import { PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse } from '../types';
+import { PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse, PendingEntry } from '../types';
+import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -280,6 +281,43 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
 
     // Validate eligibility before registering
     const validation = await validateEntry(competitionId, bib, { level, designation, ageCategory: req.body.ageCategory });
+
+    if (validation.needsApproval) {
+      // Add to pending entries queue instead of rejecting
+      const pendingEntry: PendingEntry = {
+        id: randomUUID(),
+        bib,
+        competitionId,
+        combination: { designation, syllabusType, level, style, dances, scoringType, ageCategory },
+        reason: validation.approvalReason || 'Entry requires admin approval',
+        requestedAt: new Date().toISOString(),
+        requestedBy: req.user!.uid,
+      };
+
+      const existingPending = comp.pendingEntries || [];
+      // Check for duplicate pending entry
+      const isDuplicate = existingPending.some(p =>
+        p.bib === bib &&
+        p.combination.level === level &&
+        p.combination.style === style &&
+        p.combination.designation === designation &&
+        JSON.stringify(p.combination.dances) === JSON.stringify(dances)
+      );
+      if (isDuplicate) {
+        return res.status(409).json({ error: 'This entry is already pending approval' });
+      }
+
+      await dataService.updateCompetition(competitionId, {
+        pendingEntries: [...existingPending, pendingEntry],
+      });
+
+      return res.status(202).json({
+        pending: true,
+        pendingEntry,
+        message: validation.approvalReason || 'Entry submitted for admin approval',
+      });
+    }
+
     if (!validation.valid) {
       return res.status(400).json({ error: validation.errors.join('; ') });
     }
@@ -388,8 +426,7 @@ router.get('/competitions/:id/allowed-levels/:bib', async (req: AuthRequest, res
 
     const { levels, coupleLevel } = await getAllowedLevelsForCouple(
       competitionId,
-      couple.leaderId,
-      couple.followerId,
+      bib,
     );
 
     res.json({

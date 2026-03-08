@@ -36,7 +36,6 @@ const ParticipantPortalPage = () => {
   const [regName, setRegName] = useState('');
   const [regRole, setRegRole] = useState<'leader' | 'follower' | 'both'>('leader');
   const [regStatus, setRegStatus] = useState<'student' | 'professional'>('student');
-  const [regDeclaredLevel, setRegDeclaredLevel] = useState('');
 
   // Partners & couples
   const [myCouples, setMyCouples] = useState<Couple[]>([]);
@@ -152,7 +151,7 @@ const ParticipantPortalPage = () => {
         email: user?.email || undefined,
         role: regRole,
         status: regStatus,
-        level: regDeclaredLevel || undefined,
+        level: undefined,
       });
       setMyPerson(res.data);
       setSuccess('Registered successfully!');
@@ -207,9 +206,17 @@ const ParticipantPortalPage = () => {
         scoringType: regScoringType || undefined,
         ageCategory: regAgeCategory || undefined,
       });
-      const label = res.data.event.name;
-      setSuccess(res.data.created ? `Created & registered for ${label}` : `Added to ${label}`);
-      setTimeout(() => setSuccess(''), 4000);
+
+      if (res.status === 202 && res.data.pending) {
+        // Entry sent to approval queue
+        setSuccess(res.data.message || 'Entry submitted for admin approval');
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        const label = res.data.event?.name;
+        setSuccess(res.data.created ? `Created & registered for ${label}` : `Added to ${label}`);
+        setTimeout(() => setSuccess(''), 4000);
+      }
+
       // Reset form fields but keep bib selected
       setRegDesignation('');
       setRegSyllabusType('');
@@ -219,6 +226,16 @@ const ParticipantPortalPage = () => {
       setRegScoringType('');
       setRegAgeCategory('');
       await loadMyData(selectedComp.id);
+      // Refresh allowed levels since entries changed
+      if (selectedComp && regBib) {
+        participantApi.getAllowedLevels(selectedComp.id, regBib)
+          .then(r => {
+            setAllowedLevels(r.data.allowedLevels);
+            setCoupleLevel(r.data.coupleLevel);
+            setValidationEnabled(r.data.validationEnabled);
+          })
+          .catch(() => {});
+      }
     } catch (err: unknown) {
       setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to register entry' : 'Failed to register entry');
     } finally {
@@ -336,22 +353,6 @@ const ParticipantPortalPage = () => {
                 ))}
               </div>
             </div>
-            {levels.length > 0 && selectedComp?.entryValidation?.enabled && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Your Skill Level</label>
-                <p className="text-xs text-gray-500 mb-2">
-                  This determines which event levels you can enter.
-                </p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {levels.map(lvl => (
-                    <button key={lvl} type="button" className={toggleBtnCls(regDeclaredLevel === lvl)}
-                      onClick={() => setRegDeclaredLevel(regDeclaredLevel === lvl ? '' : lvl)}>
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600" onClick={handleRegister} disabled={loading || !regName.trim()}>
               Register
             </button>
@@ -481,25 +482,30 @@ const ParticipantPortalPage = () => {
                     <label className="block font-semibold text-sm mb-1">Level</label>
                     {validationEnabled && coupleLevel && (
                       <p className="text-xs text-gray-500 mb-2">
-                        Based on your declared level ({coupleLevel}), you can enter these levels:
-                      </p>
-                    )}
-                    {validationEnabled && !coupleLevel && (
-                      <p className="text-xs text-danger-500 mb-2">
-                        Please update your declared skill level to see available levels.
+                        Based on your current entries ({coupleLevel}), you can enter these levels.
+                        Other levels require admin approval.
                       </p>
                     )}
                     <div className="flex gap-1.5 flex-wrap">
-                      {(validationEnabled ? allowedLevels : levels).map(opt => (
-                        <button key={opt} type="button" className={toggleBtnCls(regLevel === opt)}
-                          onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
-                          {opt}
-                        </button>
-                      ))}
+                      {levels.map(opt => {
+                        const isAllowed = !validationEnabled || allowedLevels.includes(opt);
+                        const isActive = regLevel === opt;
+                        return (
+                          <button key={opt} type="button"
+                            className={isActive
+                              ? 'px-3 py-1.5 border-2 border-primary-500 rounded bg-primary-500 text-white cursor-pointer font-semibold text-sm transition-all'
+                              : isAllowed
+                                ? 'px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all'
+                                : 'px-3 py-1.5 border border-amber-300 rounded bg-amber-50 text-amber-700 cursor-pointer font-normal text-sm transition-all'}
+                            onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
+                            {opt}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {validationEnabled && levels.length > allowedLevels.length && (
-                      <p className="text-xs text-gray-400 mt-1.5">
-                        Contact an admin to enter levels outside your range.
+                    {validationEnabled && regLevel && !allowedLevels.includes(regLevel) && (
+                      <p className="text-xs text-amber-600 mt-1.5">
+                        This level is outside your current range. Your entry will be submitted for admin approval.
                       </p>
                     )}
                   </div>
@@ -576,7 +582,8 @@ const ParticipantPortalPage = () => {
                 const coupleEntries = myEntries.filter(event =>
                   event.heats.some(h => h.bibs.includes(regBib!))
                 );
-                if (coupleEntries.length === 0) return (
+                const couplePending = (selectedComp?.pendingEntries || []).filter(p => p.bib === regBib);
+                if (coupleEntries.length === 0 && couplePending.length === 0) return (
                   <p className="text-gray-500 italic">No entries yet for this couple.</p>
                 );
                 return (
@@ -606,6 +613,21 @@ const ParticipantPortalPage = () => {
                                 onClick={() => handleRemoveEntry(event.id, regBib!)}>
                                 Remove
                               </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {couplePending.map(entry => (
+                          <tr key={entry.id} className="bg-amber-50">
+                            <td className="px-3 py-2 border-t border-amber-200">
+                              <strong>{[entry.combination.designation, entry.combination.syllabusType, entry.combination.level, entry.combination.style, entry.combination.dances?.join(', ')].filter(Boolean).join(' ')}</strong>
+                            </td>
+                            <td className="px-3 py-2 border-t border-amber-200 text-sm text-amber-700">
+                              <span className="inline-block px-2 py-0.5 bg-amber-100 border border-amber-300 rounded text-xs font-medium">
+                                Awaiting Approval
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 border-t border-amber-200 text-xs text-amber-600">
+                              {entry.reason}
                             </td>
                           </tr>
                         ))}

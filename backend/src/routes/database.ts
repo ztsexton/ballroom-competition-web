@@ -8,6 +8,7 @@ import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { scheduleService } from '../services/schedule';
 import { seedFinishedCompetition } from '../services/seedFinishedCompetition';
+import { seedValidationCompetition } from '../services/seedValidationCompetition';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -121,6 +122,27 @@ router.post('/seed-finished', authenticate, requireAdmin, async (req: AuthReques
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : 'Failed to seed finished competition',
+    });
+  }
+});
+
+// POST /api/database/seed-validation — seed a competition with entry validation scenarios (admin only)
+router.post('/seed-validation', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    logger.info({ user: req.user?.email }, 'Seeding validation competition data');
+
+    const result = await seedValidationCompetition(dataService);
+
+    logger.info({ competitionId: result.competitionId }, 'Validation competition seeded successfully');
+    res.json({
+      success: true,
+      message: `Validation competition "${result.competitionName}" created with level validation enabled, deliberate violations to fix, and couples at every level range`,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to seed validation competition');
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to seed validation competition',
     });
   }
 });

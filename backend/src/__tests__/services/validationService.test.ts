@@ -1,5 +1,5 @@
 import { dataService } from '../../services/dataService';
-import { validateEntry, getEligibleAgeCategories, getNdcaCoupleCategories, getCoupleEligibleCategories, calculateAge } from '../../services/validationService';
+import { validateEntry, getEligibleAgeCategories, getNdcaCoupleCategories, getCoupleEligibleCategories, calculateAge, getMainLevel, groupLevelsByMain } from '../../services/validationService';
 
 describe('Validation Service', () => {
   beforeEach(async () => {
@@ -318,6 +318,23 @@ describe('Validation Service', () => {
     });
   });
 
+  // Helper: create a couple in a competition and optionally add them to an event at a given level
+  async function createCoupleWithEntry(compId: number, level?: string, judgeIds: number[] = []) {
+    const leader = await dataService.addPerson({
+      firstName: 'A', lastName: 'B', role: 'leader' as const, status: 'student' as const,
+      competitionId: compId,
+    });
+    const follower = await dataService.addPerson({
+      firstName: 'C', lastName: 'D', role: 'follower' as const, status: 'student' as const,
+      competitionId: compId,
+    });
+    const couple = await dataService.addCouple(leader.id, follower.id, compId);
+    if (level && couple) {
+      await dataService.addEvent(`Test ${level}`, [couple.bib], judgeIds, compId, undefined, undefined, level);
+    }
+    return { leader, follower, couple: couple! };
+  }
+
   describe('getAllowedLevelsForCouple', () => {
     it('should return all levels when entry validation is disabled', async () => {
       const { getAllowedLevelsForCouple } = await import('../../services/validationService');
@@ -325,16 +342,9 @@ describe('Validation Service', () => {
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         levels: ['Bronze', 'Silver', 'Gold'],
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Silver',
-      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze');
 
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
       expect(result.levels).toEqual(['Bronze', 'Silver', 'Gold']);
       expect(result.coupleLevel).toBeNull();
     });
@@ -344,122 +354,168 @@ describe('Validation Service', () => {
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id,
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id,
-      });
+      const { couple } = await createCoupleWithEntry(comp.id);
 
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
       expect(result.levels).toEqual([]);
       expect(result.coupleLevel).toBeNull();
     });
 
-    it('should return empty when neither dancer has a level', async () => {
+    it('should return all levels when couple has no entries (first entry is unrestricted)', async () => {
       const { getAllowedLevelsForCouple } = await import('../../services/validationService');
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         levels: ['Bronze', 'Silver', 'Gold'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id,
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id,
-      });
+      // No entries — couple has no inferred level
+      const { couple } = await createCoupleWithEntry(comp.id);
 
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
-      expect(result.levels).toEqual([]);
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      // First entry: all levels allowed
+      expect(result.levels).toEqual(['Bronze', 'Silver', 'Gold']);
+      expect(result.coupleLevel).toBeNull();
     });
 
-    it('should use follower level when leader has no level', async () => {
+    it('should restrict based on lowest entry level', async () => {
       const { getAllowedLevelsForCouple } = await import('../../services/validationService');
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
-        levels: ['Bronze', 'Silver', 'Gold'],
+        levels: ['Bronze', 'Silver', 'Gold', 'Open'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id,
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Silver',
-      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze');
 
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
-      expect(result.levels).toContain('Silver');
-      expect(result.coupleLevel).toBe('Silver');
-    });
-
-    it('should use leader level when follower has no level', async () => {
-      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
-      const comp = await dataService.addCompetition({
-        name: 'Test', type: 'NDCA', date: '2026-06-01',
-        levels: ['Bronze', 'Silver', 'Gold'],
-        entryValidation: { enabled: true, levelsAboveAllowed: 1 },
-      });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id,
-      });
-
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
-      expect(result.levels).toContain('Bronze');
-      expect(result.coupleLevel).toBe('Bronze');
-    });
-
-    it('should use more restrictive level when both have levels', async () => {
-      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
-      const comp = await dataService.addCompetition({
-        name: 'Test', type: 'NDCA', date: '2026-06-01',
-        levels: ['Bronze', 'Silver', 'Gold'],
-        entryValidation: { enabled: true, levelsAboveAllowed: 1 },
-      });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Gold',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
-      // Bronze (idx 0) is more restrictive, levelsAboveAllowed=1 → Bronze + Silver
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      // Bronze (idx 0) + 1 above = Bronze, Silver
       expect(result.coupleLevel).toBe('Bronze');
       expect(result.levels).toEqual(['Bronze', 'Silver']);
     });
 
-    it('should return empty when both levels are not in competition levels', async () => {
+    it('should use lowest level when couple has multiple entries', async () => {
       const { getAllowedLevelsForCouple } = await import('../../services/validationService');
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         levels: ['Bronze', 'Silver', 'Gold'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Platinum',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Diamond',
-      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Silver');
+      // Add second entry at Bronze (lower)
+      await dataService.addEvent('Test Bronze', [couple.bib], [], comp.id, undefined, undefined, 'Bronze');
 
-      const result = await getAllowedLevelsForCouple(comp.id, leader.id, follower.id);
-      expect(result.levels).toEqual([]);
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      // Lowest = Bronze, +1 = Silver
+      expect(result.coupleLevel).toBe('Bronze');
+      expect(result.levels).toEqual(['Bronze', 'Silver']);
+    });
+  });
+
+  describe('getMainLevel (pure function)', () => {
+    it('should extract main level from sub-level', () => {
+      expect(getMainLevel('Bronze 1')).toBe('Bronze');
+      expect(getMainLevel('Bronze 4')).toBe('Bronze');
+      expect(getMainLevel('Silver 2')).toBe('Silver');
+    });
+
+    it('should return the level as-is when no sub-level', () => {
+      expect(getMainLevel('Gold')).toBe('Gold');
+      expect(getMainLevel('Newcomer')).toBe('Newcomer');
+      expect(getMainLevel('Pre-Championship')).toBe('Pre-Championship');
+    });
+
+    it('should handle "Open Bronze" as a single level (not sub-level)', () => {
+      expect(getMainLevel('Open Bronze')).toBe('Open Bronze');
+    });
+  });
+
+  describe('groupLevelsByMain (pure function)', () => {
+    it('should group sub-levels under main levels', () => {
+      const groups = groupLevelsByMain(['Bronze 1', 'Bronze 2', 'Silver 1', 'Silver 2', 'Gold']);
+      expect(groups).toEqual([
+        { mainLevel: 'Bronze', subLevels: ['Bronze 1', 'Bronze 2'] },
+        { mainLevel: 'Silver', subLevels: ['Silver 1', 'Silver 2'] },
+        { mainLevel: 'Gold', subLevels: ['Gold'] },
+      ]);
+    });
+
+    it('should handle levels with no sub-levels', () => {
+      const groups = groupLevelsByMain(['Bronze', 'Silver', 'Gold']);
+      expect(groups).toEqual([
+        { mainLevel: 'Bronze', subLevels: ['Bronze'] },
+        { mainLevel: 'Silver', subLevels: ['Silver'] },
+        { mainLevel: 'Gold', subLevels: ['Gold'] },
+      ]);
+    });
+
+    it('should handle detailed template levels', () => {
+      const groups = groupLevelsByMain([
+        'Newcomer', 'Bronze 1', 'Bronze 2', 'Bronze 3', 'Bronze 4',
+        'Silver 1', 'Silver 2', 'Silver 3', 'Gold',
+      ]);
+      expect(groups).toHaveLength(4);
+      expect(groups[0]).toEqual({ mainLevel: 'Newcomer', subLevels: ['Newcomer'] });
+      expect(groups[1].subLevels).toEqual(['Bronze 1', 'Bronze 2', 'Bronze 3', 'Bronze 4']);
+      expect(groups[2].subLevels).toEqual(['Silver 1', 'Silver 2', 'Silver 3']);
+      expect(groups[3]).toEqual({ mainLevel: 'Gold', subLevels: ['Gold'] });
+    });
+  });
+
+  describe('getAllowedLevelsForCouple - mainlevel mode', () => {
+    it('should allow all sub-levels within consecutive main levels', async () => {
+      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'STUDIO', date: '2026-06-01',
+        levels: ['Newcomer', 'Bronze 1', 'Bronze 2', 'Bronze 3', 'Silver 1', 'Silver 2', 'Gold'],
+        entryValidation: { enabled: true, levelsAboveAllowed: 1, levelRestrictionMode: 'mainlevel' },
+      });
+      // Create couple entered in Bronze 1 event
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze 1');
+
+      // Base = Bronze 1, main level = Bronze, +1 main = Silver
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      expect(result.coupleLevel).toBe('Bronze 1');
+      expect(result.levels).toEqual(['Bronze 1', 'Bronze 2', 'Bronze 3', 'Silver 1', 'Silver 2']);
+    });
+
+    it('should allow only own main level group when levelsAboveAllowed is 0', async () => {
+      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'STUDIO', date: '2026-06-01',
+        levels: ['Bronze 1', 'Bronze 2', 'Silver 1', 'Silver 2', 'Gold'],
+        entryValidation: { enabled: true, levelsAboveAllowed: 0, levelRestrictionMode: 'mainlevel' },
+      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze 1');
+
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      expect(result.levels).toEqual(['Bronze 1', 'Bronze 2']);
+    });
+
+    it('should allow 2 main levels above', async () => {
+      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'STUDIO', date: '2026-06-01',
+        levels: ['Newcomer', 'Bronze 1', 'Bronze 2', 'Silver 1', 'Gold'],
+        entryValidation: { enabled: true, levelsAboveAllowed: 2, levelRestrictionMode: 'mainlevel' },
+      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Newcomer');
+
+      // Newcomer + 2 main levels above = Newcomer, Bronze (all), Silver (all)
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      expect(result.levels).toEqual(['Newcomer', 'Bronze 1', 'Bronze 2', 'Silver 1']);
+    });
+
+    it('should use sublevel mode as default when mode is not specified', async () => {
+      const { getAllowedLevelsForCouple } = await import('../../services/validationService');
+      const comp = await dataService.addCompetition({
+        name: 'Test', type: 'STUDIO', date: '2026-06-01',
+        levels: ['Bronze 1', 'Bronze 2', 'Bronze 3', 'Silver 1'],
+        entryValidation: { enabled: true, levelsAboveAllowed: 1 },
+      });
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze 1');
+
+      // Default (sublevel): Bronze 1 + 1 = Bronze 1, Bronze 2 only
+      const result = await getAllowedLevelsForCouple(comp.id, couple.bib);
+      expect(result.levels).toEqual(['Bronze 1', 'Bronze 2']);
     });
   });
 
@@ -520,47 +576,32 @@ describe('Validation Service', () => {
   });
 
   describe('validateEntry with entry validation enabled', () => {
-    it('should reject level when entry validation is enabled and dancers have no level', async () => {
+    it('should allow any level when couple has no entries yet (first entry is unrestricted)', async () => {
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         levels: ['Bronze', 'Silver', 'Gold'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id,
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id,
-      });
-      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      const { couple } = await createCoupleWithEntry(comp.id);
 
-      const result = await validateEntry(comp.id, couple!.bib, { level: 'Gold' });
-      expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('declared skill level');
+      const result = await validateEntry(comp.id, couple.bib, { level: 'Gold' });
+      expect(result.valid).toBe(true);
     });
 
-    it('should reject level outside allowed range', async () => {
+    it('should return needsApproval for level outside allowed range', async () => {
       const comp = await dataService.addCompetition({
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         levels: ['Bronze', 'Silver', 'Gold', 'Open'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      // Create couple entered in Bronze
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze');
 
       // Bronze (idx 0) + levelsAboveAllowed=1 → can enter Bronze, Silver only
-      const result = await validateEntry(comp.id, couple!.bib, { level: 'Open' });
+      const result = await validateEntry(comp.id, couple.bib, { level: 'Open' });
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('declared level');
+      expect(result.needsApproval).toBe(true);
+      expect(result.approvalReason).toContain('Bronze');
     });
 
     it('should accept level within allowed range', async () => {
@@ -569,17 +610,9 @@ describe('Validation Service', () => {
         levels: ['Bronze', 'Silver', 'Gold'],
         entryValidation: { enabled: true, levelsAboveAllowed: 1 },
       });
-      const leader = await dataService.addPerson({
-        firstName: 'A', lastName: 'B', role: 'leader', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const follower = await dataService.addPerson({
-        firstName: 'C', lastName: 'D', role: 'follower', status: 'student',
-        competitionId: comp.id, level: 'Bronze',
-      });
-      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      const { couple } = await createCoupleWithEntry(comp.id, 'Bronze');
 
-      const result = await validateEntry(comp.id, couple!.bib, { level: 'Silver' });
+      const result = await validateEntry(comp.id, couple.bib, { level: 'Silver' });
       expect(result.valid).toBe(true);
     });
   });

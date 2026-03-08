@@ -4,17 +4,97 @@ import { AgeCategory, Person, Competition } from '../types';
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  needsApproval?: boolean;   // True if entry should go to admin approval queue instead of being rejected
+  approvalReason?: string;   // Reason for needing approval
   allowedLevels?: string[];  // Levels the couple is allowed to enter
 }
 
 /**
- * Get the allowed levels for a couple based on their declared levels and competition entry validation rules.
- * Returns all levels if entry validation is disabled.
+ * Extract the main level name from a potentially sub-leveled name.
+ * e.g., "Bronze 1" → "Bronze", "Silver 3" → "Silver", "Gold" → "Gold", "Open Bronze" → "Open Bronze"
+ */
+export function getMainLevel(level: string): string {
+  // Match patterns like "Bronze 1", "Silver 3" (word followed by space and number)
+  const match = level.match(/^(.+?)\s+\d+$/);
+  return match ? match[1] : level;
+}
+
+/**
+ * Group competition levels by their main level.
+ * Returns an ordered array of { mainLevel, subLevels } where subLevels are the original level names.
+ */
+export function groupLevelsByMain(levels: string[]): Array<{ mainLevel: string; subLevels: string[] }> {
+  const groups: Array<{ mainLevel: string; subLevels: string[] }> = [];
+  const seen = new Map<string, number>();
+
+  for (const level of levels) {
+    const main = getMainLevel(level);
+    if (seen.has(main)) {
+      groups[seen.get(main)!].subLevels.push(level);
+    } else {
+      seen.set(main, groups.length);
+      groups.push({ mainLevel: main, subLevels: [level] });
+    }
+  }
+  return groups;
+}
+
+/**
+ * Get the levels a couple is currently entered in (inferred from their event entries).
+ * Returns the lowest level index among all entries.
+ */
+export async function getInferredCoupleLevel(
+  competitionId: number,
+  bib: number,
+): Promise<{ lowestLevel: string | null; entryLevels: string[] }> {
+  const competition = await dataService.getCompetitionById(competitionId);
+  if (!competition || !competition.levels || competition.levels.length === 0) {
+    return { lowestLevel: null, entryLevels: [] };
+  }
+
+  const eventsMap = await dataService.getEvents(competitionId);
+  const events = Object.values(eventsMap);
+
+  const entryLevels: string[] = [];
+  for (const event of events) {
+    if (!event.level) continue;
+    const inEvent = event.heats.some(h => h.bibs.includes(bib));
+    if (inEvent && competition.levels.includes(event.level) && !entryLevels.includes(event.level)) {
+      entryLevels.push(event.level);
+    }
+  }
+
+  if (entryLevels.length === 0) {
+    return { lowestLevel: null, entryLevels: [] };
+  }
+
+  // Find the lowest level by competition.levels index
+  let lowestIdx = Infinity;
+  for (const lvl of entryLevels) {
+    const idx = competition.levels.indexOf(lvl);
+    if (idx >= 0 && idx < lowestIdx) lowestIdx = idx;
+  }
+
+  return {
+    lowestLevel: lowestIdx < Infinity ? competition.levels[lowestIdx] : null,
+    entryLevels,
+  };
+}
+
+/**
+ * Compute allowed levels for a couple based on existing entries + validation rules.
+ * Level is inferred from what events the couple is already entered in.
+ * If no entries yet, all levels are allowed (first entry establishes their range).
+ *
+ * Returns { needsApproval: true } when the requested level is outside the allowed range.
+ *
+ * Supports two restriction modes:
+ * - 'sublevel' (default): Each level counted individually. Bronze 1 + 1 above = Bronze 1, Bronze 2
+ * - 'mainlevel': Levels grouped by parent. Bronze 1 + 1 above = all Bronze + all Silver
  */
 export async function getAllowedLevelsForCouple(
   competitionId: number,
-  leaderId: number,
-  followerId: number,
+  bib: number,
 ): Promise<{ levels: string[]; coupleLevel: string | null }> {
   const competition = await dataService.getCompetitionById(competitionId);
   if (!competition || !competition.levels || competition.levels.length === 0) {
@@ -26,49 +106,44 @@ export async function getAllowedLevelsForCouple(
     return { levels: competition.levels, coupleLevel: null };
   }
 
-  const [leader, follower] = await Promise.all([
-    dataService.getPersonById(leaderId),
-    dataService.getPersonById(followerId),
-  ]);
+  // Infer level from existing entries
+  const { lowestLevel } = await getInferredCoupleLevel(competitionId, bib);
 
-  // Get declared levels from both dancers
-  const leaderLevel = leader?.level;
-  const followerLevel = follower?.level;
-
-  // If neither dancer has a declared level, validation fails
-  if (!leaderLevel && !followerLevel) {
-    return { levels: [], coupleLevel: null };
+  // No entries yet = all levels allowed (first entry establishes the range)
+  if (!lowestLevel) {
+    return { levels: competition.levels, coupleLevel: null };
   }
 
-  // Use the more restrictive (lower index) level of the two
-  const leaderIdx = leaderLevel ? competition.levels.indexOf(leaderLevel) : -1;
-  const followerIdx = followerLevel ? competition.levels.indexOf(followerLevel) : -1;
-
-  // If one level is invalid/missing, use the other
-  let baseIdx: number;
-  let baseLevel: string;
-  if (leaderIdx === -1 && followerIdx === -1) {
-    return { levels: [], coupleLevel: null };
-  } else if (leaderIdx === -1) {
-    baseIdx = followerIdx;
-    baseLevel = followerLevel!;
-  } else if (followerIdx === -1) {
-    baseIdx = leaderIdx;
-    baseLevel = leaderLevel!;
-  } else {
-    // Use the lower (more restrictive) level
-    baseIdx = Math.min(leaderIdx, followerIdx);
-    baseLevel = competition.levels[baseIdx];
+  const baseIdx = competition.levels.indexOf(lowestLevel);
+  if (baseIdx === -1) {
+    return { levels: competition.levels, coupleLevel: null };
   }
 
-  // Calculate allowed range: base level + levelsAboveAllowed
   const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
-  const maxIdx = Math.min(baseIdx + levelsAbove, competition.levels.length - 1);
+  const mode = competition.entryValidation.levelRestrictionMode || 'sublevel';
 
-  // Return levels from baseIdx to maxIdx (inclusive)
+  if (mode === 'mainlevel') {
+    const groups = groupLevelsByMain(competition.levels);
+    const baseMainLevel = getMainLevel(lowestLevel);
+    const baseGroupIdx = groups.findIndex(g => g.mainLevel === baseMainLevel);
+
+    if (baseGroupIdx === -1) {
+      return { levels: competition.levels, coupleLevel: lowestLevel };
+    }
+
+    const maxGroupIdx = Math.min(baseGroupIdx + levelsAbove, groups.length - 1);
+    const allowed: string[] = [];
+    for (let i = baseGroupIdx; i <= maxGroupIdx; i++) {
+      allowed.push(...groups[i].subLevels);
+    }
+    return { levels: allowed, coupleLevel: lowestLevel };
+  }
+
+  // sublevel mode (default)
+  const maxIdx = Math.min(baseIdx + levelsAbove, competition.levels.length - 1);
   return {
     levels: competition.levels.slice(baseIdx, maxIdx + 1),
-    coupleLevel: baseLevel,
+    coupleLevel: lowestLevel,
   };
 }
 
@@ -243,21 +318,23 @@ export async function validateEntry(
   }
 
   // Validate level based on entry validation rules (if enabled)
+  // Level is inferred from existing entries, not declared on the person
   if (eventAttributes.level && competition.entryValidation?.enabled) {
     const { levels: allowedLevels, coupleLevel } = await getAllowedLevelsForCouple(
       competitionId,
-      couple.leaderId,
-      couple.followerId,
+      bib,
     );
 
-    if (allowedLevels.length === 0) {
-      errors.push('Neither dancer has a declared skill level. Please update your profile to enter events.');
-    } else if (!allowedLevels.includes(eventAttributes.level)) {
-      const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
-      errors.push(
-        `Based on your declared level (${coupleLevel}), you can only enter: ${allowedLevels.join(', ')}. ` +
-        `To enter ${eventAttributes.level}, please update your declared level or contact an admin.`
-      );
+    if (allowedLevels.length > 0 && !allowedLevels.includes(eventAttributes.level)) {
+      // Don't hard-reject — flag for admin approval
+      return {
+        valid: false,
+        needsApproval: true,
+        approvalReason: coupleLevel
+          ? `Couple's current entries are at ${coupleLevel} level. ${eventAttributes.level} is outside their allowed range (${allowedLevels.join(', ')}).`
+          : `Level ${eventAttributes.level} is outside the allowed range.`,
+        errors: [],
+      };
     }
   }
 

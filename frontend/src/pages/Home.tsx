@@ -18,6 +18,8 @@ const Home = () => {
   const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [seedingFinished, setSeedingFinished] = useState(false);
   const [seedFinishedMessage, setSeedFinishedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [seedingValidation, setSeedingValidation] = useState(false);
+  const [seedValidationMessage, setSeedValidationMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [recentResults, setRecentResults] = useState<PublicCompetition[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
   const [confirmAction, setConfirmAction] = useState<{title: string; message: string; action: () => void} | null>(null);
@@ -67,6 +69,31 @@ const Home = () => {
           setSeedFinishedMessage({ type: 'error', text: message });
         } finally {
           setSeedingFinished(false);
+        }
+      },
+    });
+  };
+
+  const handleSeedValidationCompetition = () => {
+    setConfirmAction({
+      title: 'Create Validation Demo',
+      message: 'This will create a "Level Validation Demo" competition with entry validation enabled, detailed sub-levels, and deliberate validation issues to fix. Continue?',
+      action: async () => {
+        setSeedingValidation(true);
+        setSeedValidationMessage(null);
+
+        try {
+          const res = await databaseApi.seedValidation();
+          setSeedValidationMessage({ type: 'success', text: res.data.message });
+          const compsRes = await competitionsApi.getAll();
+          setCompetitions(compsRes.data);
+          await refreshCompetitions();
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+          const message = axiosErr.response?.data?.message || axiosErr.message || 'Failed to create validation competition';
+          setSeedValidationMessage({ type: 'error', text: message });
+        } finally {
+          setSeedingValidation(false);
         }
       },
     });
@@ -270,6 +297,28 @@ const Home = () => {
             seedFinishedMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
           }`}>
             {seedFinishedMessage.text}
+          </div>
+        )}
+        <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4 flex-wrap mt-3">
+          <div className="flex-1 min-w-[200px]">
+            <div className="font-semibold text-gray-800 mb-1">Create Validation Demo</div>
+            <p className="text-sm text-gray-500">
+              Seed a competition with entry validation enabled, detailed sub-levels (Bronze 1-4, Silver 1-3), and deliberate validation issues for admin testing.
+            </p>
+          </div>
+          <button
+            onClick={handleSeedValidationCompetition}
+            disabled={seedingValidation}
+            className={`px-4 py-2 bg-amber-500 text-white rounded border-none cursor-pointer text-sm font-medium whitespace-nowrap transition-colors hover:bg-amber-600 ${seedingValidation ? 'opacity-70 cursor-not-allowed' : ''}`}
+          >
+            {seedingValidation ? 'Creating...' : 'Create Validation Demo'}
+          </button>
+        </div>
+        {seedValidationMessage && (
+          <div className={`mt-3 px-4 py-3 rounded-md text-sm ${
+            seedValidationMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+          }`}>
+            {seedValidationMessage.text}
           </div>
         )}
       </div>}

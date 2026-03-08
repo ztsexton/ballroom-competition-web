@@ -97,7 +97,26 @@ export interface RecallRules {
 
 export interface EntryValidation {
   enabled: boolean;
-  levelsAboveAllowed: number;  // How many levels above their declared level they can enter
+  levelsAboveAllowed: number;  // How many levels above their inferred entry level they can enter
+  levelRestrictionMode?: 'sublevel' | 'mainlevel';  // sublevel: Bronze 1→Bronze 2; mainlevel: Bronze→Silver (any sub-level within)
+}
+
+export interface PendingEntry {
+  id: string;           // Unique ID for this pending entry
+  bib: number;
+  competitionId: number;
+  combination: {
+    designation?: string;
+    syllabusType?: string;
+    level?: string;
+    style?: string;
+    dances?: string[];
+    scoringType?: string;
+    ageCategory?: string;
+  };
+  reason: string;       // Why it needs approval
+  requestedAt: string;  // ISO date
+  requestedBy?: string; // Firebase UID
 }
 
 export interface Competition {
@@ -137,6 +156,7 @@ export interface Competition {
   organizerEmail?: string;
   maxJudgeHoursWithoutBreak?: number;
   allowDuplicateEntries?: boolean;
+  pendingEntries?: PendingEntry[];
   createdBy?: string;
   createdAt: string;
 }

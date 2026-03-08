@@ -54,6 +54,45 @@ export const competitionsApi = {
   getAdmins: (id: number) => api.get<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]>(`/competitions/${id}/admins`),
   addAdmin: (id: number, email: string) => api.post<CompetitionAdmin & { email?: string; displayName?: string }>(`/competitions/${id}/admins`, { email }),
   removeAdmin: (id: number, uid: string) => api.delete(`/competitions/${id}/admins/${uid}`),
+  getValidationIssues: (id: number) => api.get<{
+    issues: Array<{
+      eventId: number;
+      eventName: string;
+      eventLevel: string;
+      bib: number;
+      leaderName: string;
+      followerName: string;
+      coupleLevel: string | null;
+      allowedLevels: string[];
+      reason: string;
+    }>;
+    count: number;
+  }>(`/competitions/${id}/validation-issues`),
+  getPendingEntries: (id: number) => api.get<{
+    pendingEntries: Array<{
+      id: string;
+      bib: number;
+      competitionId: number;
+      combination: {
+        designation?: string;
+        syllabusType?: string;
+        level?: string;
+        style?: string;
+        dances?: string[];
+        scoringType?: string;
+        ageCategory?: string;
+      };
+      reason: string;
+      requestedAt: string;
+      leaderName: string;
+      followerName: string;
+    }>;
+    count: number;
+  }>(`/competitions/${id}/pending-entries`),
+  approvePendingEntry: (competitionId: number, entryId: string) =>
+    api.post(`/competitions/${competitionId}/pending-entries/${entryId}/approve`),
+  rejectPendingEntry: (competitionId: number, entryId: string) =>
+    api.delete(`/competitions/${competitionId}/pending-entries/${entryId}`),
 };
 
 // Studios API
@@ -374,6 +413,7 @@ export const mindbodyApi = {
 export const databaseApi = {
   seed: () => api.post<{ success: boolean; message: string }>('/database/seed'),
   seedFinished: () => api.post<{ success: boolean; message: string }>('/database/seed-finished'),
+  seedValidation: () => api.post<{ success: boolean; message: string }>('/database/seed-validation'),
 };
 
 // Settings API (site admin only)

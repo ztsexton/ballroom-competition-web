@@ -3,6 +3,9 @@ import { dataService } from '../services/dataService';
 import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 import { DEFAULT_LEVELS_BY_TYPE } from '../constants/levels';
 import { CompetitionType } from '../types';
+import { getAllowedLevelsForCouple } from '../services/validationService';
+import { registerCoupleForEvent } from '../services/registrationService';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -230,6 +233,163 @@ router.delete('/:id/admins/:uid', async (req: AuthRequest, res: Response) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to remove competition admin' });
+  }
+});
+
+// GET /competitions/:id/validation-issues — check all event entries for level validation issues
+router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    // If validation is disabled, no issues
+    if (!competition.entryValidation?.enabled || !competition.levels?.length) {
+      return res.json({ issues: [], count: 0 });
+    }
+
+    const eventsMap = await dataService.getEvents(competitionId);
+    const events = Object.values(eventsMap);
+    const issues: Array<{
+      eventId: number;
+      eventName: string;
+      eventLevel: string;
+      bib: number;
+      leaderName: string;
+      followerName: string;
+      coupleLevel: string | null;
+      allowedLevels: string[];
+      reason: string;
+    }> = [];
+
+    for (const event of events) {
+      if (!event.level) continue;
+
+      for (const bib of event.heats[0]?.bibs || []) {
+        const couple = await dataService.getCoupleByBib(bib);
+        if (!couple) continue;
+
+        const { levels: allowedLevels, coupleLevel } = await getAllowedLevelsForCouple(
+          competitionId,
+          bib,
+        );
+
+        if (allowedLevels.length > 0 && !allowedLevels.includes(event.level)) {
+          const [leader, follower] = await Promise.all([
+            dataService.getPersonById(couple.leaderId),
+            dataService.getPersonById(couple.followerId),
+          ]);
+          issues.push({
+            eventId: event.id,
+            eventName: event.name,
+            eventLevel: event.level,
+            bib,
+            leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
+            followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
+            coupleLevel,
+            allowedLevels,
+            reason: `Couple's entries are at ${coupleLevel} level — ${event.level} is outside their allowed range (${allowedLevels.join(', ')})`,
+          });
+        }
+      }
+    }
+
+    res.json({ issues, count: issues.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check validation issues' });
+  }
+});
+
+// GET /competitions/:id/pending-entries — list pending entries awaiting admin approval
+router.get('/:id/pending-entries', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const pending = competition.pendingEntries || [];
+
+    // Enrich with couple names
+    const enriched = await Promise.all(pending.map(async (entry) => {
+      const couple = await dataService.getCoupleByBib(entry.bib);
+      let leaderName = 'Unknown';
+      let followerName = 'Unknown';
+      if (couple) {
+        const [leader, follower] = await Promise.all([
+          dataService.getPersonById(couple.leaderId),
+          dataService.getPersonById(couple.followerId),
+        ]);
+        if (leader) leaderName = `${leader.firstName} ${leader.lastName}`;
+        if (follower) followerName = `${follower.firstName} ${follower.lastName}`;
+      }
+      return { ...entry, leaderName, followerName };
+    }));
+
+    res.json({ pendingEntries: enriched, count: enriched.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get pending entries' });
+  }
+});
+
+// POST /competitions/:id/pending-entries/:entryId/approve — approve a pending entry
+router.post('/:id/pending-entries/:entryId/approve', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const entryId = req.params.entryId;
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const pending = competition.pendingEntries || [];
+    const entry = pending.find(p => p.id === entryId);
+    if (!entry) return res.status(404).json({ error: 'Pending entry not found' });
+
+    // Register the entry (skip validation since admin is approving)
+    const result = await registerCoupleForEvent(competitionId, entry.bib, entry.combination);
+    if (result.error) {
+      return res.status(result.status || 500).json({ error: result.error });
+    }
+
+    // Remove from pending
+    await dataService.updateCompetition(competitionId, {
+      pendingEntries: pending.filter(p => p.id !== entryId),
+    });
+
+    logger.info({ competitionId, entryId, bib: entry.bib }, 'Approved pending entry');
+    res.json({ event: result.event, created: result.created });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to approve pending entry' });
+  }
+});
+
+// DELETE /competitions/:id/pending-entries/:entryId — reject a pending entry
+router.delete('/:id/pending-entries/:entryId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const entryId = req.params.entryId;
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const pending = competition.pendingEntries || [];
+    if (!pending.some(p => p.id === entryId)) {
+      return res.status(404).json({ error: 'Pending entry not found' });
+    }
+
+    await dataService.updateCompetition(competitionId, {
+      pendingEntries: pending.filter(p => p.id !== entryId),
+    });
+
+    logger.info({ competitionId, entryId }, 'Rejected pending entry');
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reject pending entry' });
   }
 });
 
