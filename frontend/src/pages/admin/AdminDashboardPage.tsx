@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { competitionsApi } from '../../api/client';
+import { competitionsApi, databaseApi, isStagingBypassActive, setStagingBypassActive } from '../../api/client';
 import { Competition } from '../../types';
 import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
 import { Skeleton } from '../../components/Skeleton';
@@ -10,6 +10,8 @@ const AdminDashboardPage = () => {
   const { isAdmin, isAnyAdmin, loading: authLoading } = useAuth();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stagingBypass, setStagingBypass] = useState(isStagingBypassActive());
+  const [togglingBypass, setTogglingBypass] = useState(false);
 
   useEffect(() => {
     if (!isAnyAdmin) {
@@ -99,6 +101,37 @@ const AdminDashboardPage = () => {
               <div className="font-semibold text-gray-800 mb-1">Judges</div>
               <p className="text-sm text-gray-500 m-0">Manage judge profiles and qualifications</p>
             </Link>
+            <div className={`rounded-lg shadow p-5 ${stagingBypass ? 'bg-amber-50 border border-amber-300' : 'bg-white'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="font-semibold text-gray-800">Staging Mode</div>
+                <button
+                  onClick={async () => {
+                    setTogglingBypass(true);
+                    try {
+                      const newValue = !stagingBypass;
+                      await databaseApi.setStagingBypass(newValue);
+                      setStagingBypassActive(newValue);
+                      setStagingBypass(newValue);
+                      setTogglingBypass(false);
+                      if (!newValue) {
+                        window.location.reload();
+                      }
+                    } catch {
+                      setTogglingBypass(false);
+                    }
+                  }}
+                  disabled={togglingBypass}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer border-none disabled:opacity-50 ${stagingBypass ? 'bg-amber-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${stagingBypass ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 m-0">
+                {stagingBypass
+                  ? 'Auth bypassed — all requests treated as admin. Resets on restart.'
+                  : 'Skip authentication for testing. Resets on server restart.'}
+              </p>
+            </div>
           </div>
         </div>
       )}

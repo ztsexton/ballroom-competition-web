@@ -22,9 +22,15 @@ const api = axios.create({
   },
 });
 
-// Add Firebase ID token to all requests
+// Staging bypass flag — set at runtime from the backend, checked by interceptor
+let _stagingBypassActive = false;
+export function setStagingBypassActive(enabled: boolean) { _stagingBypassActive = enabled; }
+export function isStagingBypassActive() { return _stagingBypassActive; }
+
+// Add Firebase ID token to all requests (skipped when staging bypass is active)
 api.interceptors.request.use(
   async (config) => {
+    if (_stagingBypassActive) return config; // Backend handles auth bypass
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
@@ -436,6 +442,8 @@ export const databaseApi = {
   seed: () => api.post<{ success: boolean; message: string }>('/database/seed'),
   seedFinished: () => api.post<{ success: boolean; message: string }>('/database/seed-finished'),
   seedValidation: () => api.post<{ success: boolean; message: string }>('/database/seed-validation'),
+  getStagingBypass: () => api.get<{ enabled: boolean }>('/database/staging-bypass'),
+  setStagingBypass: (enabled: boolean) => api.post<{ enabled: boolean }>('/database/staging-bypass', { enabled }),
 };
 
 // Settings API (site admin only)

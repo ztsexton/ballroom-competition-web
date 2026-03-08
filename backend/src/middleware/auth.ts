@@ -4,6 +4,17 @@ import { dataService } from '../services/dataService';
 import logger from '../utils/logger';
 import { User } from '../types';
 
+// In-memory staging bypass flag (does not persist through restarts)
+let stagingBypassEnabled = false;
+
+export function isStagingBypass(): boolean {
+  return stagingBypassEnabled;
+}
+
+export function setStagingBypass(enabled: boolean): void {
+  stagingBypassEnabled = enabled;
+}
+
 export interface AuthRequest extends Request {
   user?: {
     uid: string;
@@ -42,7 +53,19 @@ export const authenticate = async (
       uid: 'test-user-id',
       email: 'test@example.com',
       name: 'Test User',
-      isAdmin: true, // Test user is admin by default
+      isAdmin: true,
+    };
+    next();
+    return;
+  }
+
+  // Staging auth bypass — auto-authenticate as site admin without Firebase
+  if (stagingBypassEnabled) {
+    req.user = {
+      uid: 'staging-admin',
+      email: 'staging@admin.local',
+      name: 'Staging Admin',
+      isAdmin: true,
     };
     next();
     return;

@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { databaseApi } from '../../api/client';
 
 function friendlyError(error: string): string {
   if (error.includes('popup-closed')) return 'Sign-in was cancelled. Please try again.';
@@ -13,6 +14,7 @@ const LoginPage = () => {
   const { user, loading, login, error } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [bypassLoading, setBypassLoading] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -23,6 +25,17 @@ const LoginPage = () => {
 
   const handleLogin = async () => {
     await login();
+  };
+
+  const handleStagingBypass = async () => {
+    setBypassLoading(true);
+    try {
+      await databaseApi.setStagingBypass(true);
+      // Reload the page so AuthContext picks up the new state
+      window.location.reload();
+    } catch {
+      setBypassLoading(false);
+    }
   };
 
   if (!loading && user) {
@@ -59,6 +72,17 @@ const LoginPage = () => {
         <Link to="/" className="inline-block mt-4 text-sm text-primary-500 no-underline hover:underline">
           &larr; Back to home
         </Link>
+
+        {/* Staging bypass */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <button
+            onClick={handleStagingBypass}
+            disabled={bypassLoading}
+            className="text-xs text-gray-400 hover:text-amber-600 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+          >
+            {bypassLoading ? 'Enabling...' : 'Enter staging mode (skip auth)'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
-import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
+import { authenticate, requireAdmin, AuthRequest, isStagingBypass, setStagingBypass } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { scheduleService } from '../services/schedule';
@@ -145,6 +145,22 @@ router.post('/seed-validation', authenticate, requireAdmin, async (req: AuthRequ
       message: error instanceof Error ? error.message : 'Failed to seed validation competition',
     });
   }
+});
+
+// GET /api/database/staging-bypass — check if staging auth bypass is active
+router.get('/staging-bypass', (_req: Request, res: Response) => {
+  res.json({ enabled: isStagingBypass() });
+});
+
+// POST /api/database/staging-bypass — toggle staging auth bypass (no auth required so it can bootstrap itself)
+router.post('/staging-bypass', (req: Request, res: Response) => {
+  const { enabled } = req.body;
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'enabled must be a boolean' });
+  }
+  setStagingBypass(enabled);
+  logger.info({ enabled }, 'Staging auth bypass toggled');
+  res.json({ enabled: isStagingBypass() });
 });
 
 export default router;

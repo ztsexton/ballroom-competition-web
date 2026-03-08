@@ -3,7 +3,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { signInWithPopup, signInWithRedirect, signOut as firebaseSignOut } from 'firebase/auth';
-import { usersApi } from '../api/client';
+import { usersApi, databaseApi, setStagingBypassActive } from '../api/client';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -34,8 +34,47 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Fake Firebase user shape for staging bypass
+const STAGING_FAKE_USER = {
+  uid: 'staging-admin',
+  email: 'staging@admin.local',
+  displayName: 'Staging Admin',
+  emailVerified: true,
+  isAnonymous: false,
+  metadata: {},
+  providerData: [],
+  providerId: 'staging',
+  refreshToken: '',
+  tenantId: null,
+  phoneNumber: null,
+  photoURL: null,
+  delete: async () => {},
+  getIdToken: async () => 'staging-bypass-token',
+  getIdTokenResult: async () => ({ token: 'staging-bypass-token', claims: {}, authTime: '', expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null }),
+  reload: async () => {},
+  toJSON: () => ({}),
+} as unknown as FirebaseUser;
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, firebaseLoading, hookError] = useAuthState(auth);
+  const [firebaseUser, firebaseLoading, hookError] = useAuthState(auth);
+  const [stagingBypass, setStagingBypass] = useState(false);
+  const [bypassChecked, setBypassChecked] = useState(false);
+
+  // Check staging bypass flag from backend on mount
+  useEffect(() => {
+    databaseApi.getStagingBypass()
+      .then(res => {
+        setStagingBypass(res.data.enabled);
+        setStagingBypassActive(res.data.enabled);
+      })
+      .catch(() => {}) // Not available = not enabled
+      .finally(() => setBypassChecked(true));
+  }, []);
+
+  // In staging bypass mode, always use the fake user
+  const user = stagingBypass ? STAGING_FAKE_USER : firebaseUser;
+  const effectiveLoading = stagingBypass ? false : (bypassChecked ? firebaseLoading : true);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [adminCompetitionIds, setAdminCompetitionIds] = useState<number[]>([]);
   const [isCompetitionAdmin, setIsCompetitionAdmin] = useState(false);
@@ -57,7 +96,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setAdminCompetitionIds(adminRes.value.data.competitionIds);
           setIsCompetitionAdmin(adminRes.value.data.isCompetitionAdmin);
         } else {
-          // Graceful fallback if competition_admins table doesn't exist yet
           setAdminCompetitionIds([]);
           setIsCompetitionAdmin(false);
         }
@@ -79,6 +117,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [refreshUser]);
 
   const login = useCallback(async () => {
+    if (stagingBypass) return; // Already "logged in"
     try {
       setError(null);
       await signInWithPopup(auth, googleProvider);
@@ -94,6 +133,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const logout = useCallback(async () => {
+    if (stagingBypass) return; // Can't log out in staging bypass
     try {
       setError(null);
       await firebaseSignOut(auth);
@@ -107,7 +147,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
-  const isAdmin = currentUser?.isAdmin || false;
+  // In staging bypass, force admin if backend hasn't returned the user yet
+  const isAdmin = stagingBypass ? true : (currentUser?.isAdmin || false);
   const isAnyAdmin = isAdmin || isCompetitionAdmin;
 
   const value = useMemo(() => ({
@@ -117,12 +158,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isCompetitionAdmin,
     adminCompetitionIds,
     isAnyAdmin,
-    loading: firebaseLoading || userLoading,
+    loading: effectiveLoading || userLoading,
     error: error || hookError?.message || null,
     login,
     logout,
     refreshUser,
-  }), [user, currentUser, isAdmin, isCompetitionAdmin, adminCompetitionIds, isAnyAdmin, firebaseLoading, userLoading, error, hookError, login, logout, refreshUser]);
+  }), [user, currentUser, isAdmin, isCompetitionAdmin, adminCompetitionIds, isAnyAdmin, effectiveLoading, userLoading, error, hookError, login, logout, refreshUser]);
 
   return (
     <AuthContext.Provider value={value}>

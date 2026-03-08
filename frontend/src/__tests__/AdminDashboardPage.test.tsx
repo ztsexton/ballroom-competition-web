@@ -18,6 +18,12 @@ vi.mock('../api/client', () => ({
   competitionsApi: {
     getAll: (...args: unknown[]) => mockGetAllCompetitions(...args),
   },
+  databaseApi: {
+    getStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
+    setStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
+  },
+  isStagingBypassActive: () => false,
+  setStagingBypassActive: vi.fn(),
 }));
 
 // Import component AFTER mocks
