@@ -337,7 +337,7 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
       }
     }
 
-    // Helper to compute allowed range for a given base level
+    // Helper to compute allowed range for a given base level index
     function computeAllowedRange(baseLevelIdx: number): { minIdx: number; maxIdx: number; levels: string[] } {
       if (mode === 'mainlevel') {
         const groups = groupLevelsByMain(competition!.levels!);
@@ -357,40 +357,53 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
       return { minIdx: baseLevelIdx, maxIdx, levels: competition!.levels!.slice(baseLevelIdx, maxIdx + 1) };
     }
 
-    interface ConflictResolution {
-      id: string;
-      type: 'remove' | 'move';
-      description: string;
-      actions: Array<{
-        eventId: number;
-        eventName: string;
-        currentLevel: string;
-        action: 'remove' | 'move';
-        targetLevel?: string;
-      }>;
+    // Check whether a set of level indices all fit within a valid range
+    function allFitInRange(levelIndices: number[]): boolean {
+      if (levelIndices.length === 0) return true;
+      const lowest = Math.min(...levelIndices);
+      const { levels: allowed } = computeAllowedRange(lowest);
+      return levelIndices.every(idx => allowed.includes(competition!.levels![idx]));
+    }
+
+    // For a given entry in a set, compute all levels it could move to that would make the whole set valid
+    function computeValidTargets(entryIdx: number, allEntryIndices: number[]): string[] {
+      const otherIndices = allEntryIndices.filter((_, i) => i !== entryIdx);
+      const validTargets: string[] = [];
+      for (let candidateIdx = 0; candidateIdx < competition!.levels!.length; candidateIdx++) {
+        if (candidateIdx === allEntryIndices[entryIdx]) continue; // skip current level
+        const hypothetical = [...otherIndices, candidateIdx];
+        if (allFitInRange(hypothetical)) {
+          validTargets.push(competition!.levels![candidateIdx]);
+        }
+      }
+      return validTargets;
+    }
+
+    interface EntryAction {
+      eventId: number;
+      eventName: string;
+      currentLevel: string;
+      validTargetLevels: string[];  // All levels this entry could move to
+      defaultTargetLevel: string;   // Best default choice
     }
 
     interface CoupleConflict {
       bib: number;
       leaderName: string;
       followerName: string;
-      entries: Array<{ eventId: number; eventName: string; level: string }>;
+      entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
       currentRange: string;
       allowedRange: string[];
-      outOfRangeEntries: Array<{ eventId: number; eventName: string; level: string; reason: string }>;
-      suggestedResolutions: ConflictResolution[];
+      // Per entry that can be moved/removed to resolve the conflict
+      entryActions: EntryAction[];
     }
 
     const conflicts: CoupleConflict[] = [];
 
     for (const [bib, entries] of coupleEntries) {
-      // Determine lowest level (base) and allowed range
-      const lowestIdx = Math.min(...entries.map(e => e.levelIndex));
-      const { levels: allowedLevels } = computeAllowedRange(lowestIdx);
-
-      // Find entries outside allowed range
-      const outOfRange = entries.filter(e => !allowedLevels.includes(e.level));
-      if (outOfRange.length === 0) continue;
+      // Quick check: does this couple have a conflict at all?
+      const allIndices = entries.map(e => e.levelIndex);
+      if (allFitInRange(allIndices)) continue;
 
       const couple = await dataService.getCoupleByBib(bib);
       if (!couple) continue;
@@ -399,79 +412,56 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
         dataService.getPersonById(couple.followerId),
       ]);
 
-      const resolutions: ConflictResolution[] = [];
-      let resIdx = 0;
+      // Compute valid move targets for EVERY entry (not just "out of range" ones).
+      // The admin might want to move the lower entry up OR the higher entry down.
+      const entryActions: EntryAction[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const validTargets = computeValidTargets(i, allIndices);
+        if (validTargets.length === 0) continue; // no moves possible for this entry
 
-      // Resolution 1: Remove the out-of-range entries
-      resolutions.push({
-        id: `res-${bib}-${resIdx++}`,
-        type: 'remove',
-        description: `Remove ${outOfRange.length === 1 ? `entry from ${outOfRange[0].eventName}` : `${outOfRange.length} out-of-range entries`}`,
-        actions: outOfRange.map(e => ({
-          eventId: e.eventId,
-          eventName: e.eventName,
-          currentLevel: e.level,
-          action: 'remove' as const,
-        })),
-      });
-
-      // Resolution 2+: For each possible "anchor level" that could accommodate all entries,
-      // compute what moves are needed. We try anchoring at each distinct level the couple is in.
-      const distinctLevels = [...new Set(entries.map(e => e.levelIndex))].sort((a, b) => a - b);
-
-      for (const anchorIdx of distinctLevels) {
-        const { levels: anchoredAllowed, minIdx, maxIdx } = computeAllowedRange(anchorIdx);
-        // Check if ALL entries can fit by moving conflicting ones
-        const needsMoves = entries.filter(e => !anchoredAllowed.includes(e.level));
-        if (needsMoves.length === 0) continue; // This anchor already works — no moves needed
-        if (needsMoves.length === entries.length) continue; // Would need to move everything — not helpful
-
-        // For each entry that doesn't fit, find the closest allowed level
-        const actions: ConflictResolution['actions'] = [];
-        for (const entry of needsMoves) {
-          let targetLevel: string;
-          if (entry.levelIndex < minIdx) {
-            // Entry is below range — move up to the lowest allowed level
-            targetLevel = competition.levels![minIdx];
-          } else {
-            // Entry is above range — move down to the highest allowed level
-            targetLevel = competition.levels![maxIdx];
+        // Default: pick the target closest to the other entries' centroid
+        const otherIndices = allIndices.filter((_, j) => j !== i);
+        const otherMean = otherIndices.length > 0 ? otherIndices.reduce((a, b) => a + b, 0) / otherIndices.length : 0;
+        let defaultTarget = validTargets[0];
+        let bestDist = Infinity;
+        for (const t of validTargets) {
+          const tIdx = competition.levels!.indexOf(t);
+          const dist = Math.abs(tIdx - otherMean);
+          if (dist < bestDist) {
+            bestDist = dist;
+            defaultTarget = t;
           }
-          actions.push({
-            eventId: entry.eventId,
-            eventName: entry.eventName,
-            currentLevel: entry.level,
-            action: 'move',
-            targetLevel,
-          });
         }
 
-        // Only add if the target levels are different from current (meaningful move)
-        if (actions.every(a => a.currentLevel === a.targetLevel)) continue;
-
-        const anchorLevel = competition.levels![anchorIdx];
-        resolutions.push({
-          id: `res-${bib}-${resIdx++}`,
-          type: 'move',
-          description: `Keep ${anchorLevel} entries, move ${actions.length === 1 ? `${actions[0].eventName}` : `${actions.length} entries`} into allowed range`,
-          actions,
+        entryActions.push({
+          eventId: entry.eventId,
+          eventName: entry.eventName,
+          currentLevel: entry.level,
+          validTargetLevels: validTargets,
+          defaultTargetLevel: defaultTarget,
         });
       }
+
+      if (entryActions.length === 0) continue;
+
+      // For display: compute the "in range" status from the lowest entry perspective
+      const lowestIdx = Math.min(...allIndices);
+      const { levels: allowedFromLowest } = computeAllowedRange(lowestIdx);
 
       conflicts.push({
         bib,
         leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
         followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
-        entries: entries.map(e => ({ eventId: e.eventId, eventName: e.eventName, level: e.level })),
-        currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...entries.map(e => e.levelIndex))]}`,
-        allowedRange: allowedLevels,
-        outOfRangeEntries: outOfRange.map(e => ({
+        entries: entries.map(e => ({
           eventId: e.eventId,
           eventName: e.eventName,
           level: e.level,
-          reason: `${e.level} is outside allowed range (${allowedLevels.join(', ')})`,
+          inRange: allowedFromLowest.includes(e.level),
         })),
-        suggestedResolutions: resolutions,
+        currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...allIndices)]}`,
+        allowedRange: allowedFromLowest,
+        entryActions,
       });
     }
 

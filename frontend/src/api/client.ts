@@ -98,21 +98,15 @@ export const competitionsApi = {
       bib: number;
       leaderName: string;
       followerName: string;
-      entries: Array<{ eventId: number; eventName: string; level: string }>;
+      entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
       currentRange: string;
       allowedRange: string[];
-      outOfRangeEntries: Array<{ eventId: number; eventName: string; level: string; reason: string }>;
-      suggestedResolutions: Array<{
-        id: string;
-        type: 'remove' | 'move';
-        description: string;
-        actions: Array<{
-          eventId: number;
-          eventName: string;
-          currentLevel: string;
-          action: 'remove' | 'move';
-          targetLevel?: string;
-        }>;
+      entryActions: Array<{
+        eventId: number;
+        eventName: string;
+        currentLevel: string;
+        validTargetLevels: string[];
+        defaultTargetLevel: string;
       }>;
     }>;
     count: number;

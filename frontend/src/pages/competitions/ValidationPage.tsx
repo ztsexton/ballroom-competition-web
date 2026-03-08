@@ -5,30 +5,22 @@ import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
 import { Skeleton } from '../../components/Skeleton';
 
-interface ResolutionAction {
+interface EntryAction {
   eventId: number;
   eventName: string;
   currentLevel: string;
-  action: 'remove' | 'move';
-  targetLevel?: string;
-}
-
-interface Resolution {
-  id: string;
-  type: 'remove' | 'move';
-  description: string;
-  actions: ResolutionAction[];
+  validTargetLevels: string[];
+  defaultTargetLevel: string;
 }
 
 interface CoupleConflict {
   bib: number;
   leaderName: string;
   followerName: string;
-  entries: Array<{ eventId: number; eventName: string; level: string }>;
+  entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
   currentRange: string;
   allowedRange: string[];
-  outOfRangeEntries: Array<{ eventId: number; eventName: string; level: string; reason: string }>;
-  suggestedResolutions: Resolution[];
+  entryActions: EntryAction[];
 }
 
 interface PendingEntryEnriched {
@@ -49,6 +41,9 @@ interface PendingEntryEnriched {
   followerName: string;
 }
 
+// Per-entry decision: remove, move to a chosen level, or leave alone (no action)
+type EntryDecision = { action: 'remove' } | { action: 'move'; targetLevel: string } | { action: 'none' };
+
 const ValidationPage = () => {
   const { id } = useParams<{ id: string }>();
   const competitionId = parseInt(id || '0');
@@ -59,8 +54,10 @@ const ValidationPage = () => {
   const [pendingEntries, setPendingEntries] = useState<PendingEntryEnriched[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedBib, setExpandedBib] = useState<number | null>(null);
-  const [selectedResolution, setSelectedResolution] = useState<{ bib: number; resolution: Resolution } | null>(null);
-  const [confirmingResolution, setConfirmingResolution] = useState<{ bib: number; resolution: Resolution } | null>(null);
+
+  // Per-entry decisions keyed by `${bib}-${eventId}`
+  const [decisions, setDecisions] = useState<Record<string, EntryDecision>>({});
+  const [confirmingBib, setConfirmingBib] = useState<number | null>(null);
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
@@ -77,6 +74,15 @@ const ValidationPage = () => {
       ]);
       setConflicts(resolutionsRes.data.conflicts);
       setPendingEntries(pendingRes.data.pendingEntries);
+
+      // Initialize all decisions to "no action" — admin picks which to act on
+      const initial: Record<string, EntryDecision> = {};
+      for (const conflict of resolutionsRes.data.conflicts) {
+        for (const ea of conflict.entryActions) {
+          initial[`${conflict.bib}-${ea.eventId}`] = { action: 'none' };
+        }
+      }
+      setDecisions(initial);
     } catch {
       showToast('Failed to load validation data', 'error');
     } finally {
@@ -84,28 +90,47 @@ const ValidationPage = () => {
     }
   };
 
-  const handleSelectResolution = (bib: number, resolution: Resolution) => {
-    setSelectedResolution({ bib, resolution });
-    setConfirmingResolution(null);
+  const setDecision = (bib: number, eventId: number, decision: EntryDecision) => {
+    setDecisions(prev => {
+      const next = { ...prev };
+      // When selecting an action on one entry, reset all other entries for this conflict to "none"
+      if (decision.action !== 'none') {
+        const conflict = conflicts.find(c => c.bib === bib);
+        if (conflict) {
+          for (const ea of conflict.entryActions) {
+            if (ea.eventId !== eventId) {
+              next[`${bib}-${ea.eventId}`] = { action: 'none' };
+            }
+          }
+        }
+      }
+      next[`${bib}-${eventId}`] = decision;
+      return next;
+    });
+    setConfirmingBib(null);
   };
 
-  const handleConfirmStep = () => {
-    if (selectedResolution) {
-      setConfirmingResolution(selectedResolution);
-    }
+  const getDecision = (bib: number, eventId: number): EntryDecision => {
+    return decisions[`${bib}-${eventId}`] || { action: 'none' };
   };
 
-  const handleApplyResolution = async () => {
-    if (!confirmingResolution) return;
+  const handleApply = async (conflict: CoupleConflict) => {
     setApplying(true);
     try {
-      const { bib, resolution } = confirmingResolution;
-      const actions = resolution.actions.map(a => ({
-        eventId: a.eventId,
-        action: a.action,
-        bib,
-        targetLevel: a.targetLevel,
-      }));
+      const actions: Array<{ eventId: number; action: 'remove' | 'move'; bib: number; targetLevel?: string }> = [];
+      for (const ea of conflict.entryActions) {
+        const d = getDecision(conflict.bib, ea.eventId);
+        if (d.action === 'remove') {
+          actions.push({ eventId: ea.eventId, action: 'remove', bib: conflict.bib });
+        } else if (d.action === 'move') {
+          actions.push({ eventId: ea.eventId, action: 'move', bib: conflict.bib, targetLevel: d.targetLevel });
+        }
+      }
+      if (actions.length === 0) {
+        showToast('No actions selected', 'error');
+        setApplying(false);
+        return;
+      }
       const res = await competitionsApi.applyResolution(competitionId, actions);
       if (res.data.allSuccess) {
         showToast('Resolution applied successfully', 'success');
@@ -113,8 +138,7 @@ const ValidationPage = () => {
         const failures = res.data.results.filter(r => !r.success);
         showToast(`${failures.length} action(s) failed: ${failures.map(f => f.error).join(', ')}`, 'error');
       }
-      setSelectedResolution(null);
-      setConfirmingResolution(null);
+      setConfirmingBib(null);
       setExpandedBib(null);
       await refreshCompetitions();
       await loadData();
@@ -123,10 +147,6 @@ const ValidationPage = () => {
     } finally {
       setApplying(false);
     }
-  };
-
-  const handleCancelConfirm = () => {
-    setConfirmingResolution(null);
   };
 
   const handleApprovePending = async (entryId: string) => {
@@ -260,25 +280,27 @@ const ValidationPage = () => {
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Level Conflicts</h3>
           <p className="text-sm text-gray-500 mb-3">
-            These couples have entries spanning levels that are outside the competition's allowed range.
-            Expand each to see suggested resolutions.
+            These couples have entries spanning levels outside the competition's allowed range.
+            Expand each to choose how to resolve.
           </p>
           <div className="space-y-3">
             {conflicts.map(conflict => {
               const isExpanded = expandedBib === conflict.bib;
-              const selected = selectedResolution?.bib === conflict.bib ? selectedResolution.resolution : null;
-              const confirming = confirmingResolution?.bib === conflict.bib ? confirmingResolution.resolution : null;
+              const isConfirming = confirmingBib === conflict.bib;
+
+              // Check if at least one action is chosen
+              const hasAction = conflict.entryActions.some(ea => {
+                const d = getDecision(conflict.bib, ea.eventId);
+                return d.action !== 'none';
+              });
 
               return (
                 <div key={conflict.bib} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                  {/* Conflict header — always visible */}
+                  {/* Header */}
                   <button
                     onClick={() => {
                       setExpandedBib(isExpanded ? null : conflict.bib);
-                      if (isExpanded) {
-                        setSelectedResolution(null);
-                        setConfirmingResolution(null);
-                      }
+                      setConfirmingBib(null);
                     }}
                     className="w-full flex items-center justify-between px-5 py-4 text-left bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors"
                   >
@@ -291,9 +313,9 @@ const ValidationPage = () => {
                           {conflict.leaderName} &amp; {conflict.followerName}
                         </div>
                         <div className="text-sm text-gray-500 mt-0.5">
-                          {conflict.outOfRangeEntries.length} out-of-range entr{conflict.outOfRangeEntries.length === 1 ? 'y' : 'ies'}
+                          {conflict.entries.length} entries in conflict
                           <span className="text-gray-400 mx-1.5">&middot;</span>
-                          Range: {conflict.currentRange}
+                          Spans: {conflict.currentRange}
                         </div>
                       </div>
                     </div>
@@ -306,127 +328,199 @@ const ValidationPage = () => {
                   {isExpanded && (
                     <div className="border-t border-gray-100 px-5 py-4">
                       {/* Current entries overview */}
-                      <div className="mb-4">
+                      <div className="mb-5">
                         <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Current Entries</h4>
                         <div className="flex flex-wrap gap-2">
-                          {conflict.entries.map((entry, i) => {
-                            const isOutOfRange = conflict.outOfRangeEntries.some(e => e.eventId === entry.eventId);
-                            return (
-                              <span
-                                key={i}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium ${
-                                  isOutOfRange
-                                    ? 'bg-red-50 text-red-700 border border-red-200'
-                                    : 'bg-gray-100 text-gray-700 border border-gray-200'
-                                }`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${isOutOfRange ? 'bg-red-400' : 'bg-green-400'}`} />
-                                {entry.level}: {entry.eventName}
-                              </span>
-                            );
-                          })}
+                          {conflict.entries.map((entry, i) => (
+                            <span
+                              key={i}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium ${
+                                entry.inRange
+                                  ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                                  : 'bg-red-50 text-red-700 border border-red-200'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${entry.inRange ? 'bg-green-400' : 'bg-red-400'}`} />
+                              {entry.level}: {entry.eventName}
+                            </span>
+                          ))}
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          Allowed range: <span className="font-medium">{conflict.allowedRange.join(', ')}</span>
+                          These entries span too wide a range. With current rules, allowed range from lowest entry ({conflict.entries.find(e => e.inRange)?.level || conflict.entries[0]?.level}): <span className="font-medium">{conflict.allowedRange.join(', ')}</span>
                         </p>
                       </div>
 
-                      {/* Suggested resolutions */}
-                      <div className="mb-4">
-                        <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Suggested Resolutions</h4>
-                        <div className="space-y-2">
-                          {conflict.suggestedResolutions.map(resolution => {
-                            const isSelected = selected?.id === resolution.id;
+                      {/* Per-entry actions */}
+                      <div className="mb-5">
+                        <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">
+                          Choose How to Resolve
+                        </h4>
+                        <p className="text-xs text-gray-500 mb-3">
+                          Pick one entry to move or remove. You can act on any entry — move a lower entry up or a higher entry down.
+                        </p>
+                        <div className="space-y-3">
+                          {(() => {
+                            // Find which entry (if any) has an active action
+                            const activeEventId = conflict.entryActions.find(
+                              ea => getDecision(conflict.bib, ea.eventId).action !== 'none'
+                            )?.eventId ?? null;
+                            return conflict.entryActions.map(ea => {
+                            const d = getDecision(conflict.bib, ea.eventId);
+                            const isInRange = conflict.entries.find(e => e.eventId === ea.eventId)?.inRange ?? false;
+                            const isDisabled = activeEventId !== null && activeEventId !== ea.eventId;
                             return (
-                              <button
-                                key={resolution.id}
-                                onClick={() => handleSelectResolution(conflict.bib, resolution)}
-                                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors cursor-pointer bg-transparent ${
-                                  isSelected
-                                    ? 'border-primary-500 bg-primary-50'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                    isSelected ? 'border-primary-500' : 'border-gray-300'
-                                  }`}>
-                                    {isSelected && <span className="w-2 h-2 rounded-full bg-primary-500" />}
-                                  </span>
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-800">{resolution.description}</p>
-                                    <div className="mt-2 space-y-1">
-                                      {resolution.actions.map((action, ai) => (
-                                        <div key={ai} className="text-xs text-gray-600 flex items-center gap-1.5">
-                                          {action.action === 'remove' ? (
-                                            <>
-                                              <span className="text-red-500 font-bold">&times;</span>
-                                              Remove from <span className="font-medium">{action.eventName}</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="text-blue-500 font-bold">&rarr;</span>
-                                              Move <span className="font-medium">{action.eventName}</span>
-                                              {' '}from {action.currentLevel} to <span className="font-medium">{action.targetLevel}</span>
-                                            </>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
+                              <div key={ea.eventId} className={`border rounded-lg overflow-hidden transition-opacity ${d.action !== 'none' ? 'border-primary-300 shadow-sm' : 'border-gray-200'} ${isDisabled ? 'opacity-45 pointer-events-none' : ''}`}>
+                                {/* Entry header */}
+                                <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${isInRange ? 'bg-green-400' : 'bg-red-400'}`} />
+                                  <span className="text-sm font-semibold text-gray-800">{ea.eventName}</span>
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{ea.currentLevel}</span>
                                 </div>
-                              </button>
+
+                                {/* Action choices */}
+                                <div className="p-3 space-y-2 bg-white">
+                                  {/* Keep as-is */}
+                                  <label
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                                      d.action === 'none'
+                                        ? 'border-gray-300 bg-gray-50'
+                                        : 'border-transparent hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`action-${conflict.bib}-${ea.eventId}`}
+                                      checked={d.action === 'none'}
+                                      onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'none' })}
+                                      className="shrink-0"
+                                    />
+                                    <span className="text-sm text-gray-600">Keep as-is</span>
+                                  </label>
+
+                                  {/* Move option */}
+                                  {ea.validTargetLevels.length > 0 && (
+                                    <label
+                                      className={`flex items-start gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                                        d.action === 'move'
+                                          ? 'border-primary-400 bg-primary-50'
+                                          : 'border-transparent hover:bg-gray-50'
+                                      }`}
+                                      onClick={() => {
+                                        if (d.action !== 'move') {
+                                          setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: ea.defaultTargetLevel });
+                                        }
+                                      }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`action-${conflict.bib}-${ea.eventId}`}
+                                        checked={d.action === 'move'}
+                                        onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: d.action === 'move' ? d.targetLevel : ea.defaultTargetLevel })}
+                                        className="mt-0.5 shrink-0"
+                                      />
+                                      <div className="flex-1">
+                                        <span className="text-sm font-medium text-gray-800">Move to different level</span>
+                                        {d.action === 'move' && (
+                                          <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {ea.validTargetLevels.map(lvl => (
+                                              <button
+                                                key={lvl}
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: lvl });
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                                                  d.targetLevel === lvl
+                                                    ? 'bg-primary-500 text-white border-primary-500'
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:border-primary-300 hover:text-primary-600'
+                                                }`}
+                                              >
+                                                {lvl}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </label>
+                                  )}
+
+                                  {/* Remove option */}
+                                  <label
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                                      d.action === 'remove'
+                                        ? 'border-red-300 bg-red-50'
+                                        : 'border-transparent hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`action-${conflict.bib}-${ea.eventId}`}
+                                      checked={d.action === 'remove'}
+                                      onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'remove' })}
+                                      className="shrink-0"
+                                    />
+                                    <span className="text-sm text-red-700 font-medium">Remove from this event</span>
+                                  </label>
+                                </div>
+                              </div>
                             );
-                          })}
+                          });
+                          })()}
                         </div>
                       </div>
 
-                      {/* Action buttons */}
-                      {selected && !confirming && (
+                      {/* Action / Confirmation */}
+                      {!isConfirming && (
                         <div className="flex justify-end">
                           <button
-                            onClick={handleConfirmStep}
-                            className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium hover:bg-primary-600 transition-colors"
+                            onClick={() => setConfirmingBib(conflict.bib)}
+                            disabled={!hasAction}
+                            className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             Review &amp; Confirm
                           </button>
                         </div>
                       )}
 
-                      {/* Confirmation panel */}
-                      {confirming && (
+                      {isConfirming && (
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                          <h4 className="text-sm font-semibold text-amber-800 mb-2">Confirm Resolution</h4>
+                          <h4 className="text-sm font-semibold text-amber-800 mb-2">Confirm Changes</h4>
                           <p className="text-sm text-amber-700 mb-3">
-                            The following changes will be made for <span className="font-semibold">Bib {conflict.bib}</span> ({conflict.leaderName} &amp; {conflict.followerName}):
+                            The following changes will be applied for <span className="font-semibold">Bib {conflict.bib}</span> ({conflict.leaderName} &amp; {conflict.followerName}):
                           </p>
                           <ul className="space-y-1.5 mb-4">
-                            {confirming.actions.map((action, i) => (
-                              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                                <span className={`mt-0.5 shrink-0 ${action.action === 'remove' ? 'text-red-500' : 'text-blue-500'}`}>
-                                  {action.action === 'remove' ? '\u2717' : '\u2192'}
-                                </span>
-                                {action.action === 'remove' ? (
-                                  <span>Remove couple from <strong>{action.eventName}</strong> ({action.currentLevel})</span>
-                                ) : (
-                                  <span>
-                                    Move couple from <strong>{action.eventName}</strong> ({action.currentLevel})
-                                    {' '}to a <strong>{action.targetLevel}</strong> event
+                            {conflict.entryActions.map(ea => {
+                              const d = getDecision(conflict.bib, ea.eventId);
+                              if (d.action === 'none') return null;
+                              return (
+                                <li key={ea.eventId} className="text-sm text-gray-700 flex items-start gap-2">
+                                  <span className={`mt-0.5 shrink-0 ${d.action === 'remove' ? 'text-red-500' : 'text-blue-500'}`}>
+                                    {d.action === 'remove' ? '\u2717' : '\u2192'}
                                   </span>
-                                )}
-                              </li>
-                            ))}
+                                  {d.action === 'remove' ? (
+                                    <span>Remove couple from <strong>{ea.eventName}</strong> ({ea.currentLevel})</span>
+                                  ) : (
+                                    <span>
+                                      Move couple from <strong>{ea.eventName}</strong> ({ea.currentLevel})
+                                      {' '}to a <strong>{d.targetLevel}</strong> event
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                           <div className="flex gap-2 justify-end">
                             <button
-                              onClick={handleCancelConfirm}
+                              onClick={() => setConfirmingBib(null)}
                               disabled={applying}
                               className="px-4 py-2 bg-gray-200 text-gray-700 rounded border-none cursor-pointer text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
                             >
                               Back
                             </button>
                             <button
-                              onClick={handleApplyResolution}
+                              onClick={() => handleApply(conflict)}
                               disabled={applying}
                               className="px-4 py-2 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium hover:bg-danger-600 transition-colors disabled:opacity-50"
                             >
