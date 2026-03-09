@@ -236,7 +236,7 @@ router.delete('/:id/admins/:uid', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// GET /competitions/:id/validation-issues — check all event entries for level validation issues
+// GET /competitions/:id/validation-issues — check all event entries for level validation issues (per-style + cross-style)
 router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
@@ -256,13 +256,18 @@ router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, r
       eventId: number;
       eventName: string;
       eventLevel: string;
+      eventStyle: string | undefined;
       bib: number;
       leaderName: string;
       followerName: string;
       coupleLevel: string | null;
       allowedLevels: string[];
       reason: string;
+      issueType: 'per-style' | 'cross-style';
     }> = [];
+
+    // Track already-flagged (bib, eventId) to avoid duplicates
+    const flagged = new Set<string>();
 
     for (const event of events) {
       if (!event.level) continue;
@@ -271,27 +276,71 @@ router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, r
         const couple = await dataService.getCoupleByBib(bib);
         if (!couple) continue;
 
+        // Per-style check: only compare against entries in the same style
         const { levels: allowedLevels, coupleLevel } = await getAllowedLevelsForCouple(
           competitionId,
           bib,
+          event.style,  // per-style
         );
 
         if (allowedLevels.length > 0 && !allowedLevels.includes(event.level)) {
-          const [leader, follower] = await Promise.all([
-            dataService.getPersonById(couple.leaderId),
-            dataService.getPersonById(couple.followerId),
-          ]);
-          issues.push({
-            eventId: event.id,
-            eventName: event.name,
-            eventLevel: event.level,
+          const key = `${bib}-${event.id}`;
+          if (!flagged.has(key)) {
+            flagged.add(key);
+            const [leader, follower] = await Promise.all([
+              dataService.getPersonById(couple.leaderId),
+              dataService.getPersonById(couple.followerId),
+            ]);
+            const styleLabel = event.style ? ` in ${event.style}` : '';
+            issues.push({
+              eventId: event.id,
+              eventName: event.name,
+              eventLevel: event.level,
+              eventStyle: event.style,
+              bib,
+              leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
+              followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
+              coupleLevel,
+              allowedLevels,
+              reason: `Couple's entries${styleLabel} are at ${coupleLevel} level — ${event.level} is outside their allowed range (${allowedLevels.join(', ')})`,
+              issueType: 'per-style',
+            });
+          }
+        }
+
+        // Cross-style check
+        if (competition.entryValidation.crossStyleValidation) {
+          const crossLevelsAbove = competition.entryValidation.crossStyleLevelsAboveAllowed ?? competition.entryValidation.levelsAboveAllowed;
+          const { levels: crossAllowed, coupleLevel: crossLevel } = await getAllowedLevelsForCouple(
+            competitionId,
             bib,
-            leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
-            followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
-            coupleLevel,
-            allowedLevels,
-            reason: `Couple's entries are at ${coupleLevel} level — ${event.level} is outside their allowed range (${allowedLevels.join(', ')})`,
-          });
+            undefined,  // all styles
+            crossLevelsAbove,
+          );
+
+          if (crossAllowed.length > 0 && !crossAllowed.includes(event.level)) {
+            const key = `${bib}-${event.id}`;
+            if (!flagged.has(key)) {
+              flagged.add(key);
+              const [leader, follower] = await Promise.all([
+                dataService.getPersonById(couple.leaderId),
+                dataService.getPersonById(couple.followerId),
+              ]);
+              issues.push({
+                eventId: event.id,
+                eventName: event.name,
+                eventLevel: event.level,
+                eventStyle: event.style,
+                bib,
+                leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
+                followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
+                coupleLevel: crossLevel,
+                allowedLevels: crossAllowed,
+                reason: `Couple's entries across all styles span from ${crossLevel} — ${event.level} is outside the cross-style allowed range (${crossAllowed.join(', ')})`,
+                issueType: 'cross-style',
+              });
+            }
+          }
         }
       }
     }
@@ -302,7 +351,7 @@ router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, r
   }
 });
 
-// GET /competitions/:id/validation-resolutions — compute detailed conflict groups with suggested resolutions
+// GET /competitions/:id/validation-resolutions — compute detailed conflict groups with suggested resolutions (per-style + cross-style)
 router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
@@ -317,11 +366,18 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
 
     const eventsMap = await dataService.getEvents(competitionId);
     const events = Object.values(eventsMap);
-    const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
     const mode = competition.entryValidation.levelRestrictionMode || 'sublevel';
 
-    // Collect all entries per couple (bib → list of { eventId, eventName, eventLevel, levelIndex })
-    const coupleEntries = new Map<number, Array<{ eventId: number; eventName: string; level: string; levelIndex: number }>>();
+    interface EntryInfo {
+      eventId: number;
+      eventName: string;
+      level: string;
+      levelIndex: number;
+      style: string | undefined;
+    }
+
+    // Collect all entries per couple
+    const coupleEntries = new Map<number, EntryInfo[]>();
     for (const event of events) {
       if (!event.level) continue;
       const levelIdx = competition.levels.indexOf(event.level);
@@ -333,12 +389,13 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
           eventName: event.name,
           level: event.level,
           levelIndex: levelIdx,
+          style: event.style,
         });
       }
     }
 
-    // Helper to compute allowed range for a given base level index
-    function computeAllowedRange(baseLevelIdx: number): { minIdx: number; maxIdx: number; levels: string[] } {
+    // Helper to compute allowed range for a given base level index with a specific levelsAbove
+    function computeAllowedRange(baseLevelIdx: number, levelsAbove: number): { minIdx: number; maxIdx: number; levels: string[] } {
       if (mode === 'mainlevel') {
         const groups = groupLevelsByMain(competition!.levels!);
         const baseMain = getMainLevel(competition!.levels![baseLevelIdx]);
@@ -357,22 +414,20 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
       return { minIdx: baseLevelIdx, maxIdx, levels: competition!.levels!.slice(baseLevelIdx, maxIdx + 1) };
     }
 
-    // Check whether a set of level indices all fit within a valid range
-    function allFitInRange(levelIndices: number[]): boolean {
+    function allFitInRange(levelIndices: number[], levelsAbove: number): boolean {
       if (levelIndices.length === 0) return true;
       const lowest = Math.min(...levelIndices);
-      const { levels: allowed } = computeAllowedRange(lowest);
+      const { levels: allowed } = computeAllowedRange(lowest, levelsAbove);
       return levelIndices.every(idx => allowed.includes(competition!.levels![idx]));
     }
 
-    // For a given entry in a set, compute all levels it could move to that would make the whole set valid
-    function computeValidTargets(entryIdx: number, allEntryIndices: number[]): string[] {
+    function computeValidTargets(entryIdx: number, allEntryIndices: number[], levelsAbove: number): string[] {
       const otherIndices = allEntryIndices.filter((_, i) => i !== entryIdx);
       const validTargets: string[] = [];
       for (let candidateIdx = 0; candidateIdx < competition!.levels!.length; candidateIdx++) {
-        if (candidateIdx === allEntryIndices[entryIdx]) continue; // skip current level
+        if (candidateIdx === allEntryIndices[entryIdx]) continue;
         const hypothetical = [...otherIndices, candidateIdx];
-        if (allFitInRange(hypothetical)) {
+        if (allFitInRange(hypothetical, levelsAbove)) {
           validTargets.push(competition!.levels![candidateIdx]);
         }
       }
@@ -383,86 +438,172 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
       eventId: number;
       eventName: string;
       currentLevel: string;
-      validTargetLevels: string[];  // All levels this entry could move to
-      defaultTargetLevel: string;   // Best default choice
+      style: string | undefined;
+      validTargetLevels: string[];
+      defaultTargetLevel: string;
     }
 
     interface CoupleConflict {
       bib: number;
       leaderName: string;
       followerName: string;
-      entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
+      style: string | undefined;  // style this conflict is about (undefined for cross-style)
+      conflictType: 'per-style' | 'cross-style';
+      entries: Array<{ eventId: number; eventName: string; level: string; style: string | undefined; inRange: boolean }>;
       currentRange: string;
       allowedRange: string[];
-      // Per entry that can be moved/removed to resolve the conflict
       entryActions: EntryAction[];
     }
 
     const conflicts: CoupleConflict[] = [];
 
+    const perStyleLevelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
+    const crossStyleEnabled = !!competition.entryValidation.crossStyleValidation;
+    const crossStyleLevelsAbove = competition.entryValidation.crossStyleLevelsAboveAllowed ?? perStyleLevelsAbove;
+
     for (const [bib, entries] of coupleEntries) {
-      // Quick check: does this couple have a conflict at all?
-      const allIndices = entries.map(e => e.levelIndex);
-      if (allFitInRange(allIndices)) continue;
+      // Group entries by style for per-style checks
+      const byStyle = new Map<string, EntryInfo[]>();
+      for (const e of entries) {
+        const styleKey = e.style || '__none__';
+        if (!byStyle.has(styleKey)) byStyle.set(styleKey, []);
+        byStyle.get(styleKey)!.push(e);
+      }
 
-      const couple = await dataService.getCoupleByBib(bib);
-      if (!couple) continue;
-      const [leader, follower] = await Promise.all([
-        dataService.getPersonById(couple.leaderId),
-        dataService.getPersonById(couple.followerId),
-      ]);
+      let couple: Awaited<ReturnType<typeof dataService.getCoupleByBib>> | null = null;
+      let leaderName = 'Unknown';
+      let followerName = 'Unknown';
 
-      // Compute valid move targets for EVERY entry (not just "out of range" ones).
-      // The admin might want to move the lower entry up OR the higher entry down.
-      const entryActions: EntryAction[] = [];
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        const validTargets = computeValidTargets(i, allIndices);
-        if (validTargets.length === 0) continue; // no moves possible for this entry
+      const loadCouple = async () => {
+        if (couple !== null) return;
+        couple = await dataService.getCoupleByBib(bib);
+        if (couple) {
+          const [leader, follower] = await Promise.all([
+            dataService.getPersonById(couple.leaderId),
+            dataService.getPersonById(couple.followerId),
+          ]);
+          leaderName = leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown';
+          followerName = follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown';
+        }
+      };
 
-        // Default: pick the target closest to the other entries' centroid
-        const otherIndices = allIndices.filter((_, j) => j !== i);
-        const otherMean = otherIndices.length > 0 ? otherIndices.reduce((a, b) => a + b, 0) / otherIndices.length : 0;
-        let defaultTarget = validTargets[0];
-        let bestDist = Infinity;
-        for (const t of validTargets) {
-          const tIdx = competition.levels!.indexOf(t);
-          const dist = Math.abs(tIdx - otherMean);
-          if (dist < bestDist) {
-            bestDist = dist;
-            defaultTarget = t;
+      // Per-style conflicts
+      for (const [styleKey, styleEntries] of byStyle) {
+        if (styleEntries.length < 2) continue; // need at least 2 entries to have a conflict
+        const allIndices = styleEntries.map(e => e.levelIndex);
+        if (allFitInRange(allIndices, perStyleLevelsAbove)) continue;
+
+        await loadCouple();
+        if (!couple) continue;
+
+        const entryActions: EntryAction[] = [];
+        for (let i = 0; i < styleEntries.length; i++) {
+          const entry = styleEntries[i];
+          const validTargets = computeValidTargets(i, allIndices, perStyleLevelsAbove);
+          if (validTargets.length === 0) continue;
+
+          const otherIndices = allIndices.filter((_, j) => j !== i);
+          const otherMean = otherIndices.length > 0 ? otherIndices.reduce((a, b) => a + b, 0) / otherIndices.length : 0;
+          let defaultTarget = validTargets[0];
+          let bestDist = Infinity;
+          for (const t of validTargets) {
+            const tIdx = competition.levels!.indexOf(t);
+            const dist = Math.abs(tIdx - otherMean);
+            if (dist < bestDist) { bestDist = dist; defaultTarget = t; }
           }
+
+          entryActions.push({
+            eventId: entry.eventId,
+            eventName: entry.eventName,
+            currentLevel: entry.level,
+            style: entry.style,
+            validTargetLevels: validTargets,
+            defaultTargetLevel: defaultTarget,
+          });
         }
 
-        entryActions.push({
-          eventId: entry.eventId,
-          eventName: entry.eventName,
-          currentLevel: entry.level,
-          validTargetLevels: validTargets,
-          defaultTargetLevel: defaultTarget,
+        if (entryActions.length === 0) continue;
+
+        const lowestIdx = Math.min(...allIndices);
+        const { levels: allowedFromLowest } = computeAllowedRange(lowestIdx, perStyleLevelsAbove);
+        const displayStyle = styleKey === '__none__' ? undefined : styleKey;
+
+        conflicts.push({
+          bib,
+          leaderName,
+          followerName,
+          style: displayStyle,
+          conflictType: 'per-style',
+          entries: styleEntries.map(e => ({
+            eventId: e.eventId,
+            eventName: e.eventName,
+            level: e.level,
+            style: e.style,
+            inRange: allowedFromLowest.includes(e.level),
+          })),
+          currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...allIndices)]}`,
+          allowedRange: allowedFromLowest,
+          entryActions,
         });
       }
 
-      if (entryActions.length === 0) continue;
+      // Cross-style conflict: check ALL entries for this couple together
+      if (crossStyleEnabled && entries.length >= 2) {
+        const allIndices = entries.map(e => e.levelIndex);
+        if (!allFitInRange(allIndices, crossStyleLevelsAbove)) {
+          await loadCouple();
+          if (!couple) continue;
 
-      // For display: compute the "in range" status from the lowest entry perspective
-      const lowestIdx = Math.min(...allIndices);
-      const { levels: allowedFromLowest } = computeAllowedRange(lowestIdx);
+          const entryActions: EntryAction[] = [];
+          for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            const validTargets = computeValidTargets(i, allIndices, crossStyleLevelsAbove);
+            if (validTargets.length === 0) continue;
 
-      conflicts.push({
-        bib,
-        leaderName: leader ? `${leader.firstName} ${leader.lastName}` : 'Unknown',
-        followerName: follower ? `${follower.firstName} ${follower.lastName}` : 'Unknown',
-        entries: entries.map(e => ({
-          eventId: e.eventId,
-          eventName: e.eventName,
-          level: e.level,
-          inRange: allowedFromLowest.includes(e.level),
-        })),
-        currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...allIndices)]}`,
-        allowedRange: allowedFromLowest,
-        entryActions,
-      });
+            const otherIndices = allIndices.filter((_, j) => j !== i);
+            const otherMean = otherIndices.length > 0 ? otherIndices.reduce((a, b) => a + b, 0) / otherIndices.length : 0;
+            let defaultTarget = validTargets[0];
+            let bestDist = Infinity;
+            for (const t of validTargets) {
+              const tIdx = competition.levels!.indexOf(t);
+              const dist = Math.abs(tIdx - otherMean);
+              if (dist < bestDist) { bestDist = dist; defaultTarget = t; }
+            }
+
+            entryActions.push({
+              eventId: entry.eventId,
+              eventName: entry.eventName,
+              currentLevel: entry.level,
+              style: entry.style,
+              validTargetLevels: validTargets,
+              defaultTargetLevel: defaultTarget,
+            });
+          }
+
+          if (entryActions.length > 0) {
+            const lowestIdx = Math.min(...allIndices);
+            const { levels: allowedFromLowest } = computeAllowedRange(lowestIdx, crossStyleLevelsAbove);
+
+            conflicts.push({
+              bib,
+              leaderName,
+              followerName,
+              style: undefined,
+              conflictType: 'cross-style',
+              entries: entries.map(e => ({
+                eventId: e.eventId,
+                eventName: e.eventName,
+                level: e.level,
+                style: e.style,
+                inRange: allowedFromLowest.includes(e.level),
+              })),
+              currentRange: `${competition.levels![lowestIdx]} — ${competition.levels![Math.max(...allIndices)]}`,
+              allowedRange: allowedFromLowest,
+              entryActions,
+            });
+          }
+        }
+      }
     }
 
     res.json({ conflicts, count: conflicts.length });

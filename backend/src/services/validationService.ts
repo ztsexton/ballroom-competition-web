@@ -41,11 +41,13 @@ export function groupLevelsByMain(levels: string[]): Array<{ mainLevel: string; 
 
 /**
  * Get the levels a couple is currently entered in (inferred from their event entries).
- * Returns the lowest level index among all entries.
+ * When `style` is provided, only considers entries in events with that style.
+ * Returns the lowest level index among matching entries.
  */
 export async function getInferredCoupleLevel(
   competitionId: number,
   bib: number,
+  style?: string,
 ): Promise<{ lowestLevel: string | null; entryLevels: string[] }> {
   const competition = await dataService.getCompetitionById(competitionId);
   if (!competition || !competition.levels || competition.levels.length === 0) {
@@ -58,6 +60,7 @@ export async function getInferredCoupleLevel(
   const entryLevels: string[] = [];
   for (const event of events) {
     if (!event.level) continue;
+    if (style && event.style !== style) continue;
     const inEvent = event.heats.some(h => h.bibs.includes(bib));
     if (inEvent && competition.levels.includes(event.level) && !entryLevels.includes(event.level)) {
       entryLevels.push(event.level);
@@ -82,11 +85,39 @@ export async function getInferredCoupleLevel(
 }
 
 /**
+ * Compute allowed level range given a base level index and validation settings.
+ * Extracted to share between per-style and cross-style checks.
+ */
+function computeAllowedFromBase(
+  baseLevelIdx: number,
+  levels: string[],
+  levelsAbove: number,
+  mode: 'sublevel' | 'mainlevel',
+): string[] {
+  if (mode === 'mainlevel') {
+    const groups = groupLevelsByMain(levels);
+    const baseMainLevel = getMainLevel(levels[baseLevelIdx]);
+    const baseGroupIdx = groups.findIndex(g => g.mainLevel === baseMainLevel);
+    if (baseGroupIdx === -1) return [levels[baseLevelIdx]];
+    const maxGroupIdx = Math.min(baseGroupIdx + levelsAbove, groups.length - 1);
+    const allowed: string[] = [];
+    for (let i = baseGroupIdx; i <= maxGroupIdx; i++) {
+      allowed.push(...groups[i].subLevels);
+    }
+    return allowed;
+  }
+  // sublevel mode
+  const maxIdx = Math.min(baseLevelIdx + levelsAbove, levels.length - 1);
+  return levels.slice(baseLevelIdx, maxIdx + 1);
+}
+
+/**
  * Compute allowed levels for a couple based on existing entries + validation rules.
  * Level is inferred from what events the couple is already entered in.
  * If no entries yet, all levels are allowed (first entry establishes their range).
  *
- * Returns { needsApproval: true } when the requested level is outside the allowed range.
+ * When `style` is provided, only considers entries in that style (per-style validation).
+ * When `style` is omitted, considers all entries (cross-style validation).
  *
  * Supports two restriction modes:
  * - 'sublevel' (default): Each level counted individually. Bronze 1 + 1 above = Bronze 1, Bronze 2
@@ -95,6 +126,8 @@ export async function getInferredCoupleLevel(
 export async function getAllowedLevelsForCouple(
   competitionId: number,
   bib: number,
+  style?: string,
+  overrideLevelsAbove?: number,
 ): Promise<{ levels: string[]; coupleLevel: string | null }> {
   const competition = await dataService.getCompetitionById(competitionId);
   if (!competition || !competition.levels || competition.levels.length === 0) {
@@ -106,8 +139,8 @@ export async function getAllowedLevelsForCouple(
     return { levels: competition.levels, coupleLevel: null };
   }
 
-  // Infer level from existing entries
-  const { lowestLevel } = await getInferredCoupleLevel(competitionId, bib);
+  // Infer level from existing entries (filtered by style if provided)
+  const { lowestLevel } = await getInferredCoupleLevel(competitionId, bib, style);
 
   // No entries yet = all levels allowed (first entry establishes the range)
   if (!lowestLevel) {
@@ -119,32 +152,11 @@ export async function getAllowedLevelsForCouple(
     return { levels: competition.levels, coupleLevel: null };
   }
 
-  const levelsAbove = competition.entryValidation.levelsAboveAllowed ?? 1;
+  const levelsAbove = overrideLevelsAbove ?? competition.entryValidation.levelsAboveAllowed ?? 1;
   const mode = competition.entryValidation.levelRestrictionMode || 'sublevel';
 
-  if (mode === 'mainlevel') {
-    const groups = groupLevelsByMain(competition.levels);
-    const baseMainLevel = getMainLevel(lowestLevel);
-    const baseGroupIdx = groups.findIndex(g => g.mainLevel === baseMainLevel);
-
-    if (baseGroupIdx === -1) {
-      return { levels: competition.levels, coupleLevel: lowestLevel };
-    }
-
-    const maxGroupIdx = Math.min(baseGroupIdx + levelsAbove, groups.length - 1);
-    const allowed: string[] = [];
-    for (let i = baseGroupIdx; i <= maxGroupIdx; i++) {
-      allowed.push(...groups[i].subLevels);
-    }
-    return { levels: allowed, coupleLevel: lowestLevel };
-  }
-
-  // sublevel mode (default)
-  const maxIdx = Math.min(baseIdx + levelsAbove, competition.levels.length - 1);
-  return {
-    levels: competition.levels.slice(baseIdx, maxIdx + 1),
-    coupleLevel: lowestLevel,
-  };
+  const allowed = computeAllowedFromBase(baseIdx, competition.levels, levelsAbove, mode);
+  return { levels: allowed, coupleLevel: lowestLevel };
 }
 
 /**
@@ -294,6 +306,7 @@ export async function validateEntry(
   bib: number,
   eventAttributes: {
     level?: string;
+    style?: string;
     ageCategory?: string;
     designation?: string;
   },
@@ -318,23 +331,46 @@ export async function validateEntry(
   }
 
   // Validate level based on entry validation rules (if enabled)
-  // Level is inferred from existing entries, not declared on the person
+  // Per-style check: only look at entries in the same style
   if (eventAttributes.level && competition.entryValidation?.enabled) {
     const { levels: allowedLevels, coupleLevel } = await getAllowedLevelsForCouple(
       competitionId,
       bib,
+      eventAttributes.style,  // per-style filtering
     );
 
     if (allowedLevels.length > 0 && !allowedLevels.includes(eventAttributes.level)) {
-      // Don't hard-reject — flag for admin approval
+      const styleLabel = eventAttributes.style ? ` in ${eventAttributes.style}` : '';
       return {
         valid: false,
         needsApproval: true,
         approvalReason: coupleLevel
-          ? `Couple's current entries are at ${coupleLevel} level. ${eventAttributes.level} is outside their allowed range (${allowedLevels.join(', ')}).`
+          ? `Couple's current entries${styleLabel} are at ${coupleLevel} level. ${eventAttributes.level} is outside their allowed range (${allowedLevels.join(', ')}).`
           : `Level ${eventAttributes.level} is outside the allowed range.`,
         errors: [],
       };
+    }
+
+    // Cross-style check: if enabled, also validate across all styles combined
+    if (competition.entryValidation.crossStyleValidation && eventAttributes.style) {
+      const crossLevelsAbove = competition.entryValidation.crossStyleLevelsAboveAllowed ?? competition.entryValidation.levelsAboveAllowed;
+      const { levels: crossAllowed, coupleLevel: crossLevel } = await getAllowedLevelsForCouple(
+        competitionId,
+        bib,
+        undefined,  // no style filter = all entries
+        crossLevelsAbove,
+      );
+
+      if (crossAllowed.length > 0 && !crossAllowed.includes(eventAttributes.level)) {
+        return {
+          valid: false,
+          needsApproval: true,
+          approvalReason: crossLevel
+            ? `Couple's entries across all styles span from ${crossLevel}. ${eventAttributes.level} is outside the cross-style allowed range (${crossAllowed.join(', ')}).`
+            : `Level ${eventAttributes.level} is outside the cross-style allowed range.`,
+          errors: [],
+        };
+      }
     }
   }
 

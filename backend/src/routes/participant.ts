@@ -280,7 +280,7 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
     }
 
     // Validate eligibility before registering
-    const validation = await validateEntry(competitionId, bib, { level, designation, ageCategory: req.body.ageCategory });
+    const validation = await validateEntry(competitionId, bib, { level, style, designation, ageCategory: req.body.ageCategory });
 
     if (validation.needsApproval) {
       // Add to pending entries queue instead of rejecting
@@ -382,7 +382,8 @@ router.post('/competitions/:id/validate', async (req: AuthRequest, res: Response
       return res.status(400).json({ error: 'bib is required' });
     }
 
-    const result = await validateEntry(competitionId, bib, { level, designation, ageCategory });
+    const { style } = req.body;
+    const result = await validateEntry(competitionId, bib, { level, style, designation, ageCategory });
     res.json(result);
   } catch (err) {
     logger.error(err, 'Failed to validate entry');
@@ -424,9 +425,13 @@ router.get('/competitions/:id/allowed-levels/:bib', async (req: AuthRequest, res
       });
     }
 
+    // Optional style filter from query string
+    const style = req.query.style as string | undefined;
+
     const { levels, coupleLevel } = await getAllowedLevelsForCouple(
       competitionId,
       bib,
+      style,
     );
 
     res.json({

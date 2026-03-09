@@ -9,6 +9,7 @@ interface EntryAction {
   eventId: number;
   eventName: string;
   currentLevel: string;
+  style: string | undefined;
   validTargetLevels: string[];
   defaultTargetLevel: string;
 }
@@ -17,7 +18,9 @@ interface CoupleConflict {
   bib: number;
   leaderName: string;
   followerName: string;
-  entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
+  style: string | undefined;
+  conflictType: 'per-style' | 'cross-style';
+  entries: Array<{ eventId: number; eventName: string; level: string; style: string | undefined; inRange: boolean }>;
   currentRange: string;
   allowedRange: string[];
   entryActions: EntryAction[];
@@ -53,11 +56,11 @@ const ValidationPage = () => {
   const [conflicts, setConflicts] = useState<CoupleConflict[]>([]);
   const [pendingEntries, setPendingEntries] = useState<PendingEntryEnriched[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedBib, setExpandedBib] = useState<number | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   // Per-entry decisions keyed by `${bib}-${eventId}`
   const [decisions, setDecisions] = useState<Record<string, EntryDecision>>({});
-  const [confirmingBib, setConfirmingBib] = useState<number | null>(null);
+  const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
@@ -90,24 +93,23 @@ const ValidationPage = () => {
     }
   };
 
-  const setDecision = (bib: number, eventId: number, decision: EntryDecision) => {
+  const conflictKey = (c: CoupleConflict) => `${c.bib}-${c.conflictType}-${c.style || 'all'}`;
+
+  const setDecision = (conflict: CoupleConflict, eventId: number, decision: EntryDecision) => {
     setDecisions(prev => {
       const next = { ...prev };
       // When selecting an action on one entry, reset all other entries for this conflict to "none"
       if (decision.action !== 'none') {
-        const conflict = conflicts.find(c => c.bib === bib);
-        if (conflict) {
-          for (const ea of conflict.entryActions) {
-            if (ea.eventId !== eventId) {
-              next[`${bib}-${ea.eventId}`] = { action: 'none' };
-            }
+        for (const ea of conflict.entryActions) {
+          if (ea.eventId !== eventId) {
+            next[`${conflict.bib}-${ea.eventId}`] = { action: 'none' };
           }
         }
       }
-      next[`${bib}-${eventId}`] = decision;
+      next[`${conflict.bib}-${eventId}`] = decision;
       return next;
     });
-    setConfirmingBib(null);
+    setConfirmingKey(null);
   };
 
   const getDecision = (bib: number, eventId: number): EntryDecision => {
@@ -138,8 +140,8 @@ const ValidationPage = () => {
         const failures = res.data.results.filter(r => !r.success);
         showToast(`${failures.length} action(s) failed: ${failures.map(f => f.error).join(', ')}`, 'error');
       }
-      setConfirmingBib(null);
-      setExpandedBib(null);
+      setConfirmingKey(null);
+      setExpandedKey(null);
       await refreshCompetitions();
       await loadData();
     } catch {
@@ -206,7 +208,7 @@ const ValidationPage = () => {
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-800 mb-1">Entry Validation</h2>
         <p className="text-gray-500 text-sm">
-          Review level conflicts and pending entry approvals. Levels are inferred from each couple's existing event entries.
+          Review level conflicts and pending entry approvals. Level restrictions are validated per style, with optional cross-style limits.
         </p>
       </div>
 
@@ -285,8 +287,9 @@ const ValidationPage = () => {
           </p>
           <div className="space-y-3">
             {conflicts.map(conflict => {
-              const isExpanded = expandedBib === conflict.bib;
-              const isConfirming = confirmingBib === conflict.bib;
+              const ck = conflictKey(conflict);
+              const isExpanded = expandedKey === ck;
+              const isConfirming = confirmingKey === ck;
 
               // Check if at least one action is chosen
               const hasAction = conflict.entryActions.some(ea => {
@@ -295,22 +298,30 @@ const ValidationPage = () => {
               });
 
               return (
-                <div key={conflict.bib} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <div key={ck} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                   {/* Header */}
                   <button
                     onClick={() => {
-                      setExpandedBib(isExpanded ? null : conflict.bib);
-                      setConfirmingBib(null);
+                      setExpandedKey(isExpanded ? null : ck);
+                      setConfirmingKey(null);
                     }}
                     className="w-full flex items-center justify-between px-5 py-4 text-left bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <span className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold shrink-0">
+                      <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                        conflict.conflictType === 'cross-style' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
                         {conflict.bib}
                       </span>
                       <div>
                         <div className="font-semibold text-gray-800">
                           {conflict.leaderName} &amp; {conflict.followerName}
+                          {conflict.style && (
+                            <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600">{conflict.style}</span>
+                          )}
+                          {conflict.conflictType === 'cross-style' && (
+                            <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded bg-purple-100 text-purple-600">Cross-Style</span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-500 mt-0.5">
                           {conflict.entries.length} entries in conflict
@@ -342,6 +353,9 @@ const ValidationPage = () => {
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${entry.inRange ? 'bg-green-400' : 'bg-red-400'}`} />
                               {entry.level}: {entry.eventName}
+                              {conflict.conflictType === 'cross-style' && entry.style && (
+                                <span className="text-gray-400 ml-1">({entry.style})</span>
+                              )}
                             </span>
                           ))}
                         </div>
@@ -391,7 +405,7 @@ const ValidationPage = () => {
                                       type="radio"
                                       name={`action-${conflict.bib}-${ea.eventId}`}
                                       checked={d.action === 'none'}
-                                      onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'none' })}
+                                      onChange={() => setDecision(conflict, ea.eventId, { action: 'none' })}
                                       className="shrink-0"
                                     />
                                     <span className="text-sm text-gray-600">Keep as-is</span>
@@ -407,7 +421,7 @@ const ValidationPage = () => {
                                       }`}
                                       onClick={() => {
                                         if (d.action !== 'move') {
-                                          setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: ea.defaultTargetLevel });
+                                          setDecision(conflict, ea.eventId, { action: 'move', targetLevel: ea.defaultTargetLevel });
                                         }
                                       }}
                                     >
@@ -415,7 +429,7 @@ const ValidationPage = () => {
                                         type="radio"
                                         name={`action-${conflict.bib}-${ea.eventId}`}
                                         checked={d.action === 'move'}
-                                        onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: d.action === 'move' ? d.targetLevel : ea.defaultTargetLevel })}
+                                        onChange={() => setDecision(conflict, ea.eventId, { action: 'move', targetLevel: d.action === 'move' ? d.targetLevel : ea.defaultTargetLevel })}
                                         className="mt-0.5 shrink-0"
                                       />
                                       <div className="flex-1">
@@ -429,7 +443,7 @@ const ValidationPage = () => {
                                                 onClick={(e) => {
                                                   e.preventDefault();
                                                   e.stopPropagation();
-                                                  setDecision(conflict.bib, ea.eventId, { action: 'move', targetLevel: lvl });
+                                                  setDecision(conflict, ea.eventId, { action: 'move', targetLevel: lvl });
                                                 }}
                                                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                                                   d.targetLevel === lvl
@@ -458,7 +472,7 @@ const ValidationPage = () => {
                                       type="radio"
                                       name={`action-${conflict.bib}-${ea.eventId}`}
                                       checked={d.action === 'remove'}
-                                      onChange={() => setDecision(conflict.bib, ea.eventId, { action: 'remove' })}
+                                      onChange={() => setDecision(conflict, ea.eventId, { action: 'remove' })}
                                       className="shrink-0"
                                     />
                                     <span className="text-sm text-red-700 font-medium">Remove from this event</span>
@@ -475,7 +489,7 @@ const ValidationPage = () => {
                       {!isConfirming && (
                         <div className="flex justify-end">
                           <button
-                            onClick={() => setConfirmingBib(conflict.bib)}
+                            onClick={() => setConfirmingKey(ck)}
                             disabled={!hasAction}
                             className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
@@ -513,7 +527,7 @@ const ValidationPage = () => {
                           </ul>
                           <div className="flex gap-2 justify-end">
                             <button
-                              onClick={() => setConfirmingBib(null)}
+                              onClick={() => setConfirmingKey(null)}
                               disabled={applying}
                               className="px-4 py-2 bg-gray-200 text-gray-700 rounded border-none cursor-pointer text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
                             >

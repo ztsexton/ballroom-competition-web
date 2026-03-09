@@ -97,8 +97,10 @@ export interface RecallRules {
 
 export interface EntryValidation {
   enabled: boolean;
-  levelsAboveAllowed: number;  // How many levels above their inferred entry level they can enter
+  levelsAboveAllowed: number;  // How many levels above their inferred entry level they can enter (per style)
   levelRestrictionMode?: 'sublevel' | 'mainlevel';  // sublevel: Bronze 1→Bronze 2; mainlevel: Bronze→Silver (any sub-level within)
+  crossStyleValidation?: boolean;  // Also enforce a level range across all styles combined
+  crossStyleLevelsAboveAllowed?: number;  // Max levels above lowest across all styles (when crossStyleValidation enabled)
 }
 
 export interface PendingEntry {

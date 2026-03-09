@@ -55,8 +55,8 @@ const EntryValidationSection = ({ comp, savedMap, levels, saveField }: EntryVali
     <Section title="Entry Validation" defaultOpen={false} savedKey="entry" savedMap={savedMap}>
       <p className="text-gray-500 text-sm mb-3">
         Restrict which levels participants can enter based on their existing entries.
-        Level is inferred from what events they've signed up for. Entries outside their range
-        go to an approval queue for admin review.
+        Level restrictions are applied per style — a couple can be at different levels in different styles (e.g., Bronze in Smooth, Silver in Rhythm).
+        Entries outside their range go to an approval queue for admin review.
       </p>
 
       <Toggle
@@ -143,10 +143,10 @@ const EntryValidationSection = ({ comp, savedMap, levels, saveField }: EntryVali
           {levels.length > 0 && (
             <div className="bg-gray-100 border border-gray-200 rounded-md p-3">
               <strong className="text-xs uppercase tracking-wide text-gray-500">
-                Example
+                Per-Style Example
               </strong>
               <p className="text-[0.8125rem] text-gray-600 mt-1.5 mb-1">
-                A participant declaring <strong>{levels[0]}</strong> can enter:
+                Within each style, a participant starting at <strong>{levels[0]}</strong> can enter:
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {exampleAllowed.map((lvl, i) => (
@@ -158,8 +158,73 @@ const EntryValidationSection = ({ comp, savedMap, levels, saveField }: EntryVali
               {exampleAllowed.length === 0 && (
                 <p className="text-xs text-red-500 mt-1">No levels would be allowed with this configuration.</p>
               )}
+              <p className="text-xs text-gray-500 mt-2">
+                Each style (Smooth, Rhythm, Latin, etc.) is validated independently. A couple can be at different levels in different styles.
+              </p>
             </div>
           )}
+
+          {/* Cross-style validation */}
+          <div className="pt-3 border-t border-gray-200">
+            <Toggle
+              value={!!comp.entryValidation?.crossStyleValidation}
+              onChange={v => {
+                const validation = {
+                  ...comp.entryValidation!,
+                  crossStyleValidation: v,
+                  crossStyleLevelsAboveAllowed: comp.entryValidation?.crossStyleLevelsAboveAllowed ?? levelsAbove,
+                };
+                saveField('entryValidation', validation, 'entry');
+              }}
+              label={`Cross-Style Level Restriction ${comp.entryValidation?.crossStyleValidation ? 'Enabled' : 'Disabled'}`}
+            />
+            <p className="text-xs text-gray-500 mt-1 mb-2">
+              Optionally limit how many levels a couple can span across all styles combined.
+            </p>
+
+            {comp.entryValidation?.crossStyleValidation && (
+              <div className="space-y-3 mt-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">
+                    {mode === 'mainlevel' ? 'Cross-Style Main Levels Above Allowed' : 'Cross-Style Levels Above Allowed'}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    value={comp.entryValidation.crossStyleLevelsAboveAllowed ?? levelsAbove}
+                    onChange={e => {
+                      const val = e.target.value ? parseInt(e.target.value) : 0;
+                      const validation = { ...comp.entryValidation!, crossStyleLevelsAboveAllowed: val };
+                      saveField('entryValidation', validation, 'entry');
+                    }}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  />
+                  <small className="text-gray-500 text-sm mt-1 block">
+                    Maximum level range a couple can span when looking at all their entries across every style.
+                  </small>
+                </div>
+
+                {levels.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <strong className="text-xs uppercase tracking-wide text-amber-600">
+                      Cross-Style Example
+                    </strong>
+                    <p className="text-[0.8125rem] text-gray-600 mt-1.5 mb-1">
+                      Across all styles combined, a participant starting at <strong>{levels[0]}</strong> in any style can enter up to:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {getExampleAllowed(levels, comp.entryValidation.crossStyleLevelsAboveAllowed ?? levelsAbove, mode).map((lvl, i) => (
+                        <span key={i} className="bg-white border border-amber-300 rounded px-2 py-1 text-xs">
+                          {lvl}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </Section>
