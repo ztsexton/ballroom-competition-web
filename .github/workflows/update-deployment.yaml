@@ -34,7 +34,7 @@ jobs:
 
       - name: Update deployment.yaml image tag
         run: |
-          DEPLOY_FILE="k8s/apps/ballroom-competition-web/deployment.yaml"
+          DEPLOY_FILE="k8s/apps/base/ballroom-competition-web/deployment.yaml"
           NEW_TAG="${{ steps.tag.outputs.image_tag }}"
           NEW_IMAGE="zot.zachsexton.com/ballroom-competition-web:${NEW_TAG}"
 
@@ -51,7 +51,7 @@ jobs:
           cd .
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/apps/ballroom-competition-web/deployment.yaml
+          git add k8s/apps/base/ballroom-competition-web/deployment.yaml
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "chore: update ballroom-competition-web to ${{ steps.tag.outputs.image_tag }}"
           git push
