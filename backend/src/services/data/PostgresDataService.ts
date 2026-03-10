@@ -1173,6 +1173,12 @@ export class PostgresDataService implements IDataService {
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
     const methods = signInMethod ? JSON.stringify([signInMethod]) : '[]';
 
+    // Remove any placeholder row created by migration seeding (different uid, same email)
+    await this.pool.query(
+      'DELETE FROM users WHERE email = $1 AND uid != $2 AND uid LIKE $3',
+      [email, uid, 'pending-%']
+    );
+
     const { rows } = await this.pool.query(
       `INSERT INTO users (uid, email, display_name, first_name, last_name, photo_url, sign_in_methods, is_admin, created_at, last_login_at)
        VALUES ($1, $2, $3, $7, $8, $4, $9::jsonb, $5, $6, $6)
