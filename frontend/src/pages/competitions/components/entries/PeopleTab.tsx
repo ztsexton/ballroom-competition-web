@@ -10,16 +10,18 @@ interface PeopleTabProps {
   people: Person[];
   studios: Studio[];
   competitionId: number;
+  defaultStudioId?: number;
   onDataChange: () => void;
 }
 
-const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabProps) => {
+const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChange }: PeopleTabProps) => {
   const { showToast } = useToast();
+  const studioDefault: string | number = defaultStudioId || '';
   const [newPerson, setNewPerson] = useState({
     firstName: '', lastName: '', email: '',
     role: 'both' as Person['role'],
     status: 'student' as Person['status'],
-    studioId: '' as string | number,
+    studioId: studioDefault,
   });
   const [showMbImport, setShowMbImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
@@ -36,7 +38,7 @@ const PeopleTab = ({ people, studios, competitionId, onDataChange }: PeopleTabPr
         email: newPerson.email || undefined,
         competitionId,
       });
-      setNewPerson({ firstName: '', lastName: '', email: '', role: 'both', status: 'student', studioId: '' });
+      setNewPerson({ firstName: '', lastName: '', email: '', role: 'both', status: 'student', studioId: studioDefault });
       onDataChange();
     } catch {
       // Error handling delegated to parent via onDataChange

@@ -21,6 +21,7 @@ const PeoplePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<Person>>({});
+  const defaultStudioId = (activeCompetition?.type === 'STUDIO' && activeCompetition.studioId) ? activeCompetition.studioId : '';
   const [newPerson, setNewPerson] = useState({
     firstName: '',
     lastName: '',
@@ -28,7 +29,7 @@ const PeoplePage = () => {
     email: '',
     role: 'both' as Person['role'],
     status: 'student' as Person['status'],
-    studioId: '' as string | number
+    studioId: defaultStudioId as string | number
   });
 
   useEffect(() => {
@@ -77,7 +78,7 @@ const PeoplePage = () => {
         dateOfBirth: newPerson.dateOfBirth || undefined,
         competitionId: activeCompetition.id,
       });
-      setNewPerson({ firstName: '', lastName: '', dateOfBirth: '', email: '', role: 'both', status: 'student', studioId: '' });
+      setNewPerson({ firstName: '', lastName: '', dateOfBirth: '', email: '', role: 'both', status: 'student', studioId: defaultStudioId });
       loadPeople();
     } catch (error) {
       console.error('Failed to add person:', error);

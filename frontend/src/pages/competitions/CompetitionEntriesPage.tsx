@@ -77,6 +77,7 @@ const CompetitionEntriesPage = () => {
           people={people}
           studios={studios}
           competitionId={competitionId}
+          defaultStudioId={activeCompetition?.type === 'STUDIO' ? activeCompetition.studioId : undefined}
           onDataChange={loadAllData}
         />
       )}
