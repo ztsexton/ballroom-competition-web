@@ -21,6 +21,8 @@ vi.mock('../api/client', () => ({
   databaseApi: {
     getStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
     setStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
+    downloadBackup: vi.fn(),
+    restoreBackup: vi.fn(),
   },
   isStagingBypassActive: () => false,
   setStagingBypassActive: vi.fn(),

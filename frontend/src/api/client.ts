@@ -104,13 +104,16 @@ export const competitionsApi = {
       bib: number;
       leaderName: string;
       followerName: string;
-      entries: Array<{ eventId: number; eventName: string; level: string; inRange: boolean }>;
+      style: string | undefined;
+      conflictType: 'per-style' | 'cross-style';
+      entries: Array<{ eventId: number; eventName: string; level: string; style: string | undefined; inRange: boolean }>;
       currentRange: string;
       allowedRange: string[];
       entryActions: Array<{
         eventId: number;
         eventName: string;
         currentLevel: string;
+        style: string | undefined;
         validTargetLevels: string[];
         defaultTargetLevel: string;
       }>;
@@ -444,6 +447,14 @@ export const databaseApi = {
   seedValidation: () => api.post<{ success: boolean; message: string }>('/database/seed-validation'),
   getStagingBypass: () => api.get<{ enabled: boolean }>('/database/staging-bypass'),
   setStagingBypass: (enabled: boolean) => api.post<{ enabled: boolean }>('/database/staging-bypass', { enabled }),
+  downloadBackup: () => api.get('/database/backup', { responseType: 'blob' }),
+  restoreBackup: (file: File) => {
+    const form = new FormData();
+    form.append('backup', file);
+    return api.post<{ success: boolean; message: string; competitionsRestored: number; usersRestored: number }>(
+      '/database/restore', form, { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  },
 };
 
 // Settings API (site admin only)

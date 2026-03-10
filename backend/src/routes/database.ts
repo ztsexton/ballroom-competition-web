@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
+import { promisify } from 'util';
+import multer from 'multer';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
 import { authenticate, requireAdmin, AuthRequest, isStagingBypass, setStagingBypass } from '../middleware/auth';
 import { dataService } from '../services/dataService';
@@ -9,7 +12,12 @@ import { scoringService } from '../services/scoringService';
 import { scheduleService } from '../services/schedule';
 import { seedFinishedCompetition } from '../services/seedFinishedCompetition';
 import { seedValidationCompetition } from '../services/seedValidationCompetition';
+import { exportAllData, importAllData } from '../services/backupService';
 import logger from '../utils/logger';
+
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
+const upload = multer({ limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB max
 
 const router = Router();
 
@@ -143,6 +151,72 @@ router.post('/seed-validation', authenticate, requireAdmin, async (req: AuthRequ
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : 'Failed to seed validation competition',
+    });
+  }
+});
+
+// GET /api/database/backup — export all data as gzipped JSON (admin only)
+router.get('/backup', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    logger.info({ user: req.user?.email }, 'Starting full data backup');
+    const data = await exportAllData();
+    const json = JSON.stringify(data);
+    const compressed = await gzip(Buffer.from(json, 'utf-8'));
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    logger.info(
+      { user: req.user?.email, uncompressedKB: Math.round(json.length / 1024), compressedKB: Math.round(compressed.length / 1024) },
+      'Backup created'
+    );
+
+    res.setHeader('Content-Disposition', `attachment; filename="backup-${timestamp}.json.gz"`);
+    res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Length', compressed.length);
+    res.send(compressed);
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to create backup');
+    res.status(500).json({ error: 'Failed to create backup' });
+  }
+});
+
+// POST /api/database/restore — restore from a gzipped JSON backup (admin only)
+router.post('/restore', authenticate, requireAdmin, upload.single('backup'), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No backup file provided. Upload as multipart field "backup".' });
+    }
+
+    logger.info({ user: req.user?.email, fileSize: req.file.size, filename: req.file.originalname }, 'Starting data restore');
+
+    let json: string;
+    try {
+      // Try to decompress (gzipped file)
+      const decompressed = await gunzip(req.file.buffer);
+      json = decompressed.toString('utf-8');
+    } catch {
+      // Not gzipped — try as plain JSON
+      json = req.file.buffer.toString('utf-8');
+    }
+
+    const backup = JSON.parse(json);
+
+    if (!backup.version || !backup.competitions) {
+      return res.status(400).json({ error: 'Invalid backup file format' });
+    }
+
+    const result = await importAllData(backup);
+
+    logger.info({ user: req.user?.email, ...result }, 'Data restore complete');
+    res.json({
+      success: true,
+      message: `Restored ${result.competitionsRestored} competition(s) and ${result.usersRestored} user(s) from backup created ${backup.createdAt}`,
+      ...result,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to restore from backup');
+    res.status(500).json({
+      error: 'Failed to restore from backup',
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });

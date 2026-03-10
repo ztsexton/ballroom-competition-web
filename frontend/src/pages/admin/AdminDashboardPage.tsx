@@ -12,6 +12,8 @@ const AdminDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [stagingBypass, setStagingBypass] = useState(isStagingBypassActive());
   const [togglingBypass, setTogglingBypass] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<'idle' | 'downloading' | 'restoring'>('idle');
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAnyAdmin) {
@@ -131,6 +133,64 @@ const AdminDashboardPage = () => {
                   ? 'Auth bypassed — all requests treated as admin. Resets on restart.'
                   : 'Skip authentication for testing. Resets on server restart.'}
               </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-5">
+              <div className="font-semibold text-gray-800 mb-1">Backups</div>
+              <p className="text-sm text-gray-500 m-0 mb-3">Download a full backup or restore from one</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setBackupStatus('downloading');
+                    setRestoreMessage(null);
+                    try {
+                      const res = await databaseApi.downloadBackup();
+                      const blob = new Blob([res.data], { type: 'application/gzip' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json.gz`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch { /* ignore */ }
+                    setBackupStatus('idle');
+                  }}
+                  disabled={backupStatus !== 'idle'}
+                  className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+                >
+                  {backupStatus === 'downloading' ? 'Exporting...' : 'Download'}
+                </button>
+                <label className={`px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs font-medium transition-colors ${backupStatus !== 'idle' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-300'}`}>
+                  {backupStatus === 'restoring' ? 'Restoring...' : 'Restore'}
+                  <input
+                    type="file"
+                    accept=".gz,.json"
+                    className="hidden"
+                    disabled={backupStatus !== 'idle'}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!window.confirm('This will replace ALL existing data with the backup. Are you sure?')) {
+                        e.target.value = '';
+                        return;
+                      }
+                      setBackupStatus('restoring');
+                      setRestoreMessage(null);
+                      try {
+                        const res = await databaseApi.restoreBackup(file);
+                        setRestoreMessage(res.data.message);
+                        window.location.reload();
+                      } catch {
+                        setRestoreMessage('Restore failed. Check server logs.');
+                      }
+                      setBackupStatus('idle');
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+              {restoreMessage && (
+                <p className="text-xs text-green-700 mt-2 m-0">{restoreMessage}</p>
+              )}
             </div>
           </div>
         </div>
