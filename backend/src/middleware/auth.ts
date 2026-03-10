@@ -4,14 +4,20 @@ import { dataService } from '../services/dataService';
 import logger from '../utils/logger';
 import { User } from '../types';
 
-// In-memory staging bypass flag (does not persist through restarts)
+// Staging bypass: requires STAGING_MODE_ALLOWED=true env var to be set.
+// The in-memory flag does not persist through restarts.
 let stagingBypassEnabled = false;
 
+export function isStagingAllowed(): boolean {
+  return process.env.STAGING_MODE_ALLOWED === 'true';
+}
+
 export function isStagingBypass(): boolean {
-  return stagingBypassEnabled;
+  return isStagingAllowed() && stagingBypassEnabled;
 }
 
 export function setStagingBypass(enabled: boolean): void {
+  if (!isStagingAllowed()) return; // silently ignore if not allowed
   stagingBypassEnabled = enabled;
 }
 

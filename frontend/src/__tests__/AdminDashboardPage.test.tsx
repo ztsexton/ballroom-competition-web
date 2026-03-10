@@ -19,8 +19,8 @@ vi.mock('../api/client', () => ({
     getAll: (...args: unknown[]) => mockGetAllCompetitions(...args),
   },
   databaseApi: {
-    getStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
-    setStagingBypass: () => Promise.resolve({ data: { enabled: false } }),
+    getStagingBypass: () => Promise.resolve({ data: { enabled: false, allowed: false } }),
+    setStagingBypass: () => Promise.resolve({ data: { enabled: false, allowed: false } }),
     downloadBackup: vi.fn(),
     restoreBackup: vi.fn(),
   },

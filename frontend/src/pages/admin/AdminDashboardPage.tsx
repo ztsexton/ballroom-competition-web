@@ -11,6 +11,7 @@ const AdminDashboardPage = () => {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [stagingBypass, setStagingBypass] = useState(isStagingBypassActive());
+  const [stagingAllowed, setStagingAllowed] = useState(false);
   const [togglingBypass, setTogglingBypass] = useState(false);
   const [backupStatus, setBackupStatus] = useState<'idle' | 'downloading' | 'restoring'>('idle');
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
@@ -25,6 +26,17 @@ const AdminDashboardPage = () => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [isAnyAdmin]);
+
+  // Check if staging mode is allowed on this server
+  useEffect(() => {
+    if (!isAdmin) return;
+    databaseApi.getStagingBypass()
+      .then(res => {
+        setStagingAllowed(res.data.allowed);
+        setStagingBypass(res.data.enabled);
+      })
+      .catch(() => {});
+  }, [isAdmin]);
 
   if (loading || authLoading) {
     return (
@@ -103,37 +115,39 @@ const AdminDashboardPage = () => {
               <div className="font-semibold text-gray-800 mb-1">Judges</div>
               <p className="text-sm text-gray-500 m-0">Manage judge profiles and qualifications</p>
             </Link>
-            <div className={`rounded-lg shadow p-5 ${stagingBypass ? 'bg-amber-50 border border-amber-300' : 'bg-white'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="font-semibold text-gray-800">Staging Mode</div>
-                <button
-                  onClick={async () => {
-                    setTogglingBypass(true);
-                    try {
-                      const newValue = !stagingBypass;
-                      await databaseApi.setStagingBypass(newValue);
-                      setStagingBypassActive(newValue);
-                      setStagingBypass(newValue);
-                      setTogglingBypass(false);
-                      if (!newValue) {
-                        window.location.reload();
+            {stagingAllowed && (
+              <div className={`rounded-lg shadow p-5 ${stagingBypass ? 'bg-amber-50 border border-amber-300' : 'bg-white'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-semibold text-gray-800">Staging Mode</div>
+                  <button
+                    onClick={async () => {
+                      setTogglingBypass(true);
+                      try {
+                        const newValue = !stagingBypass;
+                        await databaseApi.setStagingBypass(newValue);
+                        setStagingBypassActive(newValue);
+                        setStagingBypass(newValue);
+                        setTogglingBypass(false);
+                        if (!newValue) {
+                          window.location.reload();
+                        }
+                      } catch {
+                        setTogglingBypass(false);
                       }
-                    } catch {
-                      setTogglingBypass(false);
-                    }
-                  }}
-                  disabled={togglingBypass}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer border-none disabled:opacity-50 ${stagingBypass ? 'bg-amber-500' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${stagingBypass ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+                    }}
+                    disabled={togglingBypass}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer border-none disabled:opacity-50 ${stagingBypass ? 'bg-amber-500' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${stagingBypass ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 m-0">
+                  {stagingBypass
+                    ? 'Auth bypassed — all requests treated as admin. Resets on restart.'
+                    : 'Skip authentication for testing. Resets on server restart.'}
+                </p>
               </div>
-              <p className="text-sm text-gray-500 m-0">
-                {stagingBypass
-                  ? 'Auth bypassed — all requests treated as admin. Resets on restart.'
-                  : 'Skip authentication for testing. Resets on server restart.'}
-              </p>
-            </div>
+            )}
             <div className="bg-white rounded-lg shadow p-5">
               <div className="font-semibold text-gray-800 mb-1">Backups</div>
               <p className="text-sm text-gray-500 m-0 mb-3">Download a full backup or restore from one</p>

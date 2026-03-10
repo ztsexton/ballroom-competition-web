@@ -15,6 +15,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [bypassLoading, setBypassLoading] = useState(false);
+  const [stagingAllowed, setStagingAllowed] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -22,6 +23,13 @@ const LoginPage = () => {
       navigate(redirectTo, { replace: true });
     }
   }, [user, loading, navigate, searchParams]);
+
+  // Check if staging mode is allowed on this server
+  useEffect(() => {
+    databaseApi.getStagingBypass()
+      .then(res => setStagingAllowed(res.data.allowed))
+      .catch(() => {}); // Not available = not allowed
+  }, []);
 
   const handleLogin = async () => {
     await login();
@@ -73,16 +81,18 @@ const LoginPage = () => {
           &larr; Back to home
         </Link>
 
-        {/* Staging bypass */}
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <button
-            onClick={handleStagingBypass}
-            disabled={bypassLoading}
-            className="text-xs text-gray-400 hover:text-amber-600 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-          >
-            {bypassLoading ? 'Enabling...' : 'Enter staging mode (skip auth)'}
-          </button>
-        </div>
+        {/* Staging bypass — only shown when STAGING_MODE_ALLOWED is set on the server */}
+        {stagingAllowed && (
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <button
+              onClick={handleStagingBypass}
+              disabled={bypassLoading}
+              className="text-xs text-gray-400 hover:text-amber-600 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+            >
+              {bypassLoading ? 'Enabling...' : 'Enter staging mode (skip auth)'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

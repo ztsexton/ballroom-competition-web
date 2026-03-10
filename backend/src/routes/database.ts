@@ -6,7 +6,7 @@ import zlib from 'zlib';
 import { promisify } from 'util';
 import multer from 'multer';
 import { runMigrations, checkDatabaseHealth } from '../services/migrationService';
-import { authenticate, requireAdmin, AuthRequest, isStagingBypass, setStagingBypass } from '../middleware/auth';
+import { authenticate, requireAdmin, AuthRequest, isStagingBypass, setStagingBypass, isStagingAllowed } from '../middleware/auth';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { scheduleService } from '../services/schedule';
@@ -223,18 +223,21 @@ router.post('/restore', authenticate, requireAdmin, upload.single('backup'), asy
 
 // GET /api/database/staging-bypass — check if staging auth bypass is active
 router.get('/staging-bypass', (_req: Request, res: Response) => {
-  res.json({ enabled: isStagingBypass() });
+  res.json({ enabled: isStagingBypass(), allowed: isStagingAllowed() });
 });
 
 // POST /api/database/staging-bypass — toggle staging auth bypass (no auth required so it can bootstrap itself)
 router.post('/staging-bypass', (req: Request, res: Response) => {
+  if (!isStagingAllowed()) {
+    return res.status(403).json({ error: 'Staging mode is not allowed on this server' });
+  }
   const { enabled } = req.body;
   if (typeof enabled !== 'boolean') {
     return res.status(400).json({ error: 'enabled must be a boolean' });
   }
   setStagingBypass(enabled);
   logger.info({ enabled }, 'Staging auth bypass toggled');
-  res.json({ enabled: isStagingBypass() });
+  res.json({ enabled: isStagingBypass(), allowed: true });
 });
 
 export default router;

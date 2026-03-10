@@ -64,8 +64,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     databaseApi.getStagingBypass()
       .then(res => {
-        setStagingBypass(res.data.enabled);
-        setStagingBypassActive(res.data.enabled);
+        // Only activate bypass if the server explicitly allows staging mode
+        const active = res.data.allowed && res.data.enabled;
+        setStagingBypass(active);
+        setStagingBypassActive(active);
       })
       .catch(() => {}) // Not available = not enabled
       .finally(() => setBypassChecked(true));
