@@ -1,4 +1,5 @@
-import { Competition } from '../../../../types';
+import { useState } from 'react';
+import { Competition, Event } from '../../../../types';
 import { DEFAULT_LEVELS } from '../../../../constants/levels';
 import { getAvailableStyles } from '../../../../constants/dances';
 import { RegistrationState } from '../../hooks/useRegistrationPanel';
@@ -14,7 +15,18 @@ const toggleBtnClass = (active: boolean) =>
     ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-500 text-white cursor-pointer font-semibold text-sm transition-all'
     : 'px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all';
 
+type EventSortMode = 'name' | 'entry-order';
+
+function sortEvents(events: Event[], mode: EventSortMode): Event[] {
+  if (mode === 'entry-order') {
+    return [...events].sort((a, b) => a.id - b.id);
+  }
+  // Default: alphabetical by name
+  return [...events].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: CoupleRegistrationPanelProps) => {
+  const [eventSort, setEventSort] = useState<EventSortMode>('name');
   const {
     regDesignation, setRegDesignation,
     regSyllabusType, setRegSyllabusType,
@@ -168,16 +180,33 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
       </div>
 
       <div className="mt-4 border-t border-gray-200 pt-3">
-        <h4 className="mt-0 mb-2 text-gray-600 text-sm">
-          Currently Entered ({coupleEventsLoading ? '...' : coupleEvents.length} events)
-        </h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="mt-0 mb-0 text-gray-600 text-sm">
+            Currently Entered ({coupleEventsLoading ? '...' : coupleEvents.length} events)
+          </h4>
+          {coupleEvents.length > 1 && (
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-gray-400">Sort:</span>
+              <button type="button"
+                onClick={() => setEventSort('name')}
+                className={`px-1.5 py-0.5 rounded cursor-pointer text-xs border-none ${eventSort === 'name' ? 'bg-primary-500 text-white font-semibold' : 'bg-gray-100 text-gray-600'}`}>
+                Name
+              </button>
+              <button type="button"
+                onClick={() => setEventSort('entry-order')}
+                className={`px-1.5 py-0.5 rounded cursor-pointer text-xs border-none ${eventSort === 'entry-order' ? 'bg-primary-500 text-white font-semibold' : 'bg-gray-100 text-gray-600'}`}>
+                Entry Order
+              </button>
+            </div>
+          )}
+        </div>
         {coupleEventsLoading ? (
           <p className="text-gray-400 text-sm">Loading...</p>
         ) : coupleEvents.length === 0 ? (
           <p className="text-gray-400 text-sm">Not entered in any events yet.</p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {coupleEvents.map(ev => (
+            {sortEvents(coupleEvents, eventSort).map(ev => (
               <div key={ev.id} className="flex justify-between items-center px-2 py-1.5 bg-white border border-gray-200 rounded text-sm">
                 <span>
                   <strong>{ev.name}</strong>
