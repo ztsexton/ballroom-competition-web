@@ -22,6 +22,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
     regStyle, setRegStyle,
     regDances, setRegDances,
     regScoringType, setRegScoringType,
+    regIsScholarship, setRegIsScholarship,
     regAgeCategory, setRegAgeCategory,
     availableAgeCategories,
     regLoading, regMessage, regError,
@@ -140,6 +141,20 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
                 {opt === 'standard' ? 'Standard' : 'Proficiency'}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Scholarship</label>
+          <div className="flex gap-1.5">
+            <button type="button" className={toggleBtnClass(!regIsScholarship)}
+              onClick={() => setRegIsScholarship(false)}>
+              Regular
+            </button>
+            <button type="button" className={toggleBtnClass(regIsScholarship)}
+              onClick={() => setRegIsScholarship(true)}>
+              Scholarship
+            </button>
           </div>
         </div>
 

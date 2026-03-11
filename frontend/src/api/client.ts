@@ -236,7 +236,7 @@ export const eventsApi = {
     competitionId: number; bib: number;
     designation?: string; syllabusType?: string; level?: string;
     style?: string; dances?: string[]; scoringType?: string;
-    ageCategory?: string;
+    isScholarship?: boolean; ageCategory?: string;
   }) => api.post<{ event: Event; created: boolean }>('/events/register', data),
   scratch: (eventId: number, bib: number) =>
     api.post<Event>(`/events/${eventId}/scratch`, { bib }),

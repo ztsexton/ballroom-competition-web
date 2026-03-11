@@ -12,6 +12,7 @@ export interface RegistrationState {
   regStyle: string;
   regDances: string[];
   regScoringType: 'standard' | 'proficiency';
+  regIsScholarship: boolean;
   regAgeCategory: string;
   availableAgeCategories: AgeCategory[];
   regLoading: boolean;
@@ -25,6 +26,7 @@ export interface RegistrationState {
   setRegStyle: (v: string) => void;
   setRegDances: React.Dispatch<React.SetStateAction<string[]>>;
   setRegScoringType: (v: 'standard' | 'proficiency') => void;
+  setRegIsScholarship: (v: boolean) => void;
   setRegAgeCategory: (v: string) => void;
   getDanceOptions: (style: string) => string[];
   openRegisterPanel: (bib: number) => void;
@@ -45,6 +47,7 @@ export function useRegistrationPanel(
   const [regScoringType, setRegScoringType] = useState<'standard' | 'proficiency'>(
     activeCompetition?.defaultScoringType || 'standard'
   );
+  const [regIsScholarship, setRegIsScholarship] = useState(false);
   const [regAgeCategory, setRegAgeCategory] = useState('');
   const [availableAgeCategories] = useState<AgeCategory[]>(
     activeCompetition?.ageCategories?.length ? activeCompetition.ageCategories : []
@@ -69,6 +72,7 @@ export function useRegistrationPanel(
     setRegStyle('');
     setRegDances([]);
     setRegScoringType(activeCompetition?.defaultScoringType || 'standard');
+    setRegIsScholarship(false);
     setRegMessage('');
     setRegError('');
     setCoupleEventsLoading(true);
@@ -97,6 +101,7 @@ export function useRegistrationPanel(
         style: regStyle || undefined,
         dances: regDances.length > 0 ? regDances : undefined,
         scoringType: regScoringType,
+        isScholarship: regIsScholarship || undefined,
         ageCategory: regAgeCategory || undefined,
       });
       const action = res.data.created ? 'Created & registered for' : 'Registered for';
@@ -130,6 +135,7 @@ export function useRegistrationPanel(
     regStyle,
     regDances,
     regScoringType,
+    regIsScholarship,
     regAgeCategory,
     availableAgeCategories,
     regLoading,
@@ -143,6 +149,7 @@ export function useRegistrationPanel(
     setRegStyle,
     setRegDances,
     setRegScoringType,
+    setRegIsScholarship,
     setRegAgeCategory,
     getDanceOptions,
     openRegisterPanel,

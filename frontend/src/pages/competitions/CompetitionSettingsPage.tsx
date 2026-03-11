@@ -337,6 +337,16 @@ const CompetitionSettingsPage = () => {
             saveField={saveField}
           />
 
+          <AgeCategoriesSection
+            comp={comp}
+            savedMap={savedMap}
+            organizations={organizations}
+            orgName={orgName}
+            ageCategories={ageCategories}
+            setAgeCategories={setAgeCategories}
+            saveAgeCategories={saveAgeCategories}
+          />
+
           <RecallAdvancementSection
             comp={comp}
             savedMap={savedMap}
@@ -426,16 +436,6 @@ const CompetitionSettingsPage = () => {
               </small>
             </div>
           </Section>
-
-          <AgeCategoriesSection
-            comp={comp}
-            savedMap={savedMap}
-            organizations={organizations}
-            orgName={orgName}
-            ageCategories={ageCategories}
-            setAgeCategories={setAgeCategories}
-            saveAgeCategories={saveAgeCategories}
-          />
         </>
       )}
 

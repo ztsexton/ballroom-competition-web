@@ -64,7 +64,7 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
 // Register a couple for a combination (find-or-create event)
 router.post('/register', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType, ageCategory } = req.body;
+    const { competitionId, bib, designation, syllabusType, level, style, dances, scoringType, isScholarship, ageCategory } = req.body;
 
     if (!competitionId || bib === undefined) {
       return res.status(400).json({ error: 'competitionId and bib are required' });
@@ -78,7 +78,7 @@ router.post('/register', requireAnyAdmin, async (req: AuthRequest, res: Response
     }
 
     const result = await registerCoupleForEvent(competitionId, bib, {
-      designation, syllabusType, level, style, dances, scoringType, ageCategory,
+      designation, syllabusType, level, style, dances, scoringType, isScholarship, ageCategory,
     });
 
     if (result.error) {

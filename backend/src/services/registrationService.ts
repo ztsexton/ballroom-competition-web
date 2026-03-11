@@ -8,6 +8,7 @@ export interface EventCombination {
   style?: string;
   dances?: string[];
   scoringType?: string;
+  isScholarship?: boolean;
   ageCategory?: string;
 }
 
@@ -23,6 +24,7 @@ function eventMatchesCombination(event: Event, combination: EventCombination, re
     (event.level || undefined) === (combination.level || undefined) &&
     (event.style || undefined) === (combination.style || undefined) &&
     (event.ageCategory || undefined) === (combination.ageCategory || undefined) &&
+    (!!event.isScholarship) === (!!combination.isScholarship) &&
     JSON.stringify(evtDances) === JSON.stringify(reqDances) &&
     evtScoringType === reqScoringType
   );
@@ -94,6 +96,7 @@ export async function checkPersonConflict(
 function buildEventName(combination: EventCombination, reqDances: string[]): string {
   const parts = [combination.designation, combination.ageCategory, combination.syllabusType, combination.level, combination.style].filter(Boolean);
   if (reqDances.length > 0) parts.push(reqDances.join('/'));
+  if (combination.isScholarship) parts.push('Scholarship');
   return parts.length > 0 ? parts.join(' ') : 'Untitled Event';
 }
 
@@ -151,7 +154,7 @@ export async function createSectionEvent(
     combination.style,
     reqDances.length > 0 ? reqDances : undefined,
     (combination.scoringType as 'standard' | 'proficiency') || 'standard',
-    undefined,
+    combination.isScholarship,
     combination.ageCategory,
   );
 
@@ -240,7 +243,7 @@ async function registerStandard(
     combination.style,
     reqDances.length > 0 ? reqDances : undefined,
     (combination.scoringType as 'standard' | 'proficiency') || 'standard',
-    undefined,
+    combination.isScholarship,
     combination.ageCategory,
   );
 

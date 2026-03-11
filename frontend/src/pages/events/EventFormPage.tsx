@@ -15,10 +15,6 @@ const toggleCls = (active: boolean) =>
     ? 'px-4 py-2 border-2 border-primary-500 rounded bg-primary-500 text-white cursor-pointer font-bold transition-all'
     : 'px-4 py-2 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal transition-all';
 
-const scholarshipCls = (active: boolean) =>
-  active
-    ? 'px-4 py-2 border-2 border-yellow-500 rounded bg-yellow-500 text-white cursor-pointer font-bold transition-all'
-    : 'px-4 py-2 border border-gray-300 rounded bg-white text-gray-700 cursor-pointer font-normal transition-all';
 
 const EventFormPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -311,14 +307,23 @@ const EventFormPage = () => {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-600 mb-2">Scholarship Event</label>
-              <button
-                type="button"
-                onClick={() => setIsScholarship(!isScholarship)}
-                className={scholarshipCls(isScholarship)}
-              >
-                {isScholarship ? 'Scholarship' : 'Not Scholarship'}
-              </button>
+              <label className="block text-sm font-semibold text-gray-600 mb-2">Scholarship</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsScholarship(false)}
+                  className={toggleCls(!isScholarship)}
+                >
+                  Regular
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsScholarship(true)}
+                  className={toggleCls(isScholarship)}
+                >
+                  Scholarship
+                </button>
+              </div>
             </div>
 
             <div className="mb-4">
