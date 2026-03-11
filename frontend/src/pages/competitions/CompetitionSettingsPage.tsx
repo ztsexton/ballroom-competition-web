@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { competitionsApi, organizationsApi, settingsApi } from '../../api/client';
+import { competitionsApi, organizationsApi, settingsApi, eventsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
@@ -360,6 +360,7 @@ const CompetitionSettingsPage = () => {
         <>
           <DanceOrderSettingsSection
             comp={comp}
+            competitionId={competitionId}
             savedMap={savedMap}
             saveField={saveField}
           />
@@ -470,10 +471,12 @@ const CompetitionSettingsPage = () => {
 
 function DanceOrderSettingsSection({
   comp,
+  competitionId,
   savedMap,
   saveField,
 }: {
   comp: { danceOrder?: Record<string, string[]> };
+  competitionId: number;
   savedMap: Record<string, boolean>;
   saveField: (field: string, value: unknown, section: string) => void;
 }) {
@@ -481,6 +484,9 @@ function DanceOrderSettingsSection({
   const styles = Object.keys(danceOrder).length > 0 ? Object.keys(danceOrder) : Object.keys(DEFAULT_DANCE_ORDER);
   const [newDanceInputs, setNewDanceInputs] = useState<Record<string, string>>({});
   const [newStyleInput, setNewStyleInput] = useState('');
+  const [editingStyle, setEditingStyle] = useState<string | null>(null);
+  const [editingStyleName, setEditingStyleName] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   const moveItem = (list: string[], fromIdx: number, direction: 'up' | 'down'): string[] => {
     const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
@@ -516,6 +522,36 @@ function DanceOrderSettingsSection({
     setNewDanceInputs(prev => ({ ...prev, [style]: '' }));
   };
 
+  const renameStyle = async (oldName: string) => {
+    const newName = editingStyleName.trim();
+    if (!newName || newName === oldName || styles.includes(newName)) {
+      setEditingStyle(null);
+      return;
+    }
+    setRenaming(true);
+    try {
+      // Update danceOrder: replace old key with new key, preserving order
+      const newOrder: Record<string, string[]> = {};
+      for (const key of Object.keys(danceOrder)) {
+        if (key === oldName) {
+          newOrder[newName] = danceOrder[oldName];
+        } else {
+          newOrder[key] = danceOrder[key];
+        }
+      }
+      updateOrder(newOrder);
+
+      // Bulk-update events that reference the old style name
+      const eventsRes = await eventsApi.getAll(competitionId);
+      const events = Object.values(eventsRes.data);
+      const toUpdate = events.filter(e => e.style === oldName);
+      await Promise.all(toUpdate.map(e => eventsApi.update(e.id, { style: newName })));
+    } finally {
+      setRenaming(false);
+      setEditingStyle(null);
+    }
+  };
+
   return (
     <Section title="Dance Order" savedKey="dances" savedMap={savedMap}>
       <p className="text-gray-500 text-sm mb-3">
@@ -527,8 +563,51 @@ function DanceOrderSettingsSection({
           return (
             <div key={style}>
               <div className="flex items-center gap-2 mb-1">
-                <label className="block text-sm font-semibold text-gray-700">{style}</label>
-                {!DEFAULT_STYLE_ORDER.includes(style) && (
+                {editingStyle === style ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editingStyleName}
+                      onChange={(e) => setEditingStyleName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); renameStyle(style); }
+                        if (e.key === 'Escape') setEditingStyle(null);
+                      }}
+                      disabled={renaming}
+                      autoFocus
+                      className="px-2 py-0.5 border border-primary-300 rounded text-sm font-semibold w-40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => renameStyle(style)}
+                      disabled={renaming}
+                      className="text-xs text-primary-600 hover:text-primary-800 cursor-pointer font-medium"
+                    >
+                      {renaming ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingStyle(null)}
+                      disabled={renaming}
+                      className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="block text-sm font-semibold text-gray-700">{style}</label>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingStyle(style); setEditingStyleName(style); }}
+                      className="text-xs text-gray-400 hover:text-primary-600 cursor-pointer"
+                      title="Rename style"
+                    >
+                      Rename
+                    </button>
+                  </>
+                )}
+                {editingStyle !== style && !DEFAULT_STYLE_ORDER.includes(style) && (
                   <button
                     type="button"
                     onClick={() => {
