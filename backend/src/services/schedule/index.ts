@@ -1,4 +1,4 @@
-import { CompetitionSchedule, HeatEntry, ScheduledHeat, AutoBreaksConfig } from '../../types';
+import { CompetitionSchedule, HeatEntry, ScheduledHeat, AutoBreaksConfig, LevelCombiningConfig } from '../../types';
 import { migrateSchedule, getDancesForHeat } from './helpers';
 import { generateSchedule } from './scheduleGenerator';
 import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigation';
@@ -7,7 +7,7 @@ import { jumpToHeat, resetToHeat, rerunHeat } from './heatStatus';
 import { autoAssignJudges } from './judgeAssignment';
 export { buildJudgeSchedule } from './judgeSchedule';
 import { detectBackToBack, detectPersonBackToBack, minimizeBackToBack, BackToBackConflict, PersonBackToBackConflict } from './backToBack';
-import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion } from './scheduleOptimizer';
+import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion, getConsolidationPreview, simulateCombined, ConsolidationPreview, ConsolidationStrategy, ConsolidationChanges, CombinedSimulationResult } from './scheduleOptimizer';
 
 export class ScheduleService {
   static migrateSchedule = migrateSchedule;
@@ -16,8 +16,8 @@ export class ScheduleService {
     return getDancesForHeat(heat);
   }
 
-  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[], danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig, deferFinals?: boolean): Promise<CompetitionSchedule> {
-    return generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks, deferFinals);
+  generateSchedule(competitionId: number, styleOrder?: string[], levelOrder?: string[], danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig, deferFinals?: boolean, eventTypeOrder?: string[], levelCombining?: LevelCombiningConfig): Promise<CompetitionSchedule> {
+    return generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks, deferFinals, eventTypeOrder, levelCombining);
   }
 
   autoAssignJudges(competitionId: number): Promise<void> {
@@ -116,6 +116,14 @@ export class ScheduleService {
 
   applySuggestions(competitionId: number, suggestionIndices: number[]): Promise<CompetitionSchedule | null> {
     return applySuggestions(competitionId, suggestionIndices);
+  }
+
+  getConsolidationPreview(competitionId: number): Promise<ConsolidationPreview> {
+    return getConsolidationPreview(competitionId);
+  }
+
+  simulateCombined(competitionId: number, strategyIds: string[]): Promise<CombinedSimulationResult> {
+    return simulateCombined(competitionId, strategyIds);
   }
 
   async minimizeBackToBack(competitionId: number): Promise<CompetitionSchedule | null> {

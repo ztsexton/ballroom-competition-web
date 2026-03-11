@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi, judgesApi, couplesApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, Judge, Couple } from '../../../types';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig, Judge, Couple } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
@@ -15,6 +15,7 @@ import MergePanel from './components/MergePanel';
 import ScheduleHeatTable from './components/ScheduleHeatTable';
 import ScheduleOptimizer from './components/ScheduleOptimizer';
 import JudgeScheduleView from './components/JudgeScheduleView';
+import ConsolidationPreview from './components/ConsolidationPreview';
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,8 @@ const SchedulePage = () => {
   const [danceOrder, setDanceOrder] = useState<Record<string, string[]>>(DEFAULT_DANCE_ORDER);
   const [autoBreaks, setAutoBreaks] = useState<AutoBreaksConfig>({ enabled: false });
   const [deferFinals, setDeferFinals] = useState(false);
+  const [eventTypeOrder, setEventTypeOrder] = useState<string[]>(['single', 'multi', 'scholarship']);
+  const [levelCombining, setLevelCombining] = useState<LevelCombiningConfig>({ mode: 'any' });
   const [judgeSettings, setJudgeSettings] = useState<JudgeSettings>({ defaultCount: 3, levelOverrides: {} });
   const [timingSettings, setTimingSettings] = useState<TimingSettings>({
     defaultDanceDurationSeconds: 75,
@@ -216,17 +219,22 @@ const SchedulePage = () => {
     return () => { cancelled = true; };
   }, [showBackToBack, excludePros, competitionId, schedule]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrides?: { timingSettings?: TimingSettings; levelCombining?: LevelCombiningConfig }) => {
     if (!competitionId) return;
     setGenerating(true);
     try {
       // Save day configs and dance order to competition
-      await competitionsApi.update(competitionId, {
+      const compUpdate = {
         numberOfDays: dayConfigs.length,
         scheduleDayConfigs: dayConfigs,
         danceOrder,
-      });
-      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, timingSettings, danceOrder, autoBreaks, deferFinals);
+      };
+      await competitionsApi.update(competitionId, compUpdate);
+      // Update local competition state so overflow detection works immediately
+      setCompetition(prev => prev ? { ...prev, ...compUpdate } : prev);
+      const effectiveTiming = overrides?.timingSettings ?? timingSettings;
+      const effectiveLevelCombining = overrides?.levelCombining ?? levelCombining;
+      const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, effectiveTiming, danceOrder, autoBreaks, deferFinals, eventTypeOrder, effectiveLevelCombining);
       setSchedule(res.data);
       setUnscheduledEvents([]);
       setError('');
@@ -495,6 +503,8 @@ const SchedulePage = () => {
             generating={generating}
             autoBreaks={autoBreaks}
             deferFinals={deferFinals}
+            eventTypeOrder={eventTypeOrder}
+            levelCombining={levelCombining}
             onStyleOrderChange={setStyleOrder}
             onLevelOrderChange={setLevelOrder}
             onDanceOrderChange={setDanceOrder}
@@ -503,6 +513,8 @@ const SchedulePage = () => {
             onDayConfigsChange={setDayConfigs}
             onAutoBreaksChange={setAutoBreaks}
             onDeferFinalsChange={setDeferFinals}
+            onEventTypeOrderChange={setEventTypeOrder}
+            onLevelCombiningChange={setLevelCombining}
             onGenerate={handleGenerate}
           />
         ) : (
@@ -610,6 +622,7 @@ const SchedulePage = () => {
               }
 
               const overflows = availableMinutes !== null && estimatedMinutes !== null && estimatedMinutes > availableMinutes;
+              const overflowMinutes = overflows ? estimatedMinutes! - availableMinutes! : 0;
               const borderColor = overflows ? 'border-amber-400' : 'border-green-200';
               const bgColor = overflows ? 'bg-amber-50' : 'bg-green-50';
               const textColor = overflows ? 'text-amber-900' : 'text-green-800';
@@ -637,10 +650,91 @@ const SchedulePage = () => {
                   )}
                   {overflows && (
                     <div className="mt-1 font-semibold text-amber-800">
-                      Schedule exceeds available time by {estimatedMinutes! - availableMinutes!} minutes
+                      Schedule exceeds available time by {overflowMinutes} minutes
                     </div>
                   )}
                 </div>
+              );
+            })()}
+
+            {/* Consolidation preview — always available, flagged when overflowing */}
+            {(() => {
+              let availableMinutes: number | null = null;
+              let windowStartStr: string | undefined;
+              let windowEndStr: string | undefined;
+              if (competition?.scheduleDayConfigs && competition.scheduleDayConfigs.length > 0) {
+                availableMinutes = 0;
+                windowStartStr = competition.scheduleDayConfigs[0].startTime;
+                windowEndStr = competition.scheduleDayConfigs[competition.scheduleDayConfigs.length - 1].endTime;
+                for (const dc of competition.scheduleDayConfigs) {
+                  const [sh, sm] = dc.startTime.split(':').map(Number);
+                  const [eh, em] = dc.endTime.split(':').map(Number);
+                  availableMinutes += (eh * 60 + em) - (sh * 60 + sm);
+                }
+              }
+              let estimatedMinutes: number | null = null;
+              let estStart: string | undefined;
+              let estEnd: string | undefined;
+              if (schedule.heatOrder.length > 0 && schedule.heatOrder[0].estimatedStartTime) {
+                estStart = schedule.heatOrder[0].estimatedStartTime;
+                const lastHeat = schedule.heatOrder[schedule.heatOrder.length - 1];
+                const finishTime = lastHeat?.estimatedStartTime && lastHeat?.estimatedDurationSeconds
+                  ? new Date(new Date(lastHeat.estimatedStartTime).getTime() + lastHeat.estimatedDurationSeconds * 1000)
+                  : null;
+                if (finishTime) estEnd = finishTime.toISOString();
+                const startMs = new Date(estStart).getTime();
+                estimatedMinutes = finishTime ? Math.round((finishTime.getTime() - startMs) / 60000) : null;
+              }
+              const overflows = availableMinutes !== null && estimatedMinutes !== null && estimatedMinutes > availableMinutes;
+              const overflowMinutes = overflows ? estimatedMinutes! - availableMinutes! : 0;
+
+              return (
+                <ConsolidationPreview
+                  competitionId={competitionId}
+                  overflowMinutes={overflowMinutes}
+                  isOverflowing={overflows}
+                  estimatedStartTime={estStart}
+                  estimatedEndTime={estEnd}
+                  windowStart={windowStartStr}
+                  windowEnd={windowEndStr}
+                  onApplyStrategy={async (changes) => {
+                    // Apply structural changes to competition
+                    const compUpdate: Record<string, unknown> = {};
+                    if (changes.maxCouplesPerHeat) {
+                      compUpdate.maxCouplesPerHeat = changes.maxCouplesPerHeat;
+                    }
+                    if (Object.keys(compUpdate).length > 0) {
+                      await competitionsApi.update(competitionId, compUpdate);
+                      setCompetition(prev => prev ? { ...prev, ...compUpdate } as typeof prev : prev);
+                    }
+
+                    // Build effective level combining
+                    const effectiveLevelCombining = changes.levelCombining ?? levelCombining;
+                    if (changes.levelCombining) {
+                      setLevelCombining(changes.levelCombining);
+                    }
+
+                    // Build effective timing with changes applied
+                    const effectiveTiming = { ...timingSettings };
+                    if (changes.defaultDanceDurationSeconds !== undefined) {
+                      effectiveTiming.defaultDanceDurationSeconds = changes.defaultDanceDurationSeconds;
+                    }
+                    if (changes.scholarshipDurationSeconds !== undefined) {
+                      effectiveTiming.scholarshipDurationSeconds = changes.scholarshipDurationSeconds;
+                    }
+                    if (changes.betweenHeatSeconds !== undefined) {
+                      effectiveTiming.betweenHeatSeconds = changes.betweenHeatSeconds;
+                    }
+                    if (changes.betweenDanceSeconds !== undefined) {
+                      effectiveTiming.betweenDanceSeconds = changes.betweenDanceSeconds;
+                    }
+                    // Update state for future renders
+                    setTimingSettings(effectiveTiming);
+
+                    // Regenerate with overrides to avoid stale state
+                    handleGenerate({ timingSettings: effectiveTiming, levelCombining: effectiveLevelCombining });
+                  }}
+                />
               );
             })()}
 

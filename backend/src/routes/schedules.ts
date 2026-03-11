@@ -39,7 +39,7 @@ router.get('/:competitionId', async (req: Request, res: Response) => {
 router.post('/:competitionId/generate', async (req: Request, res: Response) => {
   try {
     const competitionId = parseInt(req.params.competitionId);
-    const { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals } = req.body;
+    const { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals, eventTypeOrder, levelCombining } = req.body;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) {
@@ -55,7 +55,7 @@ router.post('/:competitionId/generate', async (req: Request, res: Response) => {
       await dataService.updateCompetition(competitionId, updates);
     }
 
-    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks, deferFinals);
+    const schedule = await scheduleService.generateSchedule(competitionId, styleOrder, levelOrder, danceOrder, autoBreaks, deferFinals, eventTypeOrder, levelCombining);
     res.status(201).json(schedule);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate schedule' });
@@ -625,6 +625,34 @@ router.post('/:competitionId/optimize', async (req: Request, res: Response) => {
     sseService.broadcastScheduleUpdate(competitionId);
   } catch (error) {
     res.status(500).json({ error: 'Failed to apply optimizations' });
+  }
+});
+
+// Get consolidation preview — simulates schedule with different configs
+router.get('/:competitionId/consolidation-preview', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const preview = await scheduleService.getConsolidationPreview(competitionId);
+    res.json(preview);
+  } catch (error) {
+    console.error('Consolidation preview error:', error);
+    res.status(500).json({ error: 'Failed to generate consolidation preview' });
+  }
+});
+
+// Simulate combined consolidation strategies
+router.post('/:competitionId/consolidation-simulate', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { strategyIds } = req.body;
+    if (!Array.isArray(strategyIds)) {
+      return res.status(400).json({ error: 'strategyIds must be an array' });
+    }
+    const result = await scheduleService.simulateCombined(competitionId, strategyIds);
+    res.json(result);
+  } catch (error) {
+    console.error('Consolidation simulate error:', error);
+    res.status(500).json({ error: 'Failed to simulate consolidation' });
   }
 });
 

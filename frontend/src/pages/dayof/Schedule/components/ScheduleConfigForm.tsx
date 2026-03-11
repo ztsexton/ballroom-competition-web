@@ -1,7 +1,32 @@
 import { useState } from 'react';
-import { JudgeSettings, TimingSettings, ScheduleDayConfig, AutoBreaksConfig } from '../../../../types';
+import { JudgeSettings, TimingSettings, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig } from '../../../../types';
 import { DEFAULT_STYLE_ORDER } from '../../../../constants/dances';
 import { moveItem } from '../utils';
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  single: 'Single Dance',
+  multi: 'Multi-Dance',
+  scholarship: 'Scholarship',
+};
+
+const LEVEL_COMBINING_LABELS: Record<string, { label: string; description: string }> = {
+  'same-level': {
+    label: 'Same level only',
+    description: 'Only combine events at the same level (e.g., Bronze with Bronze). Most heats but cleanest grouping.',
+  },
+  'prefer-same': {
+    label: 'Prefer same level',
+    description: 'Combine same-level first, then merge under-filled heats cross-level to save time.',
+  },
+  'any': {
+    label: 'Combine freely',
+    description: 'Combine any levels together to minimize total heats. Fastest schedule.',
+  },
+  'custom': {
+    label: 'Custom groups',
+    description: 'Define which levels can be combined together.',
+  },
+};
 
 interface ScheduleConfigFormProps {
   styleOrder: string[];
@@ -14,6 +39,8 @@ interface ScheduleConfigFormProps {
   generating?: boolean;
   autoBreaks: AutoBreaksConfig;
   deferFinals: boolean;
+  eventTypeOrder: string[];
+  levelCombining: LevelCombiningConfig;
   onStyleOrderChange: (order: string[]) => void;
   onLevelOrderChange: (order: string[]) => void;
   onDanceOrderChange: (order: Record<string, string[]>) => void;
@@ -22,6 +49,8 @@ interface ScheduleConfigFormProps {
   onDayConfigsChange: (configs: ScheduleDayConfig[]) => void;
   onAutoBreaksChange: (config: AutoBreaksConfig) => void;
   onDeferFinalsChange: (value: boolean) => void;
+  onEventTypeOrderChange: (order: string[]) => void;
+  onLevelCombiningChange: (config: LevelCombiningConfig) => void;
   onGenerate: () => void;
 }
 
@@ -61,6 +90,8 @@ export default function ScheduleConfigForm({
   generating,
   autoBreaks,
   deferFinals,
+  eventTypeOrder,
+  levelCombining,
   onStyleOrderChange,
   onLevelOrderChange,
   onDanceOrderChange,
@@ -69,6 +100,8 @@ export default function ScheduleConfigForm({
   onDayConfigsChange,
   onAutoBreaksChange,
   onDeferFinalsChange,
+  onEventTypeOrderChange,
+  onLevelCombiningChange,
   onGenerate,
 }: ScheduleConfigFormProps) {
   const numberOfDays = dayConfigs.length || 1;
@@ -107,6 +140,26 @@ export default function ScheduleConfigForm({
       {generating ? 'Generating Schedule...' : `Generate Schedule (${eventCount} events)`}
     </button>
   );
+
+  // Suggest level groups based on common patterns
+  const suggestLevelGroups = (): string[][] => {
+    // Group adjacent similar levels (e.g., Bronze 1-4 together, Silver 1-3 together)
+    const groups: string[][] = [];
+    let currentGroup: string[] = [];
+    let currentBase = '';
+
+    for (const level of levelOrder) {
+      const base = level.replace(/\s*\d+$/, ''); // "Bronze 1" → "Bronze"
+      if (base !== currentBase && currentGroup.length > 0) {
+        groups.push(currentGroup);
+        currentGroup = [];
+      }
+      currentBase = base;
+      currentGroup.push(level);
+    }
+    if (currentGroup.length > 0) groups.push(currentGroup);
+    return groups;
+  };
 
   return (
     <>
@@ -193,9 +246,38 @@ export default function ScheduleConfigForm({
         </div>
 
         <div className="mt-4">
+          <h4 className="mt-0 mb-2">Event Type Order</h4>
+          <p className="text-gray-500 text-sm mb-2">
+            Within each style, events are grouped by type in this order.
+          </p>
+          <div className="flex flex-col gap-1 max-w-[300px]">
+            {eventTypeOrder.map((type, idx) => (
+              <div key={type} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+                <span className="flex-1">{EVENT_TYPE_LABELS[type] || type}</span>
+                <button
+                  onClick={() => onEventTypeOrderChange(moveItem(eventTypeOrder, idx, 'up'))}
+                  disabled={idx === 0}
+                  className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                >
+                  ▲
+                </button>
+                <button
+                  onClick={() => onEventTypeOrderChange(moveItem(eventTypeOrder, idx, 'down'))}
+                  disabled={idx === eventTypeOrder.length - 1}
+                  className={`py-0.5 px-1.5 ${idx === eventTypeOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                >
+                  ▼
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4">
           <h4 className="mt-0 mb-2">Level Order</h4>
           <p className="text-gray-500 text-sm mb-2">
-            Within each style, events are sorted by level.
+            Within each style and event type, events are sorted by level.
           </p>
           <div className="flex flex-col gap-1 max-w-[300px]">
             {levelOrder.map((level, idx) => (
@@ -226,6 +308,135 @@ export default function ScheduleConfigForm({
           danceOrder={danceOrder}
           onDanceOrderChange={onDanceOrderChange}
         />
+      </ConfigSection>
+
+      <ConfigSection title="Heat Combining" description={LEVEL_COMBINING_LABELS[levelCombining.mode]?.label || 'Combine freely'}>
+        <p className="text-gray-500 text-sm mb-3">
+          Control how events at different levels are combined into shared heats to save time.
+          Events must share the same style, dance(s), and scoring type to be combined.
+          Couples are never duplicated within a heat.
+        </p>
+        <div className="flex flex-col gap-2 max-w-[500px]">
+          {(['same-level', 'prefer-same', 'any', 'custom'] as const).map(mode => (
+            <label key={mode} className="flex items-start gap-2.5 cursor-pointer p-2 rounded hover:bg-gray-50">
+              <input
+                type="radio"
+                name="levelCombining"
+                checked={levelCombining.mode === mode}
+                onChange={() => {
+                  if (mode === 'custom') {
+                    onLevelCombiningChange({ mode, customGroups: suggestLevelGroups() });
+                  } else {
+                    onLevelCombiningChange({ mode });
+                  }
+                }}
+                className="mt-0.5"
+              />
+              <div>
+                <span className="font-semibold text-sm">{LEVEL_COMBINING_LABELS[mode].label}</span>
+                <p className="text-gray-400 text-xs mt-0.5 mb-0">{LEVEL_COMBINING_LABELS[mode].description}</p>
+              </div>
+            </label>
+          ))}
+
+          {levelCombining.mode === 'custom' && levelCombining.customGroups && (
+            <div className="mt-2 ml-6">
+              <p className="text-sm text-gray-600 mb-2">
+                Levels in the same group will be combined into shared heats. Drag levels between groups or use the suggested grouping.
+              </p>
+              {levelCombining.customGroups.map((group, groupIdx) => (
+                <div key={groupIdx} className="mb-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-500">Group {groupIdx + 1}</span>
+                    {levelCombining.customGroups!.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newGroups = levelCombining.customGroups!.filter((_, i) => i !== groupIdx);
+                          // Move orphaned levels to the last group
+                          if (group.length > 0 && newGroups.length > 0) {
+                            newGroups[newGroups.length - 1] = [...newGroups[newGroups.length - 1], ...group];
+                          }
+                          onLevelCombiningChange({ ...levelCombining, customGroups: newGroups });
+                        }}
+                        className="text-xs text-red-400 hover:text-red-600 cursor-pointer bg-transparent border-none"
+                      >
+                        Remove group
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {group.map(level => (
+                      <span key={level} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded text-sm">
+                        {level}
+                        {/* Move to next group */}
+                        {groupIdx < levelCombining.customGroups!.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newGroups = levelCombining.customGroups!.map(g => [...g]);
+                              newGroups[groupIdx] = newGroups[groupIdx].filter(l => l !== level);
+                              newGroups[groupIdx + 1] = [level, ...newGroups[groupIdx + 1]];
+                              onLevelCombiningChange({ ...levelCombining, customGroups: newGroups.filter(g => g.length > 0) });
+                            }}
+                            className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-none"
+                            title={`Move to Group ${groupIdx + 2}`}
+                          >
+                            ▼
+                          </button>
+                        )}
+                        {groupIdx > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newGroups = levelCombining.customGroups!.map(g => [...g]);
+                              newGroups[groupIdx] = newGroups[groupIdx].filter(l => l !== level);
+                              newGroups[groupIdx - 1] = [...newGroups[groupIdx - 1], level];
+                              onLevelCombiningChange({ ...levelCombining, customGroups: newGroups.filter(g => g.length > 0) });
+                            }}
+                            className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-none"
+                            title={`Move to Group ${groupIdx}`}
+                          >
+                            ▲
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                    {group.length === 0 && <span className="text-xs text-gray-400 italic">Empty</span>}
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLevelCombiningChange({
+                      ...levelCombining,
+                      customGroups: [...(levelCombining.customGroups || []), []],
+                    });
+                  }}
+                  className="text-xs text-primary-500 cursor-pointer bg-transparent border-none hover:underline"
+                >
+                  + Add group
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLevelCombiningChange({ ...levelCombining, customGroups: suggestLevelGroups() })}
+                  className="text-xs text-primary-500 cursor-pointer bg-transparent border-none hover:underline"
+                >
+                  Reset to suggested
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLevelCombiningChange({ ...levelCombining, customGroups: levelOrder.map(l => [l]) })}
+                  className="text-xs text-primary-500 cursor-pointer bg-transparent border-none hover:underline"
+                >
+                  One per level
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </ConfigSection>
 
       <ConfigSection title="Judge Assignment" description={`Default: ${judgeSettings.defaultCount} judges`}>

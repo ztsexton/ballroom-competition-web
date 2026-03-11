@@ -318,6 +318,13 @@ export interface AutoBreaksConfig {
   durationMinutes?: number;
 }
 
+export type LevelCombiningMode = 'same-level' | 'prefer-same' | 'any' | 'custom';
+
+export interface LevelCombiningConfig {
+  mode: LevelCombiningMode;
+  customGroups?: string[][]; // e.g. [['Newcomer','Bronze'], ['Silver','Gold'], ['Open']]
+}
+
 export type EventRunStatus = 'pending' | 'scoring' | 'completed';
 
 export interface HeatEntry {

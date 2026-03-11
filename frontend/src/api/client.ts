@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, SiteSettings, JudgeScheduleEntry, PersonResultsResponse, PersonHeatListResponse } from '../types';
+import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, LevelCombiningConfig, SiteSettings, JudgeScheduleEntry, PersonResultsResponse, PersonHeatListResponse } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -248,8 +248,8 @@ export const eventsApi = {
 export const schedulesApi = {
   get: (competitionId: number) =>
     api.get<CompetitionSchedule>(`/schedules/${competitionId}`),
-  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig, deferFinals?: boolean) =>
-    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals }),
+  generate: (competitionId: number, styleOrder?: string[], levelOrder?: string[], judgeSettings?: JudgeSettings, timingSettings?: TimingSettings, danceOrder?: Record<string, string[]>, autoBreaks?: AutoBreaksConfig, deferFinals?: boolean, eventTypeOrder?: string[], levelCombining?: LevelCombiningConfig) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/generate`, { styleOrder, levelOrder, danceOrder, judgeSettings, timingSettings, autoBreaks, deferFinals, eventTypeOrder, levelCombining }),
   updateTiming: (competitionId: number, timingSettings: TimingSettings) =>
     api.patch<CompetitionSchedule>(`/schedules/${competitionId}/timing`, { timingSettings }),
   reorder: (competitionId: number, fromIndex: number, toIndex: number) =>
@@ -307,6 +307,46 @@ export const schedulesApi = {
     }>(`/schedules/${competitionId}/analyze`),
   optimize: (competitionId: number, suggestions: number[]) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/optimize`, { suggestions }),
+  getConsolidationPreview: (competitionId: number) =>
+    api.get<{
+      currentHeats: number;
+      currentDurationMinutes: number;
+      availableMinutes: number | null;
+      overflowMinutes: number;
+      strategies: Array<{
+        id: string;
+        name: string;
+        description: string;
+        category: 'couples' | 'levels' | 'timing' | 'combined';
+        changes: {
+          maxCouplesPerHeat?: number;
+          levelCombining?: LevelCombiningConfig;
+          defaultDanceDurationSeconds?: number;
+          scholarshipDurationSeconds?: number;
+          betweenHeatSeconds?: number;
+          betweenDanceSeconds?: number;
+        };
+        totalHeats: number;
+        estimatedDurationMinutes: number;
+        timeSavedMinutes: number;
+        fitsInWindow: boolean;
+      }>;
+    }>(`/schedules/${competitionId}/consolidation-preview`),
+  simulateCombined: (competitionId: number, strategyIds: string[]) =>
+    api.post<{
+      totalHeats: number;
+      estimatedDurationMinutes: number;
+      timeSavedMinutes: number;
+      fitsInWindow: boolean;
+      mergedChanges: {
+        maxCouplesPerHeat?: number;
+        levelCombining?: LevelCombiningConfig;
+        defaultDanceDurationSeconds?: number;
+        scholarshipDurationSeconds?: number;
+        betweenHeatSeconds?: number;
+        betweenDanceSeconds?: number;
+      };
+    }>(`/schedules/${competitionId}/consolidation-simulate`, { strategyIds }),
   getJudgeSchedule: (competitionId: number) =>
     api.get<{ entries: JudgeScheduleEntry[]; maxMinutesWithoutBreak: number }>(
       `/schedules/${competitionId}/judge-schedule`),

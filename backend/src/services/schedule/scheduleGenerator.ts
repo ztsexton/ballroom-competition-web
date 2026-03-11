@@ -1,4 +1,4 @@
-import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus, AutoBreaksConfig } from '../../types';
+import { CompetitionSchedule, ScheduledHeat, HeatEntry, Event, EventRunStatus, AutoBreaksConfig, LevelCombiningConfig } from '../../types';
 import { dataService } from '../dataService';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
@@ -7,13 +7,25 @@ import { autoAssignJudges } from './judgeAssignment';
 const DEFAULT_MAX_COUPLES_PER_HEAT = 6;
 
 /**
- * Returns event type priority for schedule ordering:
- * 0 = single dance, 1 = multi-dance, 2 = scholarship
+ * Returns the event type tag: 'single', 'multi', or 'scholarship'.
  */
-export function getEventTypePriority(event: Event): number {
-  if (event.isScholarship) return 2;
-  if (event.dances && event.dances.length > 1) return 1;
-  return 0;
+export function getEventTypeTag(event: Event): string {
+  if (event.isScholarship) return 'scholarship';
+  if (event.dances && event.dances.length > 1) return 'multi';
+  return 'single';
+}
+
+export const DEFAULT_EVENT_TYPE_ORDER = ['single', 'multi', 'scholarship'];
+
+/**
+ * Returns event type priority for schedule ordering.
+ * Uses configurable order, defaulting to single < multi < scholarship.
+ */
+export function getEventTypePriority(event: Event, eventTypeOrder?: string[]): number {
+  const order = eventTypeOrder || DEFAULT_EVENT_TYPE_ORDER;
+  const tag = getEventTypeTag(event);
+  const idx = order.indexOf(tag);
+  return idx === -1 ? order.length : idx;
 }
 
 /**
@@ -252,6 +264,8 @@ export async function generateSchedule(
   danceOrder?: Record<string, string[]>,
   autoBreaks?: AutoBreaksConfig,
   deferFinals?: boolean,
+  eventTypeOrder?: string[],
+  levelCombining?: LevelCombiningConfig,
 ): Promise<CompetitionSchedule> {
   const competition = await dataService.getCompetitionById(competitionId);
   const events = await dataService.getEvents(competitionId);
@@ -261,6 +275,7 @@ export async function generateSchedule(
   const levels = levelOrder || competition?.levels || DEFAULT_LEVELS;
   const maxCouples = competition?.maxCouplesPerHeat ?? DEFAULT_MAX_COUPLES_PER_HEAT;
   const dances = danceOrder || competition?.danceOrder || DEFAULT_DANCE_ORDER;
+  const typeOrder = eventTypeOrder || DEFAULT_EVENT_TYPE_ORDER;
 
   const sortByStyleLevel = (a: Event, b: Event) => {
     const sA = styles.indexOf(a.style || '');
@@ -269,9 +284,9 @@ export async function generateSchedule(
     const styleB = sB === -1 ? styles.length : sB;
     if (styleA !== styleB) return styleA - styleB;
 
-    // Event type: single < multi-dance < scholarship
-    const typeA = getEventTypePriority(a);
-    const typeB = getEventTypePriority(b);
+    // Event type: configurable order (default: single < multi-dance < scholarship)
+    const typeA = getEventTypePriority(a, typeOrder);
+    const typeB = getEventTypePriority(b, typeOrder);
     if (typeA !== typeB) return typeA - typeB;
 
     // Natural level order (low → high); person spacing handles cross-level conflicts
@@ -299,7 +314,7 @@ export async function generateSchedule(
     allItems = buildStyleBlockEntries(eventList, styles, sortByStyleLevel);
   }
 
-  const rawHeatOrder = mergeEntries(allItems, maxCouples);
+  const rawHeatOrder = mergeEntries(allItems, maxCouples, levelCombining);
   let heatOrder = await applyFloorHeatSplitting(rawHeatOrder, competitionId);
 
   if (autoBreaks?.enabled) {
@@ -460,14 +475,43 @@ function buildStyleBlockEntries(
 }
 
 /**
+ * Resolve the level group key for an event given a level combining config.
+ * - 'same-level': each level is its own group
+ * - 'any': all levels merge freely (empty key)
+ * - 'custom': levels in the same customGroup share a key
+ * - 'prefer-same': handled externally via two-pass merge
+ */
+function getLevelGroupKey(event: Event, config?: LevelCombiningConfig): string {
+  if (!config || config.mode === 'any') return '';
+  if (config.mode === 'same-level' || config.mode === 'prefer-same') return event.level || '';
+  if (config.mode === 'custom' && config.customGroups) {
+    const level = event.level || '';
+    for (let i = 0; i < config.customGroups.length; i++) {
+      if (config.customGroups[i].includes(level)) return `group-${i}`;
+    }
+    return level; // Not in any group — treat as its own
+  }
+  return event.level || '';
+}
+
+type PackedHeat = { entries: HeatEntry[]; totalCouples: number; bibs: Set<number>; level: string };
+
+/**
  * Merge compatible entries into multi-entry heats using first-fit-decreasing.
  * Two entries can share a heat if they have the same style, dances, and scoringType,
  * their combined couple count doesn't exceed maxCouples, and neither event has
  * multiple rounds (events with multiple rounds are never combined).
+ *
+ * Level combining controls how levels are merged:
+ * - 'same-level': only same-level events share a heat
+ * - 'prefer-same': same-level first, then cross-level for remaining
+ * - 'any': freely combine across levels (default)
+ * - 'custom': combine levels within admin-defined groups
  */
 export function mergeEntries(
   items: Array<{ entry: HeatEntry; event: Event; coupleCount: number }>,
   maxCouples: number,
+  levelCombining?: LevelCombiningConfig,
 ): ScheduledHeat[] {
   // Events with multiple rounds are never combined — give each its own heat
   const mergeable: typeof items = [];
@@ -484,11 +528,12 @@ export function mergeEntries(
     }
   }
 
-  // Group mergeable entries by key: (style, dances sorted, scoringType)
+  // Group mergeable entries by key: (style, dances sorted, scoringType, scholarship, levelGroup)
   const groups = new Map<string, typeof items>();
   for (const item of mergeable) {
     const danceKey = (item.event.dances || []).slice().sort().join(',');
-    const key = `${item.event.style || ''}|${danceKey}|${item.event.scoringType || 'standard'}|${item.event.isScholarship ? 'sch' : ''}`;
+    const levelKey = getLevelGroupKey(item.event, levelCombining);
+    const key = `${item.event.style || ''}|${danceKey}|${item.event.scoringType || 'standard'}|${item.event.isScholarship ? 'sch' : ''}|${levelKey}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
   }
@@ -496,12 +541,11 @@ export function mergeEntries(
   for (const [, group] of groups) {
     // Sort by couple count descending for first-fit-decreasing packing
     const sorted = [...group].sort((a, b) => b.coupleCount - a.coupleCount);
-
-    const heats: { entries: HeatEntry[]; totalCouples: number; bibs: Set<number> }[] = [];
+    const heats: PackedHeat[] = [];
 
     for (const item of sorted) {
-      let placed = false;
       const itemBibs = new Set(item.event.heats[0]?.bibs ?? []);
+      let placed = false;
       for (const heat of heats) {
         if (heat.totalCouples + item.coupleCount <= maxCouples) {
           // Section events with the same sectionGroupId must never share a heat
@@ -526,7 +570,7 @@ export function mergeEntries(
         }
       }
       if (!placed) {
-        heats.push({ entries: [item.entry], totalCouples: item.coupleCount, bibs: new Set(itemBibs) });
+        heats.push({ entries: [item.entry], totalCouples: item.coupleCount, bibs: new Set(itemBibs), level: item.event.level || '' });
       }
     }
 
@@ -535,6 +579,73 @@ export function mergeEntries(
         id: generateHeatId(),
         entries: heat.entries,
       });
+    }
+  }
+
+  // For 'prefer-same' mode: do a second pass trying to merge under-filled heats cross-level.
+  // Re-group result heats by base key (without level) and try to consolidate.
+  if (levelCombining?.mode === 'prefer-same') {
+    const baseGroups = new Map<string, number[]>(); // base key → indices into result
+    for (let i = 0; i < result.length; i++) {
+      const heat = result[i];
+      if (heat.isBreak || heat.entries.length === 0) continue;
+      const firstEntry = heat.entries[0];
+      const item = mergeable.find(m => m.entry.eventId === firstEntry.eventId);
+      if (!item) continue;
+      const danceKey = (item.event.dances || []).slice().sort().join(',');
+      const baseKey = `${item.event.style || ''}|${danceKey}|${item.event.scoringType || 'standard'}|${item.event.isScholarship ? 'sch' : ''}`;
+      if (!baseGroups.has(baseKey)) baseGroups.set(baseKey, []);
+      baseGroups.get(baseKey)!.push(i);
+    }
+
+    // Collect all indices to remove across all groups, then splice once at the end
+    const allToRemove = new Set<number>();
+
+    for (const [, indices] of baseGroups) {
+      if (indices.length < 2) continue;
+      // Try to merge smaller heats into larger ones
+      for (let i = indices.length - 1; i >= 0; i--) {
+        if (allToRemove.has(indices[i])) continue;
+        const srcHeat = result[indices[i]];
+        if (!srcHeat) continue;
+        const srcBibs = new Set<number>();
+        for (const entry of srcHeat.entries) {
+          const item = mergeable.find(m => m.entry.eventId === entry.eventId);
+          if (item) for (const bib of (item.event.heats[0]?.bibs ?? [])) srcBibs.add(bib);
+        }
+        const srcCount = srcBibs.size;
+
+        for (let j = 0; j < i; j++) {
+          if (allToRemove.has(indices[j])) continue;
+          const tgtHeat = result[indices[j]];
+          if (!tgtHeat) continue;
+          const tgtBibs = new Set<number>();
+          for (const entry of tgtHeat.entries) {
+            const item = mergeable.find(m => m.entry.eventId === entry.eventId);
+            if (item) for (const bib of (item.event.heats[0]?.bibs ?? [])) tgtBibs.add(bib);
+          }
+          const tgtCount = tgtBibs.size;
+
+          if (srcCount + tgtCount > maxCouples) continue;
+          // Check bib overlap
+          let hasOverlap = false;
+          for (const bib of srcBibs) {
+            if (tgtBibs.has(bib)) { hasOverlap = true; break; }
+          }
+          if (hasOverlap) continue;
+
+          // Merge src into tgt
+          tgtHeat.entries.push(...srcHeat.entries);
+          allToRemove.add(indices[i]);
+          break;
+        }
+      }
+    }
+
+    // Remove merged heats (in reverse order to preserve indices)
+    const sortedRemove = [...allToRemove].sort((a, b) => b - a);
+    for (const idx of sortedRemove) {
+      result.splice(idx, 1);
     }
   }
 
