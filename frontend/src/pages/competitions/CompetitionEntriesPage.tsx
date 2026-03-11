@@ -4,6 +4,8 @@ import { Person, Couple, Judge, Studio } from '../../types';
 import { useCompetition } from '../../context/CompetitionContext';
 import { Skeleton } from '../../components/Skeleton';
 import { PeopleTab, CouplesTab, JudgesTab } from './components/entries';
+import CompetitionImportPage from './CompetitionImportPage';
+import ValidationPage from './ValidationPage';
 
 const CompetitionEntriesPage = () => {
   const { activeCompetition } = useCompetition();
@@ -17,7 +19,7 @@ const CompetitionEntriesPage = () => {
   const [error, setError] = useState('');
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'people' | 'couples' | 'judges'>('people');
+  const [activeTab, setActiveTab] = useState<'people' | 'couples' | 'judges' | 'import' | 'validation'>('people');
 
   useEffect(() => {
     if (competitionId) loadAllData();
@@ -46,29 +48,29 @@ const CompetitionEntriesPage = () => {
 
   if (loading) return <div className="max-w-7xl mx-auto p-8"><Skeleton variant="card" className="mb-4" /><Skeleton variant="table" rows={5} cols={4} /></div>;
 
+  const tabCls = (tab: string) =>
+    `px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === tab ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`;
+
   return (
     <div className="max-w-7xl mx-auto p-8">
       {error && <div className="text-danger-500 mt-2 mb-4">{error}</div>}
 
       {/* Tab bar */}
       <div className="flex border-b border-gray-200 mb-4 gap-1">
-        <button
-          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'people' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
-          onClick={() => setActiveTab('people')}
-        >
+        <button className={tabCls('people')} onClick={() => setActiveTab('people')}>
           People ({people.length})
         </button>
-        <button
-          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'couples' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
-          onClick={() => setActiveTab('couples')}
-        >
+        <button className={tabCls('couples')} onClick={() => setActiveTab('couples')}>
           Couples ({couples.length})
         </button>
-        <button
-          className={`px-5 py-3 bg-transparent border-none cursor-pointer text-[0.95rem] transition-all ${activeTab === 'judges' ? 'text-primary-500 border-b-[3px] border-primary-500 font-semibold' : 'text-gray-500 border-b-[3px] border-transparent'}`}
-          onClick={() => setActiveTab('judges')}
-        >
+        <button className={tabCls('judges')} onClick={() => setActiveTab('judges')}>
           Judges ({judges.length})
+        </button>
+        <button className={tabCls('import')} onClick={() => setActiveTab('import')}>
+          Import
+        </button>
+        <button className={tabCls('validation')} onClick={() => setActiveTab('validation')}>
+          Validation
         </button>
       </div>
 
@@ -99,6 +101,10 @@ const CompetitionEntriesPage = () => {
           onDataChange={loadAllData}
         />
       )}
+
+      {activeTab === 'import' && <CompetitionImportPage />}
+
+      {activeTab === 'validation' && <ValidationPage />}
     </div>
   );
 };

@@ -229,7 +229,7 @@ const OnDeckPage = () => {
           <p>{error || 'No schedule found.'}</p>
           <button
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200 mt-4"
-            onClick={() => navigate(`/competitions/${competitionId}/heat-lists`)}
+            onClick={() => navigate(`/competitions/${competitionId}/schedule`)}
           >
             Go to Schedule
           </button>

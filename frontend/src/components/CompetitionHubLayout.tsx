@@ -8,16 +8,13 @@ import { Skeleton } from './Skeleton';
 const TABS = [
   { label: 'Overview', path: '', end: true },
   { label: 'Settings', path: 'settings', end: false },
-  { label: 'Import', path: 'import', end: false },
-  { label: 'Validation', path: 'validation', end: false },
   { label: 'Participants', path: 'participants', end: false },
   { label: 'Events', path: 'events', end: false },
-  { label: 'Heat Lists', path: 'heat-lists', end: false },
+  { label: 'Schedule', path: 'schedule', end: false },
   { label: 'Run', path: 'run', end: false },
   { label: 'Scrutineer', path: 'scrutineer', end: false },
   { label: 'Results', path: 'results', end: false },
   { label: 'Invoices', path: 'invoices', end: false },
-  { label: 'Day-Of', path: 'day-of', end: false },
 ];
 
 const CompetitionHubLayout = () => {

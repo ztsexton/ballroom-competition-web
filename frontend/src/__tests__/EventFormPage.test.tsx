@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Competition } from '../types';
 
@@ -62,6 +62,28 @@ describe('EventFormPage - Level Mode', () => {
     (globalThis as any).__mockActiveCompetition = null;
   });
 
+  it('should show event mode chooser in create mode', async () => {
+    (globalThis as any).__mockActiveCompetition = {
+      id: 1,
+      name: 'Test Comp',
+      type: 'NDCA',
+      date: '2026-06-01',
+      createdAt: '2026-01-01',
+    };
+
+    render(
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <EventFormPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Single Dance')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Multi-Dance')).toBeInTheDocument();
+  });
+
   it('should show Syllabus Type toggle when levelMode is combined', async () => {
     (globalThis as any).__mockActiveCompetition = {
       id: 1,
@@ -78,6 +100,12 @@ describe('EventFormPage - Level Mode', () => {
         <EventFormPage />
       </MemoryRouter>
     );
+
+    // Select event mode first
+    await waitFor(() => {
+      expect(screen.getByText('Single Dance')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Single Dance'));
 
     // Wait for the form to load
     await waitFor(() => {
@@ -109,7 +137,11 @@ describe('EventFormPage - Level Mode', () => {
       </MemoryRouter>
     );
 
-    // Wait for the form to load
+    await waitFor(() => {
+      expect(screen.getByText('Single Dance')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Single Dance'));
+
     await waitFor(() => {
       expect(screen.getByText('Scoring Type')).toBeInTheDocument();
     });
@@ -138,7 +170,11 @@ describe('EventFormPage - Level Mode', () => {
       </MemoryRouter>
     );
 
-    // Wait for the form to load
+    await waitFor(() => {
+      expect(screen.getByText('Single Dance')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Single Dance'));
+
     await waitFor(() => {
       expect(screen.getByText('Scoring Type')).toBeInTheDocument();
     });
@@ -164,7 +200,11 @@ describe('EventFormPage - Level Mode', () => {
       </MemoryRouter>
     );
 
-    // Wait for the form to load
+    await waitFor(() => {
+      expect(screen.getByText('Single Dance')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Single Dance'));
+
     await waitFor(() => {
       expect(screen.getByText('Scoring Type')).toBeInTheDocument();
     });

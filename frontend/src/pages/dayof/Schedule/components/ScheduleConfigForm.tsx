@@ -25,6 +25,31 @@ interface ScheduleConfigFormProps {
   onGenerate: () => void;
 }
 
+function ConfigSection({ title, description, defaultOpen, children }: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  return (
+    <div className="mt-4 border border-gray-200 rounded">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex justify-between items-center p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer text-left border-none"
+      >
+        <div>
+          <span className="font-semibold text-gray-800">{title}</span>
+          {description && !open && <span className="text-gray-400 text-sm ml-2">{description}</span>}
+        </div>
+        <span className="text-gray-400 text-sm">{open ? '\u25BC' : '\u25B6'}</span>
+      </button>
+      {open && <div className="p-4 pt-2 border-t border-gray-200">{children}</div>}
+    </div>
+  );
+}
+
 export default function ScheduleConfigForm({
   styleOrder,
   levelOrder,
@@ -66,122 +91,144 @@ export default function ScheduleConfigForm({
     );
     onDayConfigsChange(newConfigs);
   };
+
+  const generateButton = (
+    <button
+      className="px-6 py-3 bg-primary-500 text-white rounded border-none text-base font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+      onClick={onGenerate}
+      disabled={generating}
+    >
+      {generating && (
+        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      )}
+      {generating ? 'Generating Schedule...' : `Generate Schedule (${eventCount} events)`}
+    </button>
+  );
+
   return (
     <>
-      <div className="mt-6">
-        <h3>Style Order</h3>
-        <p className="text-gray-500 text-sm mb-2">
-          Events are grouped by style first. Use arrows to set priority.
-        </p>
-        <div className="flex flex-col gap-1 max-w-[300px]">
-          {styleOrder.map((style, idx) => (
-            <div key={style} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
-              <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
-              <span className="flex-1">{style}</span>
-              <button
-                onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'up'))}
-                disabled={idx === 0}
-                className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
-              >
-                ▲
-              </button>
-              <button
-                onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'down'))}
-                disabled={idx === styleOrder.length - 1}
-                className={`py-0.5 px-1.5 ${idx === styleOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
-              >
-                ▼
-              </button>
-              {!DEFAULT_STYLE_ORDER.includes(style) && (
+      <div className="mt-4 mb-2">
+        {generateButton}
+      </div>
+
+      <ConfigSection title="Event Ordering" description="Style, level, and dance order" defaultOpen>
+        <div>
+          <h4 className="mt-0 mb-2">Style Order</h4>
+          <p className="text-gray-500 text-sm mb-2">
+            Events are grouped by style first. Use arrows to set priority.
+          </p>
+          <div className="flex flex-col gap-1 max-w-[300px]">
+            {styleOrder.map((style, idx) => (
+              <div key={style} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+                <span className="flex-1">{style}</span>
                 <button
-                  onClick={() => {
-                    onStyleOrderChange(styleOrder.filter(s => s !== style));
-                    const newDanceOrder = { ...danceOrder };
-                    delete newDanceOrder[style];
-                    onDanceOrderChange(newDanceOrder);
-                  }}
-                  className="py-0 px-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
-                  title="Remove custom style"
+                  onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'up'))}
+                  disabled={idx === 0}
+                  className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
                 >
-                  ✕
+                  ▲
                 </button>
-              )}
-            </div>
-          ))}
-          <div className="flex gap-1.5 mt-1">
-            <input
-              type="text"
-              placeholder="Add custom style..."
-              value={newStyleInput}
-              onChange={(e) => setNewStyleInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
+                <button
+                  onClick={() => onStyleOrderChange(moveItem(styleOrder, idx, 'down'))}
+                  disabled={idx === styleOrder.length - 1}
+                  className={`py-0.5 px-1.5 ${idx === styleOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                >
+                  ▼
+                </button>
+                {!DEFAULT_STYLE_ORDER.includes(style) && (
+                  <button
+                    onClick={() => {
+                      onStyleOrderChange(styleOrder.filter(s => s !== style));
+                      const newDanceOrder = { ...danceOrder };
+                      delete newDanceOrder[style];
+                      onDanceOrderChange(newDanceOrder);
+                    }}
+                    className="py-0 px-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                    title="Remove custom style"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="flex gap-1.5 mt-1">
+              <input
+                type="text"
+                placeholder="Add custom style..."
+                value={newStyleInput}
+                onChange={(e) => setNewStyleInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const name = newStyleInput.trim();
+                    if (name && !styleOrder.includes(name)) {
+                      onStyleOrderChange([...styleOrder, name]);
+                      onDanceOrderChange({ ...danceOrder, [name]: [] });
+                      setNewStyleInput('');
+                    }
+                  }
+                }}
+                className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
                   const name = newStyleInput.trim();
                   if (name && !styleOrder.includes(name)) {
                     onStyleOrderChange([...styleOrder, name]);
                     onDanceOrderChange({ ...danceOrder, [name]: [] });
                     setNewStyleInput('');
                   }
-                }
-              }}
-              className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const name = newStyleInput.trim();
-                if (name && !styleOrder.includes(name)) {
-                  onStyleOrderChange([...styleOrder, name]);
-                  onDanceOrderChange({ ...danceOrder, [name]: [] });
-                  setNewStyleInput('');
-                }
-              }}
-              className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <h3>Level Order</h3>
-        <p className="text-gray-500 text-sm mb-2">
-          Within each style, events are sorted by level.
-        </p>
-        <div className="flex flex-col gap-1 max-w-[300px]">
-          {levelOrder.map((level, idx) => (
-            <div key={level} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
-              <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
-              <span className="flex-1">{level}</span>
-              <button
-                onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'up'))}
-                disabled={idx === 0}
-                className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                }}
+                className="px-2.5 py-1 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600"
               >
-                ▲
-              </button>
-              <button
-                onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'down'))}
-                disabled={idx === levelOrder.length - 1}
-                className={`py-0.5 px-1.5 ${idx === levelOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
-              >
-                ▼
+                Add
               </button>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
 
-      <DanceOrderSection
-        styleOrder={styleOrder}
-        danceOrder={danceOrder}
-        onDanceOrderChange={onDanceOrderChange}
-      />
+        <div className="mt-4">
+          <h4 className="mt-0 mb-2">Level Order</h4>
+          <p className="text-gray-500 text-sm mb-2">
+            Within each style, events are sorted by level.
+          </p>
+          <div className="flex flex-col gap-1 max-w-[300px]">
+            {levelOrder.map((level, idx) => (
+              <div key={level} className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                <span className="font-semibold min-w-[1.5rem]">{idx + 1}.</span>
+                <span className="flex-1">{level}</span>
+                <button
+                  onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'up'))}
+                  disabled={idx === 0}
+                  className={`py-0.5 px-1.5 ${idx === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                >
+                  ▲
+                </button>
+                <button
+                  onClick={() => onLevelOrderChange(moveItem(levelOrder, idx, 'down'))}
+                  disabled={idx === levelOrder.length - 1}
+                  className={`py-0.5 px-1.5 ${idx === levelOrder.length - 1 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
+                >
+                  ▼
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <div className="mt-6">
-        <h3>Judge Assignment</h3>
+        <DanceOrderSection
+          styleOrder={styleOrder}
+          danceOrder={danceOrder}
+          onDanceOrderChange={onDanceOrderChange}
+        />
+      </ConfigSection>
+
+      <ConfigSection title="Judge Assignment" description={`Default: ${judgeSettings.defaultCount} judges`}>
         <p className="text-gray-500 text-sm mb-2">
           Judges are automatically rotated across heats. Set the number required per level.
         </p>
@@ -237,10 +284,9 @@ export default function ScheduleConfigForm({
           </div>
           <p className="text-gray-400 text-xs mt-1">How long judges work before rotating out. Default: 45 min.</p>
         </div>
-      </div>
+      </ConfigSection>
 
-      <div className="mt-6">
-        <h3>Timing Settings</h3>
+      <ConfigSection title="Timing Settings" description={`${timingSettings.defaultDanceDurationSeconds}s per dance`}>
         <p className="text-gray-500 text-sm mb-2">
           Configure dance durations and transition times to estimate the schedule timeline.
         </p>
@@ -329,10 +375,9 @@ export default function ScheduleConfigForm({
             ))}
           </div>
         </div>
-      </div>
+      </ConfigSection>
 
-      <div className="mt-6">
-        <h3>Schedule Window</h3>
+      <ConfigSection title="Schedule Window" description={`${numberOfDays} day${numberOfDays > 1 ? 's' : ''}`}>
         <p className="text-gray-500 text-sm mb-2">
           Set competition duration to enable schedule optimization and overflow warnings.
         </p>
@@ -370,10 +415,9 @@ export default function ScheduleConfigForm({
             </div>
           ))}
         </div>
-      </div>
+      </ConfigSection>
 
-      <div className="mt-6">
-        <h3>Auto Breaks</h3>
+      <ConfigSection title="Auto Breaks" description={autoBreaks.enabled ? 'Enabled' : 'Disabled'}>
         <p className="text-gray-500 text-sm mb-2">
           Automatically insert breaks between style transitions in the generated schedule.
         </p>
@@ -419,10 +463,9 @@ export default function ScheduleConfigForm({
             </div>
           )}
         </div>
-      </div>
+      </ConfigSection>
 
-      <div className="mt-6">
-        <h3>Finals Scheduling</h3>
+      <ConfigSection title="Finals Scheduling" description={deferFinals ? 'Deferred' : 'Inline'}>
         <p className="text-gray-500 text-sm mb-2">
           Control where final rounds appear in the schedule.
         </p>
@@ -442,22 +485,10 @@ export default function ScheduleConfigForm({
               : 'Finals run within their style block, immediately after prelims.'}
           </p>
         </div>
-      </div>
+      </ConfigSection>
 
       <div className="mt-6">
-        <button
-          className="px-6 py-3 bg-primary-500 text-white rounded border-none text-base font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-          onClick={onGenerate}
-          disabled={generating}
-        >
-          {generating && (
-            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          )}
-          {generating ? 'Generating Schedule...' : `Generate Schedule (${eventCount} events)`}
-        </button>
+        {generateButton}
       </div>
     </>
   );
@@ -502,8 +533,8 @@ function DanceOrderSection({
   };
 
   return (
-    <div className="mt-6">
-      <h3>Dance Order</h3>
+    <div className="mt-4">
+      <h4 className="mt-0 mb-2">Dance Order</h4>
       <p className="text-gray-500 text-sm mb-2">
         Within each style and level, events are sorted by their first dance in this order.
       </p>
@@ -516,10 +547,10 @@ function DanceOrderSection({
               <button
                 type="button"
                 onClick={() => toggleStyle(style)}
-                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 cursor-pointer text-left font-semibold text-sm"
+                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 cursor-pointer text-left font-semibold text-sm border-none"
               >
                 <span>{style} ({dances.length})</span>
-                <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                <span className="text-gray-400">{isExpanded ? '\u25BC' : '\u25B6'}</span>
               </button>
               {isExpanded && (
                 <div className="p-2 pt-1">

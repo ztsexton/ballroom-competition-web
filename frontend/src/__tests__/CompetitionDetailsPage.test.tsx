@@ -113,7 +113,7 @@ describe('CompetitionDetailsPage', () => {
     expect(await screen.findByText('Setup Progress')).toBeInTheDocument();
     expect(screen.getByText('Participants')).toBeInTheDocument();
     expect(screen.getByText('Events')).toBeInTheDocument();
-    expect(screen.getByText('Heat Lists')).toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
     expect(screen.getByText('Run')).toBeInTheDocument();
     expect(screen.getByText('Results')).toBeInTheDocument();
   });

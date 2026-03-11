@@ -23,6 +23,12 @@ const CouplesPage = () => {
   const [deleteBib, setDeleteBib] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Inline person creation state
+  const [leaderMode, setLeaderMode] = useState<'select' | 'new'>('select');
+  const [followerMode, setFollowerMode] = useState<'select' | 'new'>('select');
+  const [newLeader, setNewLeader] = useState({ firstName: '', lastName: '' });
+  const [newFollower, setNewFollower] = useState({ firstName: '', lastName: '' });
+
   useEffect(() => {
     if (activeCompetition) {
       loadData();
@@ -54,13 +60,58 @@ const CouplesPage = () => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!leaderId || !followerId || !activeCompetition) return;
+    if (!activeCompetition) return;
 
     setSubmitting(true);
     try {
-      await couplesApi.create(parseInt(leaderId), parseInt(followerId), activeCompetition.id);
+      let resolvedLeaderId = leaderId ? parseInt(leaderId) : 0;
+      let resolvedFollowerId = followerId ? parseInt(followerId) : 0;
+
+      if (leaderMode === 'new') {
+        if (!newLeader.firstName.trim() || !newLeader.lastName.trim()) {
+          setError('Leader first and last name are required');
+          setSubmitting(false);
+          return;
+        }
+        const res = await peopleApi.create({
+          firstName: newLeader.firstName.trim(),
+          lastName: newLeader.lastName.trim(),
+          role: 'leader',
+          competitionId: activeCompetition.id,
+          status: 'student',
+        });
+        resolvedLeaderId = res.data.id;
+      }
+
+      if (followerMode === 'new') {
+        if (!newFollower.firstName.trim() || !newFollower.lastName.trim()) {
+          setError('Follower first and last name are required');
+          setSubmitting(false);
+          return;
+        }
+        const res = await peopleApi.create({
+          firstName: newFollower.firstName.trim(),
+          lastName: newFollower.lastName.trim(),
+          role: 'follower',
+          competitionId: activeCompetition.id,
+          status: 'student',
+        });
+        resolvedFollowerId = res.data.id;
+      }
+
+      if (!resolvedLeaderId || !resolvedFollowerId) {
+        setError('Please select or create both a leader and follower');
+        setSubmitting(false);
+        return;
+      }
+
+      await couplesApi.create(resolvedLeaderId, resolvedFollowerId, activeCompetition.id);
       setLeaderId('');
       setFollowerId('');
+      setLeaderMode('select');
+      setFollowerMode('select');
+      setNewLeader({ firstName: '', lastName: '' });
+      setNewFollower({ firstName: '', lastName: '' });
       setError('');
       loadData();
     } catch (error: any) {
@@ -139,28 +190,70 @@ const CouplesPage = () => {
           <form onSubmit={handleAdd} className="mt-6">
             <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
               <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Leader</label>
-                <select value={leaderId} onChange={e => setLeaderId(e.target.value)} required
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                  <option value="">Select Leader</option>
-                  {leaders.map(person => (
-                    <option key={person.id} value={person.id}>
-                      {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-semibold text-gray-600">Leader</label>
+                  {leaderMode === 'new' && (
+                    <button type="button" onClick={() => { setLeaderMode('select'); setNewLeader({ firstName: '', lastName: '' }); }}
+                      className="text-xs text-primary-500 bg-transparent border-none cursor-pointer hover:underline">Cancel</button>
+                  )}
+                </div>
+                {leaderMode === 'select' ? (
+                  <select value={leaderId} onChange={e => {
+                    if (e.target.value === '__new__') { setLeaderMode('new'); setLeaderId(''); }
+                    else setLeaderId(e.target.value);
+                  }} required={leaderMode === 'select'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                    <option value="">Select Leader</option>
+                    {leaders.map(person => (
+                      <option key={person.id} value={person.id}>
+                        {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Create New Person</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <input type="text" placeholder="First name" value={newLeader.firstName}
+                      onChange={e => setNewLeader(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" required />
+                    <input type="text" placeholder="Last name" value={newLeader.lastName}
+                      onChange={e => setNewLeader(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" required />
+                  </div>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Follower</label>
-                <select value={followerId} onChange={e => setFollowerId(e.target.value)} required
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                  <option value="">Select Follower</option>
-                  {followers.map(person => (
-                    <option key={person.id} value={person.id}>
-                      {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-semibold text-gray-600">Follower</label>
+                  {followerMode === 'new' && (
+                    <button type="button" onClick={() => { setFollowerMode('select'); setNewFollower({ firstName: '', lastName: '' }); }}
+                      className="text-xs text-primary-500 bg-transparent border-none cursor-pointer hover:underline">Cancel</button>
+                  )}
+                </div>
+                {followerMode === 'select' ? (
+                  <select value={followerId} onChange={e => {
+                    if (e.target.value === '__new__') { setFollowerMode('new'); setFollowerId(''); }
+                    else setFollowerId(e.target.value);
+                  }} required={followerMode === 'select'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                    <option value="">Select Follower</option>
+                    {followers.map(person => (
+                      <option key={person.id} value={person.id}>
+                        {person.firstName} {person.lastName} {person.status === 'professional' ? '(Pro)' : ''}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Create New Person</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <input type="text" placeholder="First name" value={newFollower.firstName}
+                      onChange={e => setNewFollower(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" required />
+                    <input type="text" placeholder="Last name" value={newFollower.lastName}
+                      onChange={e => setNewFollower(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" required />
+                  </div>
+                )}
               </div>
               <button type="submit" disabled={submitting} className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Adding...' : 'Add Couple'}</button>
             </div>

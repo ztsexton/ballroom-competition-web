@@ -113,9 +113,9 @@ const CompetitionDetailsPage = () => {
       done: counts.events > 0,
     },
     {
-      label: 'Heat Lists',
+      label: 'Schedule',
       detail: counts.scheduleExists ? `${counts.scheduleHeats} heats generated` : 'Not yet created',
-      link: 'heat-lists',
+      link: 'schedule',
       done: counts.scheduleExists,
     },
     {
