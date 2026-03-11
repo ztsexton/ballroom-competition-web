@@ -497,10 +497,11 @@ export function mergeEntries(
     // Sort by couple count descending for first-fit-decreasing packing
     const sorted = [...group].sort((a, b) => b.coupleCount - a.coupleCount);
 
-    const heats: { entries: HeatEntry[]; totalCouples: number }[] = [];
+    const heats: { entries: HeatEntry[]; totalCouples: number; bibs: Set<number> }[] = [];
 
     for (const item of sorted) {
       let placed = false;
+      const itemBibs = new Set(item.event.heats[0]?.bibs ?? []);
       for (const heat of heats) {
         if (heat.totalCouples + item.coupleCount <= maxCouples) {
           // Section events with the same sectionGroupId must never share a heat
@@ -511,14 +512,21 @@ export function mergeEntries(
             });
             if (hasGroupConflict) continue;
           }
+          // Never merge events that share the same couple (bib overlap)
+          let hasOverlap = false;
+          for (const bib of itemBibs) {
+            if (heat.bibs.has(bib)) { hasOverlap = true; break; }
+          }
+          if (hasOverlap) continue;
           heat.entries.push(item.entry);
           heat.totalCouples += item.coupleCount;
+          for (const bib of itemBibs) heat.bibs.add(bib);
           placed = true;
           break;
         }
       }
       if (!placed) {
-        heats.push({ entries: [item.entry], totalCouples: item.coupleCount });
+        heats.push({ entries: [item.entry], totalCouples: item.coupleCount, bibs: new Set(itemBibs) });
       }
     }
 
