@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { JudgeSettings, TimingSettings, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig } from '../../../../types';
+import { JudgeSettings, JudgeBreakConfig, TimingSettings, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig } from '../../../../types';
 import { DEFAULT_STYLE_ORDER } from '../../../../constants/dances';
 import { moveItem } from '../utils';
 
@@ -494,6 +494,136 @@ export default function ScheduleConfigForm({
             />
           </div>
           <p className="text-gray-400 text-xs mt-1">How long judges work before rotating out. Default: 45 min.</p>
+        </div>
+      </ConfigSection>
+
+      <ConfigSection title="Judge Break Schedule" description={judgeSettings.breakConfig?.mode === 'main-fillin' ? 'Main / Fill-in' : 'Standard Rotation'}>
+        <p className="text-gray-500 text-sm mb-3">
+          Configure how judge breaks are scheduled. In Main/Fill-in mode, designate main judges and fill-in judges on the Judges page, then generate variant schedules.
+        </p>
+        <div className="flex flex-col gap-3 max-w-[400px]">
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="radio"
+                name="breakMode"
+                checked={!judgeSettings.breakConfig || judgeSettings.breakConfig.mode === 'rotation'}
+                onChange={() => onJudgeSettingsChange({ ...judgeSettings, breakConfig: undefined })}
+              />
+              <div>
+                <span className="font-semibold text-sm">Standard Rotation</span>
+                <p className="text-gray-400 text-xs mt-0.5 mb-0">Judges rotate automatically based on target stint time.</p>
+              </div>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="radio"
+                name="breakMode"
+                checked={judgeSettings.breakConfig?.mode === 'main-fillin'}
+                onChange={() => onJudgeSettingsChange({
+                  ...judgeSettings,
+                  breakConfig: {
+                    enabled: true,
+                    mode: 'main-fillin',
+                    maxSessionMinutes: judgeSettings.breakConfig?.maxSessionMinutes ?? 60,
+                    breakDurationMinutes: judgeSettings.breakConfig?.breakDurationMinutes ?? 15,
+                    lunchBreak: judgeSettings.breakConfig?.lunchBreak,
+                  },
+                })}
+              />
+              <div>
+                <span className="font-semibold text-sm">Main / Fill-in</span>
+                <p className="text-gray-400 text-xs mt-0.5 mb-0">Designate main judges and a fill-in who covers during breaks. Choose from generated schedule options.</p>
+              </div>
+            </label>
+          </div>
+
+          {judgeSettings.breakConfig?.mode === 'main-fillin' && (() => {
+            const bc = judgeSettings.breakConfig!;
+            const updateBreakConfig = (updates: Partial<JudgeBreakConfig>) =>
+              onJudgeSettingsChange({ ...judgeSettings, breakConfig: { ...bc, ...updates } });
+
+            return (
+              <div className="ml-6 flex flex-col gap-2 border-l-2 border-primary-200 pl-4">
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 text-sm font-semibold">Max session (min)</label>
+                  <input
+                    type="number"
+                    min={10}
+                    value={bc.maxSessionMinutes}
+                    onChange={(e) => updateBreakConfig({ maxSessionMinutes: Math.max(10, parseInt(e.target.value) || 60) })}
+                    className="w-20 p-1.5 rounded border border-gray-200 text-center"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 text-sm font-semibold">Break duration (min)</label>
+                  <input
+                    type="number"
+                    min={5}
+                    value={bc.breakDurationMinutes}
+                    onChange={(e) => updateBreakConfig({ breakDurationMinutes: Math.max(5, parseInt(e.target.value) || 15) })}
+                    className="w-20 p-1.5 rounded border border-gray-200 text-center"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer mt-1">
+                  <input
+                    type="checkbox"
+                    checked={bc.lunchBreak?.enabled ?? false}
+                    onChange={(e) => updateBreakConfig({
+                      lunchBreak: {
+                        enabled: e.target.checked,
+                        durationMinutes: bc.lunchBreak?.durationMinutes ?? 45,
+                        earliestTime: bc.lunchBreak?.earliestTime ?? '11:30',
+                        latestTime: bc.lunchBreak?.latestTime ?? '13:00',
+                      },
+                    })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-semibold">Lunch break</span>
+                </label>
+
+                {bc.lunchBreak?.enabled && (
+                  <div className="ml-6 flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 text-sm text-gray-600">Duration (min)</label>
+                      <input
+                        type="number"
+                        min={15}
+                        value={bc.lunchBreak.durationMinutes}
+                        onChange={(e) => updateBreakConfig({
+                          lunchBreak: { ...bc.lunchBreak!, durationMinutes: Math.max(15, parseInt(e.target.value) || 45) },
+                        })}
+                        className="w-20 p-1.5 rounded border border-gray-200 text-center"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 text-sm text-gray-600">Earliest</label>
+                      <input
+                        type="time"
+                        value={bc.lunchBreak.earliestTime || '11:30'}
+                        onChange={(e) => updateBreakConfig({
+                          lunchBreak: { ...bc.lunchBreak!, earliestTime: e.target.value },
+                        })}
+                        className="p-1.5 rounded border border-gray-200"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 text-sm text-gray-600">Latest</label>
+                      <input
+                        type="time"
+                        value={bc.lunchBreak.latestTime || '13:00'}
+                        onChange={(e) => updateBreakConfig({
+                          lunchBreak: { ...bc.lunchBreak!, latestTime: e.target.value },
+                        })}
+                        className="p-1.5 rounded border border-gray-200"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </ConfigSection>
 

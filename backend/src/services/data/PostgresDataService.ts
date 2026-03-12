@@ -112,6 +112,7 @@ export class PostgresDataService implements IDataService {
       competitionId: row.competition_id,
       isChairman: row.is_chairman ?? undefined,
       profileId: row.profile_id ?? undefined,
+      judgeRole: row.judge_role ?? undefined,
     };
   }
 
@@ -655,13 +656,7 @@ export class PostgresDataService implements IDataService {
     );
     const map = new Map<number, Judge>();
     for (const row of rows) {
-      map.set(row.id, {
-        id: row.id,
-        name: row.name,
-        judgeNumber: row.judge_number,
-        competitionId: row.competition_id,
-        isChairman: row.is_chairman || false,
-      });
+      map.set(row.id, this.judgeFromRow(row));
     }
     return map;
   }
@@ -775,6 +770,10 @@ export class PostgresDataService implements IDataService {
     if (updates.profileId !== undefined) {
       setClauses.push(`profile_id = $${paramIdx++}`);
       values.push(updates.profileId || null);
+    }
+    if (updates.judgeRole !== undefined) {
+      setClauses.push(`judge_role = $${paramIdx++}`);
+      values.push(updates.judgeRole || null);
     }
 
     if (setClauses.length === 0) return existing;

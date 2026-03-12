@@ -1,4 +1,4 @@
-import { CompetitionSchedule, HeatEntry, ScheduledHeat, AutoBreaksConfig, LevelCombiningConfig } from '../../types';
+import { CompetitionSchedule, HeatEntry, ScheduledHeat, AutoBreaksConfig, LevelCombiningConfig, ScheduleVariant } from '../../types';
 import { migrateSchedule, getDancesForHeat } from './helpers';
 import { generateSchedule } from './scheduleGenerator';
 import { advanceHeat, goBackHeat, advanceDance, backDance } from './heatNavigation';
@@ -8,6 +8,7 @@ import { autoAssignJudges } from './judgeAssignment';
 export { buildJudgeSchedule } from './judgeSchedule';
 import { detectBackToBack, detectPersonBackToBack, minimizeBackToBack, BackToBackConflict, PersonBackToBackConflict } from './backToBack';
 import { analyzeSchedule, applySuggestions, ScheduleAnalysis, ScheduleSuggestion, getConsolidationPreview, simulateCombined, ConsolidationPreview, ConsolidationStrategy, ConsolidationChanges, CombinedSimulationResult } from './scheduleOptimizer';
+import { generateJudgeBreakVariants } from './judgeBreakSchedule';
 
 export class ScheduleService {
   static migrateSchedule = migrateSchedule;
@@ -124,6 +125,25 @@ export class ScheduleService {
 
   simulateCombined(competitionId: number, strategyIds: string[]): Promise<CombinedSimulationResult> {
     return simulateCombined(competitionId, strategyIds);
+  }
+
+  async generateVariants(competitionId: number): Promise<ScheduleVariant[]> {
+    const { dataService } = await import('../dataService');
+    const schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) return [];
+
+    const judges = await dataService.getJudges(competitionId);
+    const events = await dataService.getEvents(competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
+    const breakConfig = competition?.judgeSettings?.breakConfig;
+    if (!breakConfig || breakConfig.mode !== 'main-fillin') return [];
+
+    return generateJudgeBreakVariants(
+      schedule.heatOrder,
+      judges,
+      events,
+      breakConfig,
+    );
   }
 
   async minimizeBackToBack(competitionId: number): Promise<CompetitionSchedule | null> {

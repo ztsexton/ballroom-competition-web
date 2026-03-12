@@ -82,6 +82,9 @@ export default function JudgeScheduleView({ competitionId }: JudgeScheduleViewPr
                   {entry.isChairman && (
                     <span className="text-[10px] text-amber-700 bg-amber-100 px-1 py-0.5 rounded">Chair</span>
                   )}
+                  {entry.judgeRole === 'fill-in' && (
+                    <span className="text-[10px] text-teal-700 bg-teal-100 px-1 py-0.5 rounded">Fill-in</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span>{entry.totalHeatCount} heats</span>
@@ -166,6 +169,7 @@ interface TimeBlock {
   startMs: number;
   endMs: number;
   exceedsLimit: boolean;
+  isFillIn?: boolean;
 }
 
 function getTimeBlocks(entry: JudgeScheduleEntry): TimeBlock[] {
@@ -187,7 +191,7 @@ function getTimeBlocks(entry: JudgeScheduleEntry): TimeBlock[] {
       ? new Date(lastHeat.estimatedStartTime).getTime() + (lastHeat.estimatedDurationSeconds || 120) * 1000
       : startMs + seg.durationMinutes * 60 * 1000;
 
-    blocks.push({ startMs, endMs, exceedsLimit: seg.exceedsLimit });
+    blocks.push({ startMs, endMs, exceedsLimit: seg.exceedsLimit, isFillIn: entry.judgeRole === 'fill-in' });
   }
 
   return blocks;
@@ -295,7 +299,7 @@ function DayTimeline({ entries, maxMinutes }: {
                     <div
                       key={i}
                       className={`absolute top-0.5 bottom-0.5 rounded-sm ${
-                        block.exceedsLimit ? 'bg-amber-400' : 'bg-primary-400'
+                        block.exceedsLimit ? 'bg-amber-400' : block.isFillIn ? 'bg-teal-400' : 'bg-primary-400'
                       }`}
                       style={{ left: `${left}%`, width: `${Math.max(width, 0.3)}%` }}
                       title={`${formatTime(new Date(block.startMs))} – ${formatTime(new Date(block.endMs))}${block.exceedsLimit ? ' (exceeds limit)' : ''}`}
@@ -311,8 +315,13 @@ function DayTimeline({ entries, maxMinutes }: {
       {/* Legend */}
       <div className="flex items-center gap-4 px-3 py-2 border-t border-gray-100 text-xs text-gray-500">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-sm bg-primary-400 inline-block" /> Judging
+          <span className="w-3 h-2 rounded-sm bg-primary-400 inline-block" /> Main
         </span>
+        {allJudges.some(j => j.entry.judgeRole === 'fill-in') && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-2 rounded-sm bg-teal-400 inline-block" /> Fill-in
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-2 rounded-sm bg-amber-400 inline-block" /> Exceeds {maxMinutes / 60}h limit
         </span>

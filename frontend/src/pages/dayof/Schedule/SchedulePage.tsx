@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventsApi, schedulesApi, competitionsApi, judgesApi, couplesApi } from '../../../api/client';
-import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig, Judge, Couple } from '../../../types';
+import { Event, CompetitionSchedule, Competition, JudgeSettings, TimingSettings, HeatEntry, ScheduleDayConfig, AutoBreaksConfig, LevelCombiningConfig, Judge, Couple, ScheduleVariant } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../../constants/levels';
@@ -16,6 +16,7 @@ import ScheduleHeatTable from './components/ScheduleHeatTable';
 import ScheduleOptimizer from './components/ScheduleOptimizer';
 import JudgeScheduleView from './components/JudgeScheduleView';
 import ConsolidationPreview from './components/ConsolidationPreview';
+import ScheduleVariantPicker from './components/ScheduleVariantPicker';
 
 const SchedulePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +82,10 @@ const SchedulePage = () => {
 
   // Couples for heat entry display
   const [couples, setCouples] = useState<Couple[]>([]);
+
+  // Variant selection for main/fill-in mode
+  const [variants, setVariants] = useState<ScheduleVariant[] | null>(null);
+  const [applyingVariant, setApplyingVariant] = useState(false);
 
   // Back-to-back highlighting
   const [showBackToBack, setShowBackToBack] = useState(false);
@@ -222,6 +227,7 @@ const SchedulePage = () => {
   const handleGenerate = async (overrides?: { timingSettings?: TimingSettings; levelCombining?: LevelCombiningConfig }) => {
     if (!competitionId) return;
     setGenerating(true);
+    setVariants(null);
     try {
       // Save day configs and dance order to competition
       const compUpdate = {
@@ -238,10 +244,38 @@ const SchedulePage = () => {
       setSchedule(res.data);
       setUnscheduledEvents([]);
       setError('');
+
+      // If main/fill-in mode, auto-generate variants
+      if (judgeSettings.breakConfig?.mode === 'main-fillin') {
+        try {
+          const varRes = await schedulesApi.generateVariants(competitionId, judgeSettings, effectiveTiming);
+          if (varRes.data.variants.length > 0) {
+            setVariants(varRes.data.variants);
+          }
+        } catch {
+          // Non-fatal - user can still use the base schedule
+          console.warn('Failed to generate schedule variants');
+        }
+      }
     } catch {
       setError('Failed to generate schedule');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleApplyVariant = async (variantId: string) => {
+    if (!competitionId) return;
+    setApplyingVariant(true);
+    try {
+      const res = await schedulesApi.applyVariant(competitionId, variantId);
+      setSchedule(res.data);
+      setVariants(null);
+      setError('');
+    } catch {
+      setError('Failed to apply schedule variant');
+    } finally {
+      setApplyingVariant(false);
     }
   };
 
@@ -569,6 +603,15 @@ const SchedulePage = () => {
                 Delete Schedule
               </button>
             </div>
+
+            {variants && variants.length > 0 && (
+              <ScheduleVariantPicker
+                variants={variants}
+                applying={applyingVariant}
+                onSelect={handleApplyVariant}
+                onCancel={() => setVariants(null)}
+              />
+            )}
 
             {showBreakForm && (
               <BreakForm

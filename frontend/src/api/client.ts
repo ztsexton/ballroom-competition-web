@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, LevelCombiningConfig, SiteSettings, JudgeScheduleEntry, PersonResultsResponse, PersonHeatListResponse } from '../types';
+import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, LevelCombiningConfig, SiteSettings, JudgeScheduleEntry, ScheduleVariant, PersonResultsResponse, PersonHeatListResponse } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -354,6 +354,10 @@ export const schedulesApi = {
       `/schedules/${competitionId}/judge-schedule`),
   updateHeatJudges: (competitionId: number, heatId: string, judgeIds: number[]) =>
     api.patch<Record<number, Event>>(`/schedules/${competitionId}/heat/${heatId}/judges`, { judgeIds }),
+  generateVariants: (competitionId: number, judgeSettings?: JudgeSettings, timingSettings?: TimingSettings) =>
+    api.post<{ variants: ScheduleVariant[] }>(`/schedules/${competitionId}/generate-variants`, { judgeSettings, timingSettings }),
+  applyVariant: (competitionId: number, variantId: string) =>
+    api.post<CompetitionSchedule>(`/schedules/${competitionId}/apply-variant`, { variantId }),
 };
 
 // Judging API (non-admin, for judges and SSE)

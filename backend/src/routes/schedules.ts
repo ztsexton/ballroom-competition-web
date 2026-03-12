@@ -656,6 +656,104 @@ router.post('/:competitionId/consolidation-simulate', async (req: Request, res: 
   }
 });
 
+// In-memory variant store with TTL
+import { ScheduleVariant } from '../types';
+const variantStore = new Map<number, { variants: ScheduleVariant[]; expiresAt: number }>();
+
+// Generate schedule variants for main/fill-in mode
+router.post('/:competitionId/generate-variants', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { judgeSettings, timingSettings, danceOrder } = req.body;
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    // Save settings if provided
+    const updates: Partial<typeof competition> = {};
+    if (judgeSettings) updates.judgeSettings = judgeSettings;
+    if (timingSettings) updates.timingSettings = timingSettings;
+    if (danceOrder) updates.danceOrder = danceOrder;
+    if (Object.keys(updates).length > 0) {
+      await dataService.updateCompetition(competitionId, updates);
+    }
+
+    const variants = await scheduleService.generateVariants(competitionId);
+    if (variants.length === 0) {
+      return res.status(400).json({ error: 'Could not generate variants. Ensure you have main and fill-in judges configured.' });
+    }
+
+    // Store with 30-min TTL
+    variantStore.set(competitionId, {
+      variants,
+      expiresAt: Date.now() + 30 * 60 * 1000,
+    });
+
+    res.json({ variants });
+  } catch (error) {
+    console.error('Generate variants error:', error);
+    res.status(500).json({ error: 'Failed to generate schedule variants' });
+  }
+});
+
+// Apply a selected variant
+router.post('/:competitionId/apply-variant', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const { variantId } = req.body;
+
+    if (!variantId) {
+      return res.status(400).json({ error: 'variantId is required' });
+    }
+
+    const stored = variantStore.get(competitionId);
+    if (!stored || stored.expiresAt < Date.now()) {
+      variantStore.delete(competitionId);
+      return res.status(404).json({ error: 'Variants expired. Please regenerate.' });
+    }
+
+    const variant = stored.variants.find(v => v.id === variantId);
+    if (!variant) {
+      return res.status(404).json({ error: 'Variant not found' });
+    }
+
+    // Apply the variant's heat order to the schedule
+    let schedule = await dataService.getSchedule(competitionId);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found. Generate a base schedule first.' });
+    }
+    schedule = ScheduleService.migrateSchedule(schedule);
+
+    schedule.heatOrder = variant.heatOrder;
+    schedule.updatedAt = new Date().toISOString();
+
+    // Recalculate timing
+    const events = await dataService.getEvents(competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (competition?.timingSettings) {
+      const { timingService, DEFAULT_TIMING } = await import('../services/timingService');
+      const settings = { ...DEFAULT_TIMING, ...competition.timingSettings };
+      timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
+    }
+
+    // Save updated events (judge assignments were written to events by the variant generator)
+    for (const event of Object.values(events)) {
+      await dataService.updateEvent(event.id, { heats: event.heats });
+    }
+
+    const saved = await dataService.saveSchedule(schedule);
+    variantStore.delete(competitionId);
+
+    res.json(saved);
+    sseService.broadcastScheduleUpdate(competitionId);
+  } catch (error) {
+    console.error('Apply variant error:', error);
+    res.status(500).json({ error: 'Failed to apply schedule variant' });
+  }
+});
+
 // Get judge schedule for a competition
 router.get('/:competitionId/judge-schedule', async (req: Request, res: Response) => {
   try {

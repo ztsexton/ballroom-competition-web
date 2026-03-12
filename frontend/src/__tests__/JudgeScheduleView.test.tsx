@@ -86,7 +86,7 @@ describe('JudgeScheduleView', () => {
     render(<JudgeScheduleView competitionId={1} />);
 
     // Legend items from the DayTimeline
-    expect(await screen.findByText('Judging')).toBeInTheDocument();
+    expect(await screen.findByText('Main')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
   });
 

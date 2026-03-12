@@ -96,6 +96,18 @@ const JudgesPage = () => {
     }
   };
 
+  const handleToggleRole = async (judgeId: number, currentRole: 'main' | 'fill-in' | undefined) => {
+    try {
+      const newRole = currentRole === 'fill-in' ? null : 'fill-in';
+      await judgesApi.update(judgeId, { judgeRole: newRole } as any);
+      setError('');
+      loadJudges();
+    } catch (error) {
+      console.error('Failed to update judge role:', error);
+      setError('Failed to update judge role');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     try {
       await judgesApi.delete(id);
@@ -215,6 +227,7 @@ const JudgesPage = () => {
               <tr>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Judge #</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Name</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Role</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Chairman</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Actions</th>
               </tr>
@@ -230,6 +243,19 @@ const JudgesPage = () => {
                         Profile
                       </span>
                     )}
+                  </td>
+                  <td className="px-3 py-2 border-t border-gray-100">
+                    <button
+                      onClick={() => handleToggleRole(judge.id, judge.judgeRole)}
+                      className={`px-2 py-1 rounded text-xs font-semibold border-none cursor-pointer transition-colors ${
+                        judge.judgeRole === 'fill-in'
+                          ? 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                      }`}
+                      title={judge.judgeRole === 'fill-in' ? 'Click to set as Main' : 'Click to set as Fill-in'}
+                    >
+                      {judge.judgeRole === 'fill-in' ? 'Fill-in' : 'Main'}
+                    </button>
                   </td>
                   <td className="px-3 py-2 border-t border-gray-100">
                     <button
@@ -262,6 +288,9 @@ const JudgesPage = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Quick Stats</h3>
           <p className="text-gray-600">Total Judges: <strong>{judges.length}</strong></p>
+          <p className="text-gray-600">
+            Roles: <strong>{judges.filter(j => j.judgeRole !== 'fill-in').length} Main</strong>, <strong>{judges.filter(j => j.judgeRole === 'fill-in').length} Fill-in</strong>
+          </p>
           <p className="text-gray-600">Chairman: <strong>{judges.find(j => j.isChairman)?.name || 'Not assigned'}</strong></p>
         </div>
       )}

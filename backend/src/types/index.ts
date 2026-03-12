@@ -44,10 +44,24 @@ export interface MindbodyClient {
   lastActivityDate?: string;
 }
 
+export interface JudgeBreakConfig {
+  enabled: boolean;
+  mode: 'rotation' | 'main-fillin';
+  maxSessionMinutes: number;
+  breakDurationMinutes: number;
+  lunchBreak?: {
+    enabled: boolean;
+    durationMinutes: number;
+    earliestTime?: string;
+    latestTime?: string;
+  };
+}
+
 export interface JudgeSettings {
   defaultCount: number;
   levelOverrides: Record<string, number>;
   targetStintMinutes?: number;  // Target work time before rotation (default: 45)
+  breakConfig?: JudgeBreakConfig;
 }
 
 export interface TimingSettings {
@@ -212,6 +226,7 @@ export interface Judge {
   competitionId: number;
   isChairman?: boolean;
   profileId?: number;
+  judgeRole?: 'main' | 'fill-in';
 }
 
 export interface Heat {
@@ -458,10 +473,31 @@ export interface JudgeScheduleEntry {
   judgeName: string;
   judgeNumber: number;
   isChairman?: boolean;
+  judgeRole?: 'main' | 'fill-in';
   heats: JudgeScheduleHeat[];
   totalHeatCount: number;
   estimatedWorkingMinutes: number;
   segments: JudgeWorkSegment[];
+}
+
+export interface ScheduleVariant {
+  id: string;
+  label: string;
+  description: string;
+  heatOrder: ScheduledHeat[];
+  stats: {
+    totalHeats: number;
+    estimatedDurationMinutes: number;
+    breakCount: number;
+    lunchPlacement?: string;
+    judgeStats: Array<{
+      judgeId: number;
+      judgeName: string;
+      judgeRole: 'main' | 'fill-in';
+      workMinutes: number;
+      longestSessionMinutes: number;
+    }>;
+  };
 }
 
 export interface JudgeScheduleHeat {

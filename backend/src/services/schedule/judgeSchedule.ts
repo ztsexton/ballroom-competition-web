@@ -14,6 +14,7 @@ export function buildJudgeSchedule(
       judgeName: judge.name,
       judgeNumber: judge.judgeNumber,
       isChairman: judge.isChairman,
+      judgeRole: judge.judgeRole,
       heats: [],
       totalHeatCount: 0,
       estimatedWorkingMinutes: 0,
@@ -105,6 +106,11 @@ export function buildJudgeSchedule(
     entry.estimatedWorkingMinutes = Math.round(entry.estimatedWorkingMinutes);
   }
 
-  // Sort by judge number
-  return [...entryMap.values()].sort((a, b) => a.judgeNumber - b.judgeNumber);
+  // Sort: main judges first, then fill-in, each sub-sorted by judge number
+  return [...entryMap.values()].sort((a, b) => {
+    const aFillIn = a.judgeRole === 'fill-in' ? 1 : 0;
+    const bFillIn = b.judgeRole === 'fill-in' ? 1 : 0;
+    if (aFillIn !== bFillIn) return aFillIn - bFillIn;
+    return a.judgeNumber - b.judgeNumber;
+  });
 }

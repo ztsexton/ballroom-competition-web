@@ -246,3 +246,6 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS section_letter TEXT;
 
 -- Migration: unique index on people email so the same person can be reused across competitions
 CREATE UNIQUE INDEX IF NOT EXISTS idx_people_unique_email ON people(LOWER(email)) WHERE email IS NOT NULL;
+
+-- Migration: add judge_role to judges (main/fill-in designation)
+ALTER TABLE judges ADD COLUMN IF NOT EXISTS judge_role TEXT DEFAULT NULL;
