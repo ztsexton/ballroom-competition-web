@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { CompetitionType, AgeCategory, Organization } from '../../types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../constants/levels';
-import { DEFAULT_STYLE_ORDER, DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
+import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
 import {
   Section,
@@ -608,7 +608,7 @@ function DanceOrderSettingsSection({
                     </button>
                   </>
                 )}
-                {editingStyle !== style && !DEFAULT_STYLE_ORDER.includes(style) && (
+                {editingStyle !== style && (
                   <button
                     type="button"
                     onClick={() => {
@@ -617,7 +617,7 @@ function DanceOrderSettingsSection({
                       updateOrder(newOrder);
                     }}
                     className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
-                    title="Remove custom style"
+                    title="Remove style"
                   >
                     Remove
                   </button>

@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Skeleton } from '../../components/Skeleton';
 
-const STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
+const DEFAULT_STYLE_SECTIONS = ['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'];
 
 const EventsPage = () => {
   const { id: hubId } = useParams<{ id: string }>();
@@ -125,11 +125,15 @@ const EventsPage = () => {
             );
           }
 
+          // Build style sections from competition's danceOrder (includes custom styles) + defaults
+          const customStyles = activeCompetition?.danceOrder ? Object.keys(activeCompetition.danceOrder) : [];
+          const styleSections = [...new Set([...DEFAULT_STYLE_SECTIONS, ...customStyles])];
+
           const eventsByStyle: Record<string, Event[]> = {};
-          for (const s of STYLE_SECTIONS) eventsByStyle[s] = [];
+          for (const s of styleSections) eventsByStyle[s] = [];
           const otherEvents: Event[] = [];
           for (const event of filteredEvents) {
-              const section = STYLE_SECTIONS.find(s => s === event.style);
+              const section = styleSections.find(s => s === event.style);
               if (section) {
                 eventsByStyle[section].push(event);
               } else {
@@ -138,7 +142,7 @@ const EventsPage = () => {
             }
 
             const allSections = [
-              ...STYLE_SECTIONS.map(s => ({ label: s, events: eventsByStyle[s] })),
+              ...styleSections.map(s => ({ label: s, events: eventsByStyle[s] })),
               ...(otherEvents.length > 0 ? [{ label: 'Other', events: otherEvents }] : []),
             ];
 
@@ -294,7 +298,7 @@ const EventsPage = () => {
           <h3>Quick Stats</h3>
           <p>Total Events: <strong>{events.length}</strong></p>
           <div className="flex gap-4 flex-wrap mt-2">
-            {['Smooth', 'Standard', 'Rhythm', 'Latin', 'Night Club', 'Country'].map(s => {
+            {[...new Set([...DEFAULT_STYLE_SECTIONS, ...(activeCompetition?.danceOrder ? Object.keys(activeCompetition.danceOrder) : [])])].map(s => {
               const count = events.filter(e => e.style === s).length;
               return count > 0 ? (
                 <span key={s} className="text-sm text-gray-500">
