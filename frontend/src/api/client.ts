@@ -232,6 +232,8 @@ export const eventsApi = {
     api.post<Event>(`/events/${eventId}/entries`, { bib }),
   removeEntry: (eventId: number, bib: number) =>
     api.delete<Event>(`/events/${eventId}/entries/${bib}`),
+  reorderDances: (competitionId: number) =>
+    api.post<{ updated: number }>(`/events/reorder-dances/${competitionId}`),
   register: (data: {
     competitionId: number; bib: number;
     designation?: string; syllabusType?: string; level?: string;

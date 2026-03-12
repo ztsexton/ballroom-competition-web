@@ -21,7 +21,6 @@ function sortEvents(events: Event[], mode: EventSortMode): Event[] {
   if (mode === 'entry-order') {
     return [...events].sort((a, b) => a.id - b.id);
   }
-  // Default: alphabetical by name
   return [...events].sort((a, b) => a.name.localeCompare(b.name));
 }
 

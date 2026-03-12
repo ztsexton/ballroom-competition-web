@@ -1,5 +1,6 @@
 import { dataService } from './dataService';
 import { Event, Couple } from '../types';
+import { getDancesForStyle } from '../constants/dances';
 
 export interface EventCombination {
   designation?: string;
@@ -10,6 +11,18 @@ export interface EventCombination {
   scoringType?: string;
   isScholarship?: boolean;
   ageCategory?: string;
+}
+
+/** Sort dances by the configured dance order for a style. Unknown dances go at the end in their original order. */
+function sortDancesByConfiguredOrder(dances: string[], style?: string, danceOrder?: Record<string, string[]>): string[] {
+  if (!style || dances.length <= 1) return [...dances];
+  const ordered = getDancesForStyle(style, danceOrder);
+  return [...dances].sort((a, b) => {
+    const ai = ordered.indexOf(a);
+    const bi = ordered.indexOf(b);
+    // Unknown dances get a high index so they sort to the end
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
 }
 
 function eventMatchesCombination(event: Event, combination: EventCombination, reqDances: string[], reqScoringType: string): boolean {
@@ -106,8 +119,9 @@ export async function createSectionEvent(
   combination: EventCombination,
   existingEvents: Event[]
 ): Promise<Event> {
-  const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
-    ? [...combination.dances].sort()
+  const competition = await dataService.getCompetitionById(competitionId);
+  const displayDances = Array.isArray(combination.dances) && combination.dances.length > 0
+    ? sortDancesByConfiguredOrder(combination.dances, combination.style, competition?.danceOrder)
     : [];
 
   const judges = await dataService.getJudges(competitionId);
@@ -140,7 +154,7 @@ export async function createSectionEvent(
   }
 
   // Create new section event
-  const baseName = buildEventName(combination, reqDances);
+  const baseName = buildEventName(combination, displayDances);
   const name = baseName + ' - ' + nextLetter;
 
   const newEvent = await dataService.addEvent(
@@ -152,7 +166,7 @@ export async function createSectionEvent(
     combination.syllabusType,
     combination.level,
     combination.style,
-    reqDances.length > 0 ? reqDances : undefined,
+    displayDances.length > 0 ? displayDances : undefined,
     (combination.scoringType as 'standard' | 'proficiency') || 'standard',
     combination.isScholarship,
     combination.ageCategory,
@@ -181,22 +195,28 @@ export async function registerCoupleForEvent(
   combination: EventCombination
 ): Promise<RegisterResult> {
   const competition = await dataService.getCompetitionById(competitionId);
+  // Alphabetical sort for matching/comparison
   const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
     ? [...combination.dances].sort()
     : [];
+  // Configured dance order for storage and display
+  const displayDances = Array.isArray(combination.dances) && combination.dances.length > 0
+    ? sortDancesByConfiguredOrder(combination.dances, combination.style, competition?.danceOrder)
+    : [];
 
   if (competition?.allowDuplicateEntries) {
-    return registerWithDuplicateEntries(competitionId, bib, combination, reqDances);
+    return registerWithDuplicateEntries(competitionId, bib, combination, reqDances, displayDances);
   }
 
-  return registerStandard(competitionId, bib, combination, reqDances);
+  return registerStandard(competitionId, bib, combination, reqDances, displayDances);
 }
 
 async function registerStandard(
   competitionId: number,
   bib: number,
   combination: EventCombination,
-  reqDances: string[]
+  reqDances: string[],
+  displayDances: string[]
 ): Promise<RegisterResult> {
   const matchedEvent = await findMatchingEvent(competitionId, combination);
 
@@ -227,7 +247,7 @@ async function registerStandard(
   }
 
   // No match — auto-create event
-  const name = buildEventName(combination, reqDances);
+  const name = buildEventName(combination, displayDances);
 
   const judges = await dataService.getJudges(competitionId);
   const judgeIds = judges.map(j => j.id);
@@ -241,7 +261,7 @@ async function registerStandard(
     combination.syllabusType,
     combination.level,
     combination.style,
-    reqDances.length > 0 ? reqDances : undefined,
+    displayDances.length > 0 ? displayDances : undefined,
     (combination.scoringType as 'standard' | 'proficiency') || 'standard',
     combination.isScholarship,
     combination.ageCategory,
@@ -254,7 +274,8 @@ async function registerWithDuplicateEntries(
   competitionId: number,
   bib: number,
   combination: EventCombination,
-  reqDances: string[]
+  reqDances: string[],
+  displayDances: string[]
 ): Promise<RegisterResult> {
   const matchingEvents = await findAllMatchingEvents(competitionId, combination);
 
@@ -268,7 +289,7 @@ async function registerWithDuplicateEntries(
 
   if (matchingEvents.length === 0) {
     // No matching events at all — create first event (no sections yet)
-    const name = buildEventName(combination, reqDances);
+    const name = buildEventName(combination, displayDances);
     const judges = await dataService.getJudges(competitionId);
     const judgeIds = judges.map(j => j.id);
 
@@ -281,7 +302,7 @@ async function registerWithDuplicateEntries(
       combination.syllabusType,
       combination.level,
       combination.style,
-      reqDances.length > 0 ? reqDances : undefined,
+      displayDances.length > 0 ? displayDances : undefined,
       (combination.scoringType as 'standard' | 'proficiency') || 'standard',
       undefined,
       combination.ageCategory,

@@ -480,6 +480,7 @@ function DanceOrderSettingsSection({
   savedMap: Record<string, boolean>;
   saveField: (field: string, value: unknown, section: string) => void;
 }) {
+  const { showToast } = useToast();
   const danceOrder = comp.danceOrder || DEFAULT_DANCE_ORDER;
   const styles = Object.keys(danceOrder).length > 0 ? Object.keys(danceOrder) : Object.keys(DEFAULT_DANCE_ORDER);
   const [newDanceInputs, setNewDanceInputs] = useState<Record<string, string>>({});
@@ -705,6 +706,29 @@ function DanceOrderSettingsSection({
           >
             Add Style
           </button>
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={async () => {
+              setRenaming(true);
+              try {
+                const res = await eventsApi.reorderDances(competitionId);
+                showToast(res.data.updated > 0 ? `Updated ${res.data.updated} event(s)` : 'All events already in correct order', 'success');
+              } catch {
+                showToast('Failed to reorder dances', 'error');
+              } finally {
+                setRenaming(false);
+              }
+            }}
+            disabled={renaming}
+            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm cursor-pointer hover:bg-gray-200 disabled:opacity-50"
+          >
+            {renaming ? 'Updating...' : 'Reorder dances in existing event names'}
+          </button>
+          <p className="text-gray-400 text-xs mt-1">
+            Updates existing events so dances appear in the configured order above.
+          </p>
         </div>
       </div>
     </Section>

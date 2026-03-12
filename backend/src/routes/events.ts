@@ -44,6 +44,19 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
 
   const eventBibs = Array.isArray(bibs) ? bibs : [];
 
+  // Sort dances by configured order if a style is specified
+  let orderedDances = dances;
+  if (Array.isArray(dances) && dances.length > 0 && style) {
+    const competition = await dataService.getCompetitionById(parseInt(competitionId));
+    const { getDancesForStyle } = await import('../constants/dances');
+    const styleOrder = getDancesForStyle(style, competition?.danceOrder);
+    orderedDances = [...dances].sort((a: string, b: string) => {
+      const ai = styleOrder.indexOf(a);
+      const bi = styleOrder.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }
+
   const newEvent = await dataService.addEvent(
     name,
     eventBibs,
@@ -53,7 +66,7 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     syllabusType,
     level,
     style,
-    dances,
+    orderedDances,
     scoringType,
     isScholarship,
     ageCategory
@@ -544,6 +557,52 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
 
   await dataService.clearScores(eventId, round);
   res.json({ message: 'Scores cleared successfully' });
+});
+
+// Reorder dances in all events for a competition to match configured dance order
+router.post('/reorder-dances/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    const { getDancesForStyle } = await import('../constants/dances');
+    const allEvents = await dataService.getEvents(competitionId);
+    let updatedCount = 0;
+
+    for (const event of Object.values(allEvents)) {
+      if (!event.dances || event.dances.length <= 1 || !event.style) continue;
+
+      const styleOrder = getDancesForStyle(event.style, competition.danceOrder);
+      const reordered = [...event.dances].sort((a, b) => {
+        const ai = styleOrder.indexOf(a);
+        const bi = styleOrder.indexOf(b);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+
+      // Check if order actually changed
+      if (JSON.stringify(reordered) === JSON.stringify(event.dances)) continue;
+
+      // Rebuild the event name with reordered dances
+      const oldDanceStr = event.dances.join('/');
+      const newDanceStr = reordered.join('/');
+      const newName = event.name.includes(oldDanceStr)
+        ? event.name.replace(oldDanceStr, newDanceStr)
+        : event.name;
+
+      await dataService.updateEvent(event.id, { dances: reordered, name: newName });
+      updatedCount++;
+    }
+
+    res.json({ updated: updatedCount });
+  } catch (error) {
+    console.error('Reorder dances error:', error);
+    res.status(500).json({ error: 'Failed to reorder dances' });
+  }
 });
 
 export default router;
