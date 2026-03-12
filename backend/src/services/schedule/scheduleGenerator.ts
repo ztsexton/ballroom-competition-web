@@ -257,6 +257,63 @@ export async function minimizePersonBackToBack(
   return result;
 }
 
+/**
+ * Segments the heat order into contiguous style blocks, applies
+ * separateEventRounds and minimizePersonBackToBack to each block
+ * independently, then reassembles. This guarantees no cross-style swaps.
+ */
+export async function processWithinStyleSegments(
+  heatOrder: ScheduledHeat[],
+  eventList: Event[],
+  competitionId: number,
+): Promise<ScheduledHeat[]> {
+  const eventMap = new Map(eventList.map(e => [e.id, e]));
+
+  function getHeatStyle(heat: ScheduledHeat): string | null {
+    if (heat.isBreak) return null;
+    const firstEntry = heat.entries[0];
+    if (!firstEntry) return null;
+    return eventMap.get(firstEntry.eventId)?.style || null;
+  }
+
+  // Split into segments: each segment is a contiguous run of the same style
+  // (breaks stay attached to the segment they follow)
+  const segments: ScheduledHeat[][] = [];
+  let currentSegment: ScheduledHeat[] = [];
+  let currentStyle: string | null = null;
+
+  for (const heat of heatOrder) {
+    const style = getHeatStyle(heat);
+
+    if (style === null) {
+      // Break — add to current segment
+      currentSegment.push(heat);
+    } else if (style === currentStyle) {
+      currentSegment.push(heat);
+    } else {
+      // New style — start a new segment
+      if (currentSegment.length > 0) {
+        segments.push(currentSegment);
+      }
+      currentSegment = [heat];
+      currentStyle = style;
+    }
+  }
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  // Process each segment independently
+  const result: ScheduledHeat[] = [];
+  for (const segment of segments) {
+    let processed = separateEventRounds(segment);
+    processed = await minimizePersonBackToBack(processed, competitionId);
+    result.push(...processed);
+  }
+
+  return result;
+}
+
 export async function generateSchedule(
   competitionId: number,
   styleOrder?: string[],
@@ -342,8 +399,9 @@ export async function generateSchedule(
     heatOrder = withBreaks;
   }
 
-  heatOrder = separateEventRounds(heatOrder);
-  heatOrder = await minimizePersonBackToBack(heatOrder, competitionId);
+  // Process separateEventRounds and minimizePersonBackToBack within each
+  // style segment to guarantee styles are never interleaved.
+  heatOrder = await processWithinStyleSegments(heatOrder, eventList, competitionId);
 
   const heatStatuses: Record<string, EventRunStatus> = {};
   heatOrder.forEach(h => { heatStatuses[heatKey(h)] = 'pending'; });

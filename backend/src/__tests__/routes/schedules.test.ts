@@ -1904,4 +1904,254 @@ describe('Schedules API', () => {
       }
     });
   });
+
+  // ── Style contiguity integration tests ──────────────────────
+
+  describe('style contiguity (no interleaving)', () => {
+    /**
+     * Helper: verify that each style forms one contiguous block in the heat order.
+     * Breaks are ignored. If a style appears, disappears, then reappears, that's a failure.
+     */
+    function verifyStyleContiguity(heats: any[], eventsMap: Record<number, any>) {
+      const styleBlocks: string[] = [];
+      for (const heat of heats) {
+        if (heat.isBreak) continue;
+        const style = eventsMap[heat.entries[0]?.eventId]?.style;
+        if (!style) continue;
+        if (styleBlocks.length === 0 || styleBlocks[styleBlocks.length - 1] !== style) {
+          styleBlocks.push(style);
+        }
+      }
+      const uniqueStyles = new Set(styleBlocks);
+      expect(styleBlocks.length).toBe(uniqueStyles.size);
+    }
+
+    it('should never interleave Smooth and Rhythm events after schedule generation', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 12);
+
+      // Create Smooth events — including one with semi+final to trigger separateEventRounds
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Silver Smooth Waltz', bibs.slice(0, 3), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Tango', bibs.slice(4, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Tango'], 'standard',
+      );
+
+      // Create Rhythm events
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(0, 6), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+      await dataService.addEvent(
+        'Silver Rhythm Rumba', bibs.slice(6, 10), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Rhythm', ['Rumba'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder;
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+    });
+
+    it('should maintain style blocks with three styles', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 15);
+
+      // Smooth events
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 5), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Tango', bibs.slice(0, 5), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Tango'], 'standard',
+      );
+
+      // Rhythm events
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(5, 10), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Rhythm Rumba', bibs.slice(5, 10), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Rumba'], 'standard',
+      );
+
+      // Latin events
+      await dataService.addEvent(
+        'Bronze Latin Samba', bibs.slice(10, 15), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Latin', ['Samba'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm', 'Latin'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder;
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+    });
+
+    it('should maintain style blocks when multi-round events create adjacent same-event heats', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 6 });
+      const bibs = await createCouples(comp.id, 12);
+
+      // Multi-round Smooth event (8 couples → semi + final)
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      // Another Smooth event to give the swap algorithm something to work with
+      await dataService.addEvent(
+        'Silver Smooth Tango', bibs.slice(8, 11), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Silver', 'Smooth', ['Tango'], 'standard',
+      );
+
+      // Rhythm events right after Smooth
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Rhythm Rumba', bibs.slice(4, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Rumba'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder;
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+
+      // Extra: verify Smooth comes before Rhythm
+      const nonBreakHeats = heats.filter((h: any) => !h.isBreak);
+      const firstRhythmIdx = nonBreakHeats.findIndex((h: any) =>
+        h.entries.some((e: any) => eventsMap[e.eventId]?.style === 'Rhythm')
+      );
+      let lastSmoothIdx = -1;
+      nonBreakHeats.forEach((h: any, idx: number) => {
+        if (h.entries.some((e: any) => eventsMap[e.eventId]?.style === 'Smooth')) {
+          lastSmoothIdx = idx;
+        }
+      });
+      if (firstRhythmIdx >= 0) {
+        expect(lastSmoothIdx).toBeLessThan(firstRhythmIdx);
+      }
+    });
+
+    it('should maintain style blocks with person conflicts across styles', async () => {
+      // Same couples registered in both Smooth and Rhythm — these would
+      // trigger minimizePersonBackToBack to try cross-style swaps
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 6);
+
+      // Smooth events — bibs 1-6
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Tango', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Tango'], 'standard',
+      );
+
+      // Rhythm events — SAME bibs (high back-to-back conflict potential)
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Rhythm Rumba', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Rumba'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Smooth', 'Rhythm'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder;
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+    });
+
+    it('should maintain style blocks with reversed style order', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 8);
+
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 4), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(4, 8), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      // Rhythm first, then Smooth
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({ styleOrder: ['Rhythm', 'Smooth'] })
+        .expect(201);
+
+      const heats = res.body.heatOrder.filter((h: any) => !h.isBreak);
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+
+      // Rhythm should come first
+      const firstHeatStyle = eventsMap[heats[0].entries[0].eventId]?.style;
+      expect(firstHeatStyle).toBe('Rhythm');
+    });
+
+    it('should maintain style blocks with auto breaks enabled', async () => {
+      const comp = await setupCompetition({ maxCouplesPerHeat: 20 });
+      const bibs = await createCouples(comp.id, 10);
+
+      await dataService.addEvent(
+        'Bronze Smooth Waltz', bibs.slice(0, 5), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Smooth Tango', bibs.slice(0, 5), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Tango'], 'standard',
+      );
+      await dataService.addEvent(
+        'Bronze Rhythm Cha Cha', bibs.slice(5, 10), [], comp.id,
+        'Pro-Am', 'Syllabus', 'Bronze', 'Rhythm', ['Cha Cha'], 'standard',
+      );
+
+      const res = await request(app)
+        .post(`/api/schedules/${comp.id}/generate`)
+        .send({
+          styleOrder: ['Smooth', 'Rhythm'],
+          autoBreaks: { enabled: true, mode: 'between-styles' },
+        })
+        .expect(201);
+
+      const heats = res.body.heatOrder;
+      const eventsMap = (await request(app).get(`/api/events?competitionId=${comp.id}`).expect(200)).body;
+
+      verifyStyleContiguity(heats, eventsMap);
+    });
+  });
 });

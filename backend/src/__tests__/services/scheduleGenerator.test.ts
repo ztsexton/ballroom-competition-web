@@ -1,4 +1,4 @@
-import { getEventTypePriority, getEventTypeTag, interleaveLevels, separateEventRounds, mergeEntries } from '../../services/schedule/scheduleGenerator';
+import { getEventTypePriority, getEventTypeTag, interleaveLevels, separateEventRounds, mergeEntries, processWithinStyleSegments } from '../../services/schedule/scheduleGenerator';
 import { Event, HeatEntry, ScheduledHeat, LevelCombiningConfig } from '../../types';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -733,5 +733,326 @@ describe('mergeEntries', () => {
       const result = mergeEntries(events.map(e => makeItem(e)), 6);
       expect(result).toHaveLength(4);
     });
+  });
+});
+
+// ── Style contiguity: separateEventRounds must not cross style boundaries ──
+
+describe('separateEventRounds – cross-style safety', () => {
+  function makeHeat(id: string, eventIds: number[]): ScheduledHeat {
+    return { id, entries: eventIds.map(eventId => ({ eventId, round: 'final' })) };
+  }
+
+  function makeBreak(id: string): ScheduledHeat {
+    return { id, entries: [], isBreak: true };
+  }
+
+  it('would swap across styles WITHOUT segmentation (demonstrating the problem)', () => {
+    // Layout: [Smooth-E1-semi, Smooth-E1-final, Rhythm-E2, Rhythm-E3]
+    // E1 appears in heat a (semi) and heat b (final) — adjacent, needs separation.
+    // Without segmentation, separateEventRounds would swap heat b with heat c (Rhythm),
+    // interleaving styles.
+    const heats = [
+      makeHeat('a', [1]),  // Smooth semi
+      makeHeat('b', [1]),  // Smooth final — adjacent to a, same eventId
+      makeHeat('c', [2]),  // Rhythm
+      makeHeat('d', [3]),  // Rhythm
+    ];
+    const result = separateEventRounds(heats);
+
+    // Without segmentation, separateEventRounds WILL swap b↔c since it only checks event IDs
+    const idOrder = result.map(h => h.id);
+    // This demonstrates the unsegmented function moves Rhythm event into Smooth block
+    const bIdx = idOrder.indexOf('b');
+    const cIdx = idOrder.indexOf('c');
+    expect(cIdx).toBeLessThan(bIdx); // c (Rhythm) was swapped before b (Smooth)
+  });
+
+  it('preserves all heats when styles are already separated', () => {
+    const heats = [
+      makeHeat('a', [1]),
+      makeHeat('b', [2]),
+      makeHeat('c', [3]),
+      makeHeat('d', [4]),
+    ];
+    const result = separateEventRounds(heats);
+    expect(result).toHaveLength(4);
+    expect(result.map(h => h.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('swaps within a single style block without issue', () => {
+    // All same style, events 1 and 1 are adjacent → should swap with event 2
+    const heats = [
+      makeHeat('a', [1]),
+      makeHeat('b', [1]),
+      makeHeat('c', [2]),
+    ];
+    const result = separateEventRounds(heats);
+    // After swap: a(E1), c(E2), b(E1) — E1 no longer adjacent
+    const aIdx = result.findIndex(h => h.id === 'a');
+    const bIdx = result.findIndex(h => h.id === 'b');
+    expect(Math.abs(aIdx - bIdx)).toBeGreaterThan(1);
+  });
+});
+
+// ── processWithinStyleSegments ──────────────────────────────
+
+describe('processWithinStyleSegments', () => {
+  // We need to mock dataService for minimizePersonBackToBack calls
+  jest.mock('../../services/dataService', () => ({
+    dataService: {
+      getEvents: jest.fn(() => ({})),
+      getCouples: jest.fn(() => []),
+      getPeople: jest.fn(() => []),
+      getCompetitionById: jest.fn(() => null),
+    },
+  }));
+
+  function makeHeat(id: string, eventId: number, round = 'final'): ScheduledHeat {
+    return { id, entries: [{ eventId, round }] };
+  }
+
+  function makeBreak(id: string): ScheduledHeat {
+    return { id, entries: [], isBreak: true };
+  }
+
+  const smoothWaltzEvent: Event = {
+    id: 1, name: 'Bronze Smooth Waltz', style: 'Smooth', dances: ['Waltz'],
+    heats: [{ round: 'semi-final', bibs: [1, 2, 3], judges: [] }, { round: 'final', bibs: [1, 2], judges: [] }],
+    competitionId: 1,
+  };
+
+  const smoothTangoEvent: Event = {
+    id: 2, name: 'Bronze Smooth Tango', style: 'Smooth', dances: ['Tango'],
+    heats: [{ round: 'final', bibs: [1, 2], judges: [] }],
+    competitionId: 1,
+  };
+
+  const rhythmChaEvent: Event = {
+    id: 3, name: 'Bronze Rhythm Cha Cha', style: 'Rhythm', dances: ['Cha Cha'],
+    heats: [{ round: 'final', bibs: [3, 4], judges: [] }],
+    competitionId: 1,
+  };
+
+  const rhythmRumbaEvent: Event = {
+    id: 4, name: 'Bronze Rhythm Rumba', style: 'Rhythm', dances: ['Rumba'],
+    heats: [{ round: 'final', bibs: [3, 4], judges: [] }],
+    competitionId: 1,
+  };
+
+  const latinSambaEvent: Event = {
+    id: 5, name: 'Bronze Latin Samba', style: 'Latin', dances: ['Samba'],
+    heats: [{ round: 'final', bibs: [5, 6], judges: [] }],
+    competitionId: 1,
+  };
+
+  function getHeatStyle(heat: ScheduledHeat, eventList: Event[]): string | null {
+    if (heat.isBreak) return null;
+    const entry = heat.entries[0];
+    if (!entry) return null;
+    return eventList.find(e => e.id === entry.eventId)?.style || null;
+  }
+
+  function verifyStyleContiguity(heats: ScheduledHeat[], eventList: Event[]): void {
+    const styleBlocks: string[] = [];
+    for (const heat of heats) {
+      const style = getHeatStyle(heat, eventList);
+      if (style === null) continue; // skip breaks
+      if (styleBlocks.length === 0 || styleBlocks[styleBlocks.length - 1] !== style) {
+        styleBlocks.push(style);
+      }
+    }
+    // Each style should appear only once in the blocks (no interleaving)
+    const uniqueStyles = new Set(styleBlocks);
+    expect(styleBlocks.length).toBe(uniqueStyles.size);
+  }
+
+  it('prevents cross-style swaps when separating same-event rounds', async () => {
+    // E1 has semi + final (adjacent), with Rhythm events right after
+    // Without segmentation, separateEventRounds would swap E1-final with E3-Rhythm
+    const heatOrder = [
+      makeHeat('h1', 1, 'semi-final'),  // Smooth E1 semi
+      makeHeat('h2', 1, 'final'),       // Smooth E1 final — adjacent to h1!
+      makeHeat('h3', 3),                // Rhythm E3
+      makeHeat('h4', 4),                // Rhythm E4
+    ];
+    const eventList = [smoothWaltzEvent, rhythmChaEvent, rhythmRumbaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+    verifyStyleContiguity(result, eventList);
+
+    // All Smooth heats before all Rhythm heats
+    const smoothHeats = result.filter(h => getHeatStyle(h, eventList) === 'Smooth');
+    const rhythmHeats = result.filter(h => getHeatStyle(h, eventList) === 'Rhythm');
+    expect(smoothHeats.length).toBe(2);
+    expect(rhythmHeats.length).toBe(2);
+
+    const lastSmoothIdx = Math.max(...smoothHeats.map(h => result.indexOf(h)));
+    const firstRhythmIdx = Math.min(...rhythmHeats.map(h => result.indexOf(h)));
+    expect(lastSmoothIdx).toBeLessThan(firstRhythmIdx);
+  });
+
+  it('handles three different styles without interleaving', async () => {
+    const heatOrder = [
+      makeHeat('h1', 1),  // Smooth
+      makeHeat('h2', 2),  // Smooth
+      makeHeat('h3', 3),  // Rhythm
+      makeHeat('h4', 4),  // Rhythm
+      makeHeat('h5', 5),  // Latin
+    ];
+    const eventList = [smoothWaltzEvent, smoothTangoEvent, rhythmChaEvent, rhythmRumbaEvent, latinSambaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    verifyStyleContiguity(result, eventList);
+    expect(result).toHaveLength(5);
+  });
+
+  it('preserves breaks between style blocks', async () => {
+    const heatOrder = [
+      makeHeat('h1', 1),  // Smooth
+      makeBreak('brk'),
+      makeHeat('h2', 3),  // Rhythm
+    ];
+    const eventList = [smoothWaltzEvent, rhythmChaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    expect(result).toHaveLength(3);
+    expect(result[1].isBreak).toBe(true);
+    verifyStyleContiguity(result, eventList);
+  });
+
+  it('handles breaks within a style block', async () => {
+    const heatOrder = [
+      makeHeat('h1', 1),  // Smooth
+      makeBreak('brk'),
+      makeHeat('h2', 2),  // Smooth (same style, break in middle)
+      makeHeat('h3', 3),  // Rhythm
+    ];
+    const eventList = [smoothWaltzEvent, smoothTangoEvent, rhythmChaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    // Break is attached to Smooth segment since it comes between Smooth heats
+    verifyStyleContiguity(result, eventList);
+  });
+
+  it('does not interleave when multiple same-event rounds exist across styles', async () => {
+    // Worst case: E1 has semi+final adjacent, then E3 has just final
+    // Followed by another pair of E5 events
+    const heatOrder = [
+      makeHeat('h1', 1, 'semi-final'),  // Smooth
+      makeHeat('h2', 1, 'final'),       // Smooth (adjacent same event!)
+      makeHeat('h3', 3),                // Rhythm
+      makeHeat('h4', 3),                // Rhythm (different round conceptually, same eventId)
+      makeHeat('h5', 5),                // Latin
+    ];
+    const eventList = [smoothWaltzEvent, rhythmChaEvent, latinSambaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+    verifyStyleContiguity(result, eventList);
+  });
+
+  it('handles single-style schedule (no segmentation needed)', async () => {
+    const heatOrder = [
+      makeHeat('h1', 1, 'semi-final'),
+      makeHeat('h2', 1, 'final'),
+      makeHeat('h3', 2),
+    ];
+    const eventList = [smoothWaltzEvent, smoothTangoEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    expect(result).toHaveLength(3);
+    // E1 semi and E1 final should be separated if possible
+    const h1Idx = result.findIndex(h => h.id === 'h1');
+    const h2Idx = result.findIndex(h => h.id === 'h2');
+    expect(Math.abs(h1Idx - h2Idx)).toBeGreaterThan(1);
+  });
+
+  it('handles empty heat order', async () => {
+    const result = await processWithinStyleSegments([], [], 1);
+    expect(result).toHaveLength(0);
+  });
+
+  it('handles single heat', async () => {
+    const heatOrder = [makeHeat('h1', 1)];
+    const eventList = [smoothWaltzEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('preserves all heats (no heats lost or duplicated)', async () => {
+    const heatOrder = [
+      makeHeat('h1', 1, 'semi-final'),
+      makeHeat('h2', 1, 'final'),
+      makeHeat('h3', 2),
+      makeHeat('h4', 3),
+      makeHeat('h5', 4),
+      makeBreak('brk1'),
+      makeHeat('h6', 5),
+    ];
+    const eventList = [smoothWaltzEvent, smoothTangoEvent, rhythmChaEvent, rhythmRumbaEvent, latinSambaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    // Same count
+    expect(result).toHaveLength(heatOrder.length);
+
+    // Same IDs (possibly reordered within style blocks)
+    const inputIds = new Set(heatOrder.map(h => h.id));
+    const outputIds = new Set(result.map(h => h.id));
+    expect(outputIds).toEqual(inputIds);
+  });
+
+  it('maintains style order even with many adjacent same-event heats', async () => {
+    // Simulate a scenario where separateEventRounds would aggressively swap
+    // E1 appears 3 times adjacently, but should only swap within Smooth block
+    const e1Multi: Event = {
+      id: 10, name: 'Multi Smooth', style: 'Smooth', dances: ['Waltz'],
+      heats: [
+        { round: 'quarter-final', bibs: [1, 2, 3, 4, 5], judges: [] },
+        { round: 'semi-final', bibs: [1, 2, 3], judges: [] },
+        { round: 'final', bibs: [1, 2], judges: [] },
+      ],
+      competitionId: 1,
+    };
+
+    const e11: Event = {
+      id: 11, name: 'Smooth Filler 1', style: 'Smooth', dances: ['Tango'],
+      heats: [{ round: 'final', bibs: [6, 7], judges: [] }],
+      competitionId: 1,
+    };
+
+    const e12: Event = {
+      id: 12, name: 'Smooth Filler 2', style: 'Smooth', dances: ['Foxtrot'],
+      heats: [{ round: 'final', bibs: [8, 9], judges: [] }],
+      competitionId: 1,
+    };
+
+    const heatOrder = [
+      makeHeat('q', 10, 'quarter-final'),   // Smooth
+      makeHeat('s', 10, 'semi-final'),       // Smooth — adjacent!
+      makeHeat('f', 10, 'final'),            // Smooth — adjacent!
+      makeHeat('f1', 11),                    // Smooth filler
+      makeHeat('f2', 12),                    // Smooth filler
+      makeHeat('r1', 3),                     // Rhythm
+      makeHeat('r2', 4),                     // Rhythm
+    ];
+    const eventList = [e1Multi, e11, e12, rhythmChaEvent, rhythmRumbaEvent];
+
+    const result = await processWithinStyleSegments(heatOrder, eventList, 1);
+
+    verifyStyleContiguity(result, eventList);
+    // All Smooth heats before all Rhythm heats
+    const lastSmooth = Math.max(
+      ...result.filter(h => getHeatStyle(h, eventList) === 'Smooth').map(h => result.indexOf(h))
+    );
+    const firstRhythm = Math.min(
+      ...result.filter(h => getHeatStyle(h, eventList) === 'Rhythm').map(h => result.indexOf(h))
+    );
+    expect(lastSmooth).toBeLessThan(firstRhythm);
   });
 });
