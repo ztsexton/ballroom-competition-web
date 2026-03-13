@@ -49,6 +49,9 @@ export class PostgresDataService implements IDataService {
       heatListsPublishedAt: row.heat_lists_published_at || undefined,
       websiteUrl: row.website_url || undefined,
       organizerEmail: row.organizer_email || undefined,
+      numberOfDays: row.number_of_days ?? undefined,
+      scheduleDayConfigs: row.schedule_day_configs || undefined,
+      hardStopTime: row.hard_stop_time || undefined,
       allowDuplicateEntries: row.allow_duplicate_entries ?? undefined,
       createdBy: row.created_by || undefined,
       createdAt: row.created_at,
@@ -205,9 +208,13 @@ export class PostgresDataService implements IDataService {
         registration_open, registration_open_at,
         publicly_visible, publicly_visible_at, results_public, results_visibility,
         heat_lists_published, heat_lists_published_at,
-        website_url, organizer_email, created_by, created_at)
+        website_url, organizer_email, created_by,
+        number_of_days, schedule_day_configs, hard_stop_time,
+        created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
+        $34, $35, $36,
+        $37)
        RETURNING *`;
     const params = [
       competition.name, competition.type, competition.date,
@@ -240,6 +247,9 @@ export class PostgresDataService implements IDataService {
       competition.websiteUrl || null,
       competition.organizerEmail || null,
       competition.createdBy || null,
+      competition.numberOfDays ?? null,
+      competition.scheduleDayConfigs ? JSON.stringify(competition.scheduleDayConfigs) : null,
+      competition.hardStopTime || null,
       now,
     ];
     let rows;
@@ -284,6 +294,7 @@ export class PostgresDataService implements IDataService {
       resultsPublic: 'results_public',
       heatListsPublished: 'heat_lists_published', heatListsPublishedAt: 'heat_lists_published_at',
       websiteUrl: 'website_url', organizerEmail: 'organizer_email',
+      numberOfDays: 'number_of_days', hardStopTime: 'hard_stop_time',
       allowDuplicateEntries: 'allow_duplicate_entries',
     };
     const jsonFields: Record<string, string> = {
@@ -293,6 +304,7 @@ export class PostgresDataService implements IDataService {
       recallRules: 'recall_rules', entryValidation: 'entry_validation',
       ageCategories: 'age_categories', danceOrder: 'dance_order',
       resultsVisibility: 'results_visibility',
+      scheduleDayConfigs: 'schedule_day_configs',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {

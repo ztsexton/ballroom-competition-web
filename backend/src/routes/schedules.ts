@@ -7,6 +7,7 @@ import { getRecallCount } from '../constants/rounds';
 import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 import { generateHeatSheetPDF, generateCombinedHeatSheetPDF, generateResultsPDF, generateCombinedResultsPDF } from '../services/pdfService';
 import { sendHeatSheetEmail, sendResultsEmail, isEmailConfigured } from '../services/emailService';
+import { deriveStartTime } from '../services/schedule/helpers';
 import { PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse, PersonEventResult, PersonResultsResponse } from '../types';
 import logger from '../utils/logger';
 
@@ -540,7 +541,10 @@ router.patch('/:competitionId/timing', async (req: Request, res: Response) => {
       schedule = ScheduleService.migrateSchedule(schedule);
       const events = await dataService.getEvents(competitionId);
       const { timingService, DEFAULT_TIMING } = await import('../services/timingService');
-      const settings = { ...DEFAULT_TIMING, ...timingSettings };
+      // Re-fetch competition to get updated timingSettings + scheduleDayConfigs
+      const updatedComp = await dataService.getCompetitionById(competitionId);
+      const effectiveStartTime = timingSettings.startTime || deriveStartTime(updatedComp!);
+      const settings = { ...DEFAULT_TIMING, ...timingSettings, startTime: effectiveStartTime };
       timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
       schedule = await dataService.saveSchedule(schedule);
       return res.json(schedule);
@@ -736,10 +740,13 @@ router.post('/:competitionId/apply-variant', async (req: Request, res: Response)
     // Recalculate timing
     const events = await dataService.getEvents(competitionId);
     const competition = await dataService.getCompetitionById(competitionId);
-    if (competition?.timingSettings) {
-      const { timingService, DEFAULT_TIMING } = await import('../services/timingService');
-      const settings = { ...DEFAULT_TIMING, ...competition.timingSettings };
-      timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
+    if (competition) {
+      const effectiveStartTime = competition.timingSettings?.startTime || deriveStartTime(competition);
+      if (effectiveStartTime) {
+        const { timingService, DEFAULT_TIMING } = await import('../services/timingService');
+        const settings = { ...DEFAULT_TIMING, ...competition.timingSettings, startTime: effectiveStartTime };
+        timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
+      }
     }
 
     // Save updated events (judge assignments were written to events by the variant generator)

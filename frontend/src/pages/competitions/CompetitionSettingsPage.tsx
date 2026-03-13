@@ -518,7 +518,7 @@ const CompetitionSettingsPage = () => {
                         if (e.target.checked) {
                           saveField('hardStopTime', '17:00', 'hardStop');
                         } else {
-                          saveField('hardStopTime', undefined, 'hardStop');
+                          saveField('hardStopTime', null, 'hardStop');
                         }
                       }}
                       className="w-4 h-4"

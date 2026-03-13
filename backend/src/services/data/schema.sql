@@ -252,3 +252,8 @@ ALTER TABLE judges ADD COLUMN IF NOT EXISTS judge_role TEXT DEFAULT NULL;
 
 -- Migration: add results_visibility for selective results publishing
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS results_visibility JSONB;
+
+-- Migration: add schedule day configs, number of days, and hard stop time
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS number_of_days INTEGER;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS schedule_day_configs JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS hard_stop_time TEXT;

@@ -238,7 +238,15 @@ const SchedulePage = () => {
       await competitionsApi.update(competitionId, compUpdate);
       // Update local competition state so overflow detection works immediately
       setCompetition(prev => prev ? { ...prev, ...compUpdate } : prev);
-      const effectiveTiming = overrides?.timingSettings ?? timingSettings;
+      const baseTiming = overrides?.timingSettings ?? timingSettings;
+      // Derive start time from day configs if not explicitly set
+      const effectiveTiming = { ...baseTiming };
+      if (!effectiveTiming.startTime && dayConfigs[0]?.startTime && competition?.date) {
+        const [h, m] = dayConfigs[0].startTime.split(':').map(Number);
+        const d = new Date(competition.date + 'T00:00:00');
+        d.setHours(h, m, 0, 0);
+        effectiveTiming.startTime = d.toISOString();
+      }
       const effectiveLevelCombining = overrides?.levelCombining ?? levelCombining;
       const res = await schedulesApi.generate(competitionId, styleOrder, levelOrder, judgeSettings, effectiveTiming, danceOrder, autoBreaks, deferFinals, eventTypeOrder, effectiveLevelCombining);
       setSchedule(res.data);

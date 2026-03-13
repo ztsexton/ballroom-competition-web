@@ -83,14 +83,32 @@ export function migrateSchedule(schedule: CompetitionSchedule): CompetitionSched
   return schedule;
 }
 
+/**
+ * Derive a full ISO start time from scheduleDayConfigs and competition date.
+ * scheduleDayConfigs stores time-only strings like "08:00",
+ * so we combine with the competition date to get a proper datetime.
+ */
+export function deriveStartTime(competition: { date: string; scheduleDayConfigs?: { startTime: string }[] }): string | undefined {
+  const dayConfig = competition.scheduleDayConfigs?.[0];
+  if (!dayConfig?.startTime) return undefined;
+  const [h, m] = dayConfig.startTime.split(':').map(Number);
+  const d = new Date(competition.date + 'T00:00:00');
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
 export async function recalculateTimingIfConfigured(
   competitionId: number,
   schedule: CompetitionSchedule,
 ): Promise<CompetitionSchedule> {
   const competition = await dataService.getCompetitionById(competitionId);
-  if (!competition?.timingSettings?.startTime) return schedule;
+  if (!competition) return schedule;
+
+  const effectiveStartTime = competition.timingSettings?.startTime || deriveStartTime(competition);
+  if (!effectiveStartTime) return schedule;
+
   const events = await dataService.getEvents(competitionId);
-  const settings = { ...DEFAULT_TIMING, ...competition.timingSettings };
+  const settings = { ...DEFAULT_TIMING, ...competition.timingSettings, startTime: effectiveStartTime };
   timingService.calculateEstimatedTimes(schedule.heatOrder, events, settings);
   return await dataService.saveSchedule(schedule);
 }
