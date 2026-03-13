@@ -36,6 +36,7 @@ interface ScheduleConfigFormProps {
   timingSettings: TimingSettings;
   eventCount: number;
   dayConfigs: ScheduleDayConfig[];
+  hardStopTime?: string;
   generating?: boolean;
   autoBreaks: AutoBreaksConfig;
   deferFinals: boolean;
@@ -46,7 +47,6 @@ interface ScheduleConfigFormProps {
   onDanceOrderChange: (order: Record<string, string[]>) => void;
   onJudgeSettingsChange: (settings: JudgeSettings) => void;
   onTimingSettingsChange: (fn: (prev: TimingSettings) => TimingSettings) => void;
-  onDayConfigsChange: (configs: ScheduleDayConfig[]) => void;
   onAutoBreaksChange: (config: AutoBreaksConfig) => void;
   onDeferFinalsChange: (value: boolean) => void;
   onEventTypeOrderChange: (order: string[]) => void;
@@ -87,6 +87,7 @@ export default function ScheduleConfigForm({
   timingSettings,
   eventCount,
   dayConfigs,
+  hardStopTime,
   generating,
   autoBreaks,
   deferFinals,
@@ -97,7 +98,6 @@ export default function ScheduleConfigForm({
   onDanceOrderChange,
   onJudgeSettingsChange,
   onTimingSettingsChange,
-  onDayConfigsChange,
   onAutoBreaksChange,
   onDeferFinalsChange,
   onEventTypeOrderChange,
@@ -106,24 +106,6 @@ export default function ScheduleConfigForm({
 }: ScheduleConfigFormProps) {
   const numberOfDays = dayConfigs.length || 1;
   const [newStyleInput, setNewStyleInput] = useState('');
-
-  const handleDaysChange = (newCount: number) => {
-    const count = Math.max(1, Math.min(newCount, 7));
-    const newConfigs: ScheduleDayConfig[] = [];
-    for (let i = 0; i < count; i++) {
-      newConfigs.push(dayConfigs[i] || { day: i + 1, startTime: '08:00', endTime: '17:00' });
-    }
-    // Ensure day numbers are sequential
-    newConfigs.forEach((c, i) => { c.day = i + 1; });
-    onDayConfigsChange(newConfigs);
-  };
-
-  const handleDayConfigChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
-    const newConfigs = dayConfigs.map((c, i) =>
-      i === index ? { ...c, [field]: value } : c
-    );
-    onDayConfigsChange(newConfigs);
-  };
 
   const generateButton = (
     <button
@@ -718,43 +700,33 @@ export default function ScheduleConfigForm({
         </div>
       </ConfigSection>
 
-      <ConfigSection title="Schedule Window" description={`${numberOfDays} day${numberOfDays > 1 ? 's' : ''}`}>
+      <ConfigSection title="Schedule Window" description={`${numberOfDays} day${numberOfDays > 1 ? 's' : ''}${hardStopTime ? ` \u00b7 Hard stop: ${hardStopTime}` : ''}`}>
         <p className="text-gray-500 text-sm mb-2">
-          Set competition duration to enable schedule optimization and overflow warnings.
+          Configured in Competition Settings &rarr; Schedule tab.
         </p>
         <div className="flex flex-col gap-2 max-w-[400px]">
-          <div className="flex items-center gap-3">
-            <label className="flex-1 font-semibold">Number of days</label>
-            <input
-              type="number"
-              min={1}
-              max={7}
-              value={numberOfDays}
-              onChange={(e) => handleDaysChange(parseInt(e.target.value) || 1)}
-              className="w-16 p-1.5 rounded border border-gray-200 text-center"
-            />
-          </div>
           {dayConfigs.map((config, idx) => (
-            <div key={idx} className="flex items-center gap-3">
+            <div key={idx} className="flex items-center gap-3 text-sm">
               {numberOfDays > 1 && (
-                <label className="font-semibold min-w-[3.5rem]">Day {config.day}</label>
+                <span className="font-semibold min-w-[3.5rem]">Day {config.day}</span>
               )}
-              <label className="text-gray-600">{numberOfDays === 1 ? 'Start' : ''}</label>
-              <input
-                type="time"
-                value={config.startTime}
-                onChange={(e) => handleDayConfigChange(idx, 'startTime', e.target.value)}
-                className="p-1.5 rounded border border-gray-200"
-              />
-              <span className="text-gray-400">to</span>
-              <input
-                type="time"
-                value={config.endTime}
-                onChange={(e) => handleDayConfigChange(idx, 'endTime', e.target.value)}
-                className="p-1.5 rounded border border-gray-200"
-              />
+              <span className="text-gray-700">{config.startTime} &ndash; {config.endTime}</span>
+              {(() => {
+                const [sh, sm] = config.startTime.split(':').map(Number);
+                const [eh, em] = config.endTime.split(':').map(Number);
+                const mins = (eh * 60 + em) - (sh * 60 + sm);
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                return <span className="text-gray-400">({h}h{m > 0 ? ` ${m}m` : ''})</span>;
+              })()}
             </div>
           ))}
+          {hardStopTime && (
+            <div className="flex items-center gap-2 mt-1 px-2 py-1.5 bg-red-50 border border-red-200 rounded text-sm">
+              <span className="text-red-700 font-semibold">Hard stop: {hardStopTime}</span>
+              <span className="text-red-500 text-xs">Must end by this time</span>
+            </div>
+          )}
         </div>
       </ConfigSection>
 

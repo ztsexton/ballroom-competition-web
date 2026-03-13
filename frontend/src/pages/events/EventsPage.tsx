@@ -21,6 +21,9 @@ const EventsPage = () => {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [deleteEventId, setDeleteEventId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showBulkScoring, setShowBulkScoring] = useState(false);
+  const [bulkRules, setBulkRules] = useState<Record<string, string>>({});
+  const [bulkApplying, setBulkApplying] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -110,6 +113,93 @@ const EventsPage = () => {
           </div>
         </div>
 
+        {events.length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowBulkScoring(!showBulkScoring)}
+              className="text-sm text-primary-600 hover:text-primary-800 font-medium cursor-pointer bg-transparent border-none"
+            >
+              {showBulkScoring ? '\u25bc' : '\u25b6'} Bulk Scoring Type Assignment
+            </button>
+            {showBulkScoring && (
+              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-600 mb-3">
+                  Set scoring type for all events by event type. Only events whose scoring type differs will be updated.
+                </p>
+                <div className="flex gap-6 flex-wrap items-end">
+                  {(['single', 'multi', 'scholarship'] as const).map(type => {
+                    const label = type === 'single' ? 'Single Dance' : type === 'multi' ? 'Multi Dance' : 'Scholarship';
+                    const count = events.filter(e => {
+                      if (type === 'scholarship') return e.isScholarship;
+                      if (type === 'multi') return !e.isScholarship && e.dances && e.dances.length > 1;
+                      return !e.isScholarship && (!e.dances || e.dances.length <= 1);
+                    }).length;
+                    return (
+                      <div key={type} className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-gray-500">{label} ({count})</label>
+                        <select
+                          value={bulkRules[type] || ''}
+                          onChange={e => setBulkRules(prev => {
+                            const next = { ...prev };
+                            if (e.target.value) next[type] = e.target.value;
+                            else delete next[type];
+                            return next;
+                          })}
+                          className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="">No change</option>
+                          <option value="standard">Standard</option>
+                          <option value="proficiency">Proficiency</option>
+                        </select>
+                      </div>
+                    );
+                  })}
+                  <button
+                    onClick={async () => {
+                      if (!activeCompetition || Object.keys(bulkRules).length === 0) return;
+                      setBulkApplying(true);
+                      try {
+                        const res = await eventsApi.bulkScoringType(activeCompetition.id, bulkRules);
+                        if (res.data.warning) {
+                          if (confirm(res.data.message + ' Continue?')) {
+                            const confirmed = await eventsApi.bulkScoringType(activeCompetition.id, bulkRules, true);
+                            showToast(`Updated ${confirmed.data.updated} event(s)`, 'success');
+                            loadEvents();
+                          }
+                        } else {
+                          showToast(`Updated ${res.data.updated} event(s)`, 'success');
+                          loadEvents();
+                        }
+                      } catch (error: any) {
+                        const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to update';
+                        if (error.response?.status === 409 && error.response?.data?.warning) {
+                          if (confirm(error.response.data.message + ' Continue?')) {
+                            try {
+                              const confirmed = await eventsApi.bulkScoringType(activeCompetition.id, bulkRules, true);
+                              showToast(`Updated ${confirmed.data.updated} event(s)`, 'success');
+                              loadEvents();
+                            } catch (err2: any) {
+                              showToast(err2.response?.data?.error || 'Failed to update', 'error');
+                            }
+                          }
+                        } else {
+                          showToast(msg, 'error');
+                        }
+                      } finally {
+                        setBulkApplying(false);
+                      }
+                    }}
+                    disabled={bulkApplying || Object.keys(bulkRules).length === 0}
+                    className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkApplying ? 'Applying...' : 'Apply'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {(() => {
           const filteredEvents = events.filter(e => {
             const term = searchTerm.toLowerCase();
@@ -174,12 +264,22 @@ const EventsPage = () => {
                         <td className="px-3 py-2 border-t border-gray-100"><strong>#{event.id}</strong></td>
                         <td className="px-3 py-2 border-t border-gray-100">{event.name}</td>
                         <td className="px-3 py-2 border-t border-gray-100 text-sm text-gray-500">
-                          {[
-                            event.designation,
-                            event.syllabusType,
-                            event.level,
-                            event.dances?.join(', ')
-                          ].filter(Boolean).join(' \u2022 ') || '\u2014'}
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {[
+                                event.designation,
+                                event.syllabusType,
+                                event.level,
+                                event.dances?.join(', ')
+                              ].filter(Boolean).join(' \u2022 ') || '\u2014'}
+                            </span>
+                            {event.scoringType === 'proficiency' && (
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">Prof</span>
+                            )}
+                            {event.sectionLetter && (
+                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">Sec {event.sectionLetter}</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2 border-t border-gray-100">{event.heats.length} round{event.heats.length !== 1 ? 's' : ''}</td>
                         <td className="px-3 py-2 border-t border-gray-100">{allBibs.size} couple{allBibs.size !== 1 ? 's' : ''}</td>

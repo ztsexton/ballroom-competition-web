@@ -716,4 +716,176 @@ describe('Events API', () => {
       expect(finalHeat.bibs).toContain(newC!.bib);
     });
   });
+
+  describe('POST /api/events/bulk-scoring-type/:competitionId', () => {
+    it('should update single-dance events to proficiency', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'C', lastName: 'D', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      // Single dance event (standard by default)
+      await dataService.addEvent('Waltz', [couple!.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      // Multi-dance event (standard by default)
+      await dataService.addEvent('Multi', [couple!.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz', 'Tango'], 'standard');
+
+      const res = await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'proficiency' } })
+        .expect(200);
+
+      expect(res.body.updated).toBe(1);
+
+      // Verify the single-dance event changed
+      const events = await dataService.getEvents(comp.id);
+      const singleEvent = Object.values(events).find(e => e.name === 'Waltz');
+      const multiEvent = Object.values(events).find(e => e.name === 'Multi');
+      expect(singleEvent!.scoringType).toBe('proficiency');
+      expect(singleEvent!.heats).toHaveLength(1); // proficiency = single round
+      expect(multiEvent!.scoringType).toBe('standard'); // unchanged
+    });
+
+    it('should update multiple event types at once', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'C', lastName: 'D', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      await dataService.addEvent('Waltz', [couple!.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      await dataService.addEvent('Multi', [couple!.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz', 'Tango'], 'standard');
+
+      const res = await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'proficiency', multi: 'proficiency' } })
+        .expect(200);
+
+      expect(res.body.updated).toBe(2);
+    });
+
+    it('should skip events that already have the target scoring type', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'C', lastName: 'D', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      await dataService.addEvent('Waltz', [couple!.bib], [], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'proficiency');
+
+      const res = await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'proficiency' } })
+        .expect(200);
+
+      expect(res.body.updated).toBe(0);
+    });
+
+    it('should return 409 warning when scores exist and clearScores not set', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'C', lastName: 'D', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [1], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      await dataService.setScores(event.id, 'final', couple!.bib, [1]);
+
+      const res = await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'proficiency' } })
+        .expect(409);
+
+      expect(res.body.warning).toBe(true);
+    });
+
+    it('should update with clearScores confirmation', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'A', lastName: 'B', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'C', lastName: 'D', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      const event = await dataService.addEvent('Waltz', [couple!.bib], [1], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'standard');
+      await dataService.setScores(event.id, 'final', couple!.bib, [1]);
+
+      const res = await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'proficiency' }, clearScores: true })
+        .expect(200);
+
+      expect(res.body.updated).toBe(1);
+    });
+
+    it('should return 400 for invalid rules', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+
+      await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { invalid: 'proficiency' } })
+        .expect(400);
+
+      await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({ rules: { single: 'invalid' } })
+        .expect(400);
+
+      await request(app)
+        .post(`/api/events/bulk-scoring-type/${comp.id}`)
+        .send({})
+        .expect(400);
+    });
+  });
+
+  describe('GET /api/events/section-results/:competitionId/:sectionGroupId', () => {
+    it('should return combined results for section events', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01', allowDuplicateEntries: true });
+
+      // Create people: 1 pro + 3 students
+      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Teacher', role: 'leader', status: 'professional', competitionId: comp.id });
+      const s1 = await dataService.addPerson({ firstName: 'S1', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
+      const s2 = await dataService.addPerson({ firstName: 'S2', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
+      const s3 = await dataService.addPerson({ firstName: 'S3', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
+
+      const c1 = await dataService.addCouple(pro.id, s1.id, comp.id);
+      const c2 = await dataService.addCouple(pro.id, s2.id, comp.id);
+      const c3 = await dataService.addCouple(pro.id, s3.id, comp.id);
+
+      const sgId = `sg-test-${Date.now()}`;
+      const judge = await dataService.addJudge('Judge', comp.id);
+
+      // Create section events
+      const evA = await dataService.addEvent('Waltz - A', [c1!.bib], [judge.id], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'proficiency');
+      await dataService.updateEvent(evA.id, { sectionGroupId: sgId, sectionLetter: 'A' });
+
+      const evB = await dataService.addEvent('Waltz - B', [c2!.bib], [judge.id], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'proficiency');
+      await dataService.updateEvent(evB.id, { sectionGroupId: sgId, sectionLetter: 'B' });
+
+      const evC = await dataService.addEvent('Waltz - C', [c3!.bib], [judge.id], comp.id, 'Pro-Am', 'Syllabus', 'Bronze', 'Smooth', ['Waltz'], 'proficiency');
+      await dataService.updateEvent(evC.id, { sectionGroupId: sgId, sectionLetter: 'C' });
+
+      // Submit scores (proficiency: 0-100, stored as array of judge scores)
+      await dataService.setScores(evA.id, 'final', c1!.bib, [85]);
+      await dataService.setScores(evB.id, 'final', c2!.bib, [92]);
+      await dataService.setScores(evC.id, 'final', c3!.bib, [78]);
+
+      const res = await request(app)
+        .get(`/api/events/section-results/${comp.id}/${sgId}`)
+        .expect(200);
+
+      expect(res.body.sectionCount).toBe(3);
+      expect(res.body.results).toHaveLength(3);
+      // Ranked by score descending: S2(92), S1(85), S3(78)
+      expect(res.body.results[0].combinedRank).toBe(1);
+      expect(res.body.results[0].averageScore).toBe(92);
+      expect(res.body.results[0].sectionLetter).toBe('B');
+      expect(res.body.results[1].combinedRank).toBe(2);
+      expect(res.body.results[1].averageScore).toBe(85);
+      expect(res.body.results[2].combinedRank).toBe(3);
+      expect(res.body.results[2].averageScore).toBe(78);
+    });
+
+    it('should return 404 for non-existent section group', async () => {
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+
+      await request(app)
+        .get(`/api/events/section-results/${comp.id}/nonexistent`)
+        .expect(404);
+    });
+  });
 });

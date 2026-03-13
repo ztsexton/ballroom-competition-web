@@ -24,6 +24,10 @@ export interface ScheduleAnalysis {
   availableMinutes: number | null;
   overflowMinutes: number;
   fitsInWindow: boolean;
+  hardStopTime?: string;
+  estimatedEndTime?: string;
+  exceedsHardStop: boolean;
+  hardStopOverflowMinutes: number;
   suggestions: ScheduleSuggestion[];
 }
 
@@ -114,15 +118,16 @@ function areMergeable(
 }
 
 export async function analyzeSchedule(competitionId: number): Promise<ScheduleAnalysis> {
+  const emptyResult: ScheduleAnalysis = {
+    estimatedDurationMinutes: 0, availableMinutes: null, overflowMinutes: 0,
+    fitsInWindow: true, exceedsHardStop: false, hardStopOverflowMinutes: 0, suggestions: [],
+  };
+
   const competition = await dataService.getCompetitionById(competitionId);
-  if (!competition) {
-    return { estimatedDurationMinutes: 0, availableMinutes: null, overflowMinutes: 0, fitsInWindow: true, suggestions: [] };
-  }
+  if (!competition) return emptyResult;
 
   const schedule = await dataService.getSchedule(competitionId);
-  if (!schedule) {
-    return { estimatedDurationMinutes: 0, availableMinutes: null, overflowMinutes: 0, fitsInWindow: true, suggestions: [] };
-  }
+  if (!schedule) return emptyResult;
 
   const events = await dataService.getEvents(competitionId);
   const timingSettings = competition.timingSettings || DEFAULT_TIMING;
@@ -142,7 +147,32 @@ export async function analyzeSchedule(competitionId: number): Promise<ScheduleAn
 
   const suggestions: ScheduleSuggestion[] = [];
 
-  if (!fitsInWindow) {
+  // Hard stop calculation
+  let exceedsHardStop = false;
+  let hardStopOverflowMinutes = 0;
+  let estimatedEndTime: string | undefined;
+
+  if (competition.hardStopTime && timingSettings.startTime) {
+    const startMs = new Date(timingSettings.startTime).getTime();
+    const endMs = startMs + estimatedDurationMinutes * 60000;
+    const endDate = new Date(endMs);
+    estimatedEndTime = endDate.toISOString();
+
+    // Parse hard stop as HH:MM on the same date as start
+    const [hh, mm] = competition.hardStopTime.split(':').map(Number);
+    const hardStopDate = new Date(timingSettings.startTime);
+    hardStopDate.setHours(hh, mm, 0, 0);
+    const hardStopMs = hardStopDate.getTime();
+
+    if (endMs > hardStopMs) {
+      exceedsHardStop = true;
+      hardStopOverflowMinutes = Math.ceil((endMs - hardStopMs) / 60000);
+    }
+  }
+
+  const needsSuggestions = !fitsInWindow || exceedsHardStop;
+
+  if (needsSuggestions) {
     // Suggest merging compatible adjacent heats
     const betweenHeatMinutes = (timingSettings.betweenHeatSeconds ?? DEFAULT_TIMING.betweenHeatSeconds) / 60;
 
@@ -164,8 +194,9 @@ export async function analyzeSchedule(competitionId: number): Promise<ScheduleAn
     }
 
     // If merges alone aren't enough, suggest increasing maxCouplesPerHeat
+    const targetOverflow = Math.max(overflowMinutes, hardStopOverflowMinutes);
     const totalMergeSavings = suggestions.reduce((sum, s) => sum + s.estimatedTimeSavingMinutes, 0);
-    if (totalMergeSavings < overflowMinutes) {
+    if (totalMergeSavings < targetOverflow) {
       const suggestedMax = maxCouples + 2;
       suggestions.push({
         type: 'increase-max-couples',
@@ -181,6 +212,10 @@ export async function analyzeSchedule(competitionId: number): Promise<ScheduleAn
     availableMinutes,
     overflowMinutes,
     fitsInWindow,
+    hardStopTime: competition.hardStopTime,
+    estimatedEndTime,
+    exceedsHardStop,
+    hardStopOverflowMinutes,
     suggestions,
   };
 }

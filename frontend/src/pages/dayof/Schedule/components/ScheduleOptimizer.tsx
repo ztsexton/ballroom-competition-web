@@ -7,6 +7,10 @@ interface ScheduleAnalysis {
   availableMinutes: number | null;
   overflowMinutes: number;
   fitsInWindow: boolean;
+  hardStopTime?: string;
+  estimatedEndTime?: string;
+  exceedsHardStop?: boolean;
+  hardStopOverflowMinutes?: number;
   suggestions: Array<{
     type: 'merge' | 'increase-max-couples';
     description: string;
@@ -82,20 +86,31 @@ export default function ScheduleOptimizer({ competitionId, onScheduleUpdated }: 
         >
           {loading ? 'Analyzing...' : 'Analyze Schedule'}
         </button>
-        {analysis && analysis.fitsInWindow && (
+        {analysis && analysis.fitsInWindow && !analysis.exceedsHardStop && (
           <span className="text-sm text-green-700 font-medium">Schedule fits within configured time</span>
         )}
       </div>
 
       {error && <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>}
 
-      {analysis && !analysis.fitsInWindow && (
-        <div className="mt-3 bg-amber-50 border border-amber-300 rounded-lg p-4">
-          <div className="text-sm text-amber-900 mb-3">
-            <strong>Schedule overflow:</strong>{' '}
-            Estimated {analysis.estimatedDurationMinutes} min vs {analysis.availableMinutes} min available
-            ({analysis.overflowMinutes} min over)
+      {analysis && analysis.exceedsHardStop && (
+        <div className="mt-3 bg-red-50 border border-red-300 rounded-lg p-4">
+          <div className="text-sm text-red-900 mb-3">
+            <strong>Exceeds hard stop:</strong>{' '}
+            Schedule ends ~{analysis.hardStopOverflowMinutes} min past the {analysis.hardStopTime} deadline
           </div>
+        </div>
+      )}
+
+      {analysis && (!analysis.fitsInWindow || analysis.exceedsHardStop) && (
+        <div className="mt-3 bg-amber-50 border border-amber-300 rounded-lg p-4">
+          {!analysis.fitsInWindow && (
+            <div className="text-sm text-amber-900 mb-3">
+              <strong>Schedule overflow:</strong>{' '}
+              Estimated {analysis.estimatedDurationMinutes} min vs {analysis.availableMinutes} min available
+              ({analysis.overflowMinutes} min over)
+            </div>
+          )}
 
           {analysis.suggestions.length > 0 ? (
             <>

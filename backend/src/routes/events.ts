@@ -559,6 +559,151 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
   res.json({ message: 'Scores cleared successfully' });
 });
 
+// Bulk update scoring type by event type (single/multi/scholarship)
+router.post('/bulk-scoring-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const { rules, clearScores: confirmClear } = req.body;
+    // rules: { single?: 'standard' | 'proficiency', multi?: 'standard' | 'proficiency', scholarship?: 'standard' | 'proficiency' }
+    if (!rules || typeof rules !== 'object') {
+      return res.status(400).json({ error: 'rules object required (e.g. { single: "proficiency", multi: "standard" })' });
+    }
+
+    const validTypes = ['standard', 'proficiency'];
+    for (const [key, val] of Object.entries(rules)) {
+      if (!['single', 'multi', 'scholarship'].includes(key)) {
+        return res.status(400).json({ error: `Invalid event type key: ${key}` });
+      }
+      if (!validTypes.includes(val as string)) {
+        return res.status(400).json({ error: `Invalid scoring type: ${val}` });
+      }
+    }
+
+    const allEvents = await dataService.getEvents(competitionId);
+    const eventsToUpdate: Array<{ event: Event; newScoringType: 'standard' | 'proficiency' }> = [];
+    let wouldClearScores = false;
+
+    for (const event of Object.values(allEvents)) {
+      // Determine event type tag
+      let tag: string;
+      if (event.isScholarship) tag = 'scholarship';
+      else if (event.dances && event.dances.length > 1) tag = 'multi';
+      else tag = 'single';
+
+      const newScoringType = rules[tag] as 'standard' | 'proficiency' | undefined;
+      if (!newScoringType) continue;
+
+      const currentScoringType = event.scoringType || 'standard';
+      if (currentScoringType === newScoringType) continue;
+
+      // Check if this event has scores
+      if (await dataService.hasAnyScores(event.id)) {
+        wouldClearScores = true;
+      }
+
+      eventsToUpdate.push({ event, newScoringType });
+    }
+
+    if (eventsToUpdate.length === 0) {
+      return res.json({ updated: 0, message: 'No events needed updating' });
+    }
+
+    // If scores would be cleared and not confirmed, return warning
+    if (wouldClearScores && !confirmClear) {
+      return res.status(409).json({
+        warning: true,
+        message: `This will update ${eventsToUpdate.length} event(s) and clear scores on some events with existing scores.`,
+        count: eventsToUpdate.length,
+      });
+    }
+
+    let updatedCount = 0;
+    for (const { event, newScoringType } of eventsToUpdate) {
+      const hasScores = await dataService.hasAnyScores(event.id);
+      if (hasScores) {
+        await dataService.clearAllEventScores(event.id);
+      }
+
+      const existingBibs = event.heats[0]?.bibs || [];
+      const existingJudges = event.heats[0]?.judges || [];
+      const newHeats = dataService.rebuildHeats(existingBibs, existingJudges, newScoringType);
+
+      await dataService.updateEvent(event.id, { scoringType: newScoringType, heats: newHeats });
+      updatedCount++;
+    }
+
+    res.json({ updated: updatedCount });
+  } catch (error) {
+    console.error('Bulk scoring type error:', error);
+    res.status(500).json({ error: 'Failed to bulk update scoring types' });
+  }
+});
+
+// Get combined results for a section group (aggregates proficiency scores across sections)
+router.get('/section-results/:competitionId/:sectionGroupId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  const sectionGroupId = req.params.sectionGroupId;
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const allEvents = await dataService.getEvents(competitionId);
+    const sectionEvents = Object.values(allEvents).filter(e => e.sectionGroupId === sectionGroupId);
+
+    if (sectionEvents.length === 0) {
+      return res.status(404).json({ error: 'No events found for this section group' });
+    }
+
+    // Gather results from all sections
+    const allResults: Array<{
+      bib: number;
+      leaderName: string;
+      followerName: string;
+      sectionLetter: string;
+      eventId: number;
+      scores: number[];
+      averageScore: number;
+    }> = [];
+
+    for (const event of sectionEvents) {
+      const round = 'final';
+      const heat = event.heats.find(h => h.round === round);
+      if (!heat) continue;
+
+      const results = await scoringService.calculateResults(event.id, round);
+      for (const result of results) {
+        allResults.push({
+          bib: result.bib,
+          leaderName: result.leaderName,
+          followerName: result.followerName,
+          sectionLetter: event.sectionLetter || '?',
+          eventId: event.id,
+          scores: result.scores,
+          averageScore: result.totalScore ?? 0,
+        });
+      }
+    }
+
+    // Sort by average score descending, then assign combined rank
+    allResults.sort((a, b) => b.averageScore - a.averageScore);
+    const ranked = allResults.map((r, i) => ({
+      ...r,
+      combinedRank: i + 1,
+    }));
+
+    res.json({
+      sectionGroupId,
+      eventName: sectionEvents[0].name.replace(/ - [A-Z]$/, ''),
+      sectionCount: sectionEvents.length,
+      results: ranked,
+    });
+  } catch (error) {
+    console.error('Section results error:', error);
+    res.status(500).json({ error: 'Failed to compute section results' });
+  }
+});
+
 // Reorder dances in all events for a competition to match configured dance order
 router.post('/reorder-dances/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);

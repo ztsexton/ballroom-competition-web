@@ -244,6 +244,24 @@ export const eventsApi = {
     api.post<Event>(`/events/${eventId}/scratch`, { bib }),
   unscratch: (eventId: number, bib: number) =>
     api.delete<Event>(`/events/${eventId}/scratch/${bib}`),
+  bulkScoringType: (competitionId: number, rules: Record<string, string>, clearScores?: boolean) =>
+    api.post<{ updated: number; warning?: boolean; message?: string }>(`/events/bulk-scoring-type/${competitionId}`, { rules, clearScores }),
+  getSectionResults: (competitionId: number, sectionGroupId: string) =>
+    api.get<{
+      sectionGroupId: string;
+      eventName: string;
+      sectionCount: number;
+      results: Array<{
+        bib: number;
+        leaderName: string;
+        followerName: string;
+        sectionLetter: string;
+        eventId: number;
+        scores: number[];
+        averageScore: number;
+        combinedRank: number;
+      }>;
+    }>(`/events/section-results/${competitionId}/${sectionGroupId}`),
 };
 
 // Schedules API

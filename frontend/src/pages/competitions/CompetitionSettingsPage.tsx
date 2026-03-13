@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { competitionsApi, organizationsApi, settingsApi, eventsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
-import { CompetitionType, AgeCategory, Organization } from '../../types';
+import { CompetitionType, AgeCategory, Organization, ScheduleDayConfig } from '../../types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
@@ -28,6 +28,7 @@ const TABS = [
   { key: 'general', label: 'General' },
   { key: 'rules', label: 'Rules' },
   { key: 'events', label: 'Events' },
+  { key: 'schedule', label: 'Schedule' },
   { key: 'judges', label: 'Judges' },
   { key: 'billing', label: 'Billing' },
   { key: 'access', label: 'Access' },
@@ -377,6 +378,191 @@ const CompetitionSettingsPage = () => {
             savedMap={savedMap}
             saveField={saveField}
           />
+        </>
+      )}
+
+      {/* ─── Schedule Tab ─── */}
+      {activeTab === 'schedule' && (
+        <>
+          <Section title="Competition Time Window" savedKey="schedule" savedMap={savedMap}>
+            <p className="text-gray-500 text-sm mb-3">
+              Set the start and end times for your competition day(s). The schedule generator uses these to calculate timing and detect overflow.
+            </p>
+            <div className="flex flex-col gap-4 max-w-[500px]">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold text-gray-600 w-24">Days</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={comp.scheduleDayConfigs?.length || 1}
+                  onChange={(e) => {
+                    const count = parseInt(e.target.value) || 1;
+                    const existing = comp.scheduleDayConfigs || [];
+                    const newConfigs: ScheduleDayConfig[] = [];
+                    for (let i = 0; i < count; i++) {
+                      newConfigs.push(existing[i] || { day: i + 1, startTime: '08:00', endTime: '17:00' });
+                    }
+                    newConfigs.forEach((c, i) => c.day = i + 1);
+                    saveField('scheduleDayConfigs', newConfigs, 'schedule');
+                  }}
+                  className="w-16 p-1.5 rounded border border-gray-200 text-center text-sm"
+                />
+              </div>
+              {(comp.scheduleDayConfigs || [{ day: 1, startTime: '08:00', endTime: '17:00' }]).map((config, idx) => {
+                const renderTimePicker = (value: string, onChange: (time: string) => void) => {
+                  const [h, m] = value.split(':').map(Number);
+                  let hour12 = h;
+                  let period: 'AM' | 'PM' = 'AM';
+                  if (h === 0) { hour12 = 12; period = 'AM'; }
+                  else if (h < 12) { hour12 = h; period = 'AM'; }
+                  else if (h === 12) { hour12 = 12; period = 'PM'; }
+                  else { hour12 = h - 12; period = 'PM'; }
+                  const minute = m;
+
+                  const buildTime = (h12: number, min: number, p: 'AM' | 'PM') => {
+                    let h24 = h12;
+                    if (p === 'AM' && h12 === 12) h24 = 0;
+                    else if (p === 'PM' && h12 !== 12) h24 = h12 + 12;
+                    return `${String(h24).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+                  };
+
+                  return (
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={hour12}
+                        onChange={(e) => onChange(buildTime(parseInt(e.target.value), minute, period))}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white"
+                      >
+                        {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(hv => (
+                          <option key={hv} value={hv}>{hv}</option>
+                        ))}
+                      </select>
+                      <span className="text-gray-400 font-semibold">:</span>
+                      <select
+                        value={minute}
+                        onChange={(e) => onChange(buildTime(hour12, parseInt(e.target.value), period))}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white"
+                      >
+                        {[0, 15, 30, 45].map(mv => (
+                          <option key={mv} value={mv}>{String(mv).padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={period}
+                        onChange={(e) => onChange(buildTime(hour12, minute, e.target.value as 'AM' | 'PM'))}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white font-medium"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div key={idx} className="flex items-center gap-3">
+                    {(comp.scheduleDayConfigs?.length || 1) > 1 && (
+                      <label className="font-semibold text-sm min-w-[3.5rem]">Day {config.day}</label>
+                    )}
+                    {(comp.scheduleDayConfigs?.length || 1) === 1 && (
+                      <label className="text-sm text-gray-600">Start</label>
+                    )}
+                    {renderTimePicker(config.startTime, (time) => {
+                      const configs = [...(comp.scheduleDayConfigs || [{ day: 1, startTime: '08:00', endTime: '17:00' }])];
+                      configs[idx] = { ...configs[idx], startTime: time };
+                      saveField('scheduleDayConfigs', configs, 'schedule');
+                    })}
+                    <span className="text-gray-400">to</span>
+                    {renderTimePicker(config.endTime, (time) => {
+                      const configs = [...(comp.scheduleDayConfigs || [{ day: 1, startTime: '08:00', endTime: '17:00' }])];
+                      configs[idx] = { ...configs[idx], endTime: time };
+                      saveField('scheduleDayConfigs', configs, 'schedule');
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title="Hard Stop Time" savedKey="hardStop" savedMap={savedMap}>
+            <p className="text-gray-500 text-sm mb-3">
+              Set an absolute deadline when the competition must end (e.g. venue closing, local regulations). The schedule analyzer will warn and suggest adjustments if the schedule exceeds this time.
+            </p>
+            {(() => {
+              const enabled = !!comp.hardStopTime;
+              const current = comp.hardStopTime || '17:00';
+              const [h, m] = current.split(':').map(Number);
+              let hour12 = h;
+              let period: 'AM' | 'PM' = 'AM';
+              if (h === 0) { hour12 = 12; period = 'AM'; }
+              else if (h < 12) { hour12 = h; period = 'AM'; }
+              else if (h === 12) { hour12 = 12; period = 'PM'; }
+              else { hour12 = h - 12; period = 'PM'; }
+              const minute = m;
+
+              const buildTime = (h12: number, min: number, p: 'AM' | 'PM') => {
+                let h24 = h12;
+                if (p === 'AM' && h12 === 12) h24 = 0;
+                else if (p === 'PM' && h12 !== 12) h24 = h12 + 12;
+                return `${String(h24).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+              };
+
+              return (
+                <div className="flex flex-col gap-3 max-w-[400px]">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          saveField('hardStopTime', '17:00', 'hardStop');
+                        } else {
+                          saveField('hardStopTime', undefined, 'hardStop');
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-semibold text-sm">Enable hard stop</span>
+                  </label>
+                  {enabled && (
+                    <div className="flex items-center gap-2 ml-6">
+                      <select
+                        value={hour12}
+                        onChange={(e) => saveField('hardStopTime', buildTime(parseInt(e.target.value), minute, period), 'hardStop')}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white"
+                      >
+                        {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(hv => (
+                          <option key={hv} value={hv}>{hv}</option>
+                        ))}
+                      </select>
+                      <span className="text-gray-400 font-semibold">:</span>
+                      <select
+                        value={minute}
+                        onChange={(e) => saveField('hardStopTime', buildTime(hour12, parseInt(e.target.value), period), 'hardStop')}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white"
+                      >
+                        {[0, 15, 30, 45].map(mv => (
+                          <option key={mv} value={mv}>{String(mv).padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={period}
+                        onChange={(e) => saveField('hardStopTime', buildTime(hour12, minute, e.target.value as 'AM' | 'PM'), 'hardStop')}
+                        className="p-1.5 rounded border border-gray-200 text-sm bg-white font-medium"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                  )}
+                  {!enabled && (
+                    <p className="text-xs text-gray-400 ml-6">No hard stop set. The schedule end time is informational only.</p>
+                  )}
+                </div>
+              );
+            })()}
+          </Section>
         </>
       )}
 

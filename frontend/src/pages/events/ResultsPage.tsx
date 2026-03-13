@@ -9,6 +9,24 @@ import { Skeleton } from '../../components/Skeleton';
 
 const RECALL_ROUNDS = ['quarter-final', 'semi-final'];
 
+interface SectionResult {
+  bib: number;
+  leaderName: string;
+  followerName: string;
+  sectionLetter: string;
+  eventId: number;
+  scores: number[];
+  averageScore: number;
+  combinedRank: number;
+}
+
+interface SectionResultsData {
+  sectionGroupId: string;
+  eventName: string;
+  sectionCount: number;
+  results: SectionResult[];
+}
+
 const ResultsPage = () => {
   const { id, round } = useParams<{ id: string; round?: string }>();
   const navigate = useNavigate();
@@ -16,6 +34,8 @@ const ResultsPage = () => {
   const [detailed, setDetailed] = useState<DetailedResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentRound, setCurrentRound] = useState<string>('final');
+  const [sectionResults, setSectionResults] = useState<SectionResultsData | null>(null);
+  const [showCombined, setShowCombined] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -33,6 +53,19 @@ const ResultsPage = () => {
 
       const detailResponse = await eventsApi.getDetailedResults(parseInt(id!), roundToUse);
       setDetailed(detailResponse.data);
+
+      // Load combined section results if this is a section event
+      if (eventResponse.data.sectionGroupId) {
+        try {
+          const sectionRes = await eventsApi.getSectionResults(
+            eventResponse.data.competitionId,
+            eventResponse.data.sectionGroupId,
+          );
+          setSectionResults(sectionRes.data);
+        } catch {
+          // Section results are optional — don't fail the page
+        }
+      }
     } catch (error) {
       console.error('Failed to load results:', error);
     } finally {
@@ -179,6 +212,51 @@ const ResultsPage = () => {
                         <td className="px-2 py-1.5">{r.leaderName} &amp; {r.followerName}</td>
                         <td className="px-2 py-1.5 text-right font-semibold">
                           {r.totalScore?.toFixed(1) ?? '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Combined Section Results */}
+        {sectionResults && sectionResults.sectionCount > 1 && (
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <button
+              onClick={() => setShowCombined(!showCombined)}
+              className="text-sm font-semibold text-primary-600 hover:text-primary-800 bg-transparent border-none cursor-pointer"
+            >
+              {showCombined ? '\u25bc' : '\u25b6'} Combined Section Results ({sectionResults.sectionCount} sections)
+            </button>
+            {showCombined && (
+              <div className="mt-3">
+                <p className="text-sm text-gray-500 mb-2">
+                  All couples ranked across {sectionResults.sectionCount} sections of {sectionResults.eventName}
+                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left px-2 py-1.5">Rank</th>
+                      <th className="text-left px-2 py-1.5">Bib</th>
+                      <th className="text-left px-2 py-1.5">Couple</th>
+                      <th className="text-center px-2 py-1.5">Section</th>
+                      <th className="text-right px-2 py-1.5">Avg Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sectionResults.results.map((r, i) => (
+                      <tr key={`${r.eventId}-${r.bib}`} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                        <td className="px-2 py-1.5 font-semibold">{r.combinedRank}</td>
+                        <td className="px-2 py-1.5">{r.bib}</td>
+                        <td className="px-2 py-1.5">{r.leaderName} &amp; {r.followerName}</td>
+                        <td className="px-2 py-1.5 text-center">
+                          <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">{r.sectionLetter}</span>
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-semibold">
+                          {r.averageScore.toFixed(1)}
                         </td>
                       </tr>
                     ))}

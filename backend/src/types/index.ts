@@ -171,6 +171,7 @@ export interface Competition {
   websiteUrl?: string;
   organizerEmail?: string;
   maxJudgeHoursWithoutBreak?: number;
+  hardStopTime?: string;  // "HH:MM" — absolute latest the competition can run (venue/regulatory deadline)
   allowDuplicateEntries?: boolean;
   pendingEntries?: PendingEntry[];
   createdBy?: string;

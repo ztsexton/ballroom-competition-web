@@ -534,6 +534,7 @@ const SchedulePage = () => {
             timingSettings={timingSettings}
             eventCount={events.length}
             dayConfigs={dayConfigs}
+            hardStopTime={competition?.hardStopTime}
             generating={generating}
             autoBreaks={autoBreaks}
             deferFinals={deferFinals}
@@ -544,7 +545,6 @@ const SchedulePage = () => {
             onDanceOrderChange={setDanceOrder}
             onJudgeSettingsChange={setJudgeSettings}
             onTimingSettingsChange={setTimingSettings}
-            onDayConfigsChange={setDayConfigs}
             onAutoBreaksChange={setAutoBreaks}
             onDeferFinalsChange={setDeferFinals}
             onEventTypeOrderChange={setEventTypeOrder}
@@ -666,9 +666,23 @@ const SchedulePage = () => {
 
               const overflows = availableMinutes !== null && estimatedMinutes !== null && estimatedMinutes > availableMinutes;
               const overflowMinutes = overflows ? estimatedMinutes! - availableMinutes! : 0;
-              const borderColor = overflows ? 'border-amber-400' : 'border-green-200';
-              const bgColor = overflows ? 'bg-amber-50' : 'bg-green-50';
-              const textColor = overflows ? 'text-amber-900' : 'text-green-800';
+
+              // Hard stop check
+              let exceedsHardStop = false;
+              let hardStopOverflow = 0;
+              if (competition?.hardStopTime && finishTime) {
+                const [hh, mmm] = competition.hardStopTime.split(':').map(Number);
+                const hardStopDate = new Date(new Date(schedule.heatOrder[0].estimatedStartTime!));
+                hardStopDate.setHours(hh, mmm, 0, 0);
+                if (finishTime.getTime() > hardStopDate.getTime()) {
+                  exceedsHardStop = true;
+                  hardStopOverflow = Math.ceil((finishTime.getTime() - hardStopDate.getTime()) / 60000);
+                }
+              }
+
+              const borderColor = exceedsHardStop ? 'border-red-400' : overflows ? 'border-amber-400' : 'border-green-200';
+              const bgColor = exceedsHardStop ? 'bg-red-50' : overflows ? 'bg-amber-50' : 'bg-green-50';
+              const textColor = exceedsHardStop ? 'text-red-900' : overflows ? 'text-amber-900' : 'text-green-800';
 
               return (
                 <div className={`mt-4 px-3 py-2 ${bgColor} border ${borderColor} rounded-md text-sm ${textColor}`}>
@@ -694,6 +708,11 @@ const SchedulePage = () => {
                   {overflows && (
                     <div className="mt-1 font-semibold text-amber-800">
                       Schedule exceeds available time by {overflowMinutes} minutes
+                    </div>
+                  )}
+                  {exceedsHardStop && (
+                    <div className="mt-1 font-semibold text-red-800">
+                      Exceeds hard stop ({competition?.hardStopTime}) by {hardStopOverflow} minutes
                     </div>
                   )}
                 </div>
