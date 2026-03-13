@@ -249,3 +249,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_people_unique_email ON people(LOWER(email)
 
 -- Migration: add judge_role to judges (main/fill-in designation)
 ALTER TABLE judges ADD COLUMN IF NOT EXISTS judge_role TEXT DEFAULT NULL;
+
+-- Migration: add results_visibility for selective results publishing
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS results_visibility JSONB;

@@ -398,6 +398,148 @@ describe('Public API', () => {
     });
   });
 
+  describe('results visibility filtering', () => {
+    it('should return 403 for event results when category is hidden', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Selective', type: 'STUDIO', date: '2026-06-01',
+        resultsPublic: true,
+        resultsVisibility: {
+          singleDanceProficiency: false,
+          singleDanceStandard: true,
+          multiDanceStandard: true,
+          multiDanceProficiency: true,
+          scholarship: true,
+        },
+      });
+
+      // Single dance proficiency event (hidden)
+      const event = await dataService.addEvent(
+        'Bronze Waltz', [], [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'proficiency'
+      );
+
+      await request(app)
+        .get(`/api/public/competitions/${comp.id}/events/${event.id}/results/final`)
+        .expect(403);
+    });
+
+    it('should allow results for visible category', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Selective', type: 'STUDIO', date: '2026-06-01',
+        resultsPublic: true,
+        resultsVisibility: {
+          singleDanceProficiency: false,
+          singleDanceStandard: true,
+          multiDanceStandard: true,
+          multiDanceProficiency: true,
+          scholarship: true,
+        },
+      });
+
+      // Multi-dance standard event (visible)
+      const event = await dataService.addEvent(
+        'Smooth Championship', [], [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz', 'Tango'], 'standard'
+      );
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/events/${event.id}/results/final`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('should filter hidden events from person results', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Selective', type: 'STUDIO', date: '2026-06-01',
+        resultsPublic: true,
+        resultsVisibility: {
+          singleDanceProficiency: false,
+          singleDanceStandard: true,
+          multiDanceStandard: true,
+          multiDanceProficiency: true,
+          scholarship: true,
+        },
+      });
+
+      const leader = await dataService.addPerson({ firstName: 'John', lastName: 'Doe', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'Jane', lastName: 'Smith', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      const judge = await dataService.addJudge('J1', comp.id);
+
+      // Hidden: single proficiency
+      const hiddenEvent = await dataService.addEvent(
+        'Bronze Waltz', [couple!.bib], [judge.id], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'proficiency'
+      );
+
+      // Visible: single standard
+      const visibleEvent = await dataService.addEvent(
+        'Gold Waltz', [couple!.bib], [judge.id], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'standard'
+      );
+
+      // Score both events
+      await request(app)
+        .post(`/api/events/${hiddenEvent.id}/scores/final`)
+        .send({ scores: [{ judgeIndex: 0, bib: couple!.bib, score: 85 }] })
+        .expect(200);
+      await request(app)
+        .post(`/api/events/${visibleEvent.id}/scores/final`)
+        .send({ scores: [{ judgeIndex: 0, bib: couple!.bib, score: 1 }] })
+        .expect(200);
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/people/${leader.id}/results`)
+        .expect(200);
+
+      // Should only include the visible event
+      expect(res.body.events).toHaveLength(1);
+      expect(res.body.events[0].eventName).toBe('Gold Waltz');
+    });
+
+    it('should allow all results when resultsVisibility is not set', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Default', type: 'STUDIO', date: '2026-06-01',
+        resultsPublic: true,
+      });
+
+      const event = await dataService.addEvent(
+        'Bronze Waltz', [], [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz'], 'proficiency'
+      );
+
+      const res = await request(app)
+        .get(`/api/public/competitions/${comp.id}/events/${event.id}/results/final`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('should hide scholarship results when scholarship is false', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'No Scholarship', type: 'STUDIO', date: '2026-06-01',
+        resultsPublic: true,
+        resultsVisibility: {
+          singleDanceProficiency: true,
+          singleDanceStandard: true,
+          multiDanceStandard: true,
+          multiDanceProficiency: true,
+          scholarship: false,
+        },
+      });
+
+      const event = await dataService.addEvent(
+        'Scholarship Smooth', [], [], comp.id,
+        undefined, undefined, undefined, 'Smooth', ['Waltz', 'Tango'], 'standard', true
+      );
+
+      await request(app)
+        .get(`/api/public/competitions/${comp.id}/events/${event.id}/results/final`)
+        .expect(403);
+    });
+  });
+
   describe('GET /api/public/competitions/:id/search', () => {
     it('should return 400 when dancerName is missing', async () => {
       const comp = await dataService.addCompetition({

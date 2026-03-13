@@ -135,6 +135,14 @@ export interface PendingEntry {
   requestedBy?: string; // Firebase UID
 }
 
+export interface ResultsVisibility {
+  singleDanceProficiency: boolean;
+  singleDanceStandard: boolean;
+  multiDanceStandard: boolean;
+  multiDanceProficiency: boolean;
+  scholarship: boolean;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -166,6 +174,7 @@ export interface Competition {
   publiclyVisible?: boolean;
   publiclyVisibleAt?: string;   // ISO date string for scheduled visibility
   resultsPublic?: boolean;
+  resultsVisibility?: ResultsVisibility;
   heatListsPublished?: boolean;
   heatListsPublishedAt?: string; // ISO date string for scheduled publish
   websiteUrl?: string;

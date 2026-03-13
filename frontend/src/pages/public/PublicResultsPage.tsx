@@ -1,12 +1,21 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
-import { PublicCompetition, PublicEvent, PublicEventSearchResult, DetailedResultsResponse, Person } from '../../types';
+import { PublicCompetition, PublicEvent, PublicEventSearchResult, DetailedResultsResponse, Person, ResultsVisibility } from '../../types';
 import { publicCompetitionsApi, participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { MultiDanceSummary } from '../../components/results/MultiDanceSummary';
 import { PersonResultCard, PartnershipEvents } from '../../components/results/PersonResultCard';
 import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
 import { Skeleton } from '../../components/Skeleton';
+
+function isEventResultsVisible(event: PublicEvent, visibility?: ResultsVisibility): boolean {
+  if (!visibility) return true;
+  if (event.isScholarship) return visibility.scholarship;
+  const isMulti = (event.dances?.length ?? 0) > 1;
+  const isProf = event.scoringType === 'proficiency';
+  if (isMulti) return isProf ? visibility.multiDanceProficiency : visibility.multiDanceStandard;
+  return isProf ? visibility.singleDanceProficiency : visibility.singleDanceStandard;
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -264,7 +273,7 @@ function PublicByPersonTab({ competitionId }: { competitionId: number }) {
 }
 
 /* ── By-Event tab for public results (original behavior) ── */
-function PublicByEventTab({ competitionId }: { competitionId: number }) {
+function PublicByEventTab({ competitionId, resultsVisibility }: { competitionId: number; resultsVisibility?: ResultsVisibility }) {
   const [events, setEvents] = useState<(PublicEvent | PublicEventSearchResult)[]>([]);
   const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
@@ -352,11 +361,15 @@ function PublicByEventTab({ competitionId }: { competitionId: number }) {
 
                 {isExpanded && evt.rounds.length > 0 && (
                   <div className="border-t border-gray-200 px-4">
-                    <EventResultsTable
-                      competitionId={competitionId}
-                      eventId={evt.id}
-                      rounds={evt.rounds}
-                    />
+                    {isEventResultsVisible(evt, resultsVisibility) ? (
+                      <EventResultsTable
+                        competitionId={competitionId}
+                        eventId={evt.id}
+                        rounds={evt.rounds}
+                      />
+                    ) : (
+                      <div className="py-3 text-sm text-gray-400">Results are not published for this event category.</div>
+                    )}
                   </div>
                 )}
               </div>
@@ -512,7 +525,7 @@ function CompetitionDetail({ competitionId }: { competitionId: number }) {
           {activeView === 'person' ? (
             <PublicByPersonTab competitionId={competitionId} />
           ) : (
-            <PublicByEventTab competitionId={competitionId} />
+            <PublicByEventTab competitionId={competitionId} resultsVisibility={competition.resultsVisibility} />
           )}
         </>
       )}

@@ -44,6 +44,7 @@ export class PostgresDataService implements IDataService {
       publiclyVisible: row.publicly_visible ?? undefined,
       publiclyVisibleAt: row.publicly_visible_at || undefined,
       resultsPublic: row.results_public ?? undefined,
+      resultsVisibility: row.results_visibility || undefined,
       heatListsPublished: row.heat_lists_published ?? undefined,
       heatListsPublishedAt: row.heat_lists_published_at || undefined,
       websiteUrl: row.website_url || undefined,
@@ -202,11 +203,11 @@ export class PostgresDataService implements IDataService {
         entry_payments, max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
         recall_rules, entry_validation, age_categories, dance_order,
         registration_open, registration_open_at,
-        publicly_visible, publicly_visible_at, results_public,
+        publicly_visible, publicly_visible_at, results_public, results_visibility,
         heat_lists_published, heat_lists_published_at,
         website_url, organizer_email, created_by, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
        RETURNING *`;
     const params = [
       competition.name, competition.type, competition.date,
@@ -233,6 +234,7 @@ export class PostgresDataService implements IDataService {
       competition.publiclyVisible ?? null,
       competition.publiclyVisibleAt || null,
       competition.resultsPublic ?? null,
+      competition.resultsVisibility ? JSON.stringify(competition.resultsVisibility) : null,
       competition.heatListsPublished ?? null,
       competition.heatListsPublishedAt || null,
       competition.websiteUrl || null,
@@ -290,6 +292,7 @@ export class PostgresDataService implements IDataService {
       maxCouplesOnFloorByLevel: 'max_couples_on_floor_by_level',
       recallRules: 'recall_rules', entryValidation: 'entry_validation',
       ageCategories: 'age_categories', danceOrder: 'dance_order',
+      resultsVisibility: 'results_visibility',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {

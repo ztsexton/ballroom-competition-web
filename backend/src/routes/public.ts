@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
-import { Competition, Event, DetailedResultsResponse, PersonEventResult, PersonResultsResponse, PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse } from '../types';
+import { Competition, Event, ResultsVisibility, DetailedResultsResponse, PersonEventResult, PersonResultsResponse, PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse } from '../types';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -65,6 +65,7 @@ function sanitizeCompetition(comp: Competition) {
     registrationOpen: isEffectivelyEnabled(comp.registrationOpen, comp.registrationOpenAt),
     heatListsPublished: isEffectivelyEnabled(comp.heatListsPublished, comp.heatListsPublishedAt),
     resultsPublic: comp.resultsPublic !== false,
+    resultsVisibility: comp.resultsVisibility,
   };
 }
 
@@ -83,6 +84,15 @@ function sanitizeEvent(event: Event) {
     rounds: event.heats.map(h => h.round),
     coupleCount: (event.heats[0]?.bibs || []).filter(b => !scratched.has(b)).length,
   };
+}
+
+function isEventResultsVisible(event: Event, visibility?: ResultsVisibility): boolean {
+  if (!visibility) return true; // No filter configured — all visible
+  if (event.isScholarship) return visibility.scholarship;
+  const isMulti = (event.dances?.length ?? 0) > 1;
+  const isProf = event.scoringType === 'proficiency';
+  if (isMulti) return isProf ? visibility.multiDanceProficiency : visibility.multiDanceStandard;
+  return isProf ? visibility.singleDanceProficiency : visibility.singleDanceStandard;
 }
 
 // GET /competitions — list all competitions (optionally filtered by scope)
@@ -238,8 +248,8 @@ router.get('/competitions/:id/heats', async (req: Request, res: Response) => {
             } as { bib: number; leaderName: string; followerName: string; place?: number; recalled?: boolean };
           });
 
-        // Enrich with results if available
-        if (resultsPublic) {
+        // Enrich with results if available and visible for this event category
+        if (resultsPublic && isEventResultsVisible(event, competition.resultsVisibility)) {
           try {
             const results = await scoringService.calculateResults(event.id, heat.round);
             if (results.length > 0) {
@@ -298,6 +308,10 @@ router.get('/competitions/:id/events/:eventId/results/:round', async (req: Reque
     const event = eventsMap[eventId];
     if (!event) {
       return res.status(404).json({ error: 'Event not found in this competition' });
+    }
+
+    if (!isEventResultsVisible(event, competition.resultsVisibility)) {
+      return res.status(403).json({ error: 'Results are not publicly available for this event' });
     }
 
     const results = await scoringService.calculateResults(eventId, round);
@@ -362,6 +376,9 @@ router.get('/competitions/:id/people/:personId/results', async (req: Request, re
     const events: PersonEventResult[] = [];
 
     for (const event of Object.values(eventsMap)) {
+      // Skip events whose results are hidden by visibility config
+      if (!isEventResultsVisible(event, competition.resultsVisibility)) continue;
+
       // Find bib for this person in this event
       const eventBibs = new Set(event.heats.flatMap(h => h.bibs));
       const matchingBib = [...personBibs].find(b => eventBibs.has(b));
