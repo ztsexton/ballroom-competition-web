@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { couplesApi, eventsApi } from '../../../api/client';
-import { Event, AgeCategory, Competition } from '../../../types';
+import { Event, AgeCategory, Competition, EventTemplate } from '../../../types';
 import { getDancesForStyle } from '../../../constants/dances';
 
 export interface RegistrationState {
@@ -30,8 +30,24 @@ export interface RegistrationState {
   setRegAgeCategory: (v: string) => void;
   getDanceOptions: (style: string) => string[];
   openRegisterPanel: (bib: number) => void;
-  handleRegister: () => void;
+  handleRegister: (overrides?: { isScholarship?: boolean }) => void;
   handleRemoveEntry: (eventId: number) => void;
+  // Batch registration
+  regLevels: string[];
+  setRegLevels: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedSingleDances: string[];
+  setSelectedSingleDances: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedTemplateIds: string[];
+  setSelectedTemplateIds: React.Dispatch<React.SetStateAction<string[]>>;
+  handleBulkRegister: () => void;
+  bulkResults: BulkResult[];
+}
+
+export interface BulkResult {
+  label: string;
+  success: boolean;
+  created?: boolean;
+  error?: string;
 }
 
 export function useRegistrationPanel(
@@ -58,6 +74,12 @@ export function useRegistrationPanel(
   const [coupleEvents, setCoupleEvents] = useState<Event[]>([]);
   const [coupleEventsLoading, setCoupleEventsLoading] = useState(false);
 
+  // Batch state
+  const [regLevels, setRegLevels] = useState<string[]>([]);
+  const [selectedSingleDances, setSelectedSingleDances] = useState<string[]>([]);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [bulkResults, setBulkResults] = useState<BulkResult[]>([]);
+
   const getDanceOptions = (s: string) => getDancesForStyle(s, activeCompetition?.danceOrder);
 
   const openRegisterPanel = async (bib: number) => {
@@ -75,6 +97,10 @@ export function useRegistrationPanel(
     setRegIsScholarship(false);
     setRegMessage('');
     setRegError('');
+    setRegLevels([]);
+    setSelectedSingleDances([]);
+    setSelectedTemplateIds([]);
+    setBulkResults([]);
     setCoupleEventsLoading(true);
     try {
       const res = await couplesApi.getEvents(bib);
@@ -86,11 +112,12 @@ export function useRegistrationPanel(
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = async (overrides?: { isScholarship?: boolean }) => {
     if (!registerBib || !competitionId) return;
     setRegLoading(true);
     setRegMessage('');
     setRegError('');
+    const scholarship = overrides?.isScholarship ?? regIsScholarship;
     try {
       const res = await eventsApi.register({
         competitionId,
@@ -101,7 +128,7 @@ export function useRegistrationPanel(
         style: regStyle || undefined,
         dances: regDances.length > 0 ? regDances : undefined,
         scoringType: regScoringType,
-        isScholarship: regIsScholarship || undefined,
+        isScholarship: scholarship || undefined,
         ageCategory: regAgeCategory || undefined,
       });
       const action = res.data.created ? 'Created & registered for' : 'Registered for';
@@ -114,6 +141,78 @@ export function useRegistrationPanel(
     } finally {
       setRegLoading(false);
     }
+  };
+
+  const handleBulkRegister = async () => {
+    if (!registerBib || !competitionId || regLevels.length === 0 || !regStyle) return;
+    const templates = activeCompetition?.eventTemplates || [];
+
+    // Build list of entries: each single dance + each selected template
+    const entries: Array<{ dances: string[]; label: string }> = [];
+    for (const dance of selectedSingleDances) {
+      entries.push({ dances: [dance], label: dance });
+    }
+    for (const tplId of selectedTemplateIds) {
+      const tpl = templates.find((t: EventTemplate) => t.id === tplId);
+      if (tpl) {
+        entries.push({ dances: tpl.dances, label: tpl.name });
+      }
+    }
+
+    if (entries.length === 0) return;
+
+    setRegLoading(true);
+    setRegMessage('');
+    setRegError('');
+    setBulkResults([]);
+
+    const results: BulkResult[] = [];
+
+    for (const level of regLevels) {
+      for (const entry of entries) {
+        const label = `${level} ${entry.label}`;
+        try {
+          const res = await eventsApi.register({
+            competitionId,
+            bib: registerBib,
+            designation: regDesignation || undefined,
+            syllabusType: regSyllabusType || undefined,
+            level,
+            style: regStyle,
+            dances: entry.dances,
+            scoringType: regScoringType,
+            ageCategory: regAgeCategory || undefined,
+          });
+          results.push({
+            label: res.data.event.name,
+            success: true,
+            created: res.data.created,
+          });
+        } catch (err: unknown) {
+          const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
+          results.push({ label, success: false, error: msg });
+        }
+      }
+    }
+
+    setBulkResults(results);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    if (failCount === 0) {
+      setRegMessage(`Registered for ${successCount} event${successCount !== 1 ? 's' : ''}`);
+    } else if (successCount === 0) {
+      setRegError(`All ${failCount} registrations failed`);
+    } else {
+      setRegMessage(`${successCount} registered, ${failCount} failed`);
+    }
+
+    // Refresh couple events
+    try {
+      const evRes = await couplesApi.getEvents(registerBib);
+      setCoupleEvents(evRes.data);
+    } catch { /* ignore */ }
+
+    setRegLoading(false);
   };
 
   const handleRemoveEntry = async (eventId: number) => {
@@ -155,5 +254,14 @@ export function useRegistrationPanel(
     openRegisterPanel,
     handleRegister,
     handleRemoveEntry,
+    // Batch
+    regLevels,
+    setRegLevels,
+    selectedSingleDances,
+    setSelectedSingleDances,
+    selectedTemplateIds,
+    setSelectedTemplateIds,
+    handleBulkRegister,
+    bulkResults,
   };
 }
