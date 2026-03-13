@@ -376,6 +376,20 @@ export const schedulesApi = {
     api.post<{ variants: ScheduleVariant[] }>(`/schedules/${competitionId}/generate-variants`, { judgeSettings, timingSettings }),
   applyVariant: (competitionId: number, variantId: string) =>
     api.post<CompetitionSchedule>(`/schedules/${competitionId}/apply-variant`, { variantId }),
+  // Heat sheet PDFs
+  downloadHeatSheetPDF: (competitionId: number, personId: number) =>
+    api.get(`/schedules/${competitionId}/heatsheet/pdf/${personId}`, { responseType: 'blob' }),
+  downloadAllHeatSheetsPDF: (competitionId: number) =>
+    api.get(`/schedules/${competitionId}/heatsheet/pdf`, { responseType: 'blob' }),
+  emailHeatSheet: (competitionId: number, personId: number) =>
+    api.post<{ success: boolean; sentTo: string }>(`/schedules/${competitionId}/heatsheet/email/${personId}`),
+  // Results PDFs
+  downloadResultsPDF: (competitionId: number, personId: number) =>
+    api.get(`/schedules/${competitionId}/results/pdf/${personId}`, { responseType: 'blob' }),
+  downloadAllResultsPDF: (competitionId: number) =>
+    api.get(`/schedules/${competitionId}/results/pdf`, { responseType: 'blob' }),
+  emailResults: (competitionId: number, personId: number) =>
+    api.post<{ success: boolean; sentTo: string }>(`/schedules/${competitionId}/results/email/${personId}`),
 };
 
 // Judging API (non-admin, for judges and SSE)

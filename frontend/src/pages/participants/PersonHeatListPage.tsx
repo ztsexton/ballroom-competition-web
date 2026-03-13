@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { PersonHeatListResponse, Competition, Person } from '../../types';
-import { participantApi, competitionsApi } from '../../api/client';
+import { participantApi, competitionsApi, schedulesApi } from '../../api/client';
 import { Skeleton } from '../../components/Skeleton';
 import { PersonHeatSheet } from '../../components/PersonHeatSheet';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,10 @@ const PersonHeatListPage = () => {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [allPdfLoading, setAllPdfLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
 
   // Load competition and people list (for admin picker)
   useEffect(() => {
@@ -59,6 +63,49 @@ const PersonHeatListPage = () => {
         .catch(() => {});
     });
   }, [competitionId, isAnyAdmin]);
+
+  const handleDownloadPDF = async () => {
+    if (!competitionId || !selectedPersonId) return;
+    setPdfLoading(true);
+    try {
+      const res = await schedulesApi.downloadHeatSheetPDF(Number(competitionId), selectedPersonId);
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `heatsheet-${data?.firstName}-${data?.lastName}.pdf`.toLowerCase();
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+    finally { setPdfLoading(false); }
+  };
+
+  const handleEmailPDF = async () => {
+    if (!competitionId || !selectedPersonId) return;
+    setEmailLoading(true);
+    setEmailStatus(null);
+    try {
+      const res = await schedulesApi.emailHeatSheet(Number(competitionId), selectedPersonId);
+      setEmailStatus(`Sent to ${res.data.sentTo}`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to send email';
+      setEmailStatus(msg);
+    } finally { setEmailLoading(false); }
+  };
+
+  const handleDownloadAll = async () => {
+    if (!competitionId) return;
+    setAllPdfLoading(true);
+    try {
+      const res = await schedulesApi.downloadAllHeatSheetsPDF(Number(competitionId));
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'heatsheets-all.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+    finally { setAllPdfLoading(false); }
+  };
 
   // Fetch heat list for selected person
   useEffect(() => {
@@ -107,15 +154,43 @@ const PersonHeatListPage = () => {
           </div>
         )}
 
-        {/* Print button */}
+        {/* Action buttons */}
         {data && (
-          <div className="flex justify-end mt-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <button
               onClick={() => window.print()}
               className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300"
             >
-              Print Heat Sheet
+              Print
             </button>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              className="px-3 py-1.5 text-sm bg-primary-500 hover:bg-primary-600 text-white rounded border-none disabled:opacity-50"
+            >
+              {pdfLoading ? 'Generating...' : 'Download PDF'}
+            </button>
+            {isAnyAdmin && (
+              <button
+                onClick={handleEmailPDF}
+                disabled={emailLoading}
+                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 disabled:opacity-50"
+              >
+                {emailLoading ? 'Sending...' : 'Email PDF'}
+              </button>
+            )}
+            {isAnyAdmin && (
+              <button
+                onClick={handleDownloadAll}
+                disabled={allPdfLoading}
+                className="ml-auto px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-800 text-white rounded border-none disabled:opacity-50"
+              >
+                {allPdfLoading ? 'Generating...' : 'Download All Heat Sheets'}
+              </button>
+            )}
+            {emailStatus && (
+              <span className="text-xs text-gray-500 ml-2">{emailStatus}</span>
+            )}
           </div>
         )}
       </div>

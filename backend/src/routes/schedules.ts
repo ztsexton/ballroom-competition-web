@@ -5,6 +5,10 @@ import { scoringService, computeAdvancementBibs } from '../services/scoringServi
 import { sseService } from '../services/sseService';
 import { getRecallCount } from '../constants/rounds';
 import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { generateHeatSheetPDF, generateCombinedHeatSheetPDF, generateResultsPDF, generateCombinedResultsPDF } from '../services/pdfService';
+import { sendHeatSheetEmail, sendResultsEmail, isEmailConfigured } from '../services/emailService';
+import { PersonHeatEntry, PersonPartnerHeats, PersonHeatListResponse, PersonEventResult, PersonResultsResponse } from '../types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -820,6 +824,320 @@ router.patch('/:competitionId/heat/:heatId/judges', async (req: Request, res: Re
     res.json(updatedEvents);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update heat judges' });
+  }
+});
+
+// ─── Helper: build per-person heat list data ───
+async function buildPersonHeatList(competitionId: number, personId: number): Promise<PersonHeatListResponse | null> {
+  const people = await dataService.getPeople(competitionId);
+  const person = people.find(p => p.id === personId);
+  if (!person || person.competitionId !== competitionId) return null;
+
+  const couples = await dataService.getCouples(competitionId);
+  const personCouples = couples.filter(c => c.leaderId === personId || c.followerId === personId);
+  const bibToPartner = new Map<number, string>();
+  for (const c of personCouples) {
+    bibToPartner.set(c.bib, c.leaderId === personId ? c.followerName : c.leaderName);
+  }
+  const personBibs = new Set(personCouples.map(c => c.bib));
+
+  const schedule = await dataService.getSchedule(competitionId);
+  const eventsMap = await dataService.getEvents(competitionId);
+  const partnershipHeatsMap = new Map<number, PersonHeatEntry[]>();
+
+  if (schedule) {
+    let heatNumber = 0;
+    for (const scheduledHeat of schedule.heatOrder) {
+      heatNumber++;
+      if (scheduledHeat.isBreak) continue;
+
+      for (const entry of scheduledHeat.entries) {
+        const event = eventsMap[entry.eventId];
+        if (!event) continue;
+
+        const heat = event.heats.find(h => h.round === entry.round);
+        if (!heat) continue;
+
+        const scratched = new Set(event.scratchedBibs || []);
+        const relevantBibs = entry.bibSubset || heat.bibs.filter(b => !scratched.has(b));
+
+        for (const bib of relevantBibs) {
+          if (!personBibs.has(bib)) continue;
+          let heats = partnershipHeatsMap.get(bib);
+          if (!heats) { heats = []; partnershipHeatsMap.set(bib, heats); }
+          heats.push({
+            heatNumber,
+            estimatedTime: scheduledHeat.estimatedStartTime,
+            eventName: event.name,
+            round: entry.round,
+            dance: entry.dance,
+            style: event.style,
+          });
+        }
+      }
+    }
+  }
+
+  const partnerships: PersonPartnerHeats[] = [];
+  for (const [bib, heats] of partnershipHeatsMap) {
+    partnerships.push({ bib, partnerName: bibToPartner.get(bib) || '', heats });
+  }
+
+  return { personId: person.id, firstName: person.firstName, lastName: person.lastName, partnerships };
+}
+
+// ─── Helper: build per-person results data ───
+async function buildPersonResults(competitionId: number, personId: number): Promise<PersonResultsResponse | null> {
+  const people = await dataService.getPeople(competitionId);
+  const person = people.find(p => p.id === personId);
+  if (!person || person.competitionId !== competitionId) return null;
+
+  const couples = await dataService.getCouples(competitionId);
+  const personCouples = couples.filter(c => c.leaderId === personId || c.followerId === personId);
+  const personBibs = new Set(personCouples.map(c => c.bib));
+
+  const eventsMap = await dataService.getEvents(competitionId);
+  const events: PersonEventResult[] = [];
+
+  for (const event of Object.values(eventsMap)) {
+    const eventBibs = new Set(event.heats.flatMap(h => h.bibs));
+    const matchingBib = [...personBibs].find(b => eventBibs.has(b));
+    if (!matchingBib) continue;
+
+    const couple = personCouples.find(c => c.bib === matchingBib)!;
+    const partnerName = couple.leaderId === personId ? couple.followerName : couple.leaderName;
+
+    const rounds: PersonEventResult['rounds'] = [];
+    for (const heat of event.heats) {
+      if (!heat.bibs.includes(matchingBib)) continue;
+
+      try {
+        const results = await scoringService.calculateResults(event.id, heat.round);
+        await scoringService.enrichRecallStatus(results, event.id, heat.round);
+
+        const judgeIds = heat.judges || [];
+        const judgesMap = await dataService.getJudgesByIds(judgeIds);
+        const judges = judgeIds.map(id => {
+          const j = judgesMap.get(id);
+          return { id, judgeNumber: j?.judgeNumber ?? 0, name: j?.name ?? '' };
+        });
+
+        const personResult = results.find(r => r.bib === matchingBib);
+        if (!personResult) continue;
+
+        rounds.push({
+          round: heat.round,
+          detailed: {
+            judges,
+            eventName: event.name,
+            round: heat.round,
+            dances: event.dances,
+            style: event.style,
+            level: event.level,
+            results,
+          },
+          personResult,
+        });
+      } catch {
+        // Skip if scoring fails (no scores submitted)
+      }
+    }
+
+    if (rounds.length > 0) {
+      events.push({
+        eventId: event.id,
+        eventName: event.name,
+        style: event.style,
+        level: event.level,
+        dances: event.dances,
+        bib: matchingBib,
+        partnerName,
+        rounds,
+      });
+    }
+  }
+
+  return { personId: person.id, firstName: person.firstName, lastName: person.lastName, events };
+}
+
+// ─── Heat Sheet PDF Routes ───
+
+// Download heat sheet PDF for a single person
+router.get('/:competitionId/heatsheet/pdf/:personId', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const personId = parseInt(req.params.personId);
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const data = await buildPersonHeatList(competitionId, personId);
+    if (!data) return res.status(404).json({ error: 'Person not found in this competition' });
+
+    const pdfBuffer = await generateHeatSheetPDF(data, competition);
+    const safeName = `${data.firstName}-${data.lastName}`.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="heatsheet-${safeName}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err }, 'Heat sheet PDF generation error');
+    res.status(500).json({ error: 'Failed to generate heat sheet PDF' });
+  }
+});
+
+// Download combined heat sheet PDF for all people
+router.get('/:competitionId/heatsheet/pdf', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const people = await dataService.getPeople(competitionId);
+    const allData: PersonHeatListResponse[] = [];
+
+    for (const person of people) {
+      const data = await buildPersonHeatList(competitionId, person.id);
+      if (data && data.partnerships.length > 0) allData.push(data);
+    }
+
+    if (allData.length === 0) {
+      return res.status(404).json({ error: 'No heat sheets to generate' });
+    }
+
+    // Sort by last name, then first name
+    allData.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+
+    const pdfBuffer = await generateCombinedHeatSheetPDF(allData, competition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="heatsheets-all.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err }, 'Combined heat sheet PDF generation error');
+    res.status(500).json({ error: 'Failed to generate combined heat sheet PDF' });
+  }
+});
+
+// Email heat sheet PDF to a person
+router.post('/:competitionId/heatsheet/email/:personId', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const personId = parseInt(req.params.personId);
+
+    if (!isEmailConfigured()) {
+      return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
+    }
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const person = await dataService.getPersonById(personId);
+    if (!person || person.competitionId !== competitionId) {
+      return res.status(404).json({ error: 'Person not found in this competition' });
+    }
+    if (!person.email) {
+      return res.status(400).json({ error: 'Person has no email address on file' });
+    }
+
+    const data = await buildPersonHeatList(competitionId, personId);
+    if (!data) return res.status(404).json({ error: 'No heat sheet data found' });
+
+    const pdfBuffer = await generateHeatSheetPDF(data, competition);
+    const personName = `${person.firstName} ${person.lastName}`;
+    await sendHeatSheetEmail(person.email, personName, competition.name, pdfBuffer);
+    res.json({ success: true, sentTo: person.email });
+  } catch (err) {
+    logger.error({ err }, 'Heat sheet email error');
+    res.status(500).json({ error: 'Failed to send heat sheet email' });
+  }
+});
+
+// ─── Results PDF Routes ───
+
+// Download results PDF for a single person
+router.get('/:competitionId/results/pdf/:personId', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const personId = parseInt(req.params.personId);
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const data = await buildPersonResults(competitionId, personId);
+    if (!data) return res.status(404).json({ error: 'Person not found in this competition' });
+
+    const pdfBuffer = await generateResultsPDF(data, competition);
+    const safeName = `${data.firstName}-${data.lastName}`.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="results-${safeName}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err }, 'Results PDF generation error');
+    res.status(500).json({ error: 'Failed to generate results PDF' });
+  }
+});
+
+// Download combined results PDF for all people
+router.get('/:competitionId/results/pdf', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const people = await dataService.getPeople(competitionId);
+    const allData: PersonResultsResponse[] = [];
+
+    for (const person of people) {
+      const data = await buildPersonResults(competitionId, person.id);
+      if (data && data.events.length > 0) allData.push(data);
+    }
+
+    if (allData.length === 0) {
+      return res.status(404).json({ error: 'No results to generate' });
+    }
+
+    allData.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+
+    const pdfBuffer = await generateCombinedResultsPDF(allData, competition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="results-all.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err }, 'Combined results PDF generation error');
+    res.status(500).json({ error: 'Failed to generate combined results PDF' });
+  }
+});
+
+// Email results PDF to a person
+router.post('/:competitionId/results/email/:personId', async (req: Request, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.competitionId);
+    const personId = parseInt(req.params.personId);
+
+    if (!isEmailConfigured()) {
+      return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
+    }
+
+    const competition = await dataService.getCompetitionById(competitionId);
+    if (!competition) return res.status(404).json({ error: 'Competition not found' });
+
+    const person = await dataService.getPersonById(personId);
+    if (!person || person.competitionId !== competitionId) {
+      return res.status(404).json({ error: 'Person not found in this competition' });
+    }
+    if (!person.email) {
+      return res.status(400).json({ error: 'Person has no email address on file' });
+    }
+
+    const data = await buildPersonResults(competitionId, personId);
+    if (!data) return res.status(404).json({ error: 'No results data found' });
+
+    const pdfBuffer = await generateResultsPDF(data, competition);
+    const personName = `${person.firstName} ${person.lastName}`;
+    await sendResultsEmail(person.email, personName, competition.name, pdfBuffer);
+    res.json({ success: true, sentTo: person.email });
+  } catch (err) {
+    logger.error({ err }, 'Results email error');
+    res.status(500).json({ error: 'Failed to send results email' });
   }
 });
 

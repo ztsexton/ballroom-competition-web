@@ -6,6 +6,6 @@
 
 - ~~Allow for only some of the results to be published. For an upcoming competition, they want all single dance profiency events to be hidden and only shown for their events. For multi dances with the skating system, those results would then be public and not hidden from others.~~ **DONE** — Selective results visibility per event category (single/multi × standard/proficiency + scholarship) with per-category toggles in Competition Settings.
 
-- Generate heat sheets (what events someone is entered in, what time, etc.) for every individual competitor in individual PDFs that can be downloaded or emailed. Then allow for one large PDF of all heat sheets that can be printed out for admins. 
+- ~~Generate heat sheets (what events someone is entered in, what time, etc.) for every individual competitor in individual PDFs that can be downloaded or emailed. Then allow for one large PDF of all heat sheets that can be printed out for admins.~~ **DONE** — Individual heat sheet PDFs (download/email) on Heat List page + combined all-person PDF from Competition Details.
 
-- Allow for generating results for each individual person for all events they entered. Also allow for a large pdf of everyone's results so that an admin can print it out to hand to competitors. 
+- ~~Allow for generating results for each individual person for all events they entered. Also allow for a large pdf of everyone's results so that an admin can print it out to hand to competitors.~~ **DONE** — Individual results PDFs (download/email) via API + combined all-person results PDF from Competition Details.

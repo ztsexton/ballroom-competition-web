@@ -53,6 +53,82 @@ export async function sendInvoiceEmail(
   });
 }
 
+export async function sendHeatSheetEmail(
+  to: string,
+  personName: string,
+  competitionName: string,
+  pdfBuffer: Buffer
+): Promise<void> {
+  if (!isConfigured()) {
+    throw new Error('Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+
+  const safeName = personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject: `Heat Sheet - ${competitionName}`,
+    text: [
+      `Hi ${personName},`,
+      '',
+      `Please find your heat sheet attached for ${competitionName}.`,
+      '',
+      'Good luck!',
+    ].join('\n'),
+    attachments: [{
+      filename: `heatsheet-${safeName}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    }],
+  });
+}
+
+export async function sendResultsEmail(
+  to: string,
+  personName: string,
+  competitionName: string,
+  pdfBuffer: Buffer
+): Promise<void> {
+  if (!isConfigured()) {
+    throw new Error('Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+
+  const safeName = personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject: `Results - ${competitionName}`,
+    text: [
+      `Hi ${personName},`,
+      '',
+      `Please find your results attached for ${competitionName}.`,
+      '',
+      'Thank you for participating!',
+    ].join('\n'),
+    attachments: [{
+      filename: `results-${safeName}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    }],
+  });
+}
+
 export function isEmailConfigured(): boolean {
   return isConfigured();
 }

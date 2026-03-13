@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { competitionsApi, studiosApi, organizationsApi } from '../../api/client';
+import { competitionsApi, studiosApi, organizationsApi, schedulesApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { Studio, Organization } from '../../types';
 import { CompetitionTypeBadge } from '../../components/CompetitionTypeBadge';
@@ -31,6 +31,8 @@ const CompetitionDetailsPage = () => {
   const [validationIssueCount, setValidationIssueCount] = useState(0);
   const [pendingEntryCount, setPendingEntryCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [heatSheetLoading, setHeatSheetLoading] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
 
   useEffect(() => {
     if (!competitionId) return;
@@ -84,6 +86,34 @@ const CompetitionDetailsPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadAllHeatSheets = async () => {
+    setHeatSheetLoading(true);
+    try {
+      const res = await schedulesApi.downloadAllHeatSheetsPDF(competitionId);
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'heatsheets-all.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+    finally { setHeatSheetLoading(false); }
+  };
+
+  const handleDownloadAllResults = async () => {
+    setResultsLoading(true);
+    try {
+      const res = await schedulesApi.downloadAllResultsPDF(competitionId);
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'results-all.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+    finally { setResultsLoading(false); }
   };
 
   const competition = activeCompetition;
@@ -211,7 +241,7 @@ const CompetitionDetailsPage = () => {
       </div>
 
       {/* Day-Of Links */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-3">Competition Day</h3>
         <p className="text-sm text-gray-500 mb-4">
           Open these views on separate screens during the competition.
@@ -225,6 +255,36 @@ const CompetitionDetailsPage = () => {
           </Link>
           <Link to={`/competitions/${competitionId}/judge`} className="inline-block px-4 py-2 bg-primary-500 text-white rounded no-underline text-sm font-medium hover:bg-primary-600 transition-colors">
             Judge Scoring
+          </Link>
+        </div>
+      </div>
+
+      {/* Documents */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">Documents</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Download combined PDFs for printing or distribution.
+        </p>
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={handleDownloadAllHeatSheets}
+            disabled={heatSheetLoading || !counts.scheduleExists}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded border-none text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {heatSheetLoading ? 'Generating...' : 'All Heat Sheets (PDF)'}
+          </button>
+          <button
+            onClick={handleDownloadAllResults}
+            disabled={resultsLoading || counts.events === 0}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded border-none text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resultsLoading ? 'Generating...' : 'All Results (PDF)'}
+          </button>
+          <Link
+            to={`/competitions/${competitionId}/heatlists`}
+            className="inline-block px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded no-underline text-sm font-medium border border-gray-300 transition-colors"
+          >
+            Individual Heat Sheets
           </Link>
         </div>
       </div>
