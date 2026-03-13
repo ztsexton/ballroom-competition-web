@@ -257,3 +257,4 @@ ALTER TABLE competitions ADD COLUMN IF NOT EXISTS results_visibility JSONB;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS number_of_days INTEGER;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS schedule_day_configs JSONB;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS hard_stop_time TEXT;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS event_templates JSONB;

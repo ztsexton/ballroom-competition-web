@@ -135,6 +135,13 @@ export interface PendingEntry {
   requestedBy?: string;
 }
 
+export interface EventTemplate {
+  id: string;
+  name: string;       // e.g., "Smooth 4-Dance"
+  style: string;      // e.g., "Smooth"
+  dances: string[];   // e.g., ["Waltz", "Tango", "Foxtrot", "Viennese Waltz"]
+}
+
 export interface ResultsVisibility {
   singleDanceProficiency: boolean;
   singleDanceStandard: boolean;
@@ -182,6 +189,7 @@ export interface Competition {
   maxJudgeHoursWithoutBreak?: number;
   hardStopTime?: string;  // "HH:MM" — absolute latest the competition can run (venue/regulatory deadline)
   allowDuplicateEntries?: boolean;
+  eventTemplates?: EventTemplate[];
   pendingEntries?: PendingEntry[];
   createdBy?: string;
   createdAt: string;

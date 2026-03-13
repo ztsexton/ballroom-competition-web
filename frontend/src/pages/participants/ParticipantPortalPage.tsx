@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { Competition, Person, Couple, Event, AgeCategory } from '../../types';
+import { Competition, Person, Couple, Event, AgeCategory, EventTemplate } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { getDancesForStyle, getAvailableStyles } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
@@ -547,6 +547,39 @@ const ParticipantPortalPage = () => {
                   {regStyle && (
                     <div>
                       <label className="block font-semibold text-sm mb-1">Dances</label>
+                      {(() => {
+                        const styleTemplates = (selectedComp?.eventTemplates || []).filter(
+                          (t: EventTemplate) => t.style === regStyle
+                        );
+                        if (styleTemplates.length === 0) return null;
+                        return (
+                          <div className="flex gap-1.5 flex-wrap mb-2">
+                            {styleTemplates.map((tpl: EventTemplate) => {
+                              const isActive = tpl.dances.length === regDances.length &&
+                                tpl.dances.every(d => regDances.includes(d));
+                              return (
+                                <button
+                                  key={tpl.id}
+                                  type="button"
+                                  className={isActive
+                                    ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-50 text-primary-700 cursor-pointer font-semibold text-sm transition-all'
+                                    : 'px-3 py-1.5 rounded border-2 border-dashed border-primary-300 bg-white text-primary-600 cursor-pointer font-medium text-sm transition-all hover:bg-primary-50'
+                                  }
+                                  onClick={() => {
+                                    if (isActive) {
+                                      setRegDances([]);
+                                    } else {
+                                      setRegDances([...tpl.dances]);
+                                    }
+                                  }}
+                                >
+                                  {tpl.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-1.5 flex-wrap">
                         {getDancesForStyle(regStyle, selectedComp?.danceOrder).map(dance => (
                           <button key={dance} type="button" className={toggleBtnCls(regDances.includes(dance))}

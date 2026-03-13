@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Competition, Event } from '../../../../types';
+import { Competition, Event, EventTemplate } from '../../../../types';
 import { DEFAULT_LEVELS } from '../../../../constants/levels';
 import { getAvailableStyles } from '../../../../constants/dances';
 import { RegistrationState } from '../../hooks/useRegistrationPanel';
@@ -130,6 +130,39 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             <label className="block text-xs font-semibold text-gray-500 mb-1">
               Dances {regDances.length > 0 && `(${regDances.length})`}
             </label>
+            {(() => {
+              const styleTemplates = (activeCompetition?.eventTemplates || []).filter(
+                (t: EventTemplate) => t.style === regStyle
+              );
+              if (styleTemplates.length === 0) return null;
+              return (
+                <div className="flex gap-1.5 flex-wrap mb-2">
+                  {styleTemplates.map((tpl: EventTemplate) => {
+                    const isActive = tpl.dances.length === regDances.length &&
+                      tpl.dances.every(d => regDances.includes(d));
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        className={isActive
+                          ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-50 text-primary-700 cursor-pointer font-semibold text-sm transition-all'
+                          : 'px-3 py-1.5 rounded border-2 border-dashed border-primary-300 bg-white text-primary-600 cursor-pointer font-medium text-sm transition-all hover:bg-primary-50'
+                        }
+                        onClick={() => {
+                          if (isActive) {
+                            setRegDances([]);
+                          } else {
+                            setRegDances([...tpl.dances]);
+                          }
+                        }}
+                      >
+                        {tpl.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             <div className="flex gap-1.5 flex-wrap">
               {getDanceOptions(regStyle).map(d => (
                 <button key={d} type="button" className={toggleBtnClass(regDances.includes(d))}
