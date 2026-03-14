@@ -26,6 +26,21 @@ const EventsPage = () => {
   const [bulkApplying, setBulkApplying] = useState(false);
   const [showStripSyllabus, setShowStripSyllabus] = useState(false);
   const [stripApplying, setStripApplying] = useState(false);
+  const [mergeApplying, setMergeApplying] = useState(false);
+  const [mergeResult, setMergeResult] = useState<{ mergedGroups: number; deletedEvents: number; details: Array<{ kept: string; merged: string[]; bibsMoved: number }> } | null>(null);
+  const [deleteEmptyPreview, setDeleteEmptyPreview] = useState<Array<{ id: number; name: string }> | null>(null);
+  const [deleteEmptyApplying, setDeleteEmptyApplying] = useState(false);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagResult, setDiagResult] = useState<{
+    totalEvents: number;
+    emptyEventCount: number;
+    totalCouples: number;
+    couplesWithNoEvents: Array<{ bib: number; leaderId: number; followerId: number }>;
+    emptyEventAnalysis: Array<{
+      emptyEvent: { id: number; name: string; ageCategory?: string };
+      similarEvents: Array<{ id: number; name: string; ageCategory?: string; coupleCount: number }>;
+    }>;
+  } | null>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -208,64 +223,257 @@ const EventsPage = () => {
               onClick={() => setShowStripSyllabus(!showStripSyllabus)}
               className="text-sm text-primary-600 hover:text-primary-800 font-medium cursor-pointer bg-transparent border-none"
             >
-              {showStripSyllabus ? '\u25bc' : '\u25b6'} Strip Syllabus/Open from Event Names
+              {showStripSyllabus ? '\u25bc' : '\u25b6'} Integrated Level Mode Cleanup
             </button>
             {showStripSyllabus && (
-              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">
-                  Since this competition uses <strong>integrated</strong> levels, the "Syllabus" and "Open" labels in event names are redundant.
-                  This will remove them from all event names and clear the syllabus type field.
-                </p>
-                {(() => {
-                  const affected = events.filter(e =>
-                    e.syllabusType || /\b(Syllabus|Open)\b/i.test(e.name)
-                  );
-                  return (
-                    <>
-                      <p className="text-xs text-gray-500 mb-3">
-                        {affected.length > 0
-                          ? `${affected.length} event${affected.length !== 1 ? 's' : ''} will be updated.`
-                          : 'No events need updating — names are already clean.'}
-                      </p>
-                      {affected.length > 0 && affected.length <= 10 && (
-                        <div className="mb-3 text-xs text-gray-500 space-y-0.5">
-                          {affected.map(e => {
-                            const cleaned = e.name
-                              .replace(/\bSyllabus\b\s*/gi, '')
-                              .replace(/\bOpen\b\s*/gi, '')
-                              .replace(/\s{2,}/g, ' ')
-                              .trim();
-                            return (
-                              <div key={e.id}>
-                                <span className="line-through text-gray-400">{e.name}</span>
-                                {cleaned !== e.name && <span className="ml-2 text-green-700">{cleaned}</span>}
-                              </div>
-                            );
-                          })}
+              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                {/* Step 1: Merge duplicates */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Step 1: Merge Duplicate Events</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Find events that are identical except for Syllabus/Open type and merge their couples into one event.
+                    This recovers couples that ended up in duplicate events after switching to integrated mode.
+                  </p>
+                  {mergeResult && (
+                    <div className="mb-2 p-2 bg-white border border-gray-200 rounded text-xs space-y-1">
+                      {mergeResult.mergedGroups === 0 ? (
+                        <p className="text-gray-500">No duplicate events found — nothing to merge.</p>
+                      ) : (
+                        <>
+                          <p className="text-green-700 font-medium">
+                            Merged {mergeResult.mergedGroups} group{mergeResult.mergedGroups !== 1 ? 's' : ''}, deleted {mergeResult.deletedEvents} duplicate event{mergeResult.deletedEvents !== 1 ? 's' : ''}
+                          </p>
+                          {mergeResult.details.map((d, i) => (
+                            <div key={i} className="text-gray-600">
+                              Kept <strong>{d.kept}</strong>, merged {d.merged.map((n, j) => <span key={j} className="text-red-500 line-through ml-1">{n}</span>)}
+                              {d.bibsMoved > 0 && <span className="text-green-600 ml-1">(+{d.bibsMoved} couple{d.bibsMoved !== 1 ? 's' : ''} moved)</span>}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (!activeCompetition) return;
+                      setMergeApplying(true);
+                      setMergeResult(null);
+                      try {
+                        const res = await eventsApi.mergeSyllabusTypeDuplicates(activeCompetition.id);
+                        setMergeResult(res.data);
+                        if (res.data.mergedGroups > 0) {
+                          showToast(`Merged ${res.data.mergedGroups} group(s), recovered couples`, 'success');
+                        } else {
+                          showToast('No duplicates found', 'success');
+                        }
+                        loadEvents();
+                      } catch (error: any) {
+                        showToast(error.response?.data?.error || 'Failed to merge', 'error');
+                      } finally {
+                        setMergeApplying(false);
+                      }
+                    }}
+                    disabled={mergeApplying}
+                    className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {mergeApplying ? 'Merging...' : 'Merge Duplicates'}
+                  </button>
+                </div>
+
+                {/* Step 2: Strip names */}
+                <div className="pt-3 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Step 2: Clean Event Names</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Remove "Syllabus" and "Open" from event names and clear the syllabus type field, since integrated levels make these labels redundant.
+                  </p>
+                  {(() => {
+                    const affected = events.filter(e => !!e.syllabusType);
+                    return (
+                      <>
+                        <p className="text-xs text-gray-500 mb-3">
+                          {affected.length > 0
+                            ? `${affected.length} event${affected.length !== 1 ? 's' : ''} will be updated.`
+                            : 'No events need updating — names are already clean.'}
+                        </p>
+                        {affected.length > 0 && affected.length <= 15 && (
+                          <div className="mb-3 text-xs text-gray-500 space-y-0.5">
+                            {affected.map(e => {
+                              const syl = e.syllabusType || '';
+                              const escaped = syl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                              const cleaned = e.name
+                                .replace(new RegExp('\\b' + escaped + '\\b\\s*', 'gi'), '')
+                                .replace(/\s{2,}/g, ' ')
+                                .trim();
+                              return (
+                                <div key={e.id}>
+                                  <span className="line-through text-gray-400">{e.name}</span>
+                                  {cleaned !== e.name && <span className="ml-2 text-green-700">{cleaned}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (!activeCompetition) return;
+                            setStripApplying(true);
+                            try {
+                              const res = await eventsApi.stripSyllabusType(activeCompetition.id);
+                              showToast(`Updated ${res.data.updated} event${res.data.updated !== 1 ? 's' : ''}`, 'success');
+                              loadEvents();
+                            } catch (error: any) {
+                              showToast(error.response?.data?.error || 'Failed to update', 'error');
+                            } finally {
+                              setStripApplying(false);
+                            }
+                          }}
+                          disabled={stripApplying || affected.length === 0}
+                          className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {stripApplying ? 'Applying...' : 'Clean Names'}
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Step 3: Diagnose empty events */}
+                <div className="pt-3 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Step 3: Diagnose Empty Events</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Check if any entries were lost. Shows empty events, similar events that may have the couples, and any couples not in any event.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      if (!activeCompetition) return;
+                      setDiagnosing(true);
+                      try {
+                        const res = await eventsApi.diagnoseEmpty(activeCompetition.id);
+                        setDiagResult(res.data);
+                      } catch (error: any) {
+                        showToast(error.response?.data?.error || 'Failed to diagnose', 'error');
+                      } finally {
+                        setDiagnosing(false);
+                      }
+                    }}
+                    disabled={diagnosing}
+                    className="px-3 py-1.5 bg-blue-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {diagnosing ? 'Checking...' : 'Run Diagnosis'}
+                  </button>
+                  {diagResult && (
+                    <div className="mt-2 p-3 bg-white border border-gray-200 rounded text-sm space-y-3">
+                      <div className="flex gap-4 text-xs">
+                        <span>Total events: <strong>{diagResult.totalEvents}</strong></span>
+                        <span>Empty events: <strong className={diagResult.emptyEventCount > 0 ? 'text-amber-600' : 'text-green-600'}>{diagResult.emptyEventCount}</strong></span>
+                        <span>Total couples: <strong>{diagResult.totalCouples}</strong></span>
+                        <span>Couples with no events: <strong className={diagResult.couplesWithNoEvents.length > 0 ? 'text-red-600' : 'text-green-600'}>{diagResult.couplesWithNoEvents.length}</strong></span>
+                      </div>
+                      {diagResult.couplesWithNoEvents.length > 0 && (
+                        <div className="p-2 bg-red-50 border border-red-200 rounded text-xs">
+                          <p className="font-semibold text-red-700 mb-1">Couples not in any event (possible lost entries):</p>
+                          {diagResult.couplesWithNoEvents.map(c => (
+                            <div key={c.bib} className="text-red-600">Bib #{c.bib}</div>
+                          ))}
                         </div>
                       )}
+                      {diagResult.emptyEventAnalysis.length > 0 && (
+                        <div className="space-y-2 text-xs max-h-64 overflow-y-auto">
+                          {diagResult.emptyEventAnalysis.map((a, i) => (
+                            <div key={i} className="p-2 bg-gray-50 rounded">
+                              <div className="font-medium text-gray-700">
+                                {a.emptyEvent.name}
+                                {!a.emptyEvent.ageCategory && <span className="ml-1 text-amber-600">(no age category)</span>}
+                              </div>
+                              {a.similarEvents.length > 0 ? (
+                                <div className="mt-1 ml-3 text-gray-500">
+                                  Similar events with couples:
+                                  {a.similarEvents.map((s, j) => (
+                                    <div key={j} className="text-gray-600">
+                                      {s.name} — <strong>{s.coupleCount} couple{s.coupleCount !== 1 ? 's' : ''}</strong>
+                                      {s.ageCategory && <span className="ml-1 text-blue-600">(age: {s.ageCategory})</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="mt-1 ml-3 text-gray-400">No similar events found</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {diagResult.emptyEventCount === 0 && diagResult.couplesWithNoEvents.length === 0 && (
+                        <p className="text-green-600 text-xs font-medium">All clear — no empty events and no orphaned couples.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 4: Delete empty events */}
+                <div className="pt-3 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Step 4: Delete Empty Events</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Remove events that have 0 couples. These are typically leftover from duplicate event creation.
+                  </p>
+                  {deleteEmptyPreview && (
+                    <div className="mb-2 p-2 bg-white border border-gray-200 rounded text-xs space-y-0.5 max-h-48 overflow-y-auto">
+                      {deleteEmptyPreview.length === 0 ? (
+                        <p className="text-gray-500">No empty events found.</p>
+                      ) : (
+                        <>
+                          <p className="text-amber-700 font-medium mb-1">
+                            {deleteEmptyPreview.length} empty event{deleteEmptyPreview.length !== 1 ? 's' : ''} will be deleted:
+                          </p>
+                          {deleteEmptyPreview.map(e => (
+                            <div key={e.id} className="text-gray-600">{e.name}</div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!activeCompetition) return;
+                        setDeleteEmptyApplying(true);
+                        try {
+                          const res = await eventsApi.deleteEmptyEvents(activeCompetition.id);
+                          setDeleteEmptyPreview(res.data.events);
+                        } catch (error: any) {
+                          showToast(error.response?.data?.error || 'Failed to check', 'error');
+                        } finally {
+                          setDeleteEmptyApplying(false);
+                        }
+                      }}
+                      disabled={deleteEmptyApplying}
+                      className="px-3 py-1.5 bg-gray-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Preview
+                    </button>
+                    {deleteEmptyPreview && deleteEmptyPreview.length > 0 && (
                       <button
                         onClick={async () => {
                           if (!activeCompetition) return;
-                          setStripApplying(true);
+                          setDeleteEmptyApplying(true);
                           try {
-                            const res = await eventsApi.stripSyllabusType(activeCompetition.id);
-                            showToast(`Updated ${res.data.updated} event${res.data.updated !== 1 ? 's' : ''}`, 'success');
+                            const res = await eventsApi.deleteEmptyEvents(activeCompetition.id, true);
+                            showToast(`Deleted ${res.data.deleted} empty event${res.data.deleted !== 1 ? 's' : ''}`, 'success');
+                            setDeleteEmptyPreview(null);
                             loadEvents();
                           } catch (error: any) {
-                            showToast(error.response?.data?.error || 'Failed to update', 'error');
+                            showToast(error.response?.data?.error || 'Failed to delete', 'error');
                           } finally {
-                            setStripApplying(false);
+                            setDeleteEmptyApplying(false);
                           }
                         }}
-                        disabled={stripApplying || affected.length === 0}
-                        className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={deleteEmptyApplying}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {stripApplying ? 'Applying...' : 'Strip Syllabus/Open'}
+                        {deleteEmptyApplying ? 'Deleting...' : `Delete ${deleteEmptyPreview.length} Empty Events`}
                       </button>
-                    </>
-                  );
-                })()}
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

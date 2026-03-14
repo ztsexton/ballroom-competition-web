@@ -95,6 +95,7 @@ export function useRegistrationPanel(
     setRegDances([]);
     setRegScoringType(activeCompetition?.defaultScoringType || 'standard');
     setRegIsScholarship(false);
+    setRegAgeCategory('');
     setRegMessage('');
     setRegError('');
     setRegLevels([]);

@@ -559,6 +559,98 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
   res.json({ message: 'Scores cleared successfully' });
 });
 
+// Merge duplicate events that differ only by syllabusType (for integrated level mode migration)
+router.post('/merge-syllabus-duplicates/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const allEvents = await dataService.getEvents(competitionId);
+    const eventList = Object.values(allEvents);
+
+    // Build groups of events that match on everything except syllabusType
+    const groups = new Map<string, Event[]>();
+    for (const event of eventList) {
+      const dances = Array.isArray(event.dances) && event.dances.length > 0
+        ? [...event.dances].sort().join('|')
+        : '';
+      const key = [
+        event.designation || '',
+        event.level || '',
+        event.style || '',
+        event.ageCategory || '',
+        event.scoringType || 'standard',
+        event.isScholarship ? '1' : '0',
+        dances,
+      ].join('::');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(event);
+    }
+
+    let mergedCount = 0;
+    let deletedCount = 0;
+    const details: Array<{ kept: string; merged: string[]; bibsMoved: number }> = [];
+
+    for (const [, group] of groups) {
+      if (group.length <= 1) continue;
+      // Only merge groups where syllabusType is the differentiator
+      const uniqueSyllabus = new Set(group.map(e => e.syllabusType || ''));
+      if (uniqueSyllabus.size <= 1) continue; // Same syllabusType, not our problem
+
+      // Keep the event with the most bibs, merge others into it
+      const sorted = [...group].sort((a, b) => {
+        const aBibs = new Set<number>();
+        a.heats.forEach(h => h.bibs.forEach(bib => aBibs.add(bib)));
+        const bBibs = new Set<number>();
+        b.heats.forEach(h => h.bibs.forEach(bib => bBibs.add(bib)));
+        return bBibs.size - aBibs.size; // Descending
+      });
+
+      const keeper = sorted[0];
+      const keeperBibs = new Set<number>();
+      keeper.heats.forEach(h => h.bibs.forEach(bib => keeperBibs.add(bib)));
+
+      const mergedNames: string[] = [];
+      let bibsMoved = 0;
+
+      for (let i = 1; i < sorted.length; i++) {
+        const donor = sorted[i];
+        const donorBibs = new Set<number>();
+        donor.heats.forEach(h => h.bibs.forEach(bib => donorBibs.add(bib)));
+
+        // Move bibs from donor to keeper
+        for (const bib of donorBibs) {
+          if (!keeperBibs.has(bib)) {
+            keeperBibs.add(bib);
+            bibsMoved++;
+          }
+        }
+
+        mergedNames.push(donor.name);
+
+        // Delete the donor event
+        await dataService.deleteEvent(donor.id);
+        deletedCount++;
+      }
+
+      // Rebuild keeper heats with all bibs
+      const judgeIds = keeper.heats[0]?.judges || [];
+      const st = keeper.scoringType || 'standard';
+      const newHeats = dataService.rebuildHeats([...keeperBibs], judgeIds, st);
+      // Clear syllabusType on the kept event
+      await dataService.updateEvent(keeper.id, { heats: newHeats, syllabusType: null as any });
+      mergedCount++;
+
+      details.push({ kept: keeper.name, merged: mergedNames, bibsMoved });
+    }
+
+    res.json({ mergedGroups: mergedCount, deletedEvents: deletedCount, details });
+  } catch (error) {
+    console.error('Merge syllabus duplicates error:', error);
+    res.status(500).json({ error: 'Failed to merge duplicate events' });
+  }
+});
+
 // Strip syllabusType from event names and data (for integrated level mode)
 router.post('/strip-syllabus-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
@@ -572,12 +664,14 @@ router.post('/strip-syllabus-type/:competitionId', requireAnyAdmin, async (req: 
       const updates: Partial<Event> = {};
       let changed = false;
 
-      // Strip "Syllabus" or "Open" from the event name
-      if (event.name) {
-        // Remove standalone "Syllabus" or "Open" words from the name
+      // Strip the syllabusType value from the event name if present
+      if (event.name && event.syllabusType) {
+        // Only remove the exact syllabusType value (e.g. "Syllabus" or "Open") from the name
+        // Use word boundary to avoid partial matches, but be careful not to strip
+        // "Open" from level names like "Open Bronze" — only strip the syllabusType field value
+        const escaped = event.syllabusType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const cleaned = event.name
-          .replace(/\bSyllabus\b\s*/gi, '')
-          .replace(/\bOpen\b\s*/gi, '')
+          .replace(new RegExp('\\b' + escaped + '\\b\\s*', 'gi'), '')
           .replace(/\s{2,}/g, ' ')
           .trim();
         if (cleaned !== event.name) {
@@ -747,6 +841,115 @@ router.get('/section-results/:competitionId/:sectionGroupId', requireAnyAdmin, a
   } catch (error) {
     console.error('Section results error:', error);
     res.status(500).json({ error: 'Failed to compute section results' });
+  }
+});
+
+// Diagnose: find events with 0 couples and check if their bibs ended up elsewhere
+router.get('/diagnose-empty/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const allEvents = await dataService.getEvents(competitionId);
+    const eventList = Object.values(allEvents);
+
+    // Build a map of all bibs → events they appear in
+    const bibEvents = new Map<number, Array<{ eventId: number; eventName: string }>>();
+    for (const event of eventList) {
+      const bibs = new Set<number>();
+      event.heats.forEach(h => h.bibs.forEach(b => bibs.add(b)));
+      for (const bib of bibs) {
+        if (!bibEvents.has(bib)) bibEvents.set(bib, []);
+        bibEvents.get(bib)!.push({ eventId: event.id, eventName: event.name });
+      }
+    }
+
+    const emptyEvents = eventList.filter(e => {
+      const bibs = new Set<number>();
+      e.heats.forEach(h => h.bibs.forEach(b => bibs.add(b)));
+      return bibs.size === 0;
+    });
+
+    // For events with no age category, see if matching events WITH age category exist and have couples
+    const analysis: Array<{
+      emptyEvent: { id: number; name: string; ageCategory?: string; designation?: string; level?: string; style?: string; dances?: string[] };
+      similarEvents: Array<{ id: number; name: string; ageCategory?: string; coupleCount: number }>;
+    }> = [];
+
+    for (const empty of emptyEvents) {
+      const similar = eventList.filter(e => {
+        if (e.id === empty.id) return false;
+        const dA = Array.isArray(empty.dances) ? [...empty.dances].sort().join('|') : '';
+        const dB = Array.isArray(e.dances) ? [...e.dances].sort().join('|') : '';
+        return (
+          (e.designation || '') === (empty.designation || '') &&
+          (e.level || '') === (empty.level || '') &&
+          (e.style || '') === (empty.style || '') &&
+          dA === dB &&
+          (e.scoringType || 'standard') === (empty.scoringType || 'standard') &&
+          (!!e.isScholarship) === (!!empty.isScholarship)
+        );
+      });
+
+      const similarInfo = similar.map(e => {
+        const bibs = new Set<number>();
+        e.heats.forEach(h => h.bibs.forEach(b => bibs.add(b)));
+        return { id: e.id, name: e.name, ageCategory: e.ageCategory, coupleCount: bibs.size };
+      });
+
+      analysis.push({
+        emptyEvent: { id: empty.id, name: empty.name, ageCategory: empty.ageCategory, designation: empty.designation, level: empty.level, style: empty.style, dances: empty.dances },
+        similarEvents: similarInfo,
+      });
+    }
+
+    // Also check: all registered couples and whether any have 0 events
+    const couples = await dataService.getCouples(competitionId);
+    const coupleList = Object.values(couples);
+    const couplesWithNoEvents = coupleList.filter(c => !bibEvents.has(c.bib));
+
+    res.json({
+      totalEvents: eventList.length,
+      emptyEventCount: emptyEvents.length,
+      totalCouples: coupleList.length,
+      couplesWithNoEvents: couplesWithNoEvents.map(c => ({ bib: c.bib, leaderId: c.leaderId, followerId: c.followerId })),
+      emptyEventAnalysis: analysis,
+    });
+  } catch (error) {
+    console.error('Diagnose empty events error:', error);
+    res.status(500).json({ error: 'Failed to diagnose' });
+  }
+});
+
+// Delete events with 0 couples
+router.post('/delete-empty/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const allEvents = await dataService.getEvents(competitionId);
+    const emptyEvents: Array<{ id: number; name: string }> = [];
+
+    for (const event of Object.values(allEvents)) {
+      const bibs = event.heats[0]?.bibs || [];
+      if (bibs.length === 0) {
+        emptyEvents.push({ id: event.id, name: event.name });
+      }
+    }
+
+    const { confirm } = req.body || {};
+    if (!confirm) {
+      return res.json({ preview: true, count: emptyEvents.length, events: emptyEvents });
+    }
+
+    for (const e of emptyEvents) {
+      await dataService.deleteEvent(e.id);
+    }
+
+    res.json({ deleted: emptyEvents.length, events: emptyEvents });
+  } catch (error) {
+    console.error('Delete empty events error:', error);
+    res.status(500).json({ error: 'Failed to delete empty events' });
   }
 });
 

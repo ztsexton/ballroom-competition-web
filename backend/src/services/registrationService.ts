@@ -25,15 +25,20 @@ function sortDancesByConfiguredOrder(dances: string[], style?: string, danceOrde
   });
 }
 
-function eventMatchesCombination(event: Event, combination: EventCombination, reqDances: string[], reqScoringType: string): boolean {
+function eventMatchesCombination(event: Event, combination: EventCombination, reqDances: string[], reqScoringType: string, levelMode?: string): boolean {
   const evtDances = Array.isArray(event.dances) && event.dances.length > 0
     ? [...event.dances].sort()
     : [];
   const evtScoringType = event.scoringType || 'standard';
 
+  // In integrated mode, syllabusType is not used — ignore it for matching
+  const syllabusMatch = levelMode === 'integrated'
+    ? true
+    : (event.syllabusType || undefined) === (combination.syllabusType || undefined);
+
   return (
     (event.designation || undefined) === (combination.designation || undefined) &&
-    (event.syllabusType || undefined) === (combination.syllabusType || undefined) &&
+    syllabusMatch &&
     (event.level || undefined) === (combination.level || undefined) &&
     (event.style || undefined) === (combination.style || undefined) &&
     (event.ageCategory || undefined) === (combination.ageCategory || undefined) &&
@@ -45,7 +50,8 @@ function eventMatchesCombination(event: Event, combination: EventCombination, re
 
 export async function findMatchingEvent(
   competitionId: number,
-  combination: EventCombination
+  combination: EventCombination,
+  levelMode?: string
 ): Promise<Event | null> {
   const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
     ? [...combination.dances].sort()
@@ -55,7 +61,7 @@ export async function findMatchingEvent(
   const allEvents = await dataService.getEvents(competitionId);
 
   for (const event of Object.values(allEvents)) {
-    if (eventMatchesCombination(event, combination, reqDances, reqScoringType)) {
+    if (eventMatchesCombination(event, combination, reqDances, reqScoringType, levelMode)) {
       return event;
     }
   }
@@ -65,7 +71,8 @@ export async function findMatchingEvent(
 
 export async function findAllMatchingEvents(
   competitionId: number,
-  combination: EventCombination
+  combination: EventCombination,
+  levelMode?: string
 ): Promise<Event[]> {
   const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
     ? [...combination.dances].sort()
@@ -76,7 +83,7 @@ export async function findAllMatchingEvents(
   const matches: Event[] = [];
 
   for (const event of Object.values(allEvents)) {
-    if (eventMatchesCombination(event, combination, reqDances, reqScoringType)) {
+    if (eventMatchesCombination(event, combination, reqDances, reqScoringType, levelMode)) {
       matches.push(event);
     }
   }
@@ -204,11 +211,13 @@ export async function registerCoupleForEvent(
     ? sortDancesByConfiguredOrder(combination.dances, combination.style, competition?.danceOrder)
     : [];
 
+  const levelMode = competition?.levelMode;
+
   if (competition?.allowDuplicateEntries) {
-    return registerWithDuplicateEntries(competitionId, bib, combination, reqDances, displayDances);
+    return registerWithDuplicateEntries(competitionId, bib, combination, reqDances, displayDances, levelMode);
   }
 
-  return registerStandard(competitionId, bib, combination, reqDances, displayDances);
+  return registerStandard(competitionId, bib, combination, reqDances, displayDances, levelMode);
 }
 
 async function registerStandard(
@@ -216,9 +225,10 @@ async function registerStandard(
   bib: number,
   combination: EventCombination,
   reqDances: string[],
-  displayDances: string[]
+  displayDances: string[],
+  levelMode?: string
 ): Promise<RegisterResult> {
-  const matchedEvent = await findMatchingEvent(competitionId, combination);
+  const matchedEvent = await findMatchingEvent(competitionId, combination, levelMode);
 
   if (matchedEvent) {
     const existingBibs = matchedEvent.heats[0]?.bibs || [];
@@ -275,9 +285,10 @@ async function registerWithDuplicateEntries(
   bib: number,
   combination: EventCombination,
   reqDances: string[],
-  displayDances: string[]
+  displayDances: string[],
+  levelMode?: string
 ): Promise<RegisterResult> {
-  const matchingEvents = await findAllMatchingEvents(competitionId, combination);
+  const matchingEvents = await findAllMatchingEvents(competitionId, combination, levelMode);
 
   // Check if couple is already in any matching event
   for (const event of matchingEvents) {

@@ -248,6 +248,21 @@ export const eventsApi = {
     api.post<{ updated: number; warning?: boolean; message?: string }>(`/events/bulk-scoring-type/${competitionId}`, { rules, clearScores }),
   stripSyllabusType: (competitionId: number) =>
     api.post<{ updated: number }>(`/events/strip-syllabus-type/${competitionId}`),
+  mergeSyllabusTypeDuplicates: (competitionId: number) =>
+    api.post<{ mergedGroups: number; deletedEvents: number; details: Array<{ kept: string; merged: string[]; bibsMoved: number }> }>(`/events/merge-syllabus-duplicates/${competitionId}`),
+  deleteEmptyEvents: (competitionId: number, confirm?: boolean) =>
+    api.post<{ preview?: boolean; count: number; deleted?: number; events: Array<{ id: number; name: string }> }>(`/events/delete-empty/${competitionId}`, { confirm }),
+  diagnoseEmpty: (competitionId: number) =>
+    api.get<{
+      totalEvents: number;
+      emptyEventCount: number;
+      totalCouples: number;
+      couplesWithNoEvents: Array<{ bib: number; leaderId: number; followerId: number }>;
+      emptyEventAnalysis: Array<{
+        emptyEvent: { id: number; name: string; ageCategory?: string; designation?: string; level?: string; style?: string; dances?: string[] };
+        similarEvents: Array<{ id: number; name: string; ageCategory?: string; coupleCount: number }>;
+      }>;
+    }>(`/events/diagnose-empty/${competitionId}`),
   getSectionResults: (competitionId: number, sectionGroupId: string) =>
     api.get<{
       sectionGroupId: string;
