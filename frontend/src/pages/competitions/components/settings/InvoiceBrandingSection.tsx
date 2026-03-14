@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Competition, InvoiceBranding } from '../../../../types';
 import Section from './Section';
 
@@ -18,7 +18,6 @@ function resizeImage(file: File, maxW: number, maxH: number): Promise<{ base64: 
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
-        // Scale down if needed, maintain aspect ratio
         if (width > maxW || height > maxH) {
           const ratio = Math.min(maxW / width, maxH / height);
           width = Math.round(width * ratio);
@@ -29,7 +28,6 @@ function resizeImage(file: File, maxW: number, maxH: number): Promise<{ base64: 
         canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, width, height);
-        // Use PNG for transparency support, JPEG for photos
         const mimeType = file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
         const dataUrl = canvas.toDataURL(mimeType, 0.9);
         const base64 = dataUrl.split(',')[1];
@@ -44,14 +42,21 @@ function resizeImage(file: File, maxW: number, maxH: number): Promise<{ base64: 
 }
 
 const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSectionProps) => {
-  const branding = comp.invoiceBranding || {};
+  const serverBranding = comp.invoiceBranding || {};
+  const [draft, setDraft] = useState<InvoiceBranding>(serverBranding);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
-  const updateBranding = (updates: Partial<InvoiceBranding>) => {
-    const updated = { ...branding, ...updates };
-    saveField('invoiceBranding', updated, 'branding');
+  // Sync draft when server data changes (e.g. after save)
+  useEffect(() => {
+    setDraft(comp.invoiceBranding || {});
+  }, [comp.invoiceBranding]);
+
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(serverBranding);
+
+  const handleSave = () => {
+    saveField('invoiceBranding', draft, 'branding');
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +76,7 @@ const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSe
     setUploadError('');
     try {
       const { base64, mimeType } = await resizeImage(file, LOGO_MAX_WIDTH, LOGO_MAX_HEIGHT);
-      updateBranding({ logoBase64: base64, logoMimeType: mimeType });
+      setDraft(prev => ({ ...prev, logoBase64: base64, logoMimeType: mimeType }));
     } catch {
       setUploadError('Failed to process image.');
     } finally {
@@ -81,15 +86,17 @@ const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSe
   };
 
   const removeLogo = () => {
-    const updated = { ...branding };
+    const updated = { ...draft };
     delete updated.logoBase64;
     delete updated.logoMimeType;
-    saveField('invoiceBranding', updated, 'branding');
+    setDraft(updated);
   };
 
-  const logoSrc = branding.logoBase64 && branding.logoMimeType
-    ? `data:${branding.logoMimeType};base64,${branding.logoBase64}`
+  const logoSrc = draft.logoBase64 && draft.logoMimeType
+    ? `data:${draft.logoMimeType};base64,${draft.logoBase64}`
     : null;
+
+  const inputCls = "w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
 
   return (
     <Section title="Invoice Branding" defaultOpen={false} savedKey="branding" savedMap={savedMap}>
@@ -146,10 +153,10 @@ const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSe
         <label className="block text-sm font-semibold text-gray-600 mb-1">Business Name</label>
         <input
           type="text"
-          value={branding.businessName || ''}
-          onChange={e => updateBranding({ businessName: e.target.value || undefined })}
+          value={draft.businessName || ''}
+          onChange={e => setDraft(prev => ({ ...prev, businessName: e.target.value || undefined }))}
           placeholder="e.g. DanceSport Productions"
-          className="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+          className={inputCls + ' max-w-md'}
         />
         <small className="text-gray-500 text-xs mt-1 block">
           Replaces "INVOICE" as the main header. The competition name still appears below.
@@ -161,10 +168,10 @@ const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSe
         <label className="block text-sm font-semibold text-gray-600 mb-1">Tagline</label>
         <input
           type="text"
-          value={branding.tagline || ''}
-          onChange={e => updateBranding({ tagline: e.target.value || undefined })}
+          value={draft.tagline || ''}
+          onChange={e => setDraft(prev => ({ ...prev, tagline: e.target.value || undefined }))}
           placeholder="e.g. Premier Ballroom Competition Events"
-          className="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+          className={inputCls + ' max-w-md'}
         />
       </div>
 
@@ -181,46 +188,58 @@ const InvoiceBrandingSection = ({ comp, savedMap, saveField }: InvoiceBrandingSe
           <label className="block text-xs text-gray-500 mb-1">Email</label>
           <input
             type="email"
-            value={branding.email || ''}
-            onChange={e => updateBranding({ email: e.target.value || undefined })}
+            value={draft.email || ''}
+            onChange={e => setDraft(prev => ({ ...prev, email: e.target.value || undefined }))}
             placeholder="billing@example.com"
-            className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className={inputCls}
           />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Phone</label>
           <input
             type="tel"
-            value={branding.phone || ''}
-            onChange={e => updateBranding({ phone: e.target.value || undefined })}
+            value={draft.phone || ''}
+            onChange={e => setDraft(prev => ({ ...prev, phone: e.target.value || undefined }))}
             placeholder="(555) 123-4567"
-            className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className={inputCls}
           />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Website</label>
           <input
             type="text"
-            value={branding.website || ''}
-            onChange={e => updateBranding({ website: e.target.value || undefined })}
+            value={draft.website || ''}
+            onChange={e => setDraft(prev => ({ ...prev, website: e.target.value || undefined }))}
             placeholder="www.example.com"
-            className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className={inputCls}
           />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Address</label>
           <input
             type="text"
-            value={branding.address || ''}
-            onChange={e => updateBranding({ address: e.target.value || undefined })}
+            value={draft.address || ''}
+            onChange={e => setDraft(prev => ({ ...prev, address: e.target.value || undefined }))}
             placeholder="123 Main St, City, ST"
-            className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            className={inputCls}
           />
         </div>
       </div>
 
+      {/* Save button */}
+      {isDirty && (
+        <div className="mt-4">
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600"
+          >
+            Save Branding
+          </button>
+        </div>
+      )}
+
       {/* Preview hint */}
-      {(branding.businessName || branding.logoBase64) && (
+      {(draft.businessName || draft.logoBase64) && !isDirty && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
           Branding configured. Download a PDF invoice from the Invoices page to preview how it looks.
         </div>
