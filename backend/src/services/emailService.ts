@@ -1,13 +1,13 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
-const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM = process.env.RESEND_FROM || 'noreply@resend.dev';
 
-function isConfigured(): boolean {
-  return !!(SMTP_HOST && SMTP_USER && SMTP_PASS);
+function getClient(): Resend {
+  if (!RESEND_API_KEY) {
+    throw new Error('Email not configured. Set RESEND_API_KEY environment variable.');
+  }
+  return new Resend(RESEND_API_KEY);
 }
 
 export async function sendInvoiceEmail(
@@ -16,24 +16,11 @@ export async function sendInvoiceEmail(
   competitionName: string,
   pdfBuffer: Buffer
 ): Promise<void> {
-  if (!isConfigured()) {
-    throw new Error('Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  });
-
+  const resend = getClient();
   const safeName = personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-  await transporter.sendMail({
-    from: SMTP_FROM,
+  await resend.emails.send({
+    from: RESEND_FROM,
     to,
     subject: `Invoice - ${competitionName}`,
     text: [
@@ -47,7 +34,6 @@ export async function sendInvoiceEmail(
       {
         filename: `invoice-${safeName}.pdf`,
         content: pdfBuffer,
-        contentType: 'application/pdf',
       },
     ],
   });
@@ -59,21 +45,11 @@ export async function sendHeatSheetEmail(
   competitionName: string,
   pdfBuffer: Buffer
 ): Promise<void> {
-  if (!isConfigured()) {
-    throw new Error('Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-
+  const resend = getClient();
   const safeName = personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-  await transporter.sendMail({
-    from: SMTP_FROM,
+  await resend.emails.send({
+    from: RESEND_FROM,
     to,
     subject: `Heat Sheet - ${competitionName}`,
     text: [
@@ -86,7 +62,6 @@ export async function sendHeatSheetEmail(
     attachments: [{
       filename: `heatsheet-${safeName}.pdf`,
       content: pdfBuffer,
-      contentType: 'application/pdf',
     }],
   });
 }
@@ -97,21 +72,11 @@ export async function sendResultsEmail(
   competitionName: string,
   pdfBuffer: Buffer
 ): Promise<void> {
-  if (!isConfigured()) {
-    throw new Error('Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-
+  const resend = getClient();
   const safeName = personName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-  await transporter.sendMail({
-    from: SMTP_FROM,
+  await resend.emails.send({
+    from: RESEND_FROM,
     to,
     subject: `Results - ${competitionName}`,
     text: [
@@ -124,11 +89,10 @@ export async function sendResultsEmail(
     attachments: [{
       filename: `results-${safeName}.pdf`,
       content: pdfBuffer,
-      contentType: 'application/pdf',
     }],
   });
 }
 
 export function isEmailConfigured(): boolean {
-  return isConfigured();
+  return !!RESEND_API_KEY;
 }
