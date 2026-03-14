@@ -559,6 +559,52 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
   res.json({ message: 'Scores cleared successfully' });
 });
 
+// Strip syllabusType from event names and data (for integrated level mode)
+router.post('/strip-syllabus-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const competitionId = parseInt(req.params.competitionId);
+  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+  try {
+    const allEvents = await dataService.getEvents(competitionId);
+    let updatedCount = 0;
+
+    for (const event of Object.values(allEvents)) {
+      const updates: Partial<Event> = {};
+      let changed = false;
+
+      // Strip "Syllabus" or "Open" from the event name
+      if (event.name) {
+        // Remove standalone "Syllabus" or "Open" words from the name
+        const cleaned = event.name
+          .replace(/\bSyllabus\b\s*/gi, '')
+          .replace(/\bOpen\b\s*/gi, '')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+        if (cleaned !== event.name) {
+          updates.name = cleaned;
+          changed = true;
+        }
+      }
+
+      // Clear the syllabusType field on the event
+      if (event.syllabusType) {
+        updates.syllabusType = null as any;
+        changed = true;
+      }
+
+      if (changed) {
+        await dataService.updateEvent(event.id, updates);
+        updatedCount++;
+      }
+    }
+
+    res.json({ updated: updatedCount });
+  } catch (error) {
+    console.error('Strip syllabus type error:', error);
+    res.status(500).json({ error: 'Failed to strip syllabus type from events' });
+  }
+});
+
 // Bulk update scoring type by event type (single/multi/scholarship)
 router.post('/bulk-scoring-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);

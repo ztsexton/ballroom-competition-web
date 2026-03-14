@@ -466,17 +466,19 @@ const ParticipantPortalPage = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-sm mb-1">Syllabus Type</label>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {['Syllabus', 'Open'].map(opt => (
-                        <button key={opt} type="button" className={toggleBtnCls(regSyllabusType === opt)}
-                          onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
-                          {opt}
-                        </button>
-                      ))}
+                  {(selectedComp?.levelMode || 'combined') === 'combined' && (
+                    <div>
+                      <label className="block font-semibold text-sm mb-1">Syllabus Type</label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {['Syllabus', 'Open'].map(opt => (
+                          <button key={opt} type="button" className={toggleBtnCls(regSyllabusType === opt)}
+                            onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block font-semibold text-sm mb-1">Level</label>

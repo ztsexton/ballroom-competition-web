@@ -24,6 +24,8 @@ const EventsPage = () => {
   const [showBulkScoring, setShowBulkScoring] = useState(false);
   const [bulkRules, setBulkRules] = useState<Record<string, string>>({});
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [showStripSyllabus, setShowStripSyllabus] = useState(false);
+  const [stripApplying, setStripApplying] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -195,6 +197,75 @@ const EventsPage = () => {
                     {bulkApplying ? 'Applying...' : 'Apply'}
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {events.length > 0 && (activeCompetition?.levelMode || 'combined') === 'integrated' && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowStripSyllabus(!showStripSyllabus)}
+              className="text-sm text-primary-600 hover:text-primary-800 font-medium cursor-pointer bg-transparent border-none"
+            >
+              {showStripSyllabus ? '\u25bc' : '\u25b6'} Strip Syllabus/Open from Event Names
+            </button>
+            {showStripSyllabus && (
+              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">
+                  Since this competition uses <strong>integrated</strong> levels, the "Syllabus" and "Open" labels in event names are redundant.
+                  This will remove them from all event names and clear the syllabus type field.
+                </p>
+                {(() => {
+                  const affected = events.filter(e =>
+                    e.syllabusType || /\b(Syllabus|Open)\b/i.test(e.name)
+                  );
+                  return (
+                    <>
+                      <p className="text-xs text-gray-500 mb-3">
+                        {affected.length > 0
+                          ? `${affected.length} event${affected.length !== 1 ? 's' : ''} will be updated.`
+                          : 'No events need updating — names are already clean.'}
+                      </p>
+                      {affected.length > 0 && affected.length <= 10 && (
+                        <div className="mb-3 text-xs text-gray-500 space-y-0.5">
+                          {affected.map(e => {
+                            const cleaned = e.name
+                              .replace(/\bSyllabus\b\s*/gi, '')
+                              .replace(/\bOpen\b\s*/gi, '')
+                              .replace(/\s{2,}/g, ' ')
+                              .trim();
+                            return (
+                              <div key={e.id}>
+                                <span className="line-through text-gray-400">{e.name}</span>
+                                {cleaned !== e.name && <span className="ml-2 text-green-700">{cleaned}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button
+                        onClick={async () => {
+                          if (!activeCompetition) return;
+                          setStripApplying(true);
+                          try {
+                            const res = await eventsApi.stripSyllabusType(activeCompetition.id);
+                            showToast(`Updated ${res.data.updated} event${res.data.updated !== 1 ? 's' : ''}`, 'success');
+                            loadEvents();
+                          } catch (error: any) {
+                            showToast(error.response?.data?.error || 'Failed to update', 'error');
+                          } finally {
+                            setStripApplying(false);
+                          }
+                        }}
+                        disabled={stripApplying || affected.length === 0}
+                        className="px-3 py-1.5 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {stripApplying ? 'Applying...' : 'Strip Syllabus/Open'}
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>

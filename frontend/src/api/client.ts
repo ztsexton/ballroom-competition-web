@@ -246,6 +246,8 @@ export const eventsApi = {
     api.delete<Event>(`/events/${eventId}/scratch/${bib}`),
   bulkScoringType: (competitionId: number, rules: Record<string, string>, clearScores?: boolean) =>
     api.post<{ updated: number; warning?: boolean; message?: string }>(`/events/bulk-scoring-type/${competitionId}`, { rules, clearScores }),
+  stripSyllabusType: (competitionId: number) =>
+    api.post<{ updated: number }>(`/events/strip-syllabus-type/${competitionId}`),
   getSectionResults: (competitionId: number, sectionGroupId: string) =>
     api.get<{
       sectionGroupId: string;

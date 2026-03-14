@@ -50,6 +50,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
   const hasBatchMode = templates.length > 0;
   const levels = activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS;
   const styles = getAvailableStyles(activeCompetition?.danceOrder);
+  const isIntegrated = (activeCompetition?.levelMode || 'combined') === 'integrated';
 
   // In batch mode, compute total entries that will be created
   const batchEntryCount = hasBatchMode
@@ -104,17 +105,19 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {['Syllabus', 'Open'].map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
-                  onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
-                  {opt}
-                </button>
-              ))}
+          {!isIntegrated && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {['Syllabus', 'Open'].map(opt => (
+                  <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
+                    onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {availableAgeCategories.length > 0 && (
             <div>
@@ -317,17 +320,19 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {['Syllabus', 'Open'].map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
-                  onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
-                  {opt}
-                </button>
-              ))}
+          {!isIntegrated && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {['Syllabus', 'Open'].map(opt => (
+                  <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
+                    onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Level</label>
