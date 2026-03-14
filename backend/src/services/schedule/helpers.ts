@@ -104,7 +104,8 @@ export async function recalculateTimingIfConfigured(
   const competition = await dataService.getCompetitionById(competitionId);
   if (!competition) return schedule;
 
-  const effectiveStartTime = competition.timingSettings?.startTime || deriveStartTime(competition);
+  // Prefer scheduleDayConfigs start time (user-configured) over timingSettings.startTime (may be stale)
+  const effectiveStartTime = deriveStartTime(competition) || competition.timingSettings?.startTime;
   if (!effectiveStartTime) return schedule;
 
   const events = await dataService.getEvents(competitionId);

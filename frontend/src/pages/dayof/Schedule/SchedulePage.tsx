@@ -239,9 +239,9 @@ const SchedulePage = () => {
       // Update local competition state so overflow detection works immediately
       setCompetition(prev => prev ? { ...prev, ...compUpdate } : prev);
       const baseTiming = overrides?.timingSettings ?? timingSettings;
-      // Derive start time from day configs if not explicitly set
+      // Always derive start time from day configs (the source of truth for timing window)
       const effectiveTiming = { ...baseTiming };
-      if (!effectiveTiming.startTime && dayConfigs[0]?.startTime && competition?.date) {
+      if (dayConfigs[0]?.startTime && competition?.date) {
         const [h, m] = dayConfigs[0].startTime.split(':').map(Number);
         const d = new Date(competition.date + 'T00:00:00');
         d.setHours(h, m, 0, 0);
