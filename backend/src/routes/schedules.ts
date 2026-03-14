@@ -1031,7 +1031,7 @@ router.post('/:competitionId/heatsheet/email/:personId', async (req: Request, re
     const personId = parseInt(req.params.personId);
 
     if (!isEmailConfigured()) {
-      return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
+      return res.status(503).json({ error: 'Email not configured. Set the RESEND_API_KEY environment variable.' });
     }
 
     const competition = await dataService.getCompetitionById(competitionId);
@@ -1121,7 +1121,7 @@ router.post('/:competitionId/results/email/:personId', async (req: Request, res:
     const personId = parseInt(req.params.personId);
 
     if (!isEmailConfigured()) {
-      return res.status(503).json({ error: 'Email not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.' });
+      return res.status(503).json({ error: 'Email not configured. Set the RESEND_API_KEY environment variable.' });
     }
 
     const competition = await dataService.getCompetitionById(competitionId);
