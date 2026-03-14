@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { invoicesApi, competitionsApi } from '../../api/client';
+import { invoicesApi, competitionsApi, couplesApi, peopleApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
-import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup } from '../../types';
+import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup, Couple, Person } from '../../types';
 import { Skeleton } from '../../components/Skeleton';
 
 const DANCE_COUNTS = ['2', '3', '4', '5'];
@@ -100,8 +100,11 @@ const InvoicesPage = () => {
   const competitionId = activeCompetition?.id || 0;
 
   const [summary, setSummary] = useState<InvoiceSummary | null>(null);
+  const [couples, setCouples] = useState<Couple[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
   const [expandedPerson, setExpandedPerson] = useState<number | null>(null);
   const [savingPricing, setSavingPricing] = useState(false);
 
@@ -116,7 +119,54 @@ const InvoicesPage = () => {
     if (!competitionId) return;
     initPricing();
     loadInvoices();
+    loadCouplesAndPeople();
   }, [competitionId]);
+
+  const loadCouplesAndPeople = async () => {
+    try {
+      const [couplesRes, peopleRes] = await Promise.all([
+        couplesApi.getAll(competitionId),
+        peopleApi.getAll(competitionId),
+      ]);
+      const loadedCouples = couplesRes.data;
+      const loadedPeople = peopleRes.data;
+      setCouples(loadedCouples);
+      setPeople(loadedPeople);
+
+      // Auto-assign billing for couples that don't have it set yet
+      const personMap = new Map(loadedPeople.map(p => [p.id, p]));
+      const toUpdate: Array<{ bib: number; billTo: 'leader' | 'follower' }> = [];
+      for (const couple of loadedCouples) {
+        if (couple.billTo) continue; // already configured
+        const leader = personMap.get(couple.leaderId);
+        const follower = personMap.get(couple.followerId);
+        if (!leader || !follower) continue;
+        // Pro-Am: bill the student
+        if (leader.status === 'professional' && follower.status === 'student') {
+          toUpdate.push({ bib: couple.bib, billTo: 'follower' });
+        } else if (leader.status === 'student' && follower.status === 'professional') {
+          toUpdate.push({ bib: couple.bib, billTo: 'leader' });
+        }
+      }
+      if (toUpdate.length > 0) {
+        await Promise.all(toUpdate.map(u => couplesApi.update(u.bib, { billTo: u.billTo })));
+        const refreshed = await couplesApi.getAll(competitionId);
+        setCouples(refreshed.data);
+        loadInvoices();
+      }
+    } catch { /* ignore */ }
+  };
+
+  const updateBillTo = async (bib: number, billTo: 'split' | 'leader' | 'follower') => {
+    try {
+      await couplesApi.update(bib, { billTo });
+      const res = await couplesApi.getAll(competitionId);
+      setCouples(res.data);
+      await loadInvoices();
+    } catch {
+      showToast('Failed to update billing', 'error');
+    }
+  };
 
   const initPricing = () => {
     const p = activeCompetition?.pricing || emptyPricing;
@@ -284,6 +334,95 @@ const InvoicesPage = () => {
         )}
       </div>
 
+      {/* ─── Billing Assignment ─── */}
+      {couples.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div
+            className="flex justify-between items-center cursor-pointer select-none"
+            onClick={() => setBillingOpen(!billingOpen)}
+          >
+            <h3 className="m-0">
+              <span className="mr-2 text-gray-400">{billingOpen ? '▾' : '▸'}</span>
+              Billing Assignment
+            </h3>
+          </div>
+
+          {billingOpen && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-500 mb-4">
+                Choose who pays for each partnership. "Split" shows the full amount on both invoices (revenue is only counted once).
+                Assigning to one person shows {currency === 'USD' ? '$0' : '0'} on the other's invoice while still listing their entries for reference.
+              </p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium">Bib</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium">Leader</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium">Follower</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-medium">Bill To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {couples.map(couple => {
+                    const current = couple.billTo || 'split';
+                    const personMap = new Map(people.map(p => [p.id, p]));
+                    const leader = personMap.get(couple.leaderId);
+                    const follower = personMap.get(couple.followerId);
+                    const isProAm = (leader?.status === 'professional' && follower?.status === 'student')
+                      || (leader?.status === 'student' && follower?.status === 'professional');
+                    const statusBadge = (status?: string) =>
+                      status === 'professional'
+                        ? 'text-primary-500 text-[0.7rem] font-semibold'
+                        : 'text-gray-400 text-[0.7rem]';
+                    const btnCls = (val: string) =>
+                      `px-3 py-1.5 text-xs rounded border cursor-pointer font-medium transition-colors ${
+                        current === val
+                          ? 'bg-primary-500 text-white border-primary-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      }`;
+                    return (
+                      <tr key={couple.bib} className="border-t border-gray-100">
+                        <td className="px-3 py-2.5 font-semibold">#{couple.bib}</td>
+                        <td className="px-3 py-2.5">
+                          {couple.leaderName}
+                          <span className={`ml-1.5 ${statusBadge(leader?.status)}`}>
+                            {leader?.status === 'professional' ? 'Pro' : 'Student'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {couple.followerName}
+                          <span className={`ml-1.5 ${statusBadge(follower?.status)}`}>
+                            {follower?.status === 'professional' ? 'Pro' : 'Student'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex gap-1.5 items-center">
+                            <button className={btnCls('split')} onClick={() => updateBillTo(couple.bib, 'split')}>
+                              Split
+                            </button>
+                            <button className={btnCls('leader')} onClick={() => updateBillTo(couple.bib, 'leader')}>
+                              {couple.leaderName.split(' ')[0]}
+                            </button>
+                            <button className={btnCls('follower')} onClick={() => updateBillTo(couple.bib, 'follower')}>
+                              {couple.followerName.split(' ')[0]}
+                            </button>
+                            {isProAm && (
+                              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[0.65rem] font-semibold">
+                                Pro-Am
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── Summary Stats ─── */}
       {summary && (
         <div className="flex gap-3 mb-6">
@@ -397,13 +536,15 @@ const InvoiceRow = ({
 }) => {
   const totalEntries = invoice.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
   const allPaid = invoice.outstandingAmount === 0 && invoice.totalAmount > 0;
+  const isReferenceOnly = invoice.totalAmount === 0 && invoice.partnerships.some(p => !p.billable);
   const statusLabel = invoice.personStatus === 'professional' ? 'Pro' : 'Student';
   const statusColor = invoice.personStatus === 'professional' ? 'text-primary-500' : 'text-gray-700';
 
-  const unpaidEntries = invoice.partnerships.flatMap(p =>
+  const billablePartnerships = invoice.partnerships.filter(p => p.billable);
+  const unpaidEntries = billablePartnerships.flatMap(p =>
     p.lineItems.filter(item => !item.paid).map(item => ({ eventId: item.eventId, bib: item.bib }))
   );
-  const paidEntries = invoice.partnerships.flatMap(p =>
+  const paidEntries = billablePartnerships.flatMap(p =>
     p.lineItems.filter(item => item.paid).map(item => ({ eventId: item.eventId, bib: item.bib }))
   );
 
@@ -416,6 +557,11 @@ const InvoiceRow = ({
         <td className="px-2 py-2">
           <span className="mr-2 text-gray-400 text-xs">{expanded ? '▾' : '▸'}</span>
           {invoice.personName}
+          {isReferenceOnly && (
+            <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[0.65rem] font-medium">
+              Reference
+            </span>
+          )}
         </td>
         <td className="px-2 py-2">
           <span className={`text-xs font-semibold ${statusColor}`}>{statusLabel}</span>
@@ -428,7 +574,9 @@ const InvoiceRow = ({
         </td>
         <td className="text-center px-2 py-2" onClick={e => e.stopPropagation()}>
           <div className="flex gap-1.5 justify-center items-center flex-wrap">
-            {allPaid ? (
+            {isReferenceOnly ? (
+              <span className="text-gray-400 text-[0.8125rem]">No balance</span>
+            ) : allPaid ? (
               <>
                 <span className="text-success-500 font-semibold text-[0.8125rem]">Paid</span>
                 <button
@@ -494,7 +642,7 @@ const PartnershipSection = ({
   fmt: (n: number) => string;
 }) => {
   const categoryLabel: Record<string, string> = { single: 'Single', multi: 'Multi', scholarship: 'Scholarship' };
-  const allPaid = partnership.paidAmount === partnership.subtotal && partnership.subtotal > 0;
+  const allPaid = partnership.billable && partnership.paidAmount === partnership.subtotal && partnership.subtotal > 0;
   const unpaidEntries = partnership.lineItems
     .filter(item => !item.paid)
     .map(item => ({ eventId: item.eventId, bib: item.bib }));
@@ -507,28 +655,35 @@ const PartnershipSection = ({
           <span className="ml-3 text-gray-500 font-normal text-[0.8125rem]">
             {partnership.lineItems.length} entries — {fmt(partnership.subtotal)}
           </span>
+          {!partnership.billable && (
+            <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[0.65rem] font-medium">
+              For reference — billed to {partnership.partnerName}
+            </span>
+          )}
         </div>
-        {allPaid ? (
-          <div className="flex gap-1.5 items-center">
-            <span className="text-success-500 font-semibold text-xs">Paid</span>
+        {partnership.billable && (
+          allPaid ? (
+            <div className="flex gap-1.5 items-center">
+              <span className="text-success-500 font-semibold text-xs">Paid</span>
+              <button
+                onClick={() => onPayEntries(
+                  partnership.lineItems.filter(i => i.paid).map(i => ({ eventId: i.eventId, bib: i.bib })),
+                  false,
+                )}
+                className="px-2 py-0.5 text-[0.7rem] border border-gray-300 rounded bg-white cursor-pointer text-danger-500 hover:bg-gray-50"
+              >
+                Undo
+              </button>
+            </div>
+          ) : unpaidEntries.length > 0 ? (
             <button
-              onClick={() => onPayEntries(
-                partnership.lineItems.filter(i => i.paid).map(i => ({ eventId: i.eventId, bib: i.bib })),
-                false,
-              )}
-              className="px-2 py-0.5 text-[0.7rem] border border-gray-300 rounded bg-white cursor-pointer text-danger-500 hover:bg-gray-50"
+              className="px-2 py-0.5 text-[0.7rem] bg-primary-500 text-white rounded border-none cursor-pointer font-medium transition-colors hover:bg-primary-600"
+              onClick={() => onPayEntries(unpaidEntries, true, personId)}
             >
-              Undo
+              Pay Partnership
             </button>
-          </div>
-        ) : unpaidEntries.length > 0 ? (
-          <button
-            className="px-2 py-0.5 text-[0.7rem] bg-primary-500 text-white rounded border-none cursor-pointer font-medium transition-colors hover:bg-primary-600"
-            onClick={() => onPayEntries(unpaidEntries, true, personId)}
-          >
-            Pay Partnership
-          </button>
-        ) : null}
+          ) : null
+        )}
       </div>
       <table className="w-full text-[0.8125rem]">
         <thead>

@@ -244,6 +244,7 @@ export interface Couple {
   leaderName: string;
   followerName: string;
   competitionId: number;
+  billTo?: 'split' | 'leader' | 'follower';
 }
 
 export interface JudgeProfile {
@@ -483,6 +484,7 @@ export interface PartnershipGroup {
   lineItems: InvoiceLineItem[];
   subtotal: number;
   paidAmount: number;
+  billable: boolean;
 }
 
 export interface PersonInvoice {

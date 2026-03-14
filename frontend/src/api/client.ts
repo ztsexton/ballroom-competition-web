@@ -168,6 +168,8 @@ export const couplesApi = {
   getEvents: (bib: number) => api.get<Event[]>(`/couples/${bib}/events`),
   create: (leaderId: number, followerId: number, competitionId: number) =>
     api.post<Couple>('/couples', { leaderId, followerId, competitionId }),
+  update: (bib: number, updates: Partial<Pick<Couple, 'billTo'>>) =>
+    api.patch<Couple>(`/couples/${bib}`, updates),
   delete: (bib: number) => api.delete(`/couples/${bib}`),
 };
 

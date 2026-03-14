@@ -50,6 +50,13 @@ export async function calculateInvoices(competitionId: number): Promise<InvoiceS
     for (const couple of personCouples) {
       const partnerId = couple.leaderId === person.id ? couple.followerId : couple.leaderId;
       const partnerName = couple.leaderId === person.id ? couple.followerName : couple.leaderName;
+      const isLeader = couple.leaderId === person.id;
+
+      // Determine if this person is billed for this partnership
+      const billTo = couple.billTo || 'split';
+      const isBilledPerson = billTo === 'split'
+        || (billTo === 'leader' && isLeader)
+        || (billTo === 'follower' && !isLeader);
 
       const coupleEvents = events.filter(event =>
         event.heats[0]?.bibs.includes(couple.bib)
@@ -165,13 +172,19 @@ export async function calculateInvoices(competitionId: number): Promise<InvoiceS
         lineItems,
         subtotal,
         paidAmount,
+        billable: isBilledPerson,
       });
     }
 
     if (partnerships.length === 0) continue;
 
-    const totalAmount = partnerships.reduce((sum, p) => sum + p.subtotal, 0);
-    const paidAmount = partnerships.reduce((sum, p) => sum + p.paidAmount, 0);
+    // Only count billable partnerships toward what this person owes
+    const totalAmount = partnerships
+      .filter(p => p.billable)
+      .reduce((sum, p) => sum + p.subtotal, 0);
+    const paidAmount = partnerships
+      .filter(p => p.billable)
+      .reduce((sum, p) => sum + p.paidAmount, 0);
 
     invoices.push({
       personId: person.id,

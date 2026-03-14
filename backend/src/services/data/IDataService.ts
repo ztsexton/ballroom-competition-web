@@ -58,6 +58,7 @@ export interface IDataService {
   getCoupleByBib(bib: number): Promise<Couple | undefined>;
   getCouplesByBibs(bibs: number[]): Promise<Map<number, Couple>>;
   addCouple(leaderId: number, followerId: number, competitionId: number): Promise<Couple | null>;
+  updateCouple(bib: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null>;
   deleteCouple(bib: number): Promise<boolean>;
 
   // Judges

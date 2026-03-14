@@ -589,6 +589,16 @@ export class JsonDataService implements IDataService {
     return newCouple;
   }
 
+  async updateCouple(bib: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const couple = this.data.couples.find(c => c.bib === bib);
+    if (!couple) return null;
+    if (updates.billTo !== undefined) {
+      couple.billTo = updates.billTo || undefined;
+    }
+    this.saveCouples();
+    return couple;
+  }
+
   async deleteCouple(bib: number): Promise<boolean> {
     const initialLength = this.data.couples.length;
     this.data.couples = this.data.couples.filter(c => c.bib !== bib);

@@ -288,6 +288,13 @@ export class CachingDataService implements IDataService {
     return result;
   }
 
+  async updateCouple(bib: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const result = await this.inner.updateCouple(bib, updates);
+    this.couplesByBib.invalidate(`${bib}`);
+    this.couplesByCompetition.invalidateAll();
+    return result;
+  }
+
   async deleteCouple(bib: number): Promise<boolean> {
     const result = await this.inner.deleteCouple(bib);
     this.couplesByBib.invalidate(`${bib}`);

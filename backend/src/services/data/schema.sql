@@ -260,3 +260,6 @@ ALTER TABLE competitions ADD COLUMN IF NOT EXISTS hard_stop_time TEXT;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS event_templates JSONB;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS invoice_branding JSONB;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS scoring_type_defaults JSONB;
+
+-- Migration: add bill_to to couples (billing assignment: split, leader, follower)
+ALTER TABLE couples ADD COLUMN IF NOT EXISTS bill_to TEXT DEFAULT NULL;

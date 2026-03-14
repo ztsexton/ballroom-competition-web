@@ -108,6 +108,7 @@ export class PostgresDataService implements IDataService {
       leaderName: row.leader_name,
       followerName: row.follower_name,
       competitionId: row.competition_id,
+      billTo: row.bill_to || undefined,
     };
   }
 
@@ -614,14 +615,7 @@ export class PostgresDataService implements IDataService {
     );
     const map = new Map<number, Couple>();
     for (const row of rows) {
-      map.set(row.bib, {
-        bib: row.bib,
-        leaderId: row.leader_id,
-        followerId: row.follower_id,
-        leaderName: row.leader_name,
-        followerName: row.follower_name,
-        competitionId: row.competition_id,
-      });
+      map.set(row.bib, this.coupleFromRow(row));
     }
     return map;
   }
@@ -653,6 +647,22 @@ export class PostgresDataService implements IDataService {
   async deleteCouple(bib: number): Promise<boolean> {
     const { rowCount } = await this.pool.query('DELETE FROM couples WHERE bib = $1', [bib]);
     return (rowCount ?? 0) > 0;
+  }
+
+  async updateCouple(bib: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const existing = await this.getCoupleByBib(bib);
+    if (!existing) return null;
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+    if (updates.billTo !== undefined) {
+      fields.push(`bill_to = $${paramIdx++}`);
+      values.push(updates.billTo || null);
+    }
+    if (fields.length === 0) return existing;
+    values.push(bib);
+    await this.pool.query(`UPDATE couples SET ${fields.join(', ')} WHERE bib = $${paramIdx}`, values);
+    return (await this.getCoupleByBib(bib))!;
   }
 
   // ─── Judges ─────────────────────────────────────────────────────

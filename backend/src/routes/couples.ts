@@ -108,6 +108,24 @@ router.get('/:bib/events', requireAnyAdmin, async (req: AuthRequest, res: Respon
   }
 });
 
+// Update couple
+router.patch('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const bib = parseInt(req.params.bib);
+  const couple = await dataService.getCoupleByBib(bib);
+  if (!couple) {
+    return res.status(404).json({ error: 'Couple not found' });
+  }
+  if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
+
+  const { billTo } = req.body;
+  if (billTo !== undefined && !['split', 'leader', 'follower', null].includes(billTo)) {
+    return res.status(400).json({ error: 'Invalid billTo value. Must be split, leader, or follower.' });
+  }
+
+  const updated = await dataService.updateCouple(bib, { billTo: billTo || undefined });
+  res.json(updated);
+});
+
 // Delete couple
 router.delete('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const bib = parseInt(req.params.bib);
