@@ -162,6 +162,7 @@ export interface Competition {
   judgeSettings?: JudgeSettings;
   timingSettings?: TimingSettings;
   defaultScoringType?: 'standard' | 'proficiency';
+  scoringTypeDefaults?: ScoringTypeDefaults;
   levels?: string[];
   levelMode?: 'combined' | 'integrated'; // combined: separate Open/Syllabus toggle; integrated: Open levels in the list
   pricing?: CompetitionPricing;
@@ -191,8 +192,27 @@ export interface Competition {
   allowDuplicateEntries?: boolean;
   eventTemplates?: EventTemplate[];
   pendingEntries?: PendingEntry[];
+  invoiceBranding?: InvoiceBranding;
   createdBy?: string;
   createdAt: string;
+}
+
+export interface ScoringTypeDefaults {
+  single?: 'standard' | 'proficiency';
+  multi?: 'standard' | 'proficiency';
+  scholarship?: 'standard' | 'proficiency';
+  section?: 'standard' | 'proficiency';
+}
+
+export interface InvoiceBranding {
+  businessName?: string;
+  tagline?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  logoBase64?: string;
+  logoMimeType?: string;
 }
 
 export interface CompetitionAdmin {

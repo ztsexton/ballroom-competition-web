@@ -9,4 +9,6 @@ export { default as FloorSizeSection } from './FloorSizeSection';
 export { default as DuplicateEntriesSection } from './DuplicateEntriesSection';
 export { default as RecallAdvancementSection } from './RecallAdvancementSection';
 export { default as VisibilityAccessSection } from './VisibilityAccessSection';
+export { default as InvoiceBrandingSection } from './InvoiceBrandingSection';
+export { default as ScoringTypeDefaultsSection } from './ScoringTypeDefaultsSection';
 export { CURRENCY_OPTIONS, PRESET_TO_TYPE, PRESET_COLORS, KNOWN_PRESETS } from './constants';

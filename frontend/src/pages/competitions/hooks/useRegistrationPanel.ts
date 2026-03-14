@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { couplesApi, eventsApi } from '../../../api/client';
-import { Event, AgeCategory, Competition, EventTemplate } from '../../../types';
+import { Event, AgeCategory, Competition, EventTemplate, Person, Couple } from '../../../types';
 import { getDancesForStyle } from '../../../constants/dances';
 
 export interface RegistrationState {
@@ -41,6 +41,7 @@ export interface RegistrationState {
   setSelectedTemplateIds: React.Dispatch<React.SetStateAction<string[]>>;
   handleBulkRegister: () => void;
   bulkResults: BulkResult[];
+  hasScoringDefaults: boolean;
 }
 
 export interface BulkResult {
@@ -50,9 +51,30 @@ export interface BulkResult {
   error?: string;
 }
 
+/** Infer designation from leader/follower statuses */
+function inferDesignation(leaderStatus?: string, followerStatus?: string): string {
+  if (!leaderStatus || !followerStatus) return '';
+  const isPro = (s: string) => s === 'professional';
+  const isStudent = (s: string) => s === 'student';
+
+  if ((isPro(leaderStatus) && isStudent(followerStatus)) ||
+      (isStudent(leaderStatus) && isPro(followerStatus))) {
+    return 'Pro-Am';
+  }
+  if (isStudent(leaderStatus) && isStudent(followerStatus)) {
+    return 'Amateur';
+  }
+  if (isPro(leaderStatus) && isPro(followerStatus)) {
+    return 'Professional';
+  }
+  return '';
+}
+
 export function useRegistrationPanel(
   competitionId: number,
   activeCompetition: Competition | null,
+  people?: Person[],
+  couples?: Couple[],
 ): RegistrationState {
   const [registerBib, setRegisterBib] = useState<number | null>(null);
   const [regDesignation, setRegDesignation] = useState('');
@@ -88,7 +110,18 @@ export function useRegistrationPanel(
       return;
     }
     setRegisterBib(bib);
-    setRegDesignation('');
+
+    // Infer designation from leader/follower statuses
+    let defaultDesignation = '';
+    if (couples && people) {
+      const couple = couples.find(c => c.bib === bib);
+      if (couple) {
+        const leader = people.find(p => p.id === couple.leaderId);
+        const follower = people.find(p => p.id === couple.followerId);
+        defaultDesignation = inferDesignation(leader?.status, follower?.status);
+      }
+    }
+    setRegDesignation(defaultDesignation);
     setRegSyllabusType('');
     setRegLevel('');
     setRegStyle('');
@@ -264,5 +297,7 @@ export function useRegistrationPanel(
     setSelectedTemplateIds,
     handleBulkRegister,
     bulkResults,
+    hasScoringDefaults: !!(activeCompetition?.scoringTypeDefaults &&
+      Object.values(activeCompetition.scoringTypeDefaults).some(Boolean)),
   };
 }

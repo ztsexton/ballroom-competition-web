@@ -18,6 +18,8 @@ import {
   DuplicateEntriesSection,
   RecallAdvancementSection,
   VisibilityAccessSection,
+  InvoiceBrandingSection,
+  ScoringTypeDefaultsSection,
   CURRENCY_OPTIONS,
 } from './components/settings';
 import JudgeScheduleView from '../dayof/Schedule/components/JudgeScheduleView';
@@ -331,6 +333,12 @@ const CompetitionSettingsPage = () => {
             saveLevels={saveLevels}
           />
 
+          <ScoringTypeDefaultsSection
+            comp={comp}
+            savedMap={savedMap}
+            saveField={saveField}
+          />
+
           <EntryValidationSection
             comp={comp}
             savedMap={savedMap}
@@ -629,6 +637,7 @@ const CompetitionSettingsPage = () => {
               </small>
             </div>
           </Section>
+          <InvoiceBrandingSection comp={comp} savedMap={savedMap} saveField={saveField} />
         </>
       )}
 

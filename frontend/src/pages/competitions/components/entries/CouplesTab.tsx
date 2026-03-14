@@ -30,7 +30,7 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
   const [newLeader, setNewLeader] = useState({ firstName: '', lastName: '' });
   const [newFollower, setNewFollower] = useState({ firstName: '', lastName: '' });
 
-  const registration = useRegistrationPanel(competitionId, activeCompetition);
+  const registration = useRegistrationPanel(competitionId, activeCompetition, people, couples);
 
   const leaders = people.filter(p => p.role === 'leader' || p.role === 'both');
   const followers = people.filter(p => p.role === 'follower' || p.role === 'both');

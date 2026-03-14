@@ -131,6 +131,10 @@ export async function createSectionEvent(
     ? sortDancesByConfiguredOrder(combination.dances, combination.style, competition?.danceOrder)
     : [];
 
+  // Apply section scoring type override if configured
+  const sectionScoringType = competition?.scoringTypeDefaults?.section;
+  const scoringType = (sectionScoringType || combination.scoringType as 'standard' | 'proficiency') || 'standard';
+
   const judges = await dataService.getJudges(competitionId);
   const judgeIds = judges.map(j => j.id);
 
@@ -150,14 +154,22 @@ export async function createSectionEvent(
     sectionGroupId = `sg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     nextLetter = 'B';
 
-    // Update the existing event to be section A
+    // Update the existing event to be section A, and update scoring type if section default is set
     const existingEvent = existingEvents[0];
     const baseName = existingEvent.name;
-    await dataService.updateEvent(existingEvent.id, {
+    const sectionAUpdates: Record<string, unknown> = {
       name: baseName + ' - A',
       sectionGroupId,
       sectionLetter: 'A',
-    });
+    };
+    if (sectionScoringType && existingEvent.scoringType !== sectionScoringType) {
+      sectionAUpdates.scoringType = sectionScoringType;
+      // Rebuild heats with new scoring type
+      const existingBibs = existingEvent.heats[0]?.bibs || [];
+      const existingJudges = existingEvent.heats[0]?.judges || [];
+      sectionAUpdates.heats = dataService.rebuildHeats(existingBibs, existingJudges, sectionScoringType);
+    }
+    await dataService.updateEvent(existingEvent.id, sectionAUpdates);
   }
 
   // Create new section event
@@ -174,7 +186,7 @@ export async function createSectionEvent(
     combination.level,
     combination.style,
     displayDances.length > 0 ? displayDances : undefined,
-    (combination.scoringType as 'standard' | 'proficiency') || 'standard',
+    scoringType,
     combination.isScholarship,
     combination.ageCategory,
   );
@@ -196,12 +208,31 @@ export interface RegisterResult {
   status?: number;
 }
 
+/** Determine the event category for scoring type defaults */
+function getEventCategory(combination: EventCombination): 'scholarship' | 'single' | 'multi' {
+  if (combination.isScholarship) return 'scholarship';
+  const danceCount = Array.isArray(combination.dances) ? combination.dances.length : 0;
+  if (danceCount > 1) return 'multi';
+  return 'single';
+}
+
 export async function registerCoupleForEvent(
   competitionId: number,
   bib: number,
   combination: EventCombination
 ): Promise<RegisterResult> {
   const competition = await dataService.getCompetitionById(competitionId);
+
+  // Apply scoring type defaults if configured
+  const defaults = competition?.scoringTypeDefaults;
+  if (defaults) {
+    const category = getEventCategory(combination);
+    const defaultType = defaults[category];
+    if (defaultType) {
+      combination = { ...combination, scoringType: defaultType };
+    }
+  }
+
   // Alphabetical sort for matching/comparison
   const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
     ? [...combination.dances].sort()

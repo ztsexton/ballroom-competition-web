@@ -195,11 +195,17 @@ router.get('/competitions/:id/my-entries', async (req: AuthRequest, res: Respons
       return res.json({ person: null, couples: [], entries: [], schedule: [] });
     }
 
-    // Find couples that include this person
+    // Find couples that include this person, enriched with partner statuses
     const allCouples = await dataService.getCouples(competitionId);
-    const myCouples = allCouples.filter(c =>
-      c.leaderId === myPerson.id || c.followerId === myPerson.id
-    );
+    const allPeople = await dataService.getPeople(competitionId);
+    const peopleMap = new Map(allPeople.map(p => [p.id, p]));
+    const myCouples = allCouples
+      .filter(c => c.leaderId === myPerson.id || c.followerId === myPerson.id)
+      .map(c => ({
+        ...c,
+        leaderStatus: peopleMap.get(c.leaderId)?.status,
+        followerStatus: peopleMap.get(c.followerId)?.status,
+      }));
 
     const myBibs = new Set(myCouples.map(c => c.bib));
 

@@ -349,7 +349,17 @@ const InvoicesPage = () => {
                 <td className="px-2 py-3">Total ({summary.invoices.length} people)</td>
                 <td></td>
                 <td className="text-right px-2 py-3">
-                  {summary.invoices.reduce((s, i) => s + i.partnerships.reduce((ps, p) => ps + p.lineItems.length, 0), 0)}
+                  {(() => {
+                    const seen = new Set<string>();
+                    for (const inv of summary.invoices) {
+                      for (const p of inv.partnerships) {
+                        for (const item of p.lineItems) {
+                          seen.add(`${item.eventId}:${item.bib}`);
+                        }
+                      }
+                    }
+                    return seen.size;
+                  })()}
                 </td>
                 <td className="text-right px-2 py-3">{fmt(summary.totalRevenue)}</td>
                 <td className="text-right px-2 py-3 text-success-500">{fmt(summary.totalPaid)}</td>

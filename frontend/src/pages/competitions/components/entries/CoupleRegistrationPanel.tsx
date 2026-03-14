@@ -43,7 +43,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
     regLevels, setRegLevels,
     selectedSingleDances, setSelectedSingleDances,
     selectedTemplateIds, setSelectedTemplateIds,
-    handleBulkRegister, bulkResults,
+    handleBulkRegister, bulkResults, hasScoringDefaults,
   } = registration;
 
   const templates = activeCompetition?.eventTemplates || [];
@@ -133,17 +133,19 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
-            <div className="flex gap-1.5">
-              {(['standard', 'proficiency'] as const).map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
-                  onClick={() => setRegScoringType(opt)}>
-                  {opt === 'standard' ? 'Standard' : 'Proficiency'}
-                </button>
-              ))}
+          {!hasScoringDefaults && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
+              <div className="flex gap-1.5">
+                {(['standard', 'proficiency'] as const).map(opt => (
+                  <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
+                    onClick={() => setRegScoringType(opt)}>
+                    {opt === 'standard' ? 'Standard' : 'Proficiency'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Level(s) — multi-select */}
           <div>
@@ -398,17 +400,19 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
-            <div className="flex gap-1.5">
-              {(['standard', 'proficiency'] as const).map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
-                  onClick={() => setRegScoringType(opt)}>
-                  {opt === 'standard' ? 'Standard' : 'Proficiency'}
-                </button>
-              ))}
+          {!hasScoringDefaults && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
+              <div className="flex gap-1.5">
+                {(['standard', 'proficiency'] as const).map(opt => (
+                  <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
+                    onClick={() => setRegScoringType(opt)}>
+                    {opt === 'standard' ? 'Standard' : 'Proficiency'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Scholarship</label>

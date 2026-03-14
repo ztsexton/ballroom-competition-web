@@ -53,6 +53,8 @@ export class PostgresDataService implements IDataService {
       scheduleDayConfigs: row.schedule_day_configs || undefined,
       hardStopTime: row.hard_stop_time || undefined,
       eventTemplates: row.event_templates || undefined,
+      invoiceBranding: row.invoice_branding || undefined,
+      scoringTypeDefaults: row.scoring_type_defaults || undefined,
       allowDuplicateEntries: row.allow_duplicate_entries ?? undefined,
       createdBy: row.created_by || undefined,
       createdAt: row.created_at,
@@ -210,12 +212,12 @@ export class PostgresDataService implements IDataService {
         publicly_visible, publicly_visible_at, results_public, results_visibility,
         heat_lists_published, heat_lists_published_at,
         website_url, organizer_email, created_by,
-        number_of_days, schedule_day_configs, hard_stop_time, event_templates,
-        created_at)
+        number_of_days, schedule_day_configs, hard_stop_time, event_templates, invoice_branding,
+        scoring_type_defaults, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
         $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
-        $34, $35, $36, $37,
-        $38)
+        $34, $35, $36, $37, $38, $39,
+        $40)
        RETURNING *`;
     const params = [
       competition.name, competition.type, competition.date,
@@ -252,6 +254,8 @@ export class PostgresDataService implements IDataService {
       competition.scheduleDayConfigs ? JSON.stringify(competition.scheduleDayConfigs) : null,
       competition.hardStopTime || null,
       competition.eventTemplates ? JSON.stringify(competition.eventTemplates) : null,
+      competition.invoiceBranding ? JSON.stringify(competition.invoiceBranding) : null,
+      competition.scoringTypeDefaults ? JSON.stringify(competition.scoringTypeDefaults) : null,
       now,
     ];
     let rows;
@@ -308,6 +312,8 @@ export class PostgresDataService implements IDataService {
       resultsVisibility: 'results_visibility',
       scheduleDayConfigs: 'schedule_day_configs',
       eventTemplates: 'event_templates',
+      invoiceBranding: 'invoice_branding',
+      scoringTypeDefaults: 'scoring_type_defaults',
     };
 
     for (const [key, col] of Object.entries(fieldMap)) {

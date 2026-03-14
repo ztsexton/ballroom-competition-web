@@ -35,10 +35,66 @@ export function generateInvoicePDF(
 
     doc.pipe(stream);
 
-    // ─── Header ───
-    doc.fontSize(24).font('Helvetica-Bold').text('INVOICE', MARGIN, MARGIN);
-    doc.moveDown(0.5);
+    // ─── Header with Branding ───
+    const branding = competition.invoiceBranding;
+    const LOGO_MAX_W = 120;
+    const LOGO_MAX_H = 60;
+    let headerTextX = MARGIN;
+    let headerTopY = MARGIN;
 
+    // Logo (left side)
+    if (branding?.logoBase64 && branding.logoMimeType) {
+      try {
+        const logoBuffer = Buffer.from(branding.logoBase64, 'base64');
+        doc.image(logoBuffer, MARGIN, MARGIN, {
+          fit: [LOGO_MAX_W, LOGO_MAX_H],
+        });
+        headerTextX = MARGIN + LOGO_MAX_W + 15;
+      } catch {
+        // Skip logo on error
+      }
+    }
+
+    // Business name or "INVOICE"
+    const headerTitle = branding?.businessName || 'INVOICE';
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#000000')
+      .text(headerTitle, headerTextX, headerTopY, { width: PAGE_WIDTH - MARGIN - headerTextX });
+
+    if (branding?.tagline) {
+      doc.fontSize(9).font('Helvetica').fillColor('#888888')
+        .text(branding.tagline, headerTextX, doc.y, { width: PAGE_WIDTH - MARGIN - headerTextX });
+    }
+
+    // Contact info (right-aligned block)
+    const contactLines: string[] = [];
+    if (branding?.email) contactLines.push(branding.email);
+    if (branding?.phone) contactLines.push(branding.phone);
+    if (branding?.website) contactLines.push(branding.website);
+    if (branding?.address) contactLines.push(branding.address);
+
+    if (contactLines.length > 0) {
+      const contactY = headerTopY;
+      doc.fontSize(8).font('Helvetica').fillColor('#888888');
+      for (let i = 0; i < contactLines.length; i++) {
+        doc.text(contactLines[i], PAGE_WIDTH - MARGIN - 180, contactY + i * 11, {
+          width: 180,
+          align: 'right',
+        });
+      }
+    }
+
+    // Move below logo/header area
+    const afterHeaderY = Math.max(doc.y, headerTopY + LOGO_MAX_H + 5);
+    doc.y = afterHeaderY;
+    doc.moveDown(0.3);
+
+    // "INVOICE" label if business name was used as header
+    if (branding?.businessName) {
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#000000').text('INVOICE', MARGIN);
+      doc.moveDown(0.3);
+    }
+
+    // Competition details
     doc.fontSize(10).font('Helvetica').fillColor('#555555');
     doc.text(`Competition: ${competition.name}`);
     if (competition.date) {
@@ -94,21 +150,26 @@ export function generateInvoicePDF(
       const categoryLabels: Record<string, string> = { single: 'Single', multi: 'Multi', scholarship: 'Scholarship' };
 
       for (const item of partnership.lineItems) {
-        if (doc.y > 720) {
+        // Measure event name height before rendering to handle wrapping
+        const eventNameWidth = COL_CATEGORY - COL_EVENT - 10;
+        const eventNameHeight = doc.fontSize(9).font('Helvetica').heightOfString(item.eventName, { width: eventNameWidth });
+        const rowHeight = Math.max(eventNameHeight, 14);
+
+        if (doc.y + rowHeight > 720) {
           doc.addPage();
         }
 
         const rowY = doc.y;
         const textColor = item.paid ? '#aaaaaa' : '#000000';
         doc.fontSize(9).font('Helvetica').fillColor(textColor);
-        doc.text(item.eventName, COL_EVENT, rowY, { width: COL_CATEGORY - COL_EVENT - 10 });
+        doc.text(item.eventName, COL_EVENT, rowY, { width: eventNameWidth });
         doc.text(categoryLabels[item.category] || item.category, COL_CATEGORY, rowY);
         doc.text(String(item.danceCount), COL_DANCES, rowY);
         doc.text(fmt(item.pricePerEntry, currency), COL_PRICE, rowY);
         doc.fillColor(item.paid ? '#48bb78' : '#d69e2e');
         doc.text(item.paid ? 'Paid' : 'Unpaid', COL_STATUS, rowY);
         doc.fillColor('#000000');
-        doc.y = rowY + 14;
+        doc.y = rowY + rowHeight + 2;
       }
 
       doc.moveDown(0.3);
@@ -246,25 +307,29 @@ function renderHeatSheetBody(
 
       // Table rows
       for (let i = 0; i < group.heats.length; i++) {
-        if (doc.y > 720) doc.addPage();
-
         const heat = group.heats[i];
+        let eventText = heat.eventName;
+        if (heat.dance) eventText += ` (${heat.dance})`;
+        if (heat.round !== 'final') eventText += ` [${heat.round.replace('-', ' ')}]`;
+
+        const eventColWidth = PAGE_WIDTH - 2 * MARGIN - 120;
+        const textHeight = doc.fontSize(8).font('Helvetica').heightOfString(eventText, { width: eventColWidth });
+        const rowHeight = Math.max(textHeight, 13);
+
+        if (doc.y + rowHeight > 720) doc.addPage();
+
         const rowY = doc.y;
 
         if (i % 2 === 0) {
-          doc.rect(MARGIN, rowY - 1, PAGE_WIDTH - 2 * MARGIN, 13).fill('#f5f5f5');
+          doc.rect(MARGIN, rowY - 1, PAGE_WIDTH - 2 * MARGIN, rowHeight + 2).fill('#f5f5f5');
         }
 
         doc.fontSize(8).font('Helvetica').fillColor('#000000');
         doc.text(formatTimeFromISO(heat.estimatedTime), HS_COL_TIME, rowY, { width: 70 });
         doc.text(String(heat.heatNumber), HS_COL_HEAT, rowY, { width: 35 });
+        doc.text(eventText, HS_COL_EVENT, rowY, { width: eventColWidth });
 
-        let eventText = heat.eventName;
-        if (heat.dance) eventText += ` (${heat.dance})`;
-        if (heat.round !== 'final') eventText += ` [${heat.round.replace('-', ' ')}]`;
-        doc.text(eventText, HS_COL_EVENT, rowY, { width: PAGE_WIDTH - 2 * MARGIN - 120 });
-
-        doc.y = rowY + 13;
+        doc.y = rowY + rowHeight + 2;
       }
 
       doc.moveDown(0.4);

@@ -87,6 +87,25 @@ const ParticipantPortalPage = () => {
     }
   }, [myCouples, regBib]);
 
+  // Infer designation when couple is selected
+  useEffect(() => {
+    if (!regBib) return;
+    const couple = myCouples.find(c => c.bib === regBib) as (Couple & { leaderStatus?: string; followerStatus?: string }) | undefined;
+    if (!couple?.leaderStatus || !couple?.followerStatus) return;
+    const isPro = (s: string) => s === 'professional';
+    const isStudent = (s: string) => s === 'student';
+    let inferred = '';
+    if ((isPro(couple.leaderStatus) && isStudent(couple.followerStatus)) ||
+        (isStudent(couple.leaderStatus) && isPro(couple.followerStatus))) {
+      inferred = 'Pro-Am';
+    } else if (isStudent(couple.leaderStatus) && isStudent(couple.followerStatus)) {
+      inferred = 'Amateur';
+    } else if (isPro(couple.leaderStatus) && isPro(couple.followerStatus)) {
+      inferred = 'Professional';
+    }
+    if (inferred) setRegDesignation(inferred);
+  }, [regBib, myCouples]);
+
   // Load data when competition selected
   useEffect(() => {
     if (selectedComp) {
@@ -593,17 +612,19 @@ const ParticipantPortalPage = () => {
                     </div>
                   )}
 
-                  <div>
-                    <label className="block font-semibold text-sm mb-1">Scoring</label>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {['standard', 'proficiency'].map(opt => (
-                        <button key={opt} type="button" className={toggleBtnCls(regScoringType === opt)}
-                          onClick={() => setRegScoringType(regScoringType === opt ? '' : opt)}>
-                          {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                        </button>
-                      ))}
+                  {!(selectedComp?.scoringTypeDefaults && Object.values(selectedComp.scoringTypeDefaults).some(Boolean)) && (
+                    <div>
+                      <label className="block font-semibold text-sm mb-1">Scoring</label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {['standard', 'proficiency'].map(opt => (
+                          <button key={opt} type="button" className={toggleBtnCls(regScoringType === opt)}
+                            onClick={() => setRegScoringType(regScoringType === opt ? '' : opt)}>
+                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <button className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 mt-3" onClick={handleRegisterEntry}
