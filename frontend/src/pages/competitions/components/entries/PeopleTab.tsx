@@ -25,6 +25,8 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
   });
   const [showMbImport, setShowMbImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<Partial<Person>>({});
 
   const connectedStudios = studios.filter(s => !!s.mindbodySiteId);
 
@@ -51,6 +53,36 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
       onDataChange();
     } catch {
       showToast('Failed to delete person', 'error');
+    }
+  };
+
+  const startEdit = (person: Person) => {
+    setEditingId(person.id);
+    setEditValues({
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: person.email || '',
+      dateOfBirth: person.dateOfBirth || '',
+      role: person.role,
+      status: person.status,
+      studioId: person.studioId,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    try {
+      await peopleApi.update(editingId, {
+        ...editValues,
+        email: editValues.email || null as any,
+        dateOfBirth: editValues.dateOfBirth || null as any,
+        studioId: editValues.studioId ? Number(editValues.studioId) : null as any,
+      });
+      setEditingId(null);
+      onDataChange();
+      showToast('Person updated', 'success');
+    } catch (error: any) {
+      showToast(error.response?.data?.error || 'Failed to update person', 'error');
     }
   };
 
@@ -128,12 +160,14 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
       {people.length === 0 ? (
         <p className="text-center p-4 text-gray-500">No people added yet.</p>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">First Name</th>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Last Name</th>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Email</th>
+              <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">DOB</th>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Role</th>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Status</th>
               <th className="text-left px-3 py-2 bg-gray-50 font-semibold text-sm">Studio</th>
@@ -141,25 +175,54 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
             </tr>
           </thead>
           <tbody>
-            {people.map(person => (
+            {people.map(person => {
+              const isEditing = editingId === person.id;
+              const inputCls = "w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500";
+              return (
               <tr key={person.id}>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.firstName}</td>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.lastName}</td>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.email || ''}</td>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.role}</td>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{person.status}</td>
-                <td className="px-3 py-2 border-b border-gray-100 text-sm">{studios.find(s => s.id === person.studioId)?.name || ''}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? <input type="text" value={editValues.firstName || ''} onChange={e => setEditValues({ ...editValues, firstName: e.target.value })} className={inputCls} /> : person.firstName}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? <input type="text" value={editValues.lastName || ''} onChange={e => setEditValues({ ...editValues, lastName: e.target.value })} className={inputCls} /> : person.lastName}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? <input type="email" value={editValues.email || ''} onChange={e => setEditValues({ ...editValues, email: e.target.value })} className={inputCls} /> : person.email || ''}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? <input type="date" value={editValues.dateOfBirth || ''} onChange={e => setEditValues({ ...editValues, dateOfBirth: e.target.value })} className={inputCls} /> : person.dateOfBirth || ''}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? (
+                  <select value={editValues.role || ''} onChange={e => setEditValues({ ...editValues, role: e.target.value as Person['role'] })} className={inputCls}>
+                    <option value="leader">Leader</option><option value="follower">Follower</option><option value="both">Both</option>
+                  </select>
+                ) : person.role}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? (
+                  <select value={editValues.status || ''} onChange={e => setEditValues({ ...editValues, status: e.target.value as Person['status'] })} className={inputCls}>
+                    <option value="student">Student</option><option value="professional">Professional</option>
+                  </select>
+                ) : person.status}</td>
+                <td className="px-3 py-2 border-b border-gray-100 text-sm">{isEditing ? (
+                  <select value={editValues.studioId || ''} onChange={e => setEditValues({ ...editValues, studioId: e.target.value ? Number(e.target.value) : undefined })} className={inputCls}>
+                    <option value="">None</option>
+                    {studios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                ) : studios.find(s => s.id === person.studioId)?.name || ''}</td>
                 <td className="px-3 py-2 border-b border-gray-100 text-sm">
-                  <button onClick={() => setDeleteTarget(person)}
-                    aria-label={`Delete ${person.firstName} ${person.lastName}`}
-                    className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
-                    Delete
-                  </button>
+                  {isEditing ? (
+                    <div className="flex gap-1">
+                      <button onClick={handleSaveEdit} className="px-2 py-1 bg-success-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-success-600">Save</button>
+                      <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-gray-300 text-gray-700 rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-gray-400">Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button onClick={() => startEdit(person)} className="px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200 cursor-pointer text-sm font-medium transition-colors hover:bg-gray-200">Edit</button>
+                      <button onClick={() => setDeleteTarget(person)}
+                        aria-label={`Delete ${person.firstName} ${person.lastName}`}
+                        className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600">
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
+        </div>
       )}
       <ConfirmDialog
         open={!!deleteTarget}
