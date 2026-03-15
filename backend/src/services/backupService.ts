@@ -160,7 +160,8 @@ export async function importAllData(backup: BackupData): Promise<{ competitionsR
 
   // Restore competitions and per-competition data
   for (const comp of backup.competitions || []) {
-    const { id: _id, createdAt: _c, ...compRest } = comp;
+    // Strip fields that no longer exist on the competition table
+    const { id: _id, createdAt: _c, entryPayments: legacyEntryPayments, ...compRest } = comp as any;
     const newComp = await dataService.addCompetition(compRest);
     const compData = backup.competitionData?.[comp.id];
     if (!compData) continue;
@@ -176,12 +177,18 @@ export async function importAllData(backup: BackupData): Promise<{ competitionsR
 
     // Restore couples (remap person IDs)
     const bibMap = new Map<number, number>(); // old bib → new bib
+    const coupleIdMap = new Map<number, number>(); // old bib → new couple id (for billTo restore)
     for (const couple of compData.couples || []) {
       const newLeaderId = personIdMap.get(couple.leaderId) ?? couple.leaderId;
       const newFollowerId = personIdMap.get(couple.followerId) ?? couple.followerId;
       const newCouple = await dataService.addCouple(newLeaderId, newFollowerId, newComp.id);
       if (newCouple) {
         bibMap.set(couple.bib, newCouple.bib);
+        coupleIdMap.set(couple.bib, newCouple.id);
+        // Restore billTo if present
+        if (couple.billTo) {
+          await dataService.updateCoupleById(newCouple.id, { billTo: couple.billTo });
+        }
       }
     }
 
@@ -249,6 +256,22 @@ export async function importAllData(backup: BackupData): Promise<{ competitionsR
           [{ bib: newBib, score: score as number }],
           dance === '_' ? undefined : dance,
         );
+      }
+    }
+
+    // Restore legacy entry payments (old format: JSONB on competition, keys like "eventId:bib")
+    if (legacyEntryPayments && typeof legacyEntryPayments === 'object' && Object.keys(legacyEntryPayments).length > 0) {
+      for (const [key, payment] of Object.entries(legacyEntryPayments as Record<string, { paid?: boolean; paidBy?: number; notes?: string }>)) {
+        const [oldEventIdStr, oldBibStr] = key.split(':');
+        const newEventId = eventIdMap.get(parseInt(oldEventIdStr));
+        const newBib = bibMap.get(parseInt(oldBibStr));
+        if (newEventId !== undefined && newBib !== undefined) {
+          await dataService.updateEntryPayments(
+            newComp.id,
+            [{ eventId: newEventId, bib: newBib }],
+            { paid: !!payment.paid, paidBy: payment.paidBy ? (bibMap.get(payment.paidBy) ?? payment.paidBy) : undefined, notes: payment.notes },
+          );
+        }
       }
     }
 
