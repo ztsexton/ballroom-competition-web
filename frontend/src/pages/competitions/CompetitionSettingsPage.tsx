@@ -691,6 +691,7 @@ function EventTemplatesSection({
   const [addingStyle, setAddingStyle] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [selectedDances, setSelectedDances] = useState<string[]>([]);
+  const [newNoLevel, setNewNoLevel] = useState(false);
 
   const toggleBtnClass = (active: boolean) =>
     active
@@ -702,6 +703,7 @@ function EventTemplatesSection({
     setAddingStyle(style);
     setSelectedDances([...dances]);
     setNewName(`${style} ${dances.length}-Dance`);
+    setNewNoLevel(false);
   };
 
   const saveTemplate = () => {
@@ -712,15 +714,23 @@ function EventTemplatesSection({
       name: newName.trim(),
       style: addingStyle,
       dances: selectedDances,
+      ...(newNoLevel ? { noLevel: true } : {}),
     };
     saveField('eventTemplates', [...templates, newTemplate], 'templates');
     setAddingStyle(null);
     setNewName('');
     setSelectedDances([]);
+    setNewNoLevel(false);
   };
 
   const removeTemplate = (id: string) => {
     saveField('eventTemplates', templates.filter(t => t.id !== id), 'templates');
+  };
+
+  const toggleNoLevel = (id: string) => {
+    saveField('eventTemplates', templates.map(t =>
+      t.id === id ? { ...t, noLevel: !t.noLevel } : t
+    ), 'templates');
   };
 
   return (
@@ -738,13 +748,27 @@ function EventTemplatesSection({
                 <span className="font-semibold">{tpl.name}</span>
                 <span className="text-gray-500 ml-2">{tpl.style} — {tpl.dances.join(', ')}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => removeTemplate(tpl.id)}
-                className="text-xs text-red-400 hover:text-red-600 cursor-pointer ml-2"
-              >
-                Remove
-              </button>
+              <div className="flex items-center gap-2 ml-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleNoLevel(tpl.id)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium cursor-pointer border transition-colors ${
+                    tpl.noLevel
+                      ? 'bg-teal-100 border-teal-300 text-teal-700 hover:bg-teal-200'
+                      : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span className={`inline-block w-2 h-2 rounded-full ${tpl.noLevel ? 'bg-teal-500' : 'bg-gray-400'}`} />
+                  {tpl.noLevel ? 'No level' : 'Level required'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeTemplate(tpl.id)}
+                  className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -780,6 +804,15 @@ function EventTemplatesSection({
               ))}
             </div>
           </div>
+          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={newNoLevel}
+              onChange={(e) => setNewNoLevel(e.target.checked)}
+              className="accent-teal-500"
+            />
+            <span className="text-sm text-gray-700">No level required <span className="text-gray-400 text-xs">(e.g., mixed-up multis — open to all)</span></span>
+          </label>
           <div className="flex gap-2 mt-3">
             <button
               type="button"

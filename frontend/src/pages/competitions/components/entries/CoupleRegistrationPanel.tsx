@@ -64,9 +64,20 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
 
   // In batch mode, compute total entries that will be created
   const ageCatCount = regAgeCategories.length > 0 ? regAgeCategories.length : 1;
-  const batchEntryCount = hasBatchMode
-    ? regLevels.length * (selectedSingleDances.length + selectedTemplateIds.length) * ageCatCount
-    : 0;
+
+  // Split selected templates into leveled vs no-level
+  const selectedLeveledTemplateIds = selectedTemplateIds.filter(id => {
+    const tpl = templates.find((t: EventTemplate) => t.id === id);
+    return tpl && !tpl.noLevel;
+  });
+  const selectedNoLevelTemplateIds = selectedTemplateIds.filter(id => {
+    const tpl = templates.find((t: EventTemplate) => t.id === id);
+    return tpl?.noLevel;
+  });
+
+  const leveledEntryCount = regLevels.length * (selectedSingleDances.length + selectedLeveledTemplateIds.length) * ageCatCount;
+  const noLevelEntryCount = selectedNoLevelTemplateIds.length * ageCatCount;
+  const batchEntryCount = hasBatchMode ? leveledEntryCount + noLevelEntryCount : 0;
 
   // Scholarship batch count
   const scholAgeCatCount = scholAgeCategories.length > 0 ? scholAgeCategories.length : 1;
@@ -74,7 +85,10 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
 
   // Get templates for currently selected style
   const styleTemplates = regStyle
-    ? templates.filter((t: EventTemplate) => t.style === regStyle)
+    ? templates.filter((t: EventTemplate) => t.style === regStyle && !t.noLevel)
+    : [];
+  const styleNoLevelTemplates = regStyle
+    ? templates.filter((t: EventTemplate) => t.style === regStyle && t.noLevel)
     : [];
   const styleScholTemplates = regStyle
     ? scholTemplateOptions.filter((t: EventTemplate) => t.style === regStyle)
@@ -269,6 +283,34 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </div>
           )}
 
+          {/* No-Level Templates (e.g., Mixed-Up Multis) */}
+          {regStyle && styleNoLevelTemplates.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Open / No Level {selectedNoLevelTemplateIds.length > 0 && <span className="text-teal-600">({selectedNoLevelTemplateIds.length})</span>}
+              </label>
+              <p className="text-gray-400 text-xs mb-1">These register without a level — open to all.</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {styleNoLevelTemplates.map((tpl: EventTemplate) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    className={selectedTemplateIds.includes(tpl.id)
+                      ? 'px-3 py-1.5 rounded border-2 border-teal-500 bg-teal-50 text-teal-700 cursor-pointer font-semibold text-sm transition-all'
+                      : 'px-3 py-1.5 rounded border-2 border-dashed border-teal-300 bg-white text-teal-600 cursor-pointer font-medium text-sm transition-all hover:bg-teal-50'
+                    }
+                    onClick={() => setSelectedTemplateIds(prev =>
+                      prev.includes(tpl.id) ? prev.filter(x => x !== tpl.id) : [...prev, tpl.id]
+                    )}
+                  >
+                    {tpl.name}
+                    <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Summary + register button */}
           <div className="flex items-center gap-3 mt-1">
             <button
@@ -280,7 +322,13 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </button>
             {batchEntryCount > 0 && !regLoading && (
               <span className="text-xs text-gray-500">
-                {ageCatCount > 1 ? `${ageCatCount} age cat × ` : ''}{regLevels.length} level{regLevels.length !== 1 ? 's' : ''} × {selectedSingleDances.length + selectedTemplateIds.length} event{(selectedSingleDances.length + selectedTemplateIds.length) !== 1 ? 's' : ''}
+                {leveledEntryCount > 0 && (
+                  <>{ageCatCount > 1 ? `${ageCatCount} age × ` : ''}{regLevels.length} lvl × {selectedSingleDances.length + selectedLeveledTemplateIds.length} events</>
+                )}
+                {leveledEntryCount > 0 && noLevelEntryCount > 0 && ' + '}
+                {noLevelEntryCount > 0 && (
+                  <>{noLevelEntryCount} no-level</>
+                )}
               </span>
             )}
           </div>

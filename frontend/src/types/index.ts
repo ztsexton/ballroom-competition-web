@@ -140,6 +140,7 @@ export interface EventTemplate {
   name: string;       // e.g., "Smooth 4-Dance"
   style: string;      // e.g., "Smooth"
   dances: string[];   // e.g., ["Waltz", "Tango", "Foxtrot", "Viennese Waltz"]
+  noLevel?: boolean;  // Skip level selection (e.g., "Mixed-Up Multis" open to all levels)
 }
 
 export interface ResultsVisibility {

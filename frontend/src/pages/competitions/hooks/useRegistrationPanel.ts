@@ -198,24 +198,31 @@ export function useRegistrationPanel(
   };
 
   const handleBulkRegister = async () => {
-    if (!registerBib || !competitionId || regLevels.length === 0 || !regStyle) return;
+    if (!registerBib || !competitionId || !regStyle) return;
     const templates = activeCompetition?.eventTemplates || [];
 
-    // Build list of entries: each single dance + each selected template
-    const entries: Array<{ dances: string[]; label: string }> = [];
+    // Split entries into leveled and no-level
+    const leveledEntries: Array<{ dances: string[]; label: string }> = [];
+    const noLevelEntries: Array<{ dances: string[]; label: string }> = [];
+
     for (const dance of selectedSingleDances) {
-      entries.push({ dances: [dance], label: dance });
+      leveledEntries.push({ dances: [dance], label: dance });
     }
     for (const tplId of selectedTemplateIds) {
       const tpl = templates.find((t: EventTemplate) => t.id === tplId);
       if (tpl) {
-        entries.push({ dances: tpl.dances, label: tpl.name });
+        if (tpl.noLevel) {
+          noLevelEntries.push({ dances: tpl.dances, label: tpl.name });
+        } else {
+          leveledEntries.push({ dances: tpl.dances, label: tpl.name });
+        }
       }
     }
 
-    if (entries.length === 0) return;
+    // Need either leveled entries with levels selected, or no-level entries
+    if (leveledEntries.length === 0 && noLevelEntries.length === 0) return;
+    if (leveledEntries.length > 0 && regLevels.length === 0) return;
 
-    // If age categories multi-select is used, loop over them; otherwise use single ageCategory
     const ageCategoriesToUse = regAgeCategories.length > 0
       ? regAgeCategories
       : regAgeCategory ? [regAgeCategory] : [''];
@@ -227,9 +234,10 @@ export function useRegistrationPanel(
 
     const results: BulkResult[] = [];
 
+    // Register leveled entries (level × age × entry)
     for (const ageCat of ageCategoriesToUse) {
       for (const level of regLevels) {
-        for (const entry of entries) {
+        for (const entry of leveledEntries) {
           const label = `${ageCat ? ageCat + ' ' : ''}${level} ${entry.label}`;
           try {
             const res = await eventsApi.register({
@@ -252,6 +260,31 @@ export function useRegistrationPanel(
             const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
             results.push({ label, success: false, error: msg });
           }
+        }
+      }
+
+      // Register no-level entries (age × entry only, no level loop)
+      for (const entry of noLevelEntries) {
+        const label = `${ageCat ? ageCat + ' ' : ''}${entry.label}`;
+        try {
+          const res = await eventsApi.register({
+            competitionId,
+            bib: registerBib,
+            designation: regDesignation || undefined,
+            syllabusType: regSyllabusType || undefined,
+            style: regStyle,
+            dances: entry.dances,
+            scoringType: regScoringType,
+            ageCategory: ageCat || undefined,
+          });
+          results.push({
+            label: res.data.event.name,
+            success: true,
+            created: res.data.created,
+          });
+        } catch (err: unknown) {
+          const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
+          results.push({ label, success: false, error: msg });
         }
       }
     }
