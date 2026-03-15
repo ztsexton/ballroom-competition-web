@@ -208,6 +208,25 @@ export interface RegisterResult {
   status?: number;
 }
 
+export interface BulkRegisterEntry {
+  designation?: string;
+  syllabusType?: string;
+  level?: string;
+  style?: string;
+  dances?: string[];
+  scoringType?: string;
+  isScholarship?: boolean;
+  ageCategory?: string;
+}
+
+export interface BulkRegisterResult {
+  label: string;
+  success: boolean;
+  created?: boolean;
+  eventName?: string;
+  error?: string;
+}
+
 /** Determine the event category for scoring type defaults */
 function getEventCategory(combination: EventCombination): 'scholarship' | 'single' | 'multi' {
   if (combination.isScholarship) return 'scholarship';
@@ -421,4 +440,151 @@ export async function removeEntryFromEvent(
   const updated = await dataService.updateEvent(eventId, { heats: newHeats });
   await dataService.removeEventEntry(eventId, bib);
   return { event: updated };
+}
+
+/**
+ * Bulk register a couple for multiple events in one call.
+ * Loads competition, events, and judges ONCE, then processes all entries sequentially.
+ */
+export async function bulkRegisterCoupleForEvents(
+  competitionId: number,
+  bib: number,
+  entries: BulkRegisterEntry[],
+): Promise<BulkRegisterResult[]> {
+  const competition = await dataService.getCompetitionById(competitionId);
+  if (!competition) {
+    return entries.map(e => ({
+      label: buildEntryLabel(e),
+      success: false,
+      error: 'Competition not found',
+    }));
+  }
+
+  const defaults = competition.scoringTypeDefaults;
+  const levelMode = competition.levelMode;
+  const judges = await dataService.getJudges(competitionId);
+  const judgeIds = judges.map(j => j.id);
+
+  // Cache events list — refreshed after each mutation
+  let allEvents = await dataService.getEvents(competitionId);
+
+  const results: BulkRegisterResult[] = [];
+
+  for (const entry of entries) {
+    const label = buildEntryLabel(entry);
+
+    // Apply scoring type defaults
+    let combination: EventCombination = { ...entry };
+    if (defaults) {
+      const category = getEventCategory(combination);
+      const defaultType = defaults[category];
+      if (defaultType) {
+        combination = { ...combination, scoringType: defaultType };
+      }
+    }
+
+    const reqDances = Array.isArray(combination.dances) && combination.dances.length > 0
+      ? [...combination.dances].sort()
+      : [];
+    const displayDances = Array.isArray(combination.dances) && combination.dances.length > 0
+      ? sortDancesByConfiguredOrder(combination.dances, combination.style, competition.danceOrder)
+      : [];
+    const reqScoringType = combination.scoringType || 'standard';
+
+    try {
+      if (competition.allowDuplicateEntries) {
+        // For duplicate entries mode, fall back to existing per-entry logic
+        const result = await registerWithDuplicateEntries(competitionId, bib, combination, reqDances, displayDances, levelMode);
+        if (result.error) {
+          results.push({ label, success: false, error: result.error });
+        } else {
+          results.push({ label: result.event?.name || label, success: true, created: result.created, eventName: result.event?.name });
+        }
+        // Refresh events cache after mutation
+        allEvents = await dataService.getEvents(competitionId);
+        continue;
+      }
+
+      // Find matching event from cached list
+      let matchedEvent: Event | null = null;
+      for (const event of Object.values(allEvents)) {
+        if (eventMatchesCombination(event, combination, reqDances, reqScoringType, levelMode)) {
+          matchedEvent = event;
+          break;
+        }
+      }
+
+      if (matchedEvent) {
+        const existingBibs = matchedEvent.heats[0]?.bibs || [];
+        if (existingBibs.includes(bib)) {
+          results.push({ label, success: false, error: 'Already entered' });
+          continue;
+        }
+
+        // Check for scores (only on final round to be fast — if any heat has scores, block)
+        let hasScores = false;
+        for (const heat of matchedEvent.heats) {
+          for (const b of heat.bibs) {
+            const scores = await dataService.getScores(matchedEvent.id, heat.round, b);
+            if (scores.length > 0) { hasScores = true; break; }
+          }
+          if (hasScores) break;
+        }
+        if (hasScores) {
+          results.push({ label, success: false, error: 'Event has existing scores' });
+          continue;
+        }
+
+        const newBibs = [...existingBibs, bib];
+        const evtJudgeIds = matchedEvent.heats[0]?.judges || [];
+        const st = matchedEvent.scoringType || 'standard';
+        const newHeats = dataService.rebuildHeats(newBibs, evtJudgeIds, st);
+        await dataService.updateEvent(matchedEvent.id, { heats: newHeats });
+        await dataService.addEventEntry(matchedEvent.id, bib, competitionId);
+
+        // Update cached event
+        const updatedEvent = await dataService.getEventById(matchedEvent.id);
+        if (updatedEvent) {
+          allEvents[updatedEvent.id] = updatedEvent;
+        }
+
+        results.push({ label: matchedEvent.name, success: true, created: false, eventName: matchedEvent.name });
+      } else {
+        // Create new event
+        const name = buildEventName(combination, displayDances);
+        const newEvent = await dataService.addEvent(
+          name,
+          [bib],
+          judgeIds,
+          competitionId,
+          combination.designation,
+          combination.syllabusType,
+          combination.level,
+          combination.style,
+          displayDances.length > 0 ? displayDances : undefined,
+          (combination.scoringType as 'standard' | 'proficiency') || 'standard',
+          combination.isScholarship,
+          combination.ageCategory,
+        );
+
+        // Add to cached events
+        allEvents[newEvent.id] = newEvent;
+
+        results.push({ label: newEvent.name, success: true, created: true, eventName: newEvent.name });
+      }
+    } catch (err) {
+      results.push({ label, success: false, error: err instanceof Error ? err.message : 'Failed' });
+    }
+  }
+
+  return results;
+}
+
+function buildEntryLabel(entry: BulkRegisterEntry): string {
+  const parts = [entry.designation, entry.ageCategory, entry.level, entry.style].filter(Boolean);
+  if (entry.dances?.length) {
+    parts.push(entry.dances.length === 1 ? entry.dances[0] : `${entry.dances.length}-dance`);
+  }
+  if (entry.isScholarship) parts.push('Scholarship');
+  return parts.join(' ') || 'Untitled';
 }

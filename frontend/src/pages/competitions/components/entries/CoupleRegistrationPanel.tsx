@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Competition, Event, EventTemplate } from '../../../../types';
 import { DEFAULT_LEVELS } from '../../../../constants/levels';
 import { getAvailableStyles } from '../../../../constants/dances';
-import { RegistrationState } from '../../hooks/useRegistrationPanel';
+import { RegistrationState, StyleSelections } from '../../hooks/useRegistrationPanel';
 
 interface CoupleRegistrationPanelProps {
   bib: number;
@@ -15,6 +15,11 @@ const toggleBtnClass = (active: boolean) =>
     ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-500 text-white cursor-pointer font-semibold text-sm transition-all'
     : 'px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all';
 
+const styleBtnClass = (active: boolean) =>
+  active
+    ? 'px-4 py-2 rounded-lg border-2 border-primary-500 bg-primary-50 text-primary-700 cursor-pointer font-semibold text-sm transition-all'
+    : 'px-4 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-600 cursor-pointer font-medium text-sm transition-all hover:border-gray-300 hover:bg-gray-50';
+
 type EventSortMode = 'name' | 'entry-order';
 
 function sortEvents(events: Event[], mode: EventSortMode): Event[] {
@@ -23,6 +28,364 @@ function sortEvents(events: Event[], mode: EventSortMode): Event[] {
   }
   return [...events].sort((a, b) => a.name.localeCompare(b.name));
 }
+
+const emptyStyleSelections = (): StyleSelections => ({
+  levels: [],
+  ageCategories: [],
+  singleDances: [],
+  templateIds: [],
+  scholLevels: [],
+  scholAgeCategories: [],
+  scholTemplateIds: [],
+});
+
+/** Compute total entries across all styles */
+function computeMultiStyleEntryCount(
+  perStyleSelections: Record<string, StyleSelections>,
+  templates: EventTemplate[],
+  scholTemplates: EventTemplate[],
+): number {
+  let total = 0;
+  for (const [, sel] of Object.entries(perStyleSelections)) {
+    const ageCatCount = sel.ageCategories.length > 0 ? sel.ageCategories.length : 1;
+
+    // Single dances (leveled)
+    if (sel.levels.length > 0 && sel.singleDances.length > 0) {
+      total += ageCatCount * sel.levels.length * sel.singleDances.length;
+    }
+
+    // Multi-dance templates
+    for (const tplId of sel.templateIds) {
+      const tpl = templates.find(t => t.id === tplId);
+      if (!tpl) continue;
+      if (tpl.noLevel) {
+        total += ageCatCount;
+      } else if (sel.levels.length > 0) {
+        total += ageCatCount * sel.levels.length;
+      }
+    }
+
+    // Scholarship
+    const scholAgeCatCount = sel.scholAgeCategories.length > 0 ? sel.scholAgeCategories.length : 1;
+    if (sel.scholLevels.length > 0 && sel.scholTemplateIds.length > 0) {
+      const validSchol = sel.scholTemplateIds.filter(id => scholTemplates.some(t => t.id === id));
+      total += scholAgeCatCount * sel.scholLevels.length * validSchol.length;
+    }
+  }
+  return total;
+}
+
+/* ─── Per-style section for Single Dances ─── */
+function StyleSingleDancePanel({
+  style,
+  sel,
+  dances,
+  levels,
+  ageCategories,
+  toggleItem,
+  setField,
+}: {
+  style: string;
+  sel: StyleSelections;
+  dances: string[];
+  levels: string[];
+  ageCategories: { name: string }[];
+  toggleItem: (field: keyof StyleSelections, item: string) => void;
+  setField: <K extends keyof StyleSelections>(field: K, value: StyleSelections[K]) => void;
+}) {
+  return (
+    <div className="pl-3 border-l-2 border-primary-200 flex flex-col gap-2 py-2">
+      {ageCategories.length > 0 && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">
+            Age Categories {sel.ageCategories.length > 0 && <span className="text-primary-500">({sel.ageCategories.length})</span>}
+          </label>
+          <div className="flex gap-1.5 flex-wrap">
+            {ageCategories.map(cat => (
+              <button key={cat.name} type="button" className={toggleBtnClass(sel.ageCategories.includes(cat.name))}
+                onClick={() => toggleItem('ageCategories', cat.name)}>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">
+          Levels {sel.levels.length > 0 && <span className="text-primary-500">({sel.levels.length})</span>}
+        </label>
+        <div className="flex gap-1.5 flex-wrap">
+          {levels.map(opt => (
+            <button key={opt} type="button" className={toggleBtnClass(sel.levels.includes(opt))}
+              onClick={() => toggleItem('levels', opt)}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <label className="block text-xs font-semibold text-gray-500">
+            Dances {sel.singleDances.length > 0 && <span className="text-primary-500">({sel.singleDances.length})</span>}
+          </label>
+          <button
+            type="button"
+            className="text-xs text-primary-500 hover:text-primary-700 cursor-pointer font-medium"
+            onClick={() => {
+              if (sel.singleDances.length === dances.length) {
+                setField('singleDances', []);
+              } else {
+                setField('singleDances', [...dances]);
+              }
+            }}
+          >
+            {sel.singleDances.length === dances.length ? 'Deselect All' : 'Select All'}
+          </button>
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {dances.map(d => (
+            <button key={d} type="button" className={toggleBtnClass(sel.singleDances.includes(d))}
+              onClick={() => toggleItem('singleDances', d)}>
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-style entry count hint */}
+      {sel.levels.length > 0 && sel.singleDances.length > 0 && (
+        <div className="text-xs text-gray-400">
+          {sel.ageCategories.length > 1 ? `${sel.ageCategories.length} age × ` : ''}
+          {sel.levels.length} level{sel.levels.length !== 1 ? 's' : ''} × {sel.singleDances.length} dance{sel.singleDances.length !== 1 ? 's' : ''}
+          {' '}= {(sel.ageCategories.length || 1) * sel.levels.length * sel.singleDances.length} {style} entries
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Per-style section for Multi-Dance + Scholarship ─── */
+function StyleMultiDancePanel({
+  style,
+  sel,
+  levels,
+  ageCategories,
+  templates,
+  noLevelTemplates,
+  scholTemplates,
+  scholLevelOptions,
+  toggleItem,
+}: {
+  style: string;
+  sel: StyleSelections;
+  levels: string[];
+  ageCategories: { name: string }[];
+  templates: EventTemplate[];
+  noLevelTemplates: EventTemplate[];
+  scholTemplates: EventTemplate[];
+  scholLevelOptions: string[];
+  toggleItem: (field: keyof StyleSelections, item: string) => void;
+}) {
+  const hasRegularTemplates = templates.length > 0 || noLevelTemplates.length > 0;
+  const hasScholTemplates = scholTemplates.length > 0;
+
+  if (!hasRegularTemplates && !hasScholTemplates) {
+    return (
+      <div className="pl-3 border-l-2 border-primary-200 py-2">
+        <p className="text-gray-400 text-xs">No multi-dance or scholarship templates configured for {style}.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pl-3 border-l-2 border-primary-200 flex flex-col gap-3 py-2">
+      {/* Regular Multi-Dance */}
+      {hasRegularTemplates && (
+        <div className="flex flex-col gap-2">
+          {ageCategories.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Age Categories {sel.ageCategories.length > 0 && <span className="text-primary-500">({sel.ageCategories.length})</span>}
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
+                {ageCategories.map(cat => (
+                  <button key={cat.name} type="button" className={toggleBtnClass(sel.ageCategories.includes(cat.name))}
+                    onClick={() => toggleItem('ageCategories', cat.name)}>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Levels {sel.levels.length > 0 && <span className="text-primary-500">({sel.levels.length})</span>}
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {levels.map(opt => (
+                <button key={opt} type="button" className={toggleBtnClass(sel.levels.includes(opt))}
+                  onClick={() => toggleItem('levels', opt)}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {templates.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Multi-Dance Templates {sel.templateIds.filter(id => templates.some(t => t.id === id)).length > 0 && (
+                  <span className="text-primary-500">({sel.templateIds.filter(id => templates.some(t => t.id === id)).length})</span>
+                )}
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
+                {templates.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    className={sel.templateIds.includes(tpl.id)
+                      ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-50 text-primary-700 cursor-pointer font-semibold text-sm transition-all'
+                      : 'px-3 py-1.5 rounded border-2 border-dashed border-primary-300 bg-white text-primary-600 cursor-pointer font-medium text-sm transition-all hover:bg-primary-50'
+                    }
+                    onClick={() => toggleItem('templateIds', tpl.id)}
+                  >
+                    {tpl.name}
+                    <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {noLevelTemplates.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Open / No Level {sel.templateIds.filter(id => noLevelTemplates.some(t => t.id === id)).length > 0 && (
+                  <span className="text-teal-600">({sel.templateIds.filter(id => noLevelTemplates.some(t => t.id === id)).length})</span>
+                )}
+              </label>
+              <p className="text-gray-400 text-xs mb-1">Register without a level — open to all.</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {noLevelTemplates.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    className={sel.templateIds.includes(tpl.id)
+                      ? 'px-3 py-1.5 rounded border-2 border-teal-500 bg-teal-50 text-teal-700 cursor-pointer font-semibold text-sm transition-all'
+                      : 'px-3 py-1.5 rounded border-2 border-dashed border-teal-300 bg-white text-teal-600 cursor-pointer font-medium text-sm transition-all hover:bg-teal-50'
+                    }
+                    onClick={() => toggleItem('templateIds', tpl.id)}
+                  >
+                    {tpl.name}
+                    <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Entry count hint */}
+          {(() => {
+            const leveledCount = sel.templateIds.filter(id => templates.some(t => t.id === id)).length;
+            const noLevelCount = sel.templateIds.filter(id => noLevelTemplates.some(t => t.id === id)).length;
+            const ageCatCount = sel.ageCategories.length || 1;
+            const leveledTotal = sel.levels.length > 0 && leveledCount > 0 ? ageCatCount * sel.levels.length * leveledCount : 0;
+            const noLevelTotal = noLevelCount > 0 ? ageCatCount * noLevelCount : 0;
+            const styleTotal = leveledTotal + noLevelTotal;
+            if (styleTotal === 0) return null;
+            return (
+              <div className="text-xs text-gray-400">
+                {styleTotal} {style} multi-dance entr{styleTotal !== 1 ? 'ies' : 'y'}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Scholarship */}
+      {hasScholTemplates && (
+        <div className="pt-2 border-t border-amber-200 flex flex-col gap-2">
+          <h6 className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Scholarship</h6>
+
+          {ageCategories.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Age Categories {sel.scholAgeCategories.length > 0 && <span className="text-amber-500">({sel.scholAgeCategories.length})</span>}
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
+                {ageCategories.map(cat => (
+                  <button key={cat.name} type="button"
+                    className={sel.scholAgeCategories.includes(cat.name)
+                      ? 'px-3 py-1.5 rounded border-2 border-amber-500 bg-amber-500 text-white cursor-pointer font-semibold text-sm transition-all'
+                      : 'px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all'
+                    }
+                    onClick={() => toggleItem('scholAgeCategories', cat.name)}>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Levels {sel.scholLevels.length > 0 && <span className="text-amber-500">({sel.scholLevels.length})</span>}
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {scholLevelOptions.map(opt => (
+                <button key={opt} type="button"
+                  className={sel.scholLevels.includes(opt)
+                    ? 'px-3 py-1.5 rounded border-2 border-amber-500 bg-amber-500 text-white cursor-pointer font-semibold text-sm transition-all'
+                    : 'px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-sm transition-all'
+                  }
+                  onClick={() => toggleItem('scholLevels', opt)}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              Templates {sel.scholTemplateIds.length > 0 && <span className="text-amber-500">({sel.scholTemplateIds.length})</span>}
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {scholTemplates.map(tpl => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  className={sel.scholTemplateIds.includes(tpl.id)
+                    ? 'px-3 py-1.5 rounded border-2 border-amber-500 bg-amber-50 text-amber-700 cursor-pointer font-semibold text-sm transition-all'
+                    : 'px-3 py-1.5 rounded border-2 border-dashed border-amber-300 bg-white text-amber-600 cursor-pointer font-medium text-sm transition-all hover:bg-amber-50'
+                  }
+                  onClick={() => toggleItem('scholTemplateIds', tpl.id)}
+                >
+                  {tpl.name}
+                  <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scholarship entry count hint */}
+          {sel.scholLevels.length > 0 && sel.scholTemplateIds.length > 0 && (() => {
+            const scholTotal = (sel.scholAgeCategories.length || 1) * sel.scholLevels.length * sel.scholTemplateIds.length;
+            return (
+              <div className="text-xs text-amber-500">
+                {scholTotal} {style} scholarship entr{scholTotal !== 1 ? 'ies' : 'y'}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Panel ─── */
 
 const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: CoupleRegistrationPanelProps) => {
   const [eventSort, setEventSort] = useState<EventSortMode>('name');
@@ -35,65 +398,40 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
     regScoringType, setRegScoringType,
     regIsScholarship, setRegIsScholarship,
     regAgeCategory, setRegAgeCategory,
-    regAgeCategories, setRegAgeCategories,
     availableAgeCategories,
     regLoading, regMessage, regError,
     coupleEvents, coupleEventsLoading,
     getDanceOptions, handleRegister, handleRemoveEntry,
-    // Batch
-    regLevels, setRegLevels,
-    selectedSingleDances, setSelectedSingleDances,
-    selectedTemplateIds, setSelectedTemplateIds,
-    handleBulkRegister, bulkResults, hasScoringDefaults,
-    // Scholarship batch
-    scholLevels, setScholLevels,
-    scholAgeCategories, setScholAgeCategories,
-    scholTemplateIds, setScholTemplateIds,
-    handleBulkScholarshipRegister,
+    hasScoringDefaults,
+    bulkResults,
+    // Multi-style
+    expandedSingleStyles, expandedMultiStyles,
+    perStyleSelections,
+    toggleSingleStyle, toggleMultiStyle,
+    setStyleField, toggleStyleArrayItem,
+    handleMultiStyleRegister,
   } = registration;
 
   const templates = activeCompetition?.eventTemplates || [];
+  const scholTemplateOptions = activeCompetition?.scholarshipTemplates || [];
   const hasBatchMode = templates.length > 0;
   const levels = activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS;
   const scholLevelOptions = activeCompetition?.scholarshipLevels?.length
     ? activeCompetition.scholarshipLevels
     : levels;
-  const scholTemplateOptions = activeCompetition?.scholarshipTemplates || [];
   const styles = getAvailableStyles(activeCompetition?.danceOrder);
   const isIntegrated = (activeCompetition?.levelMode || 'combined') === 'integrated';
 
-  // In batch mode, compute total entries that will be created
-  const ageCatCount = regAgeCategories.length > 0 ? regAgeCategories.length : 1;
+  // Total multi-style entry count
+  const multiStyleEntryCount = useMemo(
+    () => computeMultiStyleEntryCount(perStyleSelections, templates, scholTemplateOptions),
+    [perStyleSelections, templates, scholTemplateOptions]
+  );
 
-  // Split selected templates into leveled vs no-level
-  const selectedLeveledTemplateIds = selectedTemplateIds.filter(id => {
-    const tpl = templates.find((t: EventTemplate) => t.id === id);
-    return tpl && !tpl.noLevel;
-  });
-  const selectedNoLevelTemplateIds = selectedTemplateIds.filter(id => {
-    const tpl = templates.find((t: EventTemplate) => t.id === id);
-    return tpl?.noLevel;
-  });
-
-  const leveledEntryCount = regLevels.length * (selectedSingleDances.length + selectedLeveledTemplateIds.length) * ageCatCount;
-  const noLevelEntryCount = selectedNoLevelTemplateIds.length * ageCatCount;
-  const batchEntryCount = hasBatchMode ? leveledEntryCount + noLevelEntryCount : 0;
-
-  // Scholarship batch count
-  const scholAgeCatCount = scholAgeCategories.length > 0 ? scholAgeCategories.length : 1;
-  const scholBatchCount = scholLevels.length * scholTemplateIds.length * scholAgeCatCount;
-
-  // Get templates for currently selected style
-  const styleTemplates = regStyle
-    ? templates.filter((t: EventTemplate) => t.style === regStyle && !t.noLevel)
-    : [];
-  const styleNoLevelTemplates = regStyle
-    ? templates.filter((t: EventTemplate) => t.style === regStyle && t.noLevel)
-    : [];
-  const styleScholTemplates = regStyle
-    ? scholTemplateOptions.filter((t: EventTemplate) => t.style === regStyle)
-    : [];
-  const styleDances = regStyle ? getDanceOptions(regStyle) : [];
+  // Helper to get templates for a style
+  const getStyleTemplates = (style: string) => templates.filter((t: EventTemplate) => t.style === style && !t.noLevel);
+  const getStyleNoLevelTemplates = (style: string) => templates.filter((t: EventTemplate) => t.style === style && t.noLevel);
+  const getStyleScholTemplates = (style: string) => scholTemplateOptions.filter((t: EventTemplate) => t.style === style);
 
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-3">
@@ -110,7 +448,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
 
       {/* Bulk results detail */}
       {bulkResults.length > 0 && (
-        <div className="mb-3 text-xs space-y-0.5">
+        <div className="mb-3 text-xs space-y-0.5 max-h-40 overflow-y-auto">
           {bulkResults.map((r, i) => (
             <div key={i} className={r.success ? 'text-green-700' : 'text-red-600'}>
               {r.success ? (r.created ? '+ Created' : '= Joined') : '✕ Failed'}{' '}
@@ -122,332 +460,163 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
       )}
 
       {hasBatchMode ? (
-        /* ─── Batch Registration Mode ─── */
-        <div className="flex flex-col gap-2.5">
+        /* ─── Multi-Style Registration Mode ─── */
+        <div className="flex flex-col gap-4">
           {/* Shared fields */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Designation</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regDesignation === opt)}
-                  onClick={() => setRegDesignation(regDesignation === opt ? '' : opt)}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {!isIntegrated && (
+          <div className="flex flex-col gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Designation</label>
               <div className="flex gap-1.5 flex-wrap">
-                {['Syllabus', 'Open'].map(opt => (
-                  <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
-                    onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
+                {['Pro-Am', 'Amateur', 'Professional', 'Student'].map(opt => (
+                  <button key={opt} type="button" className={toggleBtnClass(regDesignation === opt)}
+                    onClick={() => setRegDesignation(regDesignation === opt ? '' : opt)}>
                     {opt}
                   </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {availableAgeCategories.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
-                Age Category(s) {regAgeCategories.length > 0 && <span className="text-primary-500">({regAgeCategories.length})</span>}
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {availableAgeCategories.map(cat => (
-                  <button key={cat.name} type="button" className={toggleBtnClass(regAgeCategories.includes(cat.name))}
-                    onClick={() => setRegAgeCategories(prev =>
-                      prev.includes(cat.name) ? prev.filter(c => c !== cat.name) : [...prev, cat.name]
-                    )}>
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!hasScoringDefaults && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
-              <div className="flex gap-1.5">
-                {(['standard', 'proficiency'] as const).map(opt => (
-                  <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
-                    onClick={() => setRegScoringType(opt)}>
-                    {opt === 'standard' ? 'Standard' : 'Proficiency'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Level(s) — multi-select */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              Level(s) {regLevels.length > 0 && <span className="text-primary-500">({regLevels.length})</span>}
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {levels.map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regLevels.includes(opt))}
-                  onClick={() => setRegLevels(prev =>
-                    prev.includes(opt) ? prev.filter(l => l !== opt) : [...prev, opt]
-                  )}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Style — single-select */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Style</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {styles.map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(regStyle === opt)}
-                  onClick={() => {
-                    if (regStyle === opt) {
-                      setRegStyle('');
-                    } else {
-                      setRegStyle(opt);
-                    }
-                    setSelectedSingleDances([]);
-                    setSelectedTemplateIds([]);
-                    setScholTemplateIds([]);
-                  }}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Single Dances section */}
-          {regStyle && styleDances.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <label className="block text-xs font-semibold text-gray-500">
-                  Single Dances {selectedSingleDances.length > 0 && <span className="text-primary-500">({selectedSingleDances.length})</span>}
-                </label>
-                <button
-                  type="button"
-                  className="text-xs text-primary-500 hover:text-primary-700 cursor-pointer font-medium"
-                  onClick={() => {
-                    if (selectedSingleDances.length === styleDances.length) {
-                      setSelectedSingleDances([]);
-                    } else {
-                      setSelectedSingleDances([...styleDances]);
-                    }
-                  }}
-                >
-                  {selectedSingleDances.length === styleDances.length ? 'Deselect All' : 'Select All'}
-                </button>
-              </div>
-              <div className="flex gap-1.5 flex-wrap">
-                {styleDances.map(d => (
-                  <button key={d} type="button" className={toggleBtnClass(selectedSingleDances.includes(d))}
-                    onClick={() => setSelectedSingleDances(prev =>
-                      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
-                    )}>
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Multi-Dance Templates section */}
-          {regStyle && styleTemplates.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
-                Multi-Dance {selectedTemplateIds.length > 0 && <span className="text-primary-500">({selectedTemplateIds.length})</span>}
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {styleTemplates.map((tpl: EventTemplate) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    className={selectedTemplateIds.includes(tpl.id)
-                      ? 'px-3 py-1.5 rounded border-2 border-primary-500 bg-primary-50 text-primary-700 cursor-pointer font-semibold text-sm transition-all'
-                      : 'px-3 py-1.5 rounded border-2 border-dashed border-primary-300 bg-white text-primary-600 cursor-pointer font-medium text-sm transition-all hover:bg-primary-50'
-                    }
-                    onClick={() => setSelectedTemplateIds(prev =>
-                      prev.includes(tpl.id) ? prev.filter(x => x !== tpl.id) : [...prev, tpl.id]
-                    )}
-                  >
-                    {tpl.name}
-                    <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* No-Level Templates (e.g., Mixed-Up Multis) */}
-          {regStyle && styleNoLevelTemplates.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
-                Open / No Level {selectedNoLevelTemplateIds.length > 0 && <span className="text-teal-600">({selectedNoLevelTemplateIds.length})</span>}
-              </label>
-              <p className="text-gray-400 text-xs mb-1">These register without a level — open to all.</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {styleNoLevelTemplates.map((tpl: EventTemplate) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    className={selectedTemplateIds.includes(tpl.id)
-                      ? 'px-3 py-1.5 rounded border-2 border-teal-500 bg-teal-50 text-teal-700 cursor-pointer font-semibold text-sm transition-all'
-                      : 'px-3 py-1.5 rounded border-2 border-dashed border-teal-300 bg-white text-teal-600 cursor-pointer font-medium text-sm transition-all hover:bg-teal-50'
-                    }
-                    onClick={() => setSelectedTemplateIds(prev =>
-                      prev.includes(tpl.id) ? prev.filter(x => x !== tpl.id) : [...prev, tpl.id]
-                    )}
-                  >
-                    {tpl.name}
-                    <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Summary + register button */}
-          <div className="flex items-center gap-3 mt-1">
-            <button
-              className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-default"
-              onClick={handleBulkRegister}
-              disabled={regLoading || batchEntryCount === 0}
-            >
-              {regLoading ? 'Registering...' : `Register ${batchEntryCount} Event${batchEntryCount !== 1 ? 's' : ''}`}
-            </button>
-            {batchEntryCount > 0 && !regLoading && (
-              <span className="text-xs text-gray-500">
-                {leveledEntryCount > 0 && (
-                  <>{ageCatCount > 1 ? `${ageCatCount} age × ` : ''}{regLevels.length} lvl × {selectedSingleDances.length + selectedLeveledTemplateIds.length} events</>
-                )}
-                {leveledEntryCount > 0 && noLevelEntryCount > 0 && ' + '}
-                {noLevelEntryCount > 0 && (
-                  <>{noLevelEntryCount} no-level</>
-                )}
-              </span>
-            )}
-          </div>
-
-          {/* ─── Scholarship Section ─── */}
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <h5 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Scholarship Entry</h5>
-            <p className="text-gray-400 text-xs mb-2">Uses the same designation, syllabus type, and scoring from above. Select a style above first.</p>
-            <div className="flex flex-col gap-2.5">
-              {/* Scholarship Age Categories — multi-select */}
-              {availableAgeCategories.length > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Age Category(s) {scholAgeCategories.length > 0 && <span className="text-primary-500">({scholAgeCategories.length})</span>}
-                  </label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {availableAgeCategories.map(cat => (
-                      <button key={cat.name} type="button" className={toggleBtnClass(scholAgeCategories.includes(cat.name))}
-                        onClick={() => setScholAgeCategories(prev =>
-                          prev.includes(cat.name) ? prev.filter(c => c !== cat.name) : [...prev, cat.name]
-                        )}>
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Scholarship Levels — multi-select */}
+            {!isIntegrated && (
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">
-                  Level(s) {scholLevels.length > 0 && <span className="text-primary-500">({scholLevels.length})</span>}
-                </label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Syllabus Type</label>
                 <div className="flex gap-1.5 flex-wrap">
-                  {scholLevelOptions.map(opt => (
-                    <button key={opt} type="button" className={toggleBtnClass(scholLevels.includes(opt))}
-                      onClick={() => setScholLevels(prev =>
-                        prev.includes(opt) ? prev.filter(l => l !== opt) : [...prev, opt]
-                      )}>
+                  {['Syllabus', 'Open'].map(opt => (
+                    <button key={opt} type="button" className={toggleBtnClass(regSyllabusType === opt)}
+                      onClick={() => setRegSyllabusType(regSyllabusType === opt ? '' : opt)}>
                       {opt}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Scholarship Templates */}
-              {regStyle && styleScholTemplates.length > 0 ? (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">
-                    Scholarship Events {scholTemplateIds.length > 0 && <span className="text-primary-500">({scholTemplateIds.length})</span>}
-                  </label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {styleScholTemplates.map((tpl: EventTemplate) => (
-                      <button
-                        key={tpl.id}
-                        type="button"
-                        className={scholTemplateIds.includes(tpl.id)
-                          ? 'px-3 py-1.5 rounded border-2 border-amber-500 bg-amber-50 text-amber-700 cursor-pointer font-semibold text-sm transition-all'
-                          : 'px-3 py-1.5 rounded border-2 border-dashed border-amber-300 bg-white text-amber-600 cursor-pointer font-medium text-sm transition-all hover:bg-amber-50'
-                        }
-                        onClick={() => setScholTemplateIds(prev =>
-                          prev.includes(tpl.id) ? prev.filter(x => x !== tpl.id) : [...prev, tpl.id]
-                        )}
-                      >
-                        {tpl.name}
-                        <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
-                      </button>
-                    ))}
-                  </div>
+            {!hasScoringDefaults && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Scoring</label>
+                <div className="flex gap-1.5">
+                  {(['standard', 'proficiency'] as const).map(opt => (
+                    <button key={opt} type="button" className={toggleBtnClass(regScoringType === opt)}
+                      onClick={() => setRegScoringType(opt)}>
+                      {opt === 'standard' ? 'Standard' : 'Proficiency'}
+                    </button>
+                  ))}
                 </div>
-              ) : regStyle ? (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Dances</label>
-                  <p className="text-gray-400 text-xs">No scholarship templates for {regStyle}. Configure them in Competition Settings, or use the manual flow below.</p>
-                  <div className="flex gap-1.5 flex-wrap mt-1">
-                    {getDanceOptions(regStyle).map(d => (
-                      <button key={d} type="button" className={toggleBtnClass(regDances.includes(d))}
-                        onClick={() => setRegDances(prev =>
-                          prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
-                        )}>
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-400 text-xs">Select a style above first</p>
-              )}
+              </div>
+            )}
+          </div>
 
-              {/* Scholarship register button */}
-              {styleScholTemplates.length > 0 ? (
-                <div className="flex items-center gap-3">
-                  <button
-                    className="px-4 py-2 bg-amber-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-amber-600 disabled:opacity-50 disabled:cursor-default"
-                    onClick={handleBulkScholarshipRegister}
-                    disabled={regLoading || scholBatchCount === 0}
-                  >
-                    {regLoading ? 'Registering...' : `Register ${scholBatchCount} Scholarship${scholBatchCount !== 1 ? 's' : ''}`}
-                  </button>
-                  {scholBatchCount > 0 && !regLoading && (
-                    <span className="text-xs text-gray-500">
-                      {scholAgeCatCount > 1 ? `${scholAgeCatCount} age cat × ` : ''}{scholLevels.length} level{scholLevels.length !== 1 ? 's' : ''} × {scholTemplateIds.length} template{scholTemplateIds.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-              ) : (
+          {/* ═══ Single Dances Section ═══ */}
+          <div>
+            <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              Single Dances
+              <span className="text-xs font-normal text-gray-400">Select styles to expand</span>
+            </h5>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {styles.map(style => (
                 <button
-                  className="px-4 py-2 bg-amber-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-amber-600 self-start disabled:opacity-50 disabled:cursor-default"
-                  onClick={() => handleRegister({ isScholarship: true })}
-                  disabled={regLoading}
+                  key={style}
+                  type="button"
+                  className={styleBtnClass(expandedSingleStyles.includes(style))}
+                  onClick={() => toggleSingleStyle(style)}
                 >
-                  {regLoading ? 'Registering...' : 'Register Scholarship'}
+                  {style}
+                  {(() => {
+                    const sel = perStyleSelections[style];
+                    if (!sel || sel.singleDances.length === 0) return null;
+                    return <span className="text-xs ml-1 text-primary-500">({sel.singleDances.length})</span>;
+                  })()}
                 </button>
-              )}
+              ))}
             </div>
+
+            {expandedSingleStyles.map(style => (
+              <div key={style} className="mb-3">
+                <div className="text-xs font-semibold text-primary-600 mb-1">{style}</div>
+                <StyleSingleDancePanel
+                  style={style}
+                  sel={perStyleSelections[style] || emptyStyleSelections()}
+                  dances={getDanceOptions(style)}
+                  levels={levels}
+                  ageCategories={availableAgeCategories}
+                  toggleItem={(field, item) => toggleStyleArrayItem(style, field, item)}
+                  setField={(field, value) => setStyleField(style, field, value)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* ═══ Multi-Dance / Scholarship Section ═══ */}
+          <div>
+            <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              Multi-Dance & Scholarships
+              <span className="text-xs font-normal text-gray-400">Select styles to expand</span>
+            </h5>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {styles.map(style => {
+                const styleHasContent = getStyleTemplates(style).length > 0 ||
+                  getStyleNoLevelTemplates(style).length > 0 ||
+                  getStyleScholTemplates(style).length > 0;
+                if (!styleHasContent) return null;
+                return (
+                  <button
+                    key={style}
+                    type="button"
+                    className={styleBtnClass(expandedMultiStyles.includes(style))}
+                    onClick={() => toggleMultiStyle(style)}
+                  >
+                    {style}
+                    {(() => {
+                      const sel = perStyleSelections[style];
+                      if (!sel) return null;
+                      const count = sel.templateIds.length + sel.scholTemplateIds.length;
+                      if (count === 0) return null;
+                      return <span className="text-xs ml-1 text-primary-500">({count})</span>;
+                    })()}
+                  </button>
+                );
+              })}
+            </div>
+
+            {expandedMultiStyles.map(style => (
+              <div key={style} className="mb-3">
+                <div className="text-xs font-semibold text-primary-600 mb-1">{style}</div>
+                <StyleMultiDancePanel
+                  style={style}
+                  sel={perStyleSelections[style] || emptyStyleSelections()}
+                  levels={levels}
+                  ageCategories={availableAgeCategories}
+                  templates={getStyleTemplates(style)}
+                  noLevelTemplates={getStyleNoLevelTemplates(style)}
+                  scholTemplates={getStyleScholTemplates(style)}
+                  scholLevelOptions={scholLevelOptions}
+                  toggleItem={(field, item) => toggleStyleArrayItem(style, field, item)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Register button */}
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
+            <button
+              className="px-5 py-2.5 bg-primary-500 text-white rounded-lg border-none cursor-pointer text-sm font-semibold transition-colors hover:bg-primary-600 disabled:opacity-50 disabled:cursor-default"
+              onClick={handleMultiStyleRegister}
+              disabled={regLoading || multiStyleEntryCount === 0}
+            >
+              {regLoading ? 'Registering...' : `Register ${multiStyleEntryCount} Event${multiStyleEntryCount !== 1 ? 's' : ''}`}
+            </button>
+            {multiStyleEntryCount > 0 && !regLoading && (
+              <span className="text-xs text-gray-500">
+                across {Object.entries(perStyleSelections).filter(([, sel]) =>
+                  sel.singleDances.length > 0 || sel.templateIds.length > 0 || sel.scholTemplateIds.length > 0
+                ).length} style{Object.entries(perStyleSelections).filter(([, sel]) =>
+                  sel.singleDances.length > 0 || sel.templateIds.length > 0 || sel.scholTemplateIds.length > 0
+                ).length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
         </div>
       ) : (
-        /* ─── Original Single Registration Mode ─── */
+        /* ─── Original Single Registration Mode (no templates configured) ─── */
         <div className="flex flex-col gap-2.5">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Designation</label>

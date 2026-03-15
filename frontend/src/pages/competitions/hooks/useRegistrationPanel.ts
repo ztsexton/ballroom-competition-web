@@ -1,8 +1,30 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { couplesApi, eventsApi } from '../../../api/client';
 import { Event, AgeCategory, Competition, EventTemplate, Person, Couple } from '../../../types';
 import { getDancesForStyle } from '../../../constants/dances';
+
+/** Per-style selections for the multi-style registration UI */
+export interface StyleSelections {
+  levels: string[];
+  ageCategories: string[];
+  singleDances: string[];
+  templateIds: string[];
+  // Scholarship
+  scholLevels: string[];
+  scholAgeCategories: string[];
+  scholTemplateIds: string[];
+}
+
+const emptyStyleSelections = (): StyleSelections => ({
+  levels: [],
+  ageCategories: [],
+  singleDances: [],
+  templateIds: [],
+  scholLevels: [],
+  scholAgeCategories: [],
+  scholTemplateIds: [],
+});
 
 export interface RegistrationState {
   registerBib: number | null;
@@ -34,7 +56,7 @@ export interface RegistrationState {
   openRegisterPanel: (bib: number) => void;
   handleRegister: (overrides?: { isScholarship?: boolean }) => void;
   handleRemoveEntry: (eventId: number) => void;
-  // Batch registration
+  // Batch registration (legacy single-style)
   regLevels: string[];
   setRegLevels: React.Dispatch<React.SetStateAction<string[]>>;
   selectedSingleDances: string[];
@@ -44,7 +66,7 @@ export interface RegistrationState {
   handleBulkRegister: () => void;
   bulkResults: BulkResult[];
   hasScoringDefaults: boolean;
-  // Scholarship batch
+  // Scholarship batch (legacy)
   scholLevels: string[];
   setScholLevels: React.Dispatch<React.SetStateAction<string[]>>;
   scholAgeCategories: string[];
@@ -52,6 +74,15 @@ export interface RegistrationState {
   scholTemplateIds: string[];
   setScholTemplateIds: React.Dispatch<React.SetStateAction<string[]>>;
   handleBulkScholarshipRegister: () => void;
+  // Multi-style registration
+  expandedSingleStyles: string[];
+  expandedMultiStyles: string[];
+  perStyleSelections: Record<string, StyleSelections>;
+  toggleSingleStyle: (style: string) => void;
+  toggleMultiStyle: (style: string) => void;
+  setStyleField: <K extends keyof StyleSelections>(style: string, field: K, value: StyleSelections[K]) => void;
+  toggleStyleArrayItem: (style: string, field: keyof StyleSelections, item: string) => void;
+  handleMultiStyleRegister: () => void;
 }
 
 export interface BulkResult {
@@ -108,18 +139,56 @@ export function useRegistrationPanel(
   const [coupleEvents, setCoupleEvents] = useState<Event[]>([]);
   const [coupleEventsLoading, setCoupleEventsLoading] = useState(false);
 
-  // Batch state
+  // Legacy batch state
   const [regLevels, setRegLevels] = useState<string[]>([]);
   const [selectedSingleDances, setSelectedSingleDances] = useState<string[]>([]);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [bulkResults, setBulkResults] = useState<BulkResult[]>([]);
 
-  // Scholarship batch state
+  // Legacy scholarship batch state
   const [scholLevels, setScholLevels] = useState<string[]>([]);
   const [scholAgeCategories, setScholAgeCategories] = useState<string[]>([]);
   const [scholTemplateIds, setScholTemplateIds] = useState<string[]>([]);
 
+  // Multi-style state
+  const [expandedSingleStyles, setExpandedSingleStyles] = useState<string[]>([]);
+  const [expandedMultiStyles, setExpandedMultiStyles] = useState<string[]>([]);
+  const [perStyleSelections, setPerStyleSelections] = useState<Record<string, StyleSelections>>({});
+
   const getDanceOptions = (s: string) => getDancesForStyle(s, activeCompetition?.danceOrder);
+
+  const toggleSingleStyle = useCallback((style: string) => {
+    setExpandedSingleStyles(prev =>
+      prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style]
+    );
+    // Ensure style has a selections entry
+    setPerStyleSelections(prev => prev[style] ? prev : { ...prev, [style]: emptyStyleSelections() });
+  }, []);
+
+  const toggleMultiStyle = useCallback((style: string) => {
+    setExpandedMultiStyles(prev =>
+      prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style]
+    );
+    setPerStyleSelections(prev => prev[style] ? prev : { ...prev, [style]: emptyStyleSelections() });
+  }, []);
+
+  const setStyleField = useCallback(<K extends keyof StyleSelections>(
+    style: string, field: K, value: StyleSelections[K]
+  ) => {
+    setPerStyleSelections(prev => ({
+      ...prev,
+      [style]: { ...(prev[style] || emptyStyleSelections()), [field]: value },
+    }));
+  }, []);
+
+  const toggleStyleArrayItem = useCallback((style: string, field: keyof StyleSelections, item: string) => {
+    setPerStyleSelections(prev => {
+      const current = prev[style] || emptyStyleSelections();
+      const arr = current[field] as string[];
+      const newArr = arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
+      return { ...prev, [style]: { ...current, [field]: newArr } };
+    });
+  }, []);
 
   const openRegisterPanel = async (bib: number) => {
     if (registerBib === bib) {
@@ -160,6 +229,10 @@ export function useRegistrationPanel(
     setScholLevels([]);
     setScholAgeCategories([]);
     setScholTemplateIds([]);
+    // Reset multi-style state
+    setExpandedSingleStyles([]);
+    setExpandedMultiStyles([]);
+    setPerStyleSelections({});
     setCoupleEventsLoading(true);
     try {
       if (coupleId) {
@@ -393,6 +466,145 @@ export function useRegistrationPanel(
     setRegLoading(false);
   };
 
+  /** Build the entries array from perStyleSelections for bulk register */
+  function buildBulkEntries(): Array<{
+    designation?: string; syllabusType?: string; level?: string;
+    style?: string; dances?: string[]; scoringType?: string;
+    isScholarship?: boolean; ageCategory?: string;
+  }> {
+    const templates = activeCompetition?.eventTemplates || [];
+    const scholTemplates = activeCompetition?.scholarshipTemplates || [];
+    const entries: Array<{
+      designation?: string; syllabusType?: string; level?: string;
+      style?: string; dances?: string[]; scoringType?: string;
+      isScholarship?: boolean; ageCategory?: string;
+    }> = [];
+
+    for (const [style, sel] of Object.entries(perStyleSelections)) {
+      const ageCats = sel.ageCategories.length > 0 ? sel.ageCategories : [''];
+
+      // Single dances (leveled)
+      if (sel.singleDances.length > 0 && sel.levels.length > 0) {
+        for (const ageCat of ageCats) {
+          for (const level of sel.levels) {
+            for (const dance of sel.singleDances) {
+              entries.push({
+                designation: regDesignation || undefined,
+                syllabusType: regSyllabusType || undefined,
+                level, style, dances: [dance],
+                scoringType: regScoringType,
+                ageCategory: ageCat || undefined,
+              });
+            }
+          }
+        }
+      }
+
+      // Multi-dance templates
+      for (const tplId of sel.templateIds) {
+        const tpl = templates.find((t: EventTemplate) => t.id === tplId);
+        if (!tpl) continue;
+        if (tpl.noLevel) {
+          for (const ageCat of ageCats) {
+            entries.push({
+              designation: regDesignation || undefined,
+              syllabusType: regSyllabusType || undefined,
+              style, dances: tpl.dances,
+              scoringType: regScoringType,
+              ageCategory: ageCat || undefined,
+            });
+          }
+        } else if (sel.levels.length > 0) {
+          for (const ageCat of ageCats) {
+            for (const level of sel.levels) {
+              entries.push({
+                designation: regDesignation || undefined,
+                syllabusType: regSyllabusType || undefined,
+                level, style, dances: tpl.dances,
+                scoringType: regScoringType,
+                ageCategory: ageCat || undefined,
+              });
+            }
+          }
+        }
+      }
+
+      // Scholarship templates
+      const scholAgeCats = sel.scholAgeCategories.length > 0 ? sel.scholAgeCategories : [''];
+      if (sel.scholLevels.length > 0 && sel.scholTemplateIds.length > 0) {
+        for (const ageCat of scholAgeCats) {
+          for (const level of sel.scholLevels) {
+            for (const tplId of sel.scholTemplateIds) {
+              const tpl = scholTemplates.find((t: EventTemplate) => t.id === tplId);
+              if (!tpl) continue;
+              entries.push({
+                designation: regDesignation || undefined,
+                syllabusType: regSyllabusType || undefined,
+                level, style, dances: tpl.dances,
+                scoringType: regScoringType,
+                isScholarship: true,
+                ageCategory: ageCat || undefined,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return entries;
+  }
+
+  /** Multi-style bulk register: single API call for all entries */
+  const handleMultiStyleRegister = async () => {
+    if (!registerBib || !competitionId) return;
+
+    const entries = buildBulkEntries();
+    if (entries.length === 0) return;
+
+    setRegLoading(true);
+    setRegMessage('');
+    setRegError('');
+    setBulkResults([]);
+
+    try {
+      const res = await eventsApi.bulkRegister({
+        competitionId,
+        bib: registerBib,
+        entries,
+      });
+
+      const serverResults = res.data.results;
+      const mapped: BulkResult[] = serverResults.map(r => ({
+        label: r.eventName || r.label,
+        success: r.success,
+        created: r.created,
+        error: r.error,
+      }));
+
+      setBulkResults(mapped);
+      const successCount = mapped.filter(r => r.success).length;
+      const failCount = mapped.filter(r => !r.success).length;
+      if (failCount === 0) {
+        setRegMessage(`Registered for ${successCount} event${successCount !== 1 ? 's' : ''}`);
+      } else if (successCount === 0) {
+        setRegError(`All ${failCount} registrations failed`);
+      } else {
+        setRegMessage(`${successCount} registered, ${failCount} failed`);
+      }
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Bulk registration failed' : 'Bulk registration failed';
+      setRegError(msg);
+    }
+
+    // Refresh couple events
+    try {
+      const evRes = await couplesApi.getEvents(registerCoupleId!);
+      setCoupleEvents(evRes.data);
+    } catch { /* ignore */ }
+
+    setRegLoading(false);
+  };
+
   const handleRemoveEntry = async (eventId: number) => {
     if (!registerBib) return;
     try {
@@ -453,5 +665,14 @@ export function useRegistrationPanel(
     scholTemplateIds,
     setScholTemplateIds,
     handleBulkScholarshipRegister,
+    // Multi-style
+    expandedSingleStyles,
+    expandedMultiStyles,
+    perStyleSelections,
+    toggleSingleStyle,
+    toggleMultiStyle,
+    setStyleField,
+    toggleStyleArrayItem,
+    handleMultiStyleRegister,
   };
 }

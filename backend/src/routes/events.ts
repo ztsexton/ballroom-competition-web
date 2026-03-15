@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
-import { registerCoupleForEvent, checkPersonConflict, createSectionEvent, findAllMatchingEvents } from '../services/registrationService';
+import { registerCoupleForEvent, bulkRegisterCoupleForEvents, checkPersonConflict, createSectionEvent, findAllMatchingEvents } from '../services/registrationService';
 import { Event, DetailedResultsResponse } from '../types';
 import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
 
@@ -104,6 +104,29 @@ router.post('/register', requireAnyAdmin, async (req: AuthRequest, res: Response
     return res.json({ event: result.event, created: false });
   } catch (error) {
     res.status(500).json({ error: 'Failed to register entry' });
+  }
+});
+
+// Bulk register a couple for multiple events in one call
+router.post('/bulk-register', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { competitionId, bib, entries } = req.body;
+
+    if (!competitionId || bib === undefined || !Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'competitionId, bib, and entries[] are required' });
+    }
+
+    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+
+    const couple = await dataService.getCoupleByBib(bib);
+    if (!couple) {
+      return res.status(404).json({ error: 'Couple not found' });
+    }
+
+    const results = await bulkRegisterCoupleForEvents(competitionId, bib, entries);
+    res.json({ results });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to bulk register entries' });
   }
 });
 

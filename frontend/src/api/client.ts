@@ -247,6 +247,14 @@ export const eventsApi = {
     style?: string; dances?: string[]; scoringType?: string;
     isScholarship?: boolean; ageCategory?: string;
   }) => api.post<{ event: Event; created: boolean }>('/events/register', data),
+  bulkRegister: (data: {
+    competitionId: number; bib: number;
+    entries: Array<{
+      designation?: string; syllabusType?: string; level?: string;
+      style?: string; dances?: string[]; scoringType?: string;
+      isScholarship?: boolean; ageCategory?: string;
+    }>;
+  }) => api.post<{ results: Array<{ label: string; success: boolean; created?: boolean; eventName?: string; error?: string }> }>('/events/bulk-register', data),
   scratch: (eventId: number, bib: number) =>
     api.post<Event>(`/events/${eventId}/scratch`, { bib }),
   unscratch: (eventId: number, bib: number) =>
