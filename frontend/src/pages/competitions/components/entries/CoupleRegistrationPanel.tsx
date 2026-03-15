@@ -33,6 +33,8 @@ const emptyStyleSelections = (): StyleSelections => ({
   levels: [],
   ageCategories: [],
   singleDances: [],
+  multiLevels: [],
+  multiAgeCategories: [],
   templateIds: [],
   scholLevels: [],
   scholAgeCategories: [],
@@ -47,11 +49,12 @@ function computeMultiStyleEntryCount(
 ): number {
   let total = 0;
   for (const [, sel] of Object.entries(perStyleSelections)) {
-    const ageCatCount = sel.ageCategories.length > 0 ? sel.ageCategories.length : 1;
+    const singleAgeCatCount = sel.ageCategories.length > 0 ? sel.ageCategories.length : 1;
+    const multiAgeCatCount = sel.multiAgeCategories.length > 0 ? sel.multiAgeCategories.length : 1;
 
     // Single dances (leveled)
     if (sel.levels.length > 0 && sel.singleDances.length > 0) {
-      total += ageCatCount * sel.levels.length * sel.singleDances.length;
+      total += singleAgeCatCount * sel.levels.length * sel.singleDances.length;
     }
 
     // Multi-dance templates
@@ -59,9 +62,9 @@ function computeMultiStyleEntryCount(
       const tpl = templates.find(t => t.id === tplId);
       if (!tpl) continue;
       if (tpl.noLevel) {
-        total += ageCatCount;
-      } else if (sel.levels.length > 0) {
-        total += ageCatCount * sel.levels.length;
+        total += multiAgeCatCount;
+      } else if (sel.multiLevels.length > 0) {
+        total += multiAgeCatCount * sel.multiLevels.length;
       }
     }
 
@@ -207,12 +210,12 @@ function StyleMultiDancePanel({
           {ageCategories.length > 0 && (
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">
-                Age Categories {sel.ageCategories.length > 0 && <span className="text-primary-500">({sel.ageCategories.length})</span>}
+                Age Categories {sel.multiAgeCategories.length > 0 && <span className="text-primary-500">({sel.multiAgeCategories.length})</span>}
               </label>
               <div className="flex gap-1.5 flex-wrap">
                 {ageCategories.map(cat => (
-                  <button key={cat.name} type="button" className={toggleBtnClass(sel.ageCategories.includes(cat.name))}
-                    onClick={() => toggleItem('ageCategories', cat.name)}>
+                  <button key={cat.name} type="button" className={toggleBtnClass(sel.multiAgeCategories.includes(cat.name))}
+                    onClick={() => toggleItem('multiAgeCategories', cat.name)}>
                     {cat.name}
                   </button>
                 ))}
@@ -222,12 +225,12 @@ function StyleMultiDancePanel({
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">
-              Levels {sel.levels.length > 0 && <span className="text-primary-500">({sel.levels.length})</span>}
+              Levels {sel.multiLevels.length > 0 && <span className="text-primary-500">({sel.multiLevels.length})</span>}
             </label>
             <div className="flex gap-1.5 flex-wrap">
               {levels.map(opt => (
-                <button key={opt} type="button" className={toggleBtnClass(sel.levels.includes(opt))}
-                  onClick={() => toggleItem('levels', opt)}>
+                <button key={opt} type="button" className={toggleBtnClass(sel.multiLevels.includes(opt))}
+                  onClick={() => toggleItem('multiLevels', opt)}>
                   {opt}
                 </button>
               ))}
@@ -291,8 +294,8 @@ function StyleMultiDancePanel({
           {(() => {
             const leveledCount = sel.templateIds.filter(id => templates.some(t => t.id === id)).length;
             const noLevelCount = sel.templateIds.filter(id => noLevelTemplates.some(t => t.id === id)).length;
-            const ageCatCount = sel.ageCategories.length || 1;
-            const leveledTotal = sel.levels.length > 0 && leveledCount > 0 ? ageCatCount * sel.levels.length * leveledCount : 0;
+            const ageCatCount = sel.multiAgeCategories.length || 1;
+            const leveledTotal = sel.multiLevels.length > 0 && leveledCount > 0 ? ageCatCount * sel.multiLevels.length * leveledCount : 0;
             const noLevelTotal = noLevelCount > 0 ? ageCatCount * noLevelCount : 0;
             const styleTotal = leveledTotal + noLevelTotal;
             if (styleTotal === 0) return null;

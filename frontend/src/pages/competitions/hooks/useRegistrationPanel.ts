@@ -6,9 +6,13 @@ import { getDancesForStyle } from '../../../constants/dances';
 
 /** Per-style selections for the multi-style registration UI */
 export interface StyleSelections {
+  // Single-dance section
   levels: string[];
   ageCategories: string[];
   singleDances: string[];
+  // Multi-dance section
+  multiLevels: string[];
+  multiAgeCategories: string[];
   templateIds: string[];
   // Scholarship
   scholLevels: string[];
@@ -20,6 +24,8 @@ const emptyStyleSelections = (): StyleSelections => ({
   levels: [],
   ageCategories: [],
   singleDances: [],
+  multiLevels: [],
+  multiAgeCategories: [],
   templateIds: [],
   scholLevels: [],
   scholAgeCategories: [],
@@ -481,11 +487,12 @@ export function useRegistrationPanel(
     }> = [];
 
     for (const [style, sel] of Object.entries(perStyleSelections)) {
-      const ageCats = sel.ageCategories.length > 0 ? sel.ageCategories : [''];
+      const singleAgeCats = sel.ageCategories.length > 0 ? sel.ageCategories : [''];
+      const multiAgeCats = sel.multiAgeCategories.length > 0 ? sel.multiAgeCategories : [''];
 
       // Single dances (leveled)
       if (sel.singleDances.length > 0 && sel.levels.length > 0) {
-        for (const ageCat of ageCats) {
+        for (const ageCat of singleAgeCats) {
           for (const level of sel.levels) {
             for (const dance of sel.singleDances) {
               entries.push({
@@ -505,7 +512,7 @@ export function useRegistrationPanel(
         const tpl = templates.find((t: EventTemplate) => t.id === tplId);
         if (!tpl) continue;
         if (tpl.noLevel) {
-          for (const ageCat of ageCats) {
+          for (const ageCat of multiAgeCats) {
             entries.push({
               designation: regDesignation || undefined,
               syllabusType: regSyllabusType || undefined,
@@ -514,9 +521,9 @@ export function useRegistrationPanel(
               ageCategory: ageCat || undefined,
             });
           }
-        } else if (sel.levels.length > 0) {
-          for (const ageCat of ageCats) {
-            for (const level of sel.levels) {
+        } else if (sel.multiLevels.length > 0) {
+          for (const ageCat of multiAgeCats) {
+            for (const level of sel.multiLevels) {
               entries.push({
                 designation: regDesignation || undefined,
                 syllabusType: regSyllabusType || undefined,
