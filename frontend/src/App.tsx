@@ -65,6 +65,7 @@ const ScrutineerPage = React.lazy(() => import('./pages/dayof').then(m => ({ def
 const JudgeScoringPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.JudgeScoringPage })));
 const RunCompetitionPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.RunCompetitionPage })));
 const SchedulePage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.SchedulePage })));
+const TestScoringPage = React.lazy(() => import('./pages/dayof').then(m => ({ default: m.TestScoringPage })));
 
 // Hide the global nav bar on fullscreen/kiosk pages (judge, on-deck, live)
 const ConditionalNavigation = () => {
@@ -165,6 +166,7 @@ const App = () => {
                     <Route path="/users" element={<UsersPage />} />
                     <Route path="/site-settings" element={<SiteSettingsPage />} />
                     <Route path="/judge-profiles" element={<JudgeProfilesPage />} />
+                    <Route path="/test-scoring" element={<TestScoringPage />} />
                   </Routes>
                 </CompetitionProvider>
               </ProtectedRoute>

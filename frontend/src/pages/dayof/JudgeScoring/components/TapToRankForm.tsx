@@ -11,7 +11,6 @@ const TapToRankForm = ({
   onScoresChange: (scores: Record<number, number>) => void;
   isProAm?: boolean;
 }) => {
-  // Derive ranked and unranked lists from scores
   const ranked = couples
     .filter(c => scores[c.bib] > 0)
     .sort((a, b) => scores[a.bib] - scores[b.bib]);
@@ -64,8 +63,7 @@ const TapToRankForm = ({
 
   return (
     <div>
-      {/* Progress header */}
-      <div className="flex justify-between items-center mb-1.5">
+      <div className="flex justify-between items-center mb-1">
         <p className="font-semibold m-0 text-sm">Tap couples in placement order:</p>
         <span className={`py-0.5 px-1.5 rounded text-[0.8125rem] font-semibold ${
           allRanked ? 'bg-green-200' : 'bg-yellow-100'
@@ -76,7 +74,7 @@ const TapToRankForm = ({
 
       {/* Ranked section */}
       {ranked.length > 0 && (
-        <div className={unranked.length > 0 ? 'mb-2' : ''}>
+        <div className={unranked.length > 0 ? 'mb-1.5' : ''}>
           {ranked.map(couple => {
             const rank = scores[couple.bib];
             const maxRank = Math.max(0, ...Object.values(scores).filter(v => v > 0));
@@ -85,17 +83,17 @@ const TapToRankForm = ({
             return (
               <div
                 key={couple.bib}
-                className="flex items-center gap-2 w-full py-[0.4375rem] px-2.5 mb-[0.3125rem] rounded-md border-2 border-primary-500 bg-indigo-50 cursor-default text-left text-[0.9375rem] min-h-[44px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none"
+                className="flex items-center gap-1.5 w-full py-1 px-2 mb-[3px] rounded-md border-2 border-primary-500 bg-indigo-50 cursor-default text-left min-h-[40px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none"
               >
-                <span className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-base shrink-0">
+                <span className="w-7 h-7 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
                   {rank}
                 </span>
-                <strong className="flex-1 text-[1.0625rem]">#{couple.bib}</strong>
-                <div className="flex gap-1 items-center shrink-0">
+                <strong className="flex-1 text-base">#{couple.bib}</strong>
+                <div className="flex gap-0.5 items-center shrink-0">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleMoveUp(couple.bib); }}
                     disabled={!canMoveUp}
-                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-sm font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
+                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-xs font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
                       !canMoveUp ? 'opacity-30' : ''
                     }`}
                   >
@@ -104,7 +102,7 @@ const TapToRankForm = ({
                   <button
                     onClick={(e) => { e.stopPropagation(); handleMoveDown(couple.bib); }}
                     disabled={!canMoveDown}
-                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-sm font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
+                    className={`w-7 h-7 rounded border border-indigo-200 bg-white flex items-center justify-center text-xs font-bold cursor-pointer touch-manipulation [-webkit-tap-highlight-color:transparent] p-0 text-primary-500 ${
                       !canMoveDown ? 'opacity-30' : ''
                     }`}
                   >
@@ -125,7 +123,7 @@ const TapToRankForm = ({
 
       {/* Divider with label */}
       {ranked.length > 0 && unranked.length > 0 && (
-        <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-[0.3125rem]">
+        <p className="text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wide mb-[3px]">
           Tap to place
         </p>
       )}
@@ -135,25 +133,24 @@ const TapToRankForm = ({
         <button
           key={couple.bib}
           onClick={() => handleTapToRank(couple.bib)}
-          className={`flex items-center gap-2 w-full py-[0.4375rem] px-2.5 mb-[0.3125rem] rounded-md border-none cursor-pointer text-left text-[0.9375rem] min-h-[44px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none ${
+          className={`flex items-center gap-1.5 w-full py-1 px-2 mb-[3px] rounded-md border-none cursor-pointer text-left min-h-[40px] touch-manipulation [-webkit-tap-highlight-color:transparent] select-none ${
             isProAm
               ? 'bg-amber-50 border border-yellow-300 border-l-[3px] border-l-amber-500'
               : 'bg-white border border-gray-200'
           }`}
         >
-          <span className="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center font-bold text-base text-gray-300 shrink-0">
+          <span className="w-7 h-7 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center font-bold text-sm text-gray-300 shrink-0">
             {ranked.length + unranked.indexOf(couple) + 1}
           </span>
-          <strong className="flex-1 text-[1.0625rem]">#{couple.bib}</strong>
+          <strong className="flex-1 text-base">#{couple.bib}</strong>
         </button>
       ))}
 
-      {/* Clear all button */}
       {ranked.length > 0 && (
-        <div className="text-center mt-2">
+        <div className="text-center mt-1.5">
           <button
             onClick={handleClearAll}
-            className="py-2 px-4 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-[0.8125rem] touch-manipulation"
+            className="py-1.5 px-3 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-xs touch-manipulation"
           >
             Reset Rankings
           </button>

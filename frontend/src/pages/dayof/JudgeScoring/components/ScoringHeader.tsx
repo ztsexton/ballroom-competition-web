@@ -10,7 +10,7 @@ interface ScoringHeaderProps {
 }
 
 const ScoringHeader = ({ judge, heatNumber, totalHeats, isFullscreen, onChangeJudge, onToggleFullscreen }: ScoringHeaderProps) => (
-  <div className="flex items-center justify-between px-2.5 py-1.5 bg-primary-500 rounded-lg mb-2 text-white">
+  <div className="flex items-center justify-between px-2.5 py-1 bg-primary-500 rounded-lg mb-1.5 text-white">
     <div className="flex items-center gap-2">
       <span className="font-bold text-sm">
         J{judge.judgeNumber} {judge.name}

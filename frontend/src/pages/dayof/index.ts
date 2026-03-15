@@ -4,3 +4,4 @@ export { default as ScrutineerPage } from './ScrutineerPage';
 export { default as JudgeScoringPage } from './JudgeScoring';
 export { default as RunCompetitionPage } from './RunCompetition';
 export { default as SchedulePage } from './Schedule';
+export { default as TestScoringPage } from './JudgeScoring/TestScoringPage';

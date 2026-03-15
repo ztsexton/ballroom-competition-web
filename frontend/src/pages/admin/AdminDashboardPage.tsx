@@ -115,6 +115,13 @@ const AdminDashboardPage = () => {
               <div className="font-semibold text-gray-800 mb-1">Judges</div>
               <p className="text-sm text-gray-500 m-0">Manage judge profiles and qualifications</p>
             </Link>
+            <Link
+              to="/test-scoring"
+              className="bg-white rounded-lg shadow p-5 no-underline text-inherit transition-shadow hover:shadow-md"
+            >
+              <div className="font-semibold text-gray-800 mb-1">Test Scoring</div>
+              <p className="text-sm text-gray-500 m-0">Test judge scoring UI with mock competition scenarios</p>
+            </Link>
             {stagingAllowed && (
               <div className={`rounded-lg shadow p-5 ${stagingBypass ? 'bg-amber-50 border border-amber-300' : 'bg-white'}`}>
                 <div className="flex items-center justify-between mb-1">

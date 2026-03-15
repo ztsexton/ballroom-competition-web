@@ -10,24 +10,24 @@ const DanceProgressIndicator = ({ activeDance, allDances, submittedDances, curre
 
   return (
     <div
-      className="mb-2 rounded-lg overflow-hidden"
+      className="mb-1.5 rounded-lg overflow-hidden"
       style={{ border: `2px solid ${danceSubmitted ? '#48bb78' : '#667eea'}` }}
     >
       <div
-        className="px-3 py-1.5 text-center"
+        className="px-3 py-1 text-center"
         style={{ background: danceSubmitted ? '#48bb78' : '#667eea' }}
       >
-        <p className="m-0 font-bold text-lg text-white">
+        <p className="m-0 font-bold text-base text-white leading-tight">
           {danceSubmitted ? '✓ ' : ''}{activeDance}
         </p>
-        <p className="m-0 text-[0.6875rem] text-white/85 font-medium">
-          {danceSubmitted ? 'Submitted — waiting for next dance' : `Now Scoring — Dance ${currentDanceIndex + 1} of ${allDances.length}`}
+        <p className="m-0 text-[0.625rem] text-white/85 font-medium">
+          {danceSubmitted ? 'Submitted — waiting for next dance' : `Dance ${currentDanceIndex + 1} of ${allDances.length}`}
         </p>
       </div>
 
       {allDances.length > 1 && (
         <div
-          className="flex items-center justify-center gap-1 px-2 py-[0.3125rem]"
+          className="flex items-center justify-center gap-1 px-2 py-[3px]"
           style={{ background: danceSubmitted ? '#f0fff4' : '#eef2ff' }}
         >
           {allDances.map((d, i) => {
@@ -36,12 +36,12 @@ const DanceProgressIndicator = ({ activeDance, allDances, submittedDances, curre
             return (
               <div key={d} className="flex items-center gap-1">
                 <div
-                  className="flex items-center justify-center text-[0.6875rem] font-bold text-white"
+                  className="flex items-center justify-center text-[0.625rem] font-bold text-white"
                   style={{
-                    minWidth: isThisDance ? undefined : '8px',
-                    height: isThisDance ? '22px' : '8px',
-                    padding: isThisDance ? '0 0.5rem' : 0,
-                    borderRadius: isThisDance ? '11px' : '50%',
+                    minWidth: isThisDance ? undefined : '7px',
+                    height: isThisDance ? '18px' : '7px',
+                    padding: isThisDance ? '0 0.375rem' : 0,
+                    borderRadius: isThisDance ? '9px' : '50%',
                     background: isSubmitted ? '#48bb78' : isThisDance ? '#667eea' : '#cbd5e0',
                   }}
                 >
@@ -49,7 +49,7 @@ const DanceProgressIndicator = ({ activeDance, allDances, submittedDances, curre
                 </div>
                 {i < allDances.length - 1 && (
                   <div
-                    className="w-3 h-0.5"
+                    className="w-2.5 h-0.5"
                     style={{ background: isSubmitted ? '#48bb78' : '#cbd5e0' }}
                   />
                 )}

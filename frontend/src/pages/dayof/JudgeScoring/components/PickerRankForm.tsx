@@ -14,7 +14,6 @@ const PickerRankForm = ({
   const coupleCount = couples.length;
   const rankOptions = Array.from({ length: coupleCount }, (_, i) => i + 1);
 
-  // Which ranks are already used, and by which bib
   const rankToBib: Record<number, number> = {};
   for (const c of couples) {
     const r = scores[c.bib];
@@ -27,13 +26,11 @@ const PickerRankForm = ({
 
   const handlePickRank = (bib: number, rank: number) => {
     const currentRank = scores[bib];
-    // If tapping the same rank, deselect it
     if (currentRank === rank) {
       onScoresChange({ ...scores, [bib]: 0 });
       return;
     }
     const updated = { ...scores };
-    // If another couple has this rank, clear them
     if (rankToBib[rank] !== undefined && rankToBib[rank] !== bib) {
       updated[rankToBib[rank]] = 0;
     }
@@ -49,8 +46,7 @@ const PickerRankForm = ({
 
   return (
     <div>
-      {/* Progress header */}
-      <div className="flex justify-between items-center mb-1.5">
+      <div className="flex justify-between items-center mb-1">
         <p className="font-semibold m-0 text-sm">
           Pick a rank for each couple (1 = best):
         </p>
@@ -67,7 +63,7 @@ const PickerRankForm = ({
         return (
           <div
             key={couple.bib}
-            className={`flex items-center gap-2 px-2 py-1.5 mb-[0.3125rem] rounded-md min-h-[44px] ${
+            className={`flex items-center gap-1.5 px-2 py-1 mb-[3px] rounded-md min-h-[40px] ${
               hasRank
                 ? 'border-2 border-primary-500 bg-indigo-50'
                 : isProAm
@@ -75,8 +71,8 @@ const PickerRankForm = ({
                   : 'border border-gray-200 bg-white'
             }`}
           >
-            <strong className="text-[1.0625rem] shrink-0 min-w-[36px]">#{couple.bib}</strong>
-            <div className="flex flex-wrap gap-1 flex-1 justify-end">
+            <strong className="text-base shrink-0 min-w-[36px]">#{couple.bib}</strong>
+            <div className="flex flex-wrap gap-[3px] flex-1 justify-end">
               {rankOptions.map(rank => {
                 const isSelected = currentRank === rank;
                 const isUsedByOther = rankToBib[rank] !== undefined && rankToBib[rank] !== couple.bib;
@@ -84,7 +80,7 @@ const PickerRankForm = ({
                   <button
                     key={rank}
                     onClick={() => handlePickRank(couple.bib, rank)}
-                    className={`w-9 h-9 rounded-md text-base font-bold touch-manipulation [-webkit-tap-highlight-color:transparent] transition-all p-0 ${
+                    className={`w-8 h-8 rounded text-sm font-bold touch-manipulation [-webkit-tap-highlight-color:transparent] transition-all p-0 ${
                       isSelected
                         ? 'border-2 border-primary-500 bg-primary-500 text-white cursor-pointer'
                         : isUsedByOther
@@ -101,12 +97,11 @@ const PickerRankForm = ({
         );
       })}
 
-      {/* Clear all button */}
       {Object.keys(rankToBib).length > 0 && (
-        <div className="text-center mt-2">
+        <div className="text-center mt-1.5">
           <button
             onClick={handleClearAll}
-            className="py-2 px-4 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-[0.8125rem] touch-manipulation"
+            className="py-1.5 px-3 bg-transparent border border-gray-200 rounded-md text-gray-400 cursor-pointer text-xs touch-manipulation"
           >
             Reset Rankings
           </button>

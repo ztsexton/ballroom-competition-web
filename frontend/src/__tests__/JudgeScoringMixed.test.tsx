@@ -129,9 +129,9 @@ describe('JudgeScoringPage — mixed scoring types', () => {
 
     await screen.findByText('Waltz Standard');
 
-    // Should show badge for each scoring type
-    expect(screen.getByText('Ranking')).toBeInTheDocument();
-    expect(screen.getByText('Proficiency')).toBeInTheDocument();
+    // Should show badge for each scoring type (compact labels)
+    expect(screen.getByText('Rank')).toBeInTheDocument();
+    expect(screen.getByText('Prof')).toBeInTheDocument();
   });
 
   it('should show single InputMethodToggle for single scoring type', async () => {

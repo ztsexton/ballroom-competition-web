@@ -577,14 +577,14 @@ const JudgeScoringPage = () => {
       )}
 
       {/* Scoring forms — one per entry (filtered by active dance if multi-dance) */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow px-3 py-3">
         {/* When current dance is already submitted, show a waiting message instead of the form */}
         {isMultiDance && activeDance && submittedDances.has(activeDance) ? (
-          <div className="text-center py-8 px-4">
-            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3 text-2xl text-green-800">
+          <div className="text-center py-6 px-4">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2 text-xl text-green-800">
               ✓
             </div>
-            <p className="font-bold text-lg text-green-800 mb-1">
+            <p className="font-bold text-base text-green-800 mb-1">
               {activeDance} Scores Submitted
             </p>
             <p className="text-gray-500 text-sm m-0">
@@ -598,19 +598,19 @@ const JudgeScoringPage = () => {
           <div key={isMultiDance ? `${entry.eventId}:${activeDance}` : entry.eventId}>
             {/* Section header for multi-entry heats */}
             {isMultiEntry && (
-              <div className="py-2 mb-2 border-b-2 border-primary-500">
-                <p className="m-0 font-bold text-primary-500 text-base">
+              <div className="py-1 mb-1.5 border-b-2 border-primary-500">
+                <p className="m-0 font-bold text-primary-500 text-sm leading-tight">
                   {entry.eventName}
                   {hasMixedTypes && (
-                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[0.6875rem] font-semibold ${
+                    <span className={`ml-1.5 px-1 py-0.5 rounded text-[0.625rem] font-semibold ${
                       entry.scoringType === 'proficiency' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {entry.scoringType === 'proficiency' ? 'Proficiency' : 'Ranking'}
+                      {entry.scoringType === 'proficiency' ? 'Prof' : 'Rank'}
                     </span>
                   )}
-                </p>
-                <p className="mt-0.5 mb-0 text-gray-500 text-[0.8rem]">
-                  {formatRound(entry.round)} — {entry.couples.length} couples
+                  <span className="text-gray-400 font-normal text-xs ml-1.5">
+                    {formatRound(entry.round)} — {entry.couples.length}
+                  </span>
                 </p>
               </div>
             )}
@@ -619,7 +619,7 @@ const JudgeScoringPage = () => {
 
             {/* Divider between entries */}
             {isMultiEntry && idx < arr.length - 1 && (
-              <hr className="border-none border-t-2 border-dashed border-gray-200 my-6" />
+              <hr className="border-none border-t-2 border-dashed border-gray-200 my-3" />
             )}
           </div>
         ))}
