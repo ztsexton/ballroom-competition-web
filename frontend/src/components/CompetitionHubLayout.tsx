@@ -1,26 +1,35 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Outlet, NavLink, Link, useParams } from 'react-router-dom';
 import { competitionsApi } from '../api/client';
 import { useCompetition } from '../context/CompetitionContext';
-import { Competition } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { Competition, CompetitionAdminRole } from '../types';
 import { Skeleton } from './Skeleton';
 
-const TABS = [
+interface Tab {
+  label: string;
+  path: string;
+  end: boolean;
+  roles?: CompetitionAdminRole[];  // if set, only these competition-admin roles see this tab (site admins always see all)
+}
+
+const TABS: Tab[] = [
   { label: 'Overview', path: '', end: true },
-  { label: 'Settings', path: 'settings', end: false },
-  { label: 'Participants', path: 'participants', end: false },
-  { label: 'Events', path: 'events', end: false },
-  { label: 'Schedule', path: 'schedule', end: false },
-  { label: 'Run', path: 'run', end: false },
-  { label: 'Scrutineer', path: 'scrutineer', end: false },
+  { label: 'Settings', path: 'settings', end: false, roles: ['admin', 'billing'] },
+  { label: 'Participants', path: 'participants', end: false, roles: ['admin', 'billing', 'entries'] },
+  { label: 'Events', path: 'events', end: false, roles: ['admin', 'entries'] },
+  { label: 'Schedule', path: 'schedule', end: false, roles: ['admin', 'entries'] },
+  { label: 'Run', path: 'run', end: false, roles: ['admin'] },
+  { label: 'Scrutineer', path: 'scrutineer', end: false, roles: ['admin'] },
   { label: 'Results', path: 'results', end: false },
-  { label: 'Invoices', path: 'invoices', end: false },
+  { label: 'Invoices', path: 'invoices', end: false, roles: ['admin', 'billing'] },
 ];
 
 const CompetitionHubLayout = () => {
   const { id } = useParams<{ id: string }>();
   const competitionId = parseInt(id || '0');
   const { activeCompetition, setActiveCompetition } = useCompetition();
+  const { getCompetitionRole } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -87,6 +96,12 @@ const CompetitionHubLayout = () => {
   }
 
   const competitionName = activeCompetition?.name || 'Competition';
+  const role = getCompetitionRole(competitionId);
+  const visibleTabs = useMemo(() => {
+    if (!role) return TABS; // not loaded yet — show all, backend will gate
+    if (role === 'site-admin') return TABS;
+    return TABS.filter(tab => !tab.roles || tab.roles.includes(role as CompetitionAdminRole));
+  }, [role]);
 
   return (
     <div>
@@ -110,7 +125,7 @@ const CompetitionHubLayout = () => {
             className="flex border-b-2 border-gray-200 gap-1 overflow-x-auto scrollbar-hide"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {TABS.map(tab => (
+            {visibleTabs.map(tab => (
               <NavLink
                 key={tab.path}
                 to={tab.path}

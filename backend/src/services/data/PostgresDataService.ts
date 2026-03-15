@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  Competition, CompetitionAdmin, Studio, Organization, Person, Couple, Judge, JudgeProfile, Event, Heat, User, UserProfileUpdate,
+  Competition, CompetitionAdmin, CompetitionAdminRole, Studio, Organization, Person, Couple, Judge, JudgeProfile, Event, Heat, User, UserProfileUpdate,
   CompetitionSchedule, EntryPayment, PendingEntry, SiteSettings,
 } from '../../types';
 import { IDataService } from './IDataService';
@@ -1838,7 +1838,7 @@ export class PostgresDataService implements IDataService {
     return rows.map(r => r.competition_id);
   }
 
-  async addCompetitionAdmin(competitionId: number, userUid: string, role: string = 'admin'): Promise<CompetitionAdmin> {
+  async addCompetitionAdmin(competitionId: number, userUid: string, role: CompetitionAdminRole = 'admin'): Promise<CompetitionAdmin> {
     const now = new Date().toISOString();
     const { rows } = await this.pool.query(
       `INSERT INTO competition_admins (competition_id, user_uid, role, created_at)
@@ -1865,6 +1865,14 @@ export class PostgresDataService implements IDataService {
       [competitionId, userUid]
     );
     return rows.length > 0;
+  }
+
+  async getCompetitionAdminRole(competitionId: number, userUid: string): Promise<CompetitionAdminRole | null> {
+    const { rows } = await this.pool.query(
+      'SELECT role FROM competition_admins WHERE competition_id = $1 AND user_uid = $2 LIMIT 1',
+      [competitionId, userUid]
+    );
+    return rows.length > 0 ? rows[0].role : null;
   }
 
   // ─── Testing ────────────────────────────────────────────────────

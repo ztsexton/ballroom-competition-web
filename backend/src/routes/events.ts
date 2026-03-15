@@ -3,7 +3,7 @@ import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { registerCoupleForEvent, bulkRegisterCoupleForEvents, checkPersonConflict, createSectionEvent, findAllMatchingEvents } from '../services/registrationService';
 import { Event, DetailedResultsResponse } from '../types';
-import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -11,7 +11,7 @@ const router = Router();
 router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
   if (competitionId) {
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
   } else if (!req.user!.isAdmin) {
     return res.status(403).json({ error: 'Forbidden: competitionId required for non-site-admins' });
   }
@@ -28,7 +28,7 @@ router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
   res.json(event);
 });
 
@@ -40,7 +40,7 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: 'Name and competition ID are required' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, parseInt(competitionId)))) return;
+  if (!(await assertCompetitionRole(req, res, parseInt(competitionId), ['admin', 'entries']))) return;
 
   const eventBibs = Array.isArray(bibs) ? bibs : [];
 
@@ -83,7 +83,7 @@ router.post('/register', requireAnyAdmin, async (req: AuthRequest, res: Response
       return res.status(400).json({ error: 'competitionId and bib are required' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
     const couple = await dataService.getCoupleByBib(bib);
     if (!couple) {
@@ -116,7 +116,7 @@ router.post('/bulk-register', requireAnyAdmin, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: 'competitionId, bib, and entries[] are required' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
     const couple = await dataService.getCoupleByBib(bib);
     if (!couple) {
@@ -139,7 +139,7 @@ router.get('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Respon
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     const bibs = event.heats[0]?.bibs || [];
     const couples = await dataService.getCouples(event.competitionId);
@@ -161,7 +161,7 @@ router.post('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Respo
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     const existingBibs = event.heats[0]?.bibs || [];
     if (existingBibs.includes(bib)) {
@@ -217,7 +217,7 @@ router.delete('/:id/entries/:bib', requireAnyAdmin, async (req: AuthRequest, res
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     const existingBibs = event.heats[0]?.bibs || [];
     if (!existingBibs.includes(bib)) {
@@ -252,7 +252,7 @@ router.post('/:id/scratch', requireAnyAdmin, async (req: AuthRequest, res: Respo
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     // Check bib is in the event
     const allBibs = event.heats.flatMap(h => h.bibs);
@@ -286,7 +286,7 @@ router.delete('/:id/scratch/:bib', requireAnyAdmin, async (req: AuthRequest, res
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     const scratchedBibs = event.scratchedBibs || [];
     if (!scratchedBibs.includes(bib)) {
@@ -314,7 +314,7 @@ router.post('/:id/late-entry', requireAnyAdmin, async (req: AuthRequest, res: Re
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
     // Check bib belongs to the competition
     const couple = await dataService.getCoupleByBib(bib);
@@ -426,7 +426,7 @@ router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =>
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, existing.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, existing.competitionId, ['admin', 'entries']))) return;
 
   const {
     bibs,
@@ -494,7 +494,7 @@ router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
   const deleted = await dataService.deleteEvent(id);
 
@@ -516,7 +516,7 @@ router.get('/:id/results/:round', requireAnyAdmin, async (req: AuthRequest, res:
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
   const results = await scoringService.calculateResults(eventId, round);
 
@@ -555,7 +555,7 @@ router.post('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, res:
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
   const { scores } = req.body;
 
@@ -581,7 +581,7 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin', 'entries']))) return;
 
   await dataService.clearScores(eventId, round);
   res.json({ message: 'Scores cleared successfully' });
@@ -590,7 +590,7 @@ router.delete('/:id/scores/:round', requireAnyAdmin, async (req: AuthRequest, re
 // Merge duplicate events that differ only by syllabusType (for integrated level mode migration)
 router.post('/merge-syllabus-duplicates/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const allEvents = await dataService.getEvents(competitionId);
@@ -682,7 +682,7 @@ router.post('/merge-syllabus-duplicates/:competitionId', requireAnyAdmin, async 
 // Strip syllabusType from event names and data (for integrated level mode)
 router.post('/strip-syllabus-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const allEvents = await dataService.getEvents(competitionId);
@@ -730,7 +730,7 @@ router.post('/strip-syllabus-type/:competitionId', requireAnyAdmin, async (req: 
 // Bulk update scoring type by event type (single/multi/scholarship)
 router.post('/bulk-scoring-type/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const { rules, clearScores: confirmClear } = req.body;
@@ -813,7 +813,7 @@ router.post('/bulk-scoring-type/:competitionId', requireAnyAdmin, async (req: Au
 router.get('/section-results/:competitionId/:sectionGroupId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
   const sectionGroupId = req.params.sectionGroupId;
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const allEvents = await dataService.getEvents(competitionId);
@@ -875,7 +875,7 @@ router.get('/section-results/:competitionId/:sectionGroupId', requireAnyAdmin, a
 // Diagnose: find events with 0 couples and check if their bibs ended up elsewhere
 router.get('/diagnose-empty/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const allEvents = await dataService.getEvents(competitionId);
@@ -952,7 +952,7 @@ router.get('/diagnose-empty/:competitionId', requireAnyAdmin, async (req: AuthRe
 // Delete events with 0 couples
 router.post('/delete-empty/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const allEvents = await dataService.getEvents(competitionId);
@@ -984,7 +984,7 @@ router.post('/delete-empty/:competitionId', requireAnyAdmin, async (req: AuthReq
 // Reorder dances in all events for a competition to match configured dance order
 router.post('/reorder-dances/:competitionId', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = parseInt(req.params.competitionId);
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
   try {
     const competition = await dataService.getCompetitionById(competitionId);

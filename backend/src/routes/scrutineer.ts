@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { dataService } from '../services/dataService';
 import { scoringService } from '../services/scoringService';
 import { RECALL_ROUNDS } from '../constants/rounds';
-import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -18,7 +18,7 @@ router.use('/events/:eventId', async (req: AuthRequest, res: Response, next: Nex
     res.status(404).json({ error: 'Event not found' });
     return;
   }
-  if (!(await assertCompetitionAccess(req, res, event.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, event.competitionId, ['admin']))) return;
   next();
 });
 

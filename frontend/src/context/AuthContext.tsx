@@ -4,7 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { signInWithPopup, signInWithRedirect, signOut as firebaseSignOut } from 'firebase/auth';
 import { usersApi, databaseApi, setStagingBypassActive } from '../api/client';
-import { User } from '../types';
+import { User, CompetitionAdminRole } from '../types';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -12,12 +12,14 @@ interface AuthContextType {
   isAdmin: boolean;
   isCompetitionAdmin: boolean;
   adminCompetitionIds: number[];
+  adminRoles: Record<number, CompetitionAdminRole>;
   isAnyAdmin: boolean;
   loading: boolean;
   error: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  getCompetitionRole: (competitionId: number) => CompetitionAdminRole | 'site-admin' | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,6 +81,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [adminCompetitionIds, setAdminCompetitionIds] = useState<number[]>([]);
+  const [adminRoles, setAdminRoles] = useState<Record<number, CompetitionAdminRole>>({});
   const [isCompetitionAdmin, setIsCompetitionAdmin] = useState(false);
   const [userLoading, setUserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,9 +100,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (adminRes.status === 'fulfilled') {
           setAdminCompetitionIds(adminRes.value.data.competitionIds);
           setIsCompetitionAdmin(adminRes.value.data.isCompetitionAdmin);
+          setAdminRoles((adminRes.value.data.roles || {}) as Record<number, CompetitionAdminRole>);
         } else {
           setAdminCompetitionIds([]);
           setIsCompetitionAdmin(false);
+          setAdminRoles({});
         }
       } catch (err) {
         console.error('Error fetching current user:', err);
@@ -141,6 +146,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await firebaseSignOut(auth);
       setCurrentUser(null);
       setAdminCompetitionIds([]);
+      setAdminRoles({});
       setIsCompetitionAdmin(false);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message || 'Failed to sign out' : 'Failed to sign out';
@@ -153,19 +159,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const isAdmin = stagingBypass ? true : (currentUser?.isAdmin || false);
   const isAnyAdmin = isAdmin || isCompetitionAdmin;
 
+  const getCompetitionRole = useCallback((competitionId: number): CompetitionAdminRole | 'site-admin' | null => {
+    if (isAdmin) return 'site-admin';
+    return (adminRoles[competitionId] as CompetitionAdminRole) || null;
+  }, [isAdmin, adminRoles]);
+
   const value = useMemo(() => ({
     user: user ?? null,
     currentUser,
     isAdmin,
     isCompetitionAdmin,
     adminCompetitionIds,
+    adminRoles,
     isAnyAdmin,
     loading: effectiveLoading || userLoading,
     error: error || hookError?.message || null,
     login,
     logout,
     refreshUser,
-  }), [user, currentUser, isAdmin, isCompetitionAdmin, adminCompetitionIds, isAnyAdmin, effectiveLoading, userLoading, error, hookError, login, logout, refreshUser]);
+    getCompetitionRole,
+  }), [user, currentUser, isAdmin, isCompetitionAdmin, adminCompetitionIds, adminRoles, isAnyAdmin, effectiveLoading, userLoading, error, hookError, login, logout, refreshUser, getCompetitionRole]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
-import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -8,7 +8,7 @@ const router = Router();
 router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
   if (competitionId) {
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin']))) return;
   } else if (!req.user!.isAdmin) {
     return res.status(403).json({ error: 'Forbidden: competitionId required for non-site-admins' });
   }
@@ -25,7 +25,7 @@ router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(404).json({ error: 'Judge not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, judge.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, judge.competitionId, ['admin']))) return;
   res.json(judge);
 });
 
@@ -37,7 +37,7 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: 'Name and competition ID are required' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, parseInt(competitionId)))) return;
+  if (!(await assertCompetitionRole(req, res, parseInt(competitionId), ['admin']))) return;
 
   const newJudge = await dataService.addJudge(name, parseInt(competitionId));
 
@@ -57,7 +57,7 @@ router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =>
   if (!judge) {
     return res.status(404).json({ error: 'Judge not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, judge.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, judge.competitionId, ['admin']))) return;
 
   const updated = await dataService.updateJudge(id, req.body);
 
@@ -75,7 +75,7 @@ router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =
   if (!judge) {
     return res.status(404).json({ error: 'Judge not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, judge.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, judge.competitionId, ['admin']))) return;
 
   const deleted = await dataService.deleteJudge(id);
 

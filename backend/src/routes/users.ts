@@ -91,9 +91,16 @@ router.get('/me/admin-competitions', async (req: AuthRequest, res) => {
 
   try {
     const competitionIds = await dataService.getCompetitionsByAdmin(req.user.uid);
+    // Build roles map: competitionId → role
+    const roles: Record<number, string> = {};
+    for (const compId of competitionIds) {
+      const role = await dataService.getCompetitionAdminRole(compId, req.user.uid);
+      if (role) roles[compId] = role;
+    }
     res.json({
       competitionIds,
       isCompetitionAdmin: competitionIds.length > 0,
+      roles,
     });
   } catch (err) {
     // Table may not exist if migration hasn't run yet
@@ -101,6 +108,7 @@ router.get('/me/admin-competitions', async (req: AuthRequest, res) => {
     res.json({
       competitionIds: [],
       isCompetitionAdmin: false,
+      roles: {},
     });
   }
 });

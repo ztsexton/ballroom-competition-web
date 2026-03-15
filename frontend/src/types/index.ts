@@ -232,10 +232,12 @@ export interface InvoiceBranding {
   logoMimeType?: string;
 }
 
+export type CompetitionAdminRole = 'admin' | 'billing' | 'entries';
+
 export interface CompetitionAdmin {
   competitionId: number;
   userUid: string;
-  role: string;
+  role: CompetitionAdminRole;
   createdAt: string;
 }
 

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { auth } from '../config/firebase';
 import { dataService } from '../services/dataService';
 import logger from '../utils/logger';
-import { User } from '../types';
+import { User, CompetitionAdminRole } from '../types';
 
 // Staging bypass: requires STAGING_MODE_ALLOWED=true env var to be set.
 // The in-memory flag does not persist through restarts.
@@ -203,5 +203,34 @@ export const assertCompetitionAccess = async (
   }
 
   res.status(403).json({ error: 'Forbidden: You do not have access to this competition' });
+  return false;
+};
+
+/**
+ * Helper: checks if user has one of the required roles for a competition.
+ * Site admins always pass. Returns true if authorized.
+ * Sends 403 and returns false if denied.
+ */
+export const assertCompetitionRole = async (
+  req: AuthRequest,
+  res: Response,
+  competitionId: number,
+  allowedRoles: CompetitionAdminRole[]
+): Promise<boolean> => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized: No user' });
+    return false;
+  }
+
+  if (req.user.isAdmin) return true;
+
+  try {
+    const role = await dataService.getCompetitionAdminRole(competitionId, req.user.uid);
+    if (role && allowedRoles.includes(role as CompetitionAdminRole)) return true;
+  } catch {
+    // Table may not exist — fall through to deny
+  }
+
+  res.status(403).json({ error: 'Forbidden: Insufficient permissions for this action' });
   return false;
 };

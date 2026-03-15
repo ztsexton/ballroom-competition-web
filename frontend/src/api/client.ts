@@ -58,7 +58,7 @@ export const competitionsApi = {
     api.put<Competition>(`/competitions/${id}`, updates),
   delete: (id: number) => api.delete(`/competitions/${id}`),
   getAdmins: (id: number) => api.get<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]>(`/competitions/${id}/admins`),
-  addAdmin: (id: number, email: string) => api.post<CompetitionAdmin & { email?: string; displayName?: string }>(`/competitions/${id}/admins`, { email }),
+  addAdmin: (id: number, email: string, role?: string) => api.post<CompetitionAdmin & { email?: string; displayName?: string }>(`/competitions/${id}/admins`, { email, role }),
   removeAdmin: (id: number, uid: string) => api.delete(`/competitions/${id}/admins/${uid}`),
   getValidationIssues: (id: number) => api.get<{
     issues: Array<{
@@ -522,7 +522,7 @@ export const usersApi = {
   updateAdmin: (uid: string, isAdmin: boolean) =>
     api.patch<User>(`/users/${uid}/admin`, { isAdmin }),
   getAdminCompetitions: () =>
-    api.get<{ competitionIds: number[]; isCompetitionAdmin: boolean }>('/users/me/admin-competitions'),
+    api.get<{ competitionIds: number[]; isCompetitionAdmin: boolean; roles?: Record<number, string> }>('/users/me/admin-competitions'),
 };
 
 // Invoices API

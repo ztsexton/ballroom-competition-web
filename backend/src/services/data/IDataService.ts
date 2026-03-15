@@ -1,6 +1,7 @@
 import {
   Competition,
   CompetitionAdmin,
+  CompetitionAdminRole,
   Studio,
   Organization,
   Person,
@@ -156,9 +157,10 @@ export interface IDataService {
   getCompetitionAdmins(competitionId: number): Promise<CompetitionAdmin[]>;
   getEnrichedCompetitionAdmins(competitionId: number): Promise<(CompetitionAdmin & { email?: string; displayName?: string; firstName?: string; lastName?: string })[]>;
   getCompetitionsByAdmin(userUid: string): Promise<number[]>;
-  addCompetitionAdmin(competitionId: number, userUid: string, role?: string): Promise<CompetitionAdmin>;
+  addCompetitionAdmin(competitionId: number, userUid: string, role?: CompetitionAdminRole): Promise<CompetitionAdmin>;
   removeCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
   isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean>;
+  getCompetitionAdminRole(competitionId: number, userUid: string): Promise<CompetitionAdminRole | null>;
 
   // Site Settings
   getSiteSettings(): Promise<SiteSettings>;

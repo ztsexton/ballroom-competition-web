@@ -2,6 +2,7 @@ import { IDataService } from './IDataService';
 import {
   Competition,
   CompetitionAdmin,
+  CompetitionAdminRole,
   Studio,
   Organization,
   Person,
@@ -709,7 +710,7 @@ export class CachingDataService implements IDataService {
     return this.inner.getCompetitionsByAdmin(userUid);
   }
 
-  async addCompetitionAdmin(competitionId: number, userUid: string, role?: string): Promise<CompetitionAdmin> {
+  async addCompetitionAdmin(competitionId: number, userUid: string, role?: CompetitionAdminRole): Promise<CompetitionAdmin> {
     return this.inner.addCompetitionAdmin(competitionId, userUid, role);
   }
 
@@ -719,6 +720,10 @@ export class CachingDataService implements IDataService {
 
   async isCompetitionAdmin(competitionId: number, userUid: string): Promise<boolean> {
     return this.inner.isCompetitionAdmin(competitionId, userUid);
+  }
+
+  async getCompetitionAdminRole(competitionId: number, userUid: string): Promise<CompetitionAdminRole | null> {
+    return this.inner.getCompetitionAdminRole(competitionId, userUid);
   }
 
   // -- Judge Profiles (pass-through) --

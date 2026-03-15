@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
 import { getCoupleEligibleCategories, calculateAge } from '../services/validationService';
-import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -9,7 +9,7 @@ const router = Router();
 router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
   if (competitionId) {
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'billing', 'entries']))) return;
   } else if (!req.user!.isAdmin) {
     return res.status(403).json({ error: 'Forbidden: competitionId required for non-site-admins' });
   }
@@ -26,7 +26,7 @@ router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(404).json({ error: 'Couple not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, couple.competitionId, ['admin', 'billing', 'entries']))) return;
   res.json(couple);
 });
 
@@ -38,7 +38,7 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: 'Leader ID, follower ID, and competition ID are required' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, parseInt(competitionId)))) return;
+  if (!(await assertCompetitionRole(req, res, parseInt(competitionId), ['admin', 'billing', 'entries']))) return;
 
   const newCouple = await dataService.addCouple(
     parseInt(leaderId),
@@ -63,7 +63,7 @@ router.get('/:id/eligible-categories', requireAnyAdmin, async (req: AuthRequest,
       return res.status(400).json({ error: 'competitionId query parameter is required' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'billing', 'entries']))) return;
 
     const couple = await dataService.getCoupleById(id);
     if (!couple) {
@@ -96,7 +96,7 @@ router.get('/:id/events', requireAnyAdmin, async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'Couple not found' });
     }
 
-    if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, couple.competitionId, ['admin', 'billing', 'entries']))) return;
 
     const entries = await dataService.getEntriesForBib(couple.competitionId, couple.bib);
     const eventIds = entries.map(e => e.eventId);
@@ -118,7 +118,7 @@ router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =>
   if (!couple) {
     return res.status(404).json({ error: 'Couple not found' });
   }
-  if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, couple.competitionId, ['admin', 'billing', 'entries']))) return;
 
   const { billTo } = req.body;
   if (billTo !== undefined && !['split', 'leader', 'follower', null].includes(billTo)) {
@@ -138,7 +138,7 @@ router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =
     return res.status(404).json({ error: 'Couple not found' });
   }
 
-  if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, couple.competitionId, ['admin', 'billing', 'entries']))) return;
 
   // Check if couple is in any event within its competition
   const events = await dataService.getEvents(couple.competitionId);

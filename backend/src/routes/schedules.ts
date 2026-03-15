@@ -4,7 +4,7 @@ import { scheduleService, ScheduleService, buildJudgeSchedule } from '../service
 import { scoringService, computeAdvancementBibs } from '../services/scoringService';
 import { sseService } from '../services/sseService';
 import { getRecallCount } from '../constants/rounds';
-import { AuthRequest, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 import { generateHeatSheetPDF, generateCombinedHeatSheetPDF, generateResultsPDF, generateCombinedResultsPDF } from '../services/pdfService';
 import { sendHeatSheetEmail, sendResultsEmail, isEmailConfigured } from '../services/emailService';
 import { deriveStartTime } from '../services/schedule/helpers';
@@ -20,7 +20,7 @@ router.use(requireAnyAdmin);
 router.use('/:competitionId', async (req: AuthRequest, res: Response, next: NextFunction) => {
   const competitionId = parseInt(req.params.competitionId);
   if (isNaN(competitionId)) return next();
-  if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+  if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
   next();
 });
 

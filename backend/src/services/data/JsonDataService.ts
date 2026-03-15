@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, JudgeProfile, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment, PendingEntry, SiteSettings } from '../../types';
+import { AppData, Person, Couple, Judge, JudgeProfile, Event, Heat, Competition, CompetitionAdmin, CompetitionAdminRole, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment, PendingEntry, SiteSettings } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 import logger from '../../utils/logger';
@@ -1430,7 +1430,7 @@ export class JsonDataService implements IDataService {
       .map(a => a.competitionId);
   }
 
-  async addCompetitionAdmin(competitionId: number, userUid: string, role: string = 'admin'): Promise<CompetitionAdmin> {
+  async addCompetitionAdmin(competitionId: number, userUid: string, role: CompetitionAdminRole = 'admin'): Promise<CompetitionAdmin> {
     const existing = this.competitionAdmins.find(
       a => a.competitionId === competitionId && a.userUid === userUid
     );
@@ -1464,6 +1464,13 @@ export class JsonDataService implements IDataService {
     return this.competitionAdmins.some(
       a => a.competitionId === competitionId && a.userUid === userUid
     );
+  }
+
+  async getCompetitionAdminRole(competitionId: number, userUid: string): Promise<CompetitionAdminRole | null> {
+    const admin = this.competitionAdmins.find(
+      a => a.competitionId === competitionId && a.userUid === userUid
+    );
+    return admin ? admin.role : null;
   }
 
   // Judge Profile methods

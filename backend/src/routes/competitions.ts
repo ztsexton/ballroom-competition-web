@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { dataService } from '../services/dataService';
-import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionAccess } from '../middleware/auth';
+import { AuthRequest, requireAdmin, requireAnyAdmin, assertCompetitionRole } from '../middleware/auth';
 import { DEFAULT_LEVELS_BY_TYPE } from '../constants/levels';
 import { CompetitionType } from '../types';
 import { getAllowedLevelsForCouple, getMainLevel, groupLevelsByMain } from '../services/validationService';
@@ -32,7 +32,7 @@ router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin', 'billing', 'entries']))) return;
 
     const competition = await dataService.getCompetitionById(id);
     if (!competition) {
@@ -48,7 +48,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 router.get('/:id/summary', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin', 'billing', 'entries']))) return;
 
     const competition = await dataService.getCompetitionById(id);
     if (!competition) {
@@ -145,7 +145,7 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin', 'billing']))) return;
 
     const updates = req.body;
     const competition = await dataService.updateCompetition(id, updates);
@@ -177,7 +177,7 @@ router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
 router.post('/:id/reassign-bibs', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin', 'billing']))) return;
 
     const competition = await dataService.getCompetitionById(id);
     if (!competition) {
@@ -197,7 +197,7 @@ router.post('/:id/reassign-bibs', async (req: AuthRequest, res: Response) => {
 router.get('/:id/admins', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin']))) return;
 
     const enriched = await dataService.getEnrichedCompetitionAdmins(id);
     res.json(enriched);
@@ -210,12 +210,15 @@ router.get('/:id/admins', async (req: AuthRequest, res: Response) => {
 router.post('/:id/admins', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin']))) return;
 
-    const { email } = req.body;
+    const { email, role } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
+
+    const validRoles = ['admin', 'billing', 'entries'];
+    const adminRole = validRoles.includes(role) ? role : 'admin';
 
     // Look up user by email
     const users = await dataService.getUsers();
@@ -224,7 +227,7 @@ router.post('/:id/admins', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'No registered user found with that email' });
     }
 
-    const admin = await dataService.addCompetitionAdmin(id, user.uid);
+    const admin = await dataService.addCompetitionAdmin(id, user.uid, adminRole);
     res.status(201).json({
       ...admin,
       email: user.email,
@@ -241,7 +244,7 @@ router.post('/:id/admins', async (req: AuthRequest, res: Response) => {
 router.delete('/:id/admins/:uid', async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, id))) return;
+    if (!(await assertCompetitionRole(req, res, id, ['admin']))) return;
 
     const { uid } = req.params;
     const success = await dataService.removeCompetitionAdmin(id, uid);
@@ -258,7 +261,7 @@ router.delete('/:id/admins/:uid', async (req: AuthRequest, res: Response) => {
 router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin']))) return;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) return res.status(404).json({ error: 'Competition not found' });
@@ -373,7 +376,7 @@ router.get('/:id/validation-issues', requireAnyAdmin, async (req: AuthRequest, r
 router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin']))) return;
 
     const competition = await dataService.getCompetitionById(competitionId);
     if (!competition) return res.status(404).json({ error: 'Competition not found' });
@@ -635,7 +638,7 @@ router.get('/:id/validation-resolutions', requireAnyAdmin, async (req: AuthReque
 router.post('/:id/apply-resolution', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin']))) return;
 
     const { actions } = req.body as {
       actions: Array<{
@@ -732,7 +735,7 @@ router.post('/:id/apply-resolution', requireAnyAdmin, async (req: AuthRequest, r
 router.get('/:id/pending-entries', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const competitionId = parseInt(req.params.id);
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
     const pending = await dataService.getPendingEntries(competitionId);
 
@@ -763,7 +766,7 @@ router.post('/:id/pending-entries/:entryId/approve', requireAnyAdmin, async (req
   try {
     const competitionId = parseInt(req.params.id);
     const entryId = req.params.entryId;
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
     const pending = await dataService.getPendingEntries(competitionId);
     const entry = pending.find(p => p.id === entryId);
@@ -790,7 +793,7 @@ router.delete('/:id/pending-entries/:entryId', requireAnyAdmin, async (req: Auth
   try {
     const competitionId = parseInt(req.params.id);
     const entryId = req.params.entryId;
-    if (!(await assertCompetitionAccess(req, res, competitionId))) return;
+    if (!(await assertCompetitionRole(req, res, competitionId, ['admin', 'entries']))) return;
 
     const pending = await dataService.getPendingEntries(competitionId);
     if (!pending.some(p => p.id === entryId)) {
