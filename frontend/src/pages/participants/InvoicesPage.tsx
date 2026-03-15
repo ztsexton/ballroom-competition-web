@@ -512,6 +512,9 @@ const InvoicesPage = () => {
                       <span className="text-xs font-bold uppercase tracking-wider text-primary-500">
                         Professional ({proInvoices.length})
                       </span>
+                      <span className="ml-3 text-xs text-gray-400">
+                        Revenue generated: {fmt(proInvoices.reduce((sum, inv) => sum + inv.partnerships.reduce((s, p) => s + p.subtotal, 0), 0))}
+                      </span>
                     </td>
                   </tr>
                   {proInvoices.map(inv => (
@@ -524,6 +527,7 @@ const InvoicesPage = () => {
                       onDownloadPDF={downloadPDF}
                       onEmailInvoice={emailInvoice}
                       fmt={fmt}
+                      showRevenue
                     />
                   ))}
                 </>
@@ -622,6 +626,7 @@ const InvoiceRow = ({
   onDownloadPDF,
   onEmailInvoice,
   fmt,
+  showRevenue,
 }: {
   invoice: PersonInvoice;
   expanded: boolean;
@@ -630,10 +635,13 @@ const InvoiceRow = ({
   onDownloadPDF: (personId: number, personName: string) => Promise<void>;
   onEmailInvoice: (personId: number) => Promise<void>;
   fmt: (n: number) => string;
+  showRevenue?: boolean;
 }) => {
   const totalEntries = invoice.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
   const allPaid = invoice.outstandingAmount === 0 && invoice.totalAmount > 0;
   const isReferenceOnly = invoice.totalAmount === 0 && invoice.partnerships.some(p => !p.billable);
+  // Total revenue this person generates across ALL partnerships (including non-billable)
+  const revenueGenerated = invoice.partnerships.reduce((s, p) => s + p.subtotal, 0);
 
   const billablePartnerships = invoice.partnerships.filter(p => p.billable);
   const unpaidEntries = billablePartnerships.flatMap(p =>
@@ -659,10 +667,24 @@ const InvoiceRow = ({
           )}
         </td>
         <td className="text-right px-2 py-2">{totalEntries}</td>
-        <td className="text-right px-2 py-2 font-semibold">{fmt(invoice.totalAmount)}</td>
+        <td className="text-right px-2 py-2 font-semibold">
+          {showRevenue && revenueGenerated > 0 ? (
+            <span className="text-primary-600" title="Revenue generated through students">
+              {fmt(revenueGenerated)}
+            </span>
+          ) : (
+            fmt(invoice.totalAmount)
+          )}
+        </td>
         <td className="text-right px-2 py-2 text-success-500">{fmt(invoice.paidAmount)}</td>
         <td className={`text-right px-2 py-2 font-semibold ${invoice.outstandingAmount > 0 ? 'text-yellow-600' : 'text-success-500'}`}>
-          {fmt(invoice.outstandingAmount)}
+          {showRevenue && revenueGenerated > 0 ? (
+            <span className="text-primary-600">
+              {fmt(revenueGenerated - invoice.paidAmount)}
+            </span>
+          ) : (
+            fmt(invoice.outstandingAmount)
+          )}
         </td>
         <td className="text-center px-2 py-2" onClick={e => e.stopPropagation()}>
           <div className="flex gap-1.5 justify-center items-center flex-wrap">
