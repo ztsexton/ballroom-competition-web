@@ -344,12 +344,35 @@ export function dataServiceContractTests(
     });
 
     it('should assign incrementing bib numbers', async () => {
+      const leader2 = await ds.addPerson({
+        firstName: 'Jack', lastName: 'Smith', role: 'leader', status: 'student', competitionId: compId,
+      });
+      const follower2 = await ds.addPerson({
+        firstName: 'Sarah', lastName: 'Lee', role: 'follower', status: 'student', competitionId: compId,
+      });
+      const c1 = await ds.addCouple(leaderId, followerId, compId);
+      const c2 = await ds.addCouple(leader2.id, follower2.id, compId);
+      expect(c2!.bib).toBe(c1!.bib + 1);
+    });
+
+    it('should reuse leader bib when same leader creates multiple couples', async () => {
       const follower2 = await ds.addPerson({
         firstName: 'Sarah', lastName: 'Lee', role: 'follower', status: 'student', competitionId: compId,
       });
       const c1 = await ds.addCouple(leaderId, followerId, compId);
       const c2 = await ds.addCouple(leaderId, follower2.id, compId);
-      expect(c2!.bib).toBe(c1!.bib + 1);
+      expect(c2!.bib).toBe(c1!.bib);
+    });
+
+    it('should assign unique couple ids', async () => {
+      const follower2 = await ds.addPerson({
+        firstName: 'Sarah', lastName: 'Lee', role: 'follower', status: 'student', competitionId: compId,
+      });
+      const c1 = await ds.addCouple(leaderId, followerId, compId);
+      const c2 = await ds.addCouple(leaderId, follower2.id, compId);
+      expect(c1!.id).toBeDefined();
+      expect(c2!.id).toBeDefined();
+      expect(c2!.id).not.toBe(c1!.id);
     });
   });
 

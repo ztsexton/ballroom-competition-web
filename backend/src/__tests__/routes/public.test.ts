@@ -655,11 +655,11 @@ describe('Public API', () => {
         name: 'Test', type: 'NDCA', date: '2026-06-01',
         publiclyVisible: true, heatListsPublished: true,
       });
-      const leader = await dataService.addPerson({ firstName: 'Travis', lastName: 'Tuft', role: 'leader', status: 'student', competitionId: comp.id });
-      const follower1 = await dataService.addPerson({ firstName: 'Zina', lastName: 'M', role: 'follower', status: 'student', competitionId: comp.id });
-      const follower2 = await dataService.addPerson({ firstName: 'Selene', lastName: 'S', role: 'follower', status: 'student', competitionId: comp.id });
-      const couple1 = await dataService.addCouple(leader.id, follower1.id, comp.id);
-      const couple2 = await dataService.addCouple(leader.id, follower2.id, comp.id);
+      const leader1 = await dataService.addPerson({ firstName: 'Travis', lastName: 'Tuft', role: 'leader', status: 'student', competitionId: comp.id });
+      const leader2 = await dataService.addPerson({ firstName: 'Mike', lastName: 'Jones', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'Zina', lastName: 'M', role: 'follower', status: 'student', competitionId: comp.id });
+      const couple1 = await dataService.addCouple(leader1.id, follower.id, comp.id);
+      const couple2 = await dataService.addCouple(leader2.id, follower.id, comp.id);
       const event1 = await dataService.addEvent('Silver Waltz', [couple1!.bib], [], comp.id, undefined, undefined, undefined, 'Smooth');
       const event2 = await dataService.addEvent('Gold Tango', [couple2!.bib], [], comp.id, undefined, undefined, undefined, 'Rhythm');
 
@@ -686,19 +686,20 @@ describe('Public API', () => {
         updatedAt: new Date().toISOString(),
       });
 
+      // Query by follower (shared person across two couples with different leaders/bibs)
       const res = await request(app)
-        .get(`/api/public/competitions/${comp.id}/people/${leader.id}/heatlists`)
+        .get(`/api/public/competitions/${comp.id}/people/${follower.id}/heatlists`)
         .expect(200);
 
-      expect(res.body.personId).toBe(leader.id);
-      expect(res.body.firstName).toBe('Travis');
-      expect(res.body.lastName).toBe('Tuft');
+      expect(res.body.personId).toBe(follower.id);
+      expect(res.body.firstName).toBe('Zina');
+      expect(res.body.lastName).toBe('M');
       expect(res.body.partnerships).toHaveLength(2);
 
       // Check first partnership
       const p1 = res.body.partnerships.find((p: { bib: number }) => p.bib === couple1!.bib);
       expect(p1).toBeDefined();
-      expect(p1.partnerName).toBe('Zina M');
+      expect(p1.partnerName).toBe('Travis Tuft');
       expect(p1.heats).toHaveLength(1);
       expect(p1.heats[0].heatNumber).toBe(1);
       expect(p1.heats[0].eventName).toBe('Silver Waltz');
@@ -708,7 +709,7 @@ describe('Public API', () => {
       // Check second partnership
       const p2 = res.body.partnerships.find((p: { bib: number }) => p.bib === couple2!.bib);
       expect(p2).toBeDefined();
-      expect(p2.partnerName).toBe('Selene S');
+      expect(p2.partnerName).toBe('Mike Jones');
       expect(p2.heats).toHaveLength(1);
       expect(p2.heats[0].heatNumber).toBe(2);
       expect(p2.heats[0].eventName).toBe('Gold Tango');

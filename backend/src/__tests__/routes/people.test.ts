@@ -127,10 +127,10 @@ describe('People API', () => {
     });
 
     it('should fail when person is in a couple', async () => {
-      const competitionId = 1;
-      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
-      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
-      await dataService.addCouple(leader.id, follower.id, competitionId);
+      const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+      const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId: comp.id });
+      const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId: comp.id });
+      await dataService.addCouple(leader.id, follower.id, comp.id);
 
       await request(app)
         .delete(`/api/people/${leader.id}`)

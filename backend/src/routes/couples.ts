@@ -17,10 +17,10 @@ router.get('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   res.json(couples);
 });
 
-// Get couple by bib
-router.get('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
-  const bib = parseInt(req.params.bib);
-  const couple = await dataService.getCoupleByBib(bib);
+// Get couple by id
+router.get('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+  const couple = await dataService.getCoupleById(id);
 
   if (!couple) {
     return res.status(404).json({ error: 'Couple not found' });
@@ -54,9 +54,9 @@ router.post('/', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
 });
 
 // Get eligible age categories for a couple
-router.get('/:bib/eligible-categories', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/:id/eligible-categories', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const bib = parseInt(req.params.bib);
+    const id = parseInt(req.params.id);
     const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : undefined;
 
     if (!competitionId) {
@@ -65,7 +65,7 @@ router.get('/:bib/eligible-categories', requireAnyAdmin, async (req: AuthRequest
 
     if (!(await assertCompetitionAccess(req, res, competitionId))) return;
 
-    const couple = await dataService.getCoupleByBib(bib);
+    const couple = await dataService.getCoupleById(id);
     if (!couple) {
       return res.status(404).json({ error: 'Couple not found' });
     }
@@ -88,17 +88,17 @@ router.get('/:bib/eligible-categories', requireAnyAdmin, async (req: AuthRequest
 });
 
 // Get all events a couple is entered in
-router.get('/:bib/events', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/:id/events', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const bib = parseInt(req.params.bib);
-    const couple = await dataService.getCoupleByBib(bib);
+    const id = parseInt(req.params.id);
+    const couple = await dataService.getCoupleById(id);
     if (!couple) {
       return res.status(404).json({ error: 'Couple not found' });
     }
 
     if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
 
-    const entries = await dataService.getEntriesForBib(couple.competitionId, bib);
+    const entries = await dataService.getEntriesForBib(couple.competitionId, couple.bib);
     const eventIds = entries.map(e => e.eventId);
     if (eventIds.length === 0) {
       return res.json([]);
@@ -112,9 +112,9 @@ router.get('/:bib/events', requireAnyAdmin, async (req: AuthRequest, res: Respon
 });
 
 // Update couple
-router.patch('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
-  const bib = parseInt(req.params.bib);
-  const couple = await dataService.getCoupleByBib(bib);
+router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+  const couple = await dataService.getCoupleById(id);
   if (!couple) {
     return res.status(404).json({ error: 'Couple not found' });
   }
@@ -125,16 +125,15 @@ router.patch('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) =
     return res.status(400).json({ error: 'Invalid billTo value. Must be split, leader, or follower.' });
   }
 
-  const updated = await dataService.updateCouple(bib, { billTo: billTo || undefined });
+  const updated = await dataService.updateCoupleById(id, { billTo: billTo || undefined });
   res.json(updated);
 });
 
 // Delete couple
-router.delete('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
-  const bib = parseInt(req.params.bib);
+router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
 
-  // Fetch the couple first to scope event check to its competition
-  const couple = await dataService.getCoupleByBib(bib);
+  const couple = await dataService.getCoupleById(id);
   if (!couple) {
     return res.status(404).json({ error: 'Couple not found' });
   }
@@ -144,14 +143,14 @@ router.delete('/:bib', requireAnyAdmin, async (req: AuthRequest, res: Response) 
   // Check if couple is in any event within its competition
   const events = await dataService.getEvents(couple.competitionId);
   const inEvent = Object.values(events).some(event =>
-    event.heats.some(heat => heat.bibs.includes(bib))
+    event.heats.some(heat => heat.bibs.includes(couple.bib))
   );
 
   if (inEvent) {
     return res.status(400).json({ error: 'Cannot delete couple that is in an event' });
   }
 
-  const deleted = await dataService.deleteCouple(bib);
+  const deleted = await dataService.deleteCoupleById(id);
 
   if (!deleted) {
     return res.status(404).json({ error: 'Couple not found' });

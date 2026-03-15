@@ -3,8 +3,12 @@ import app from '../../server';
 import { dataService } from '../../services/dataService';
 
 describe('Events API', () => {
+  let competitionId: number;
+
   beforeEach(async () => {
     await dataService.resetAllData();
+    const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+    competitionId = comp.id;
   });
 
   describe('GET /api/events', () => {
@@ -18,7 +22,7 @@ describe('Events API', () => {
 
     it('should return all events', async () => {
       // Create test data
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -67,7 +71,7 @@ describe('Events API', () => {
 
   describe('POST /api/events', () => {
     it('should create a new event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -99,7 +103,7 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id', () => {
     it('should return event by ID', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -121,7 +125,7 @@ describe('Events API', () => {
 
   describe('DELETE /api/events/:id', () => {
     it('should delete an event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -139,7 +143,7 @@ describe('Events API', () => {
 
   describe('POST /api/events/:id/scores/:round', () => {
     it('should submit scores for an event round', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -160,7 +164,7 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id/results/:round', () => {
     it('should return results for a scored round', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'Test', lastName: 'Leader', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Test', lastName: 'Follower', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -182,7 +186,7 @@ describe('Events API', () => {
 
   describe('PATCH /api/events/:id', () => {
     const setupEvent = async () => {
-      const competitionId = 1;
+
       const l1 = await dataService.addPerson({ firstName: 'L1', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const f1 = await dataService.addPerson({ firstName: 'F1', lastName: 'A', role: 'follower', status: 'student', competitionId });
       const l2 = await dataService.addPerson({ firstName: 'L2', lastName: 'B', role: 'leader', status: 'student', competitionId });
@@ -280,7 +284,7 @@ describe('Events API', () => {
     });
 
     it('should rebuild heats with correct rounds when switching to standard with many couples', async () => {
-      const competitionId = 1;
+
       const bibs: number[] = [];
       for (let i = 0; i < 10; i++) {
         const l = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId });
@@ -351,7 +355,7 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id/entries', () => {
     it('should return entries for an event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -372,7 +376,7 @@ describe('Events API', () => {
 
   describe('POST /api/events/:id/entries', () => {
     it('should add a couple to an event', async () => {
-      const competitionId = 1;
+
       const leader1 = await dataService.addPerson({ firstName: 'L1', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower1 = await dataService.addPerson({ firstName: 'F1', lastName: 'A', role: 'follower', status: 'student', competitionId });
       const couple1 = await dataService.addCouple(leader1.id, follower1.id, competitionId);
@@ -399,7 +403,7 @@ describe('Events API', () => {
     });
 
     it('should return 409 for duplicate entry', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -416,11 +420,11 @@ describe('Events API', () => {
         name: 'Studio Comp', type: 'STUDIO', date: '2026-06-01',
         allowDuplicateEntries: true,
       });
-      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'D', role: 'leader', status: 'professional', competitionId: comp.id });
-      const s1 = await dataService.addPerson({ firstName: 'S', lastName: '1', role: 'follower', status: 'student', competitionId: comp.id });
-      const s2 = await dataService.addPerson({ firstName: 'S', lastName: '2', role: 'follower', status: 'student', competitionId: comp.id });
-      const couple1 = await dataService.addCouple(pro.id, s1.id, comp.id);
-      const couple2 = await dataService.addCouple(pro.id, s2.id, comp.id);
+      const s1 = await dataService.addPerson({ firstName: 'S', lastName: '1', role: 'leader', status: 'student', competitionId: comp.id });
+      const s2 = await dataService.addPerson({ firstName: 'S', lastName: '2', role: 'leader', status: 'student', competitionId: comp.id });
+      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'D', role: 'follower', status: 'professional', competitionId: comp.id });
+      const couple1 = await dataService.addCouple(s1.id, pro.id, comp.id);
+      const couple2 = await dataService.addCouple(s2.id, pro.id, comp.id);
 
       const event = await dataService.addEvent(
         'Bronze Waltz', [couple1!.bib], [], comp.id,
@@ -440,7 +444,7 @@ describe('Events API', () => {
 
   describe('DELETE /api/events/:id/entries/:bib', () => {
     it('should remove a couple from an event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -456,7 +460,7 @@ describe('Events API', () => {
     });
 
     it('should return 404 when couple not in event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -470,7 +474,7 @@ describe('Events API', () => {
 
   describe('DELETE /api/events/:id', () => {
     it('should delete an event', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       await request(app)
@@ -485,7 +489,7 @@ describe('Events API', () => {
 
   describe('GET /api/events/:id/results/:round', () => {
     it('should return results for a round', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       const res = await request(app)
@@ -500,7 +504,7 @@ describe('Events API', () => {
     });
 
     it('should return detailed results with detail=true', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       const res = await request(app)
@@ -516,7 +520,7 @@ describe('Events API', () => {
 
   describe('POST /api/events/:id/scores/:round', () => {
     it('should return 400 when scores is not an array', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       await request(app)
@@ -526,7 +530,7 @@ describe('Events API', () => {
     });
 
     it('should return 400 when scores is missing', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       await request(app)
@@ -538,7 +542,7 @@ describe('Events API', () => {
 
   describe('DELETE /api/events/:id/scores/:round', () => {
     it('should clear scores for a round', async () => {
-      const competitionId = 1;
+
       const event = await dataService.addEvent('Waltz', [], [], competitionId);
 
       await request(app)
@@ -836,15 +840,15 @@ describe('Events API', () => {
     it('should return combined results for section events', async () => {
       const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01', allowDuplicateEntries: true });
 
-      // Create people: 1 pro + 3 students
-      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Teacher', role: 'leader', status: 'professional', competitionId: comp.id });
-      const s1 = await dataService.addPerson({ firstName: 'S1', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
-      const s2 = await dataService.addPerson({ firstName: 'S2', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
-      const s3 = await dataService.addPerson({ firstName: 'S3', lastName: 'Student', role: 'follower', status: 'student', competitionId: comp.id });
+      // Create people: 3 student leaders + 1 pro follower (different leaders = different bibs)
+      const s1 = await dataService.addPerson({ firstName: 'S1', lastName: 'Student', role: 'leader', status: 'student', competitionId: comp.id });
+      const s2 = await dataService.addPerson({ firstName: 'S2', lastName: 'Student', role: 'leader', status: 'student', competitionId: comp.id });
+      const s3 = await dataService.addPerson({ firstName: 'S3', lastName: 'Student', role: 'leader', status: 'student', competitionId: comp.id });
+      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Teacher', role: 'follower', status: 'professional', competitionId: comp.id });
 
-      const c1 = await dataService.addCouple(pro.id, s1.id, comp.id);
-      const c2 = await dataService.addCouple(pro.id, s2.id, comp.id);
-      const c3 = await dataService.addCouple(pro.id, s3.id, comp.id);
+      const c1 = await dataService.addCouple(s1.id, pro.id, comp.id);
+      const c2 = await dataService.addCouple(s2.id, pro.id, comp.id);
+      const c3 = await dataService.addCouple(s3.id, pro.id, comp.id);
 
       const sgId = `sg-test-${Date.now()}`;
       const judge = await dataService.addJudge('Judge', comp.id);

@@ -351,3 +351,81 @@ CREATE TABLE IF NOT EXISTS pending_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_entries_competition ON pending_entries (competition_id);
+
+-- ─── Bib refactor: Phase 0 — add id to couples, bib_settings to competitions ───
+
+-- Migration: add id column to couples (separate from bib PK)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'couples' AND column_name = 'id') THEN
+    ALTER TABLE couples ADD COLUMN id INTEGER;
+    UPDATE couples SET id = bib;
+    ALTER TABLE couples ALTER COLUMN id SET NOT NULL;
+    CREATE SEQUENCE IF NOT EXISTS couples_id_seq;
+    PERFORM setval('couples_id_seq', GREATEST(COALESCE((SELECT MAX(bib) FROM couples), 0), 1));
+    ALTER TABLE couples ALTER COLUMN id SET DEFAULT nextval('couples_id_seq');
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_couples_id ON couples(id);
+  END IF;
+END $$;
+
+-- Migration: add bib_settings JSONB to competitions
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS bib_settings JSONB;
+
+-- ─── Bib refactor: Phase 1 — add bib to people ─────────────────────────────────
+
+-- Migration: add bib column to people
+ALTER TABLE people ADD COLUMN IF NOT EXISTS bib INTEGER;
+
+-- Backfill: each leader gets the MIN bib from their couples
+DO $$ BEGIN
+  UPDATE people p SET bib = sub.min_bib
+  FROM (SELECT leader_id, MIN(bib) as min_bib FROM couples GROUP BY leader_id) sub
+  WHERE p.id = sub.leader_id AND p.bib IS NULL;
+END $$;
+
+-- Bibs unique per competition (not globally)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_people_bib_competition
+  ON people(competition_id, bib) WHERE bib IS NOT NULL;
+
+-- ─── Bib refactor: Phase 4 — add couple_id to junction tables ──────────────────
+
+ALTER TABLE event_entries ADD COLUMN IF NOT EXISTS couple_id INTEGER;
+DO $$ BEGIN
+  UPDATE event_entries ee SET couple_id = c.id
+  FROM couples c
+  WHERE ee.bib = c.bib AND ee.couple_id IS NULL;
+END $$;
+
+ALTER TABLE entry_payments ADD COLUMN IF NOT EXISTS couple_id INTEGER;
+DO $$ BEGIN
+  UPDATE entry_payments ep SET couple_id = c.id
+  FROM couples c
+  WHERE ep.bib = c.bib AND ep.couple_id IS NULL;
+END $$;
+
+ALTER TABLE pending_entries ADD COLUMN IF NOT EXISTS couple_id INTEGER;
+DO $$ BEGIN
+  UPDATE pending_entries pe SET couple_id = c.id
+  FROM couples c
+  WHERE pe.bib = c.bib AND pe.couple_id IS NULL;
+END $$;
+
+-- ─── Bib refactor: Phase 5 — swap PK on couples table ─────────────────────────
+
+-- Drop the old PK (bib) and make id the PK. Bib becomes a regular indexed column.
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'couples' AND constraint_type = 'PRIMARY KEY' AND constraint_name = 'couples_pkey'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_name = 'couples' AND column_name = 'id'
+  ) THEN
+    -- Only swap if PK is still bib-based (check if id column has a unique index)
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'couples' AND indexname = 'idx_couples_id') THEN
+      ALTER TABLE couples DROP CONSTRAINT couples_pkey;
+      ALTER TABLE couples ADD PRIMARY KEY (id);
+      DROP INDEX IF EXISTS idx_couples_id;
+      CREATE INDEX IF NOT EXISTS idx_couples_bib ON couples(bib);
+    END IF;
+  END IF;
+END $$;

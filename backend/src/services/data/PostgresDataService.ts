@@ -23,6 +23,7 @@ export class PostgresDataService implements IDataService {
       studioId: row.studio_id || undefined,
       organizationId: row.organization_id || undefined,
       description: row.description || undefined,
+      bibSettings: row.bib_settings || undefined,
       judgeSettings: row.judge_settings || undefined,
       timingSettings: row.timing_settings || undefined,
       defaultScoringType: row.default_scoring_type || undefined,
@@ -95,6 +96,7 @@ export class PostgresDataService implements IDataService {
       dateOfBirth: row.date_of_birth || undefined,
       ageCategory: row.age_category || undefined,
       level: row.level || undefined,
+      bib: row.bib ?? undefined,
       competitionId: row.competition_id,
       studioId: row.studio_id || undefined,
       userId: row.user_id || undefined,
@@ -103,6 +105,7 @@ export class PostgresDataService implements IDataService {
 
   private coupleFromRow(row: any): Couple {
     return {
+      id: row.id ?? row.bib,
       bib: row.bib,
       leaderId: row.leader_id,
       followerId: row.follower_id,
@@ -207,7 +210,7 @@ export class PostgresDataService implements IDataService {
   async addCompetition(competition: Omit<Competition, 'id' | 'createdAt'>): Promise<Competition> {
     const now = new Date().toISOString();
     const query = `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
-        judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
+        bib_settings, judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
         max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
         recall_rules, entry_validation, age_categories, dance_order,
         registration_open, registration_open_at,
@@ -216,16 +219,17 @@ export class PostgresDataService implements IDataService {
         website_url, organizer_email, created_by,
         number_of_days, schedule_day_configs, hard_stop_time, event_templates, scholarship_levels, scholarship_templates, invoice_branding,
         scoring_type_defaults, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29,
-        $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-        $41)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+        $42)
        RETURNING *`;
     const params = [
       competition.name, competition.type, competition.date,
       competition.location || null, competition.studioId || null,
       competition.organizationId || null,
       competition.description || null,
+      competition.bibSettings ? JSON.stringify(competition.bibSettings) : null,
       competition.judgeSettings ? JSON.stringify(competition.judgeSettings) : null,
       competition.timingSettings ? JSON.stringify(competition.timingSettings) : null,
       competition.defaultScoringType || null,
@@ -307,6 +311,7 @@ export class PostgresDataService implements IDataService {
       allowDuplicateEntries: 'allow_duplicate_entries',
     };
     const jsonFields: Record<string, string> = {
+      bibSettings: 'bib_settings',
       judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
       levels: 'levels', pricing: 'pricing',
       maxCouplesOnFloorByLevel: 'max_couples_on_floor_by_level',
@@ -421,10 +426,10 @@ export class PostgresDataService implements IDataService {
     return rows.map(r => ({ eventId: r.event_id, scratched: r.scratched }));
   }
 
-  async addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void> {
+  async addEventEntry(eventId: number, bib: number, competitionId: number, coupleId?: number): Promise<void> {
     await this.pool.query(
-      'INSERT INTO event_entries (event_id, bib, competition_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [eventId, bib, competitionId]
+      'INSERT INTO event_entries (event_id, bib, competition_id, couple_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+      [eventId, bib, competitionId, coupleId ?? null]
     );
   }
 
@@ -639,12 +644,12 @@ export class PostgresDataService implements IDataService {
       if (existing.length > 0) return this.personFromRow(existing[0]);
     }
 
-    const query = `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+    const query = `INSERT INTO people (first_name, last_name, email, role, status, competition_id, studio_id, user_id, bib)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`;
     const params = [
       person.firstName, person.lastName, person.email || null,
       person.role, person.status, person.competitionId, person.studioId || null,
-      person.userId || null,
+      person.userId || null, person.bib ?? null,
     ];
     try {
       const { rows } = await this.pool.query(query, params);
@@ -670,7 +675,7 @@ export class PostgresDataService implements IDataService {
     const map: Record<string, string> = {
       firstName: 'first_name', lastName: 'last_name', email: 'email',
       role: 'role', status: 'status', competitionId: 'competition_id', studioId: 'studio_id',
-      userId: 'user_id',
+      userId: 'user_id', bib: 'bib',
     };
     for (const [key, col] of Object.entries(map)) {
       if ((updates as any)[key] !== undefined) {
@@ -727,9 +732,16 @@ export class PostgresDataService implements IDataService {
     const leaderName = leader.firstName + (leader.lastName ? ' ' + leader.lastName : '');
     const followerName = follower.firstName + (follower.lastName ? ' ' + follower.lastName : '');
 
-    const query = `INSERT INTO couples (leader_id, follower_id, leader_name, follower_name, competition_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-    const params = [leaderId, followerId, leaderName, followerName, competitionId];
+    // Assign bib from leader — if leader doesn't have one yet, assign one
+    let bibNumber = leader.bib;
+    if (bibNumber === undefined || bibNumber === null) {
+      bibNumber = await this.assignBib(competitionId, leader.status);
+      await this.pool.query('UPDATE people SET bib = $1 WHERE id = $2', [bibNumber, leaderId]);
+    }
+
+    const query = `INSERT INTO couples (leader_id, follower_id, leader_name, follower_name, competition_id, bib)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+    const params = [leaderId, followerId, leaderName, followerName, competitionId, bibNumber];
     try {
       const { rows } = await this.pool.query(query, params);
       return this.coupleFromRow(rows[0]);
@@ -762,6 +774,194 @@ export class PostgresDataService implements IDataService {
     values.push(bib);
     await this.pool.query(`UPDATE couples SET ${fields.join(', ')} WHERE bib = $${paramIdx}`, values);
     return (await this.getCoupleByBib(bib))!;
+  }
+
+  // ─── Couples by ID (Phase 2) ─────────────────────────────────────
+
+  async getCoupleById(id: number): Promise<Couple | undefined> {
+    const { rows } = await this.pool.query('SELECT * FROM couples WHERE id = $1', [id]);
+    return rows.length > 0 ? this.coupleFromRow(rows[0]) : undefined;
+  }
+
+  async updateCoupleById(id: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const existing = await this.getCoupleById(id);
+    if (!existing) return null;
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+    if (updates.billTo !== undefined) {
+      fields.push(`bill_to = $${paramIdx++}`);
+      values.push(updates.billTo || null);
+    }
+    if (fields.length === 0) return existing;
+    values.push(id);
+    await this.pool.query(`UPDATE couples SET ${fields.join(', ')} WHERE id = $${paramIdx}`, values);
+    return (await this.getCoupleById(id))!;
+  }
+
+  async deleteCoupleById(id: number): Promise<boolean> {
+    const { rowCount } = await this.pool.query('DELETE FROM couples WHERE id = $1', [id]);
+    return (rowCount ?? 0) > 0;
+  }
+
+  // ─── Bib assignment ──────────────────────────────────────────────
+
+  async assignBib(competitionId: number, personStatus: 'student' | 'professional'): Promise<number> {
+    const competition = await this.getCompetitionById(competitionId);
+    if (!competition) throw new Error(`Competition ${competitionId} not found`);
+
+    const bibSettings = competition.bibSettings;
+    let startNumber = 1;
+    let endNumber: number | undefined;
+
+    if (bibSettings && bibSettings.ranges.length > 0) {
+      const range = bibSettings.ranges.find(r => r.status === personStatus);
+      if (range) {
+        startNumber = range.startNumber;
+        endNumber = range.endNumber;
+      } else if (bibSettings.defaultStartNumber) {
+        startNumber = bibSettings.defaultStartNumber;
+      }
+    }
+
+    // Find next available bib in range for this competition
+    const { rows } = await this.pool.query(
+      'SELECT bib FROM people WHERE competition_id = $1 AND bib IS NOT NULL ORDER BY bib',
+      [competitionId]
+    );
+    const usedBibs = new Set(rows.map((r: any) => r.bib as number));
+
+    for (let candidate = startNumber; ; candidate++) {
+      if (endNumber !== undefined && candidate > endNumber) {
+        throw new Error(`No available bibs in range ${startNumber}-${endNumber} for status ${personStatus}`);
+      }
+      if (!usedBibs.has(candidate)) return candidate;
+    }
+  }
+
+  async reassignPersonBib(personId: number, newBib: number): Promise<boolean> {
+    const person = await this.getPersonById(personId);
+    if (!person) return false;
+
+    const oldBib = person.bib;
+    if (oldBib === undefined || oldBib === null) return false;
+
+    // Check new bib is available
+    const { rows: conflict } = await this.pool.query(
+      'SELECT id FROM people WHERE competition_id = $1 AND bib = $2 AND id != $3',
+      [person.competitionId, newBib, personId]
+    );
+    if (conflict.length > 0) throw new Error(`Bib ${newBib} is already taken in this competition`);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Update person bib
+      await client.query('UPDATE people SET bib = $1 WHERE id = $2', [newBib, personId]);
+
+      // 2. Update all couples with this leader
+      await client.query('UPDATE couples SET bib = $1 WHERE leader_id = $2', [newBib, personId]);
+
+      // 3. Get affected couple ids to find relevant events
+      const { rows: coupleRows } = await client.query(
+        'SELECT id FROM couples WHERE leader_id = $1', [personId]
+      );
+
+      // 4. Update event_entries
+      await client.query(
+        'UPDATE event_entries SET bib = $1 WHERE competition_id = $2 AND bib = $3',
+        [newBib, person.competitionId, oldBib]
+      );
+
+      // 5. Update entry_payments
+      await client.query(
+        'UPDATE entry_payments SET bib = $1 WHERE competition_id = $2 AND bib = $3',
+        [newBib, person.competitionId, oldBib]
+      );
+
+      // 6. Update events heats JSONB — replace old bib with new in bibs arrays
+      const { rows: eventRows } = await client.query(
+        'SELECT id, heats, scratched_bibs FROM events WHERE competition_id = $1',
+        [person.competitionId]
+      );
+      for (const eventRow of eventRows) {
+        let heatsChanged = false;
+        const heats = eventRow.heats || [];
+        for (const heat of heats) {
+          const idx = heat.bibs?.indexOf(oldBib);
+          if (idx !== undefined && idx >= 0) {
+            heat.bibs[idx] = newBib;
+            heatsChanged = true;
+          }
+        }
+        let scratchedChanged = false;
+        const scratched = eventRow.scratched_bibs || [];
+        const scrIdx = scratched.indexOf(oldBib);
+        if (scrIdx >= 0) {
+          scratched[scrIdx] = newBib;
+          scratchedChanged = true;
+        }
+        if (heatsChanged || scratchedChanged) {
+          await client.query(
+            'UPDATE events SET heats = $1, scratched_bibs = $2 WHERE id = $3',
+            [JSON.stringify(heats), JSON.stringify(scratched), eventRow.id]
+          );
+        }
+      }
+
+      // 7. Update scores
+      await client.query(
+        `UPDATE scores SET bib = $1 WHERE bib = $2 AND event_id IN (
+          SELECT id FROM events WHERE competition_id = $3
+        )`,
+        [newBib, oldBib, person.competitionId]
+      );
+
+      // 8. Update judge_scores
+      await client.query(
+        `UPDATE judge_scores SET bib = $1 WHERE bib = $2 AND event_id IN (
+          SELECT id FROM events WHERE competition_id = $3
+        )`,
+        [newBib, oldBib, person.competitionId]
+      );
+
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async bulkReassignBibs(competitionId: number): Promise<void> {
+    const competition = await this.getCompetitionById(competitionId);
+    if (!competition) throw new Error(`Competition ${competitionId} not found`);
+
+    // Get all leaders (people who are in couples as leaders)
+    const { rows: leaderRows } = await this.pool.query(
+      `SELECT DISTINCT p.id, p.status, p.bib
+       FROM people p
+       JOIN couples c ON c.leader_id = p.id
+       WHERE p.competition_id = $1
+       ORDER BY p.id`,
+      [competitionId]
+    );
+
+    for (const leader of leaderRows) {
+      const newBib = await this.assignBib(competitionId, leader.status);
+      if (leader.bib !== newBib) {
+        if (leader.bib) {
+          await this.reassignPersonBib(leader.id, newBib);
+        } else {
+          // Person has no bib yet — just set it and update couples
+          await this.pool.query('UPDATE people SET bib = $1 WHERE id = $2', [newBib, leader.id]);
+          await this.pool.query('UPDATE couples SET bib = $1 WHERE leader_id = $2', [newBib, leader.id]);
+        }
+      }
+    }
   }
 
   // ─── Judges ─────────────────────────────────────────────────────

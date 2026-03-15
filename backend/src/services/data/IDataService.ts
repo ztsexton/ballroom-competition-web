@@ -34,7 +34,7 @@ export interface IDataService {
   // Event Entries (junction table)
   getEventEntries(eventId: number): Promise<Array<{ bib: number; scratched: boolean }>>;
   getEntriesForBib(competitionId: number, bib: number): Promise<Array<{ eventId: number; scratched: boolean }>>;
-  addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void>;
+  addEventEntry(eventId: number, bib: number, competitionId: number, coupleId?: number): Promise<void>;
   removeEventEntry(eventId: number, bib: number): Promise<void>;
   scratchEntry(eventId: number, bib: number): Promise<void>;
   unscratchEntry(eventId: number, bib: number): Promise<void>;
@@ -74,6 +74,16 @@ export interface IDataService {
   addCouple(leaderId: number, followerId: number, competitionId: number): Promise<Couple | null>;
   updateCouple(bib: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null>;
   deleteCouple(bib: number): Promise<boolean>;
+
+  // Couple by ID (Phase 2)
+  getCoupleById(id: number): Promise<Couple | undefined>;
+  updateCoupleById(id: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null>;
+  deleteCoupleById(id: number): Promise<boolean>;
+
+  // Bib assignment (Phase 1)
+  assignBib(competitionId: number, personStatus: 'student' | 'professional'): Promise<number>;
+  reassignPersonBib(personId: number, newBib: number): Promise<boolean>;
+  bulkReassignBibs(competitionId: number): Promise<void>;
 
   // Judges
   getJudges(competitionId?: number): Promise<Judge[]>;

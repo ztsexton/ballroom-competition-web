@@ -173,6 +173,24 @@ router.delete('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Bulk reassign all bibs according to current bibSettings
+router.post('/:id/reassign-bibs', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!(await assertCompetitionAccess(req, res, id))) return;
+
+    const competition = await dataService.getCompetitionById(id);
+    if (!competition) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+
+    await dataService.bulkReassignBibs(id);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to reassign bibs' });
+  }
+});
+
 // ─── Competition Admin CRUD ───
 
 // List admins for a competition (enriched with user info)

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { competitionsApi, organizationsApi, settingsApi, eventsApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
-import { CompetitionType, AgeCategory, Organization, ScheduleDayConfig, EventTemplate } from '../../types';
+import { CompetitionType, AgeCategory, Organization, ScheduleDayConfig, EventTemplate, BibSettings, BibRange } from '../../types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { DEFAULT_DANCE_ORDER, getDancesForStyle } from '../../constants/dances';
@@ -290,6 +290,8 @@ const CompetitionSettingsPage = () => {
             isOrgActive={isOrgActive}
             confirmOrgSwitch={confirmOrgSwitch}
           />
+
+          <BibSettingsSection comp={comp} savedMap={savedMap} saveField={saveField} competitionId={competitionId} />
 
           <Section title="Contact & Links" savedKey="contact" savedMap={savedMap}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1320,6 +1322,233 @@ function DanceOrderSettingsSection({
             Updates existing events so dances appear in the configured order above.
           </p>
         </div>
+      </div>
+    </Section>
+  );
+}
+
+function BibSettingsSection({
+  comp,
+  savedMap,
+  saveField,
+  competitionId,
+}: {
+  comp: { bibSettings?: BibSettings };
+  savedMap: Record<string, boolean>;
+  saveField: (field: string, value: unknown, section: string) => void;
+  competitionId: number;
+}) {
+  const { showToast } = useToast();
+  const [reassigning, setReassigning] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Local draft state — edits stay local until Save is clicked
+  const [draft, setDraft] = useState<BibSettings>(
+    () => comp.bibSettings || { mode: 'auto', ranges: [] }
+  );
+  // Track whether local draft differs from saved value
+  const [dirty, setDirty] = useState(false);
+
+  // Sync draft when server value changes externally (e.g. after save)
+  const serverJson = JSON.stringify(comp.bibSettings || { mode: 'auto', ranges: [] });
+  const lastServerJson = useRef(serverJson);
+  useEffect(() => {
+    if (serverJson !== lastServerJson.current) {
+      lastServerJson.current = serverJson;
+      setDraft(JSON.parse(serverJson));
+      setDirty(false);
+    }
+  }, [serverJson]);
+
+  const updateDraft = (updates: Partial<BibSettings>) => {
+    setDraft(prev => ({ ...prev, ...updates }));
+    setDirty(true);
+  };
+
+  const updateRange = (index: number, updates: Partial<BibRange>) => {
+    setDraft(prev => {
+      const newRanges = [...prev.ranges];
+      newRanges[index] = { ...newRanges[index], ...updates };
+      return { ...prev, ranges: newRanges };
+    });
+    setDirty(true);
+  };
+
+  const addRange = (status: 'professional' | 'student') => {
+    setDraft(prev => {
+      const lastEnd = prev.ranges.length > 0
+        ? Math.max(...prev.ranges.map(r => r.endNumber || r.startNumber + 99))
+        : 0;
+      return {
+        ...prev,
+        ranges: [...prev.ranges, {
+          status,
+          startNumber: lastEnd + 1,
+          label: status === 'professional' ? 'Pro' : 'Student',
+        }],
+      };
+    });
+    setDirty(true);
+  };
+
+  const removeRange = (index: number) => {
+    setDraft(prev => ({ ...prev, ranges: prev.ranges.filter((_, i) => i !== index) }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      saveField('bibSettings', draft, 'bibSettings');
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReassign = async () => {
+    setReassigning(true);
+    try {
+      await competitionsApi.reassignBibs(competitionId);
+      showToast('Bibs reassigned successfully', 'success');
+    } catch {
+      showToast('Failed to reassign bibs', 'error');
+    } finally {
+      setReassigning(false);
+    }
+  };
+
+  const inputCls = "w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
+
+  return (
+    <Section title="Bib Number Settings" savedKey="bibSettings" savedMap={savedMap}>
+      <div className="mb-4">
+        <label className="block text-sm font-semibold text-gray-600 mb-1">Assignment Mode</label>
+        <select
+          value={draft.mode}
+          onChange={e => updateDraft({ mode: e.target.value as 'auto' | 'manual' })}
+          className={inputCls}
+        >
+          <option value="auto">Auto-assign from ranges</option>
+          <option value="manual">Manual assignment only</option>
+        </select>
+      </div>
+
+      {draft.mode === 'auto' && (
+        <>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-600 mb-2">Bib Ranges by Status</label>
+            {draft.ranges.length === 0 && (
+              <p className="text-gray-400 text-sm mb-2">No ranges configured. Bibs will be assigned starting from 1.</p>
+            )}
+            {draft.ranges.map((range, i) => (
+              <div key={i} className="flex items-center gap-2 mb-2">
+                <select
+                  value={range.status}
+                  onChange={e => updateRange(i, { status: e.target.value as 'professional' | 'student' })}
+                  className="px-2 py-1 border border-gray-200 rounded text-sm"
+                >
+                  <option value="professional">Professional</option>
+                  <option value="student">Student</option>
+                </select>
+                <input
+                  type="text"
+                  value={range.label || ''}
+                  onChange={e => updateRange(i, { label: e.target.value })}
+                  placeholder="Label"
+                  className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+                <input
+                  type="number"
+                  value={range.startNumber}
+                  onChange={e => updateRange(i, { startNumber: parseInt(e.target.value) || 1 })}
+                  placeholder="Start"
+                  className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+                <span className="text-gray-400">-</span>
+                <input
+                  type="number"
+                  value={range.endNumber || ''}
+                  onChange={e => updateRange(i, { endNumber: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="End"
+                  className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+                <input
+                  type="color"
+                  value={range.color || '#000000'}
+                  onChange={e => updateRange(i, { color: e.target.value })}
+                  className="w-8 h-8 cursor-pointer border-none"
+                  title="Bib color"
+                />
+                <button
+                  onClick={() => removeRange(i)}
+                  className="px-2 py-1 text-danger-500 hover:text-danger-700 text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => addRange('professional')}
+                className="px-3 py-1 bg-primary-500 text-white rounded text-sm hover:bg-primary-600"
+              >
+                + Pro Range
+              </button>
+              <button
+                onClick={() => addRange('student')}
+                className="px-3 py-1 bg-primary-500 text-white rounded text-sm hover:bg-primary-600"
+              >
+                + Student Range
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-600 mb-1">Default Start Number</label>
+            <input
+              type="number"
+              value={draft.defaultStartNumber || ''}
+              onChange={e => updateDraft({ defaultStartNumber: e.target.value ? parseInt(e.target.value) : undefined })}
+              placeholder="1"
+              className="w-32 px-3 py-2 border border-gray-200 rounded text-sm"
+            />
+            <small className="text-gray-500 text-sm mt-1 block">
+              Used for statuses not covered by a specific range.
+            </small>
+          </div>
+        </>
+      )}
+
+      <div className="flex items-center gap-3 mt-4">
+        <button
+          onClick={handleSave}
+          disabled={!dirty || saving}
+          className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+            dirty
+              ? 'bg-primary-500 text-white hover:bg-primary-600'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {saving ? 'Saving...' : 'Save Bib Settings'}
+        </button>
+        {dirty && <span className="text-xs text-warning-500">Unsaved changes</span>}
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <button
+          onClick={handleReassign}
+          disabled={reassigning || dirty}
+          className="px-4 py-2 bg-warning-500 text-white rounded text-sm hover:bg-warning-600 disabled:opacity-50"
+          title={dirty ? 'Save bib settings before reassigning' : undefined}
+        >
+          {reassigning ? 'Reassigning...' : 'Bulk Reassign All Bibs'}
+        </button>
+        <small className="text-gray-500 text-sm mt-1 block">
+          {dirty
+            ? 'Save your bib settings first, then reassign.'
+            : 'Reassign all leader bibs according to current range settings. This will update all heats, scores, and entries.'}
+        </small>
       </div>
     </Section>
   );

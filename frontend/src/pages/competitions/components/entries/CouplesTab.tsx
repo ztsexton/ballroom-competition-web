@@ -21,6 +21,7 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
   const [leaderId, setLeaderId] = useState('');
   const [followerId, setFollowerId] = useState('');
   const [coupleError, setCoupleError] = useState('');
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteBib, setDeleteBib] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -102,9 +103,9 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
     }
   };
 
-  const handleDeleteCouple = async (bib: number) => {
+  const handleDeleteCouple = async (id: number) => {
     try {
-      await couplesApi.delete(bib);
+      await couplesApi.delete(id);
       setCoupleError('');
       onDataChange();
     } catch (err: unknown) {
@@ -230,7 +231,7 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
                         {isOpen ? 'Close' : 'Register'}
                       </button>
                       <button
-                        onClick={() => setDeleteBib(couple.bib)}
+                        onClick={() => { setDeleteId(couple.id); setDeleteBib(couple.bib); }}
                         aria-label={`Delete couple #${couple.bib}`}
                         className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                       >
@@ -258,8 +259,8 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
         message={deleteBib !== null ? `Are you sure you want to delete couple #${deleteBib}?` : ''}
         confirmLabel="Delete"
         variant="danger"
-        onConfirm={() => { if (deleteBib !== null) handleDeleteCouple(deleteBib); setDeleteBib(null); }}
-        onCancel={() => setDeleteBib(null)}
+        onConfirm={() => { if (deleteId !== null) handleDeleteCouple(deleteId); setDeleteId(null); setDeleteBib(null); }}
+        onCancel={() => { setDeleteId(null); setDeleteBib(null); }}
       />
     </div>
   );

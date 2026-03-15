@@ -62,6 +62,7 @@ export class JsonDataService implements IDataService {
       nextOrganizationId: this.getNextId(this.loadOrganizations()),
       nextPersonId: this.getNextId(this.loadPeople()),
       nextBib: this.getNextBib(this.loadCouples()),
+      nextCoupleId: this.getNextCoupleId(this.loadCouples()),
       nextJudgeId: this.getNextId(this.loadJudges()),
       nextEventId: this.getNextEventId(this.loadEvents()),
       judgeProfiles: this.loadJudgeProfiles(),
@@ -214,6 +215,11 @@ export class JsonDataService implements IDataService {
   private getNextBib(couples: Couple[]): number {
     if (couples.length === 0) return 1;
     return Math.max(...couples.map(c => c.bib)) + 1;
+  }
+
+  private getNextCoupleId(couples: Couple[]): number {
+    if (couples.length === 0) return 1;
+    return Math.max(...couples.map(c => c.id ?? c.bib)) + 1;
   }
 
   private getNextEventId(events: Record<number, Event>): number {
@@ -436,7 +442,7 @@ export class JsonDataService implements IDataService {
     return result;
   }
 
-  async addEventEntry(eventId: number, bib: number, _competitionId: number): Promise<void> {
+  async addEventEntry(eventId: number, bib: number, _competitionId: number, _coupleId?: number): Promise<void> {
     const event = this.data.events[eventId];
     if (!event || event.heats.length === 0) return;
     const firstHeat = event.heats[0];
@@ -657,8 +663,16 @@ export class JsonDataService implements IDataService {
     const leaderName = leader.firstName + (leader.lastName ? ' ' + leader.lastName : '');
     const followerName = follower.firstName + (follower.lastName ? ' ' + follower.lastName : '');
 
+    // Assign bib from leader — if leader doesn't have one yet, assign one
+    let bibNumber = leader.bib;
+    if (bibNumber === undefined || bibNumber === null) {
+      bibNumber = await this.assignBib(competitionId, leader.status);
+      leader.bib = bibNumber;
+      this.savePeople();
+    }
     const newCouple: Couple = {
-      bib: this.data.nextBib++,
+      id: this.data.nextCoupleId++,
+      bib: bibNumber,
       leaderId,
       followerId,
       leaderName,
@@ -667,7 +681,7 @@ export class JsonDataService implements IDataService {
     };
     this.data.couples.push(newCouple);
     this.saveCouples();
-    this.saveEvents(); // Save nextBib
+    this.saveEvents(); // Save nextBib/nextCoupleId
     return newCouple;
   }
 
@@ -689,6 +703,147 @@ export class JsonDataService implements IDataService {
       return true;
     }
     return false;
+  }
+
+  // Couple by ID
+  async getCoupleById(id: number): Promise<Couple | undefined> {
+    return this.data.couples.find(c => c.id === id);
+  }
+
+  async updateCoupleById(id: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const couple = this.data.couples.find(c => c.id === id);
+    if (!couple) return null;
+    if (updates.billTo !== undefined) {
+      couple.billTo = updates.billTo || undefined;
+    }
+    this.saveCouples();
+    return couple;
+  }
+
+  async deleteCoupleById(id: number): Promise<boolean> {
+    const initialLength = this.data.couples.length;
+    this.data.couples = this.data.couples.filter(c => c.id !== id);
+    if (this.data.couples.length < initialLength) {
+      this.saveCouples();
+      return true;
+    }
+    return false;
+  }
+
+  // Bib assignment
+  async assignBib(competitionId: number, personStatus: 'student' | 'professional'): Promise<number> {
+    const competition = this.data.competitions.find(c => c.id === competitionId);
+    if (!competition) throw new Error(`Competition ${competitionId} not found`);
+
+    const bibSettings = competition.bibSettings;
+    let startNumber = 1;
+    let endNumber: number | undefined;
+
+    if (bibSettings && bibSettings.ranges.length > 0) {
+      const range = bibSettings.ranges.find(r => r.status === personStatus);
+      if (range) {
+        startNumber = range.startNumber;
+        endNumber = range.endNumber;
+      } else if (bibSettings.defaultStartNumber) {
+        startNumber = bibSettings.defaultStartNumber;
+      }
+    }
+
+    const usedBibs = new Set(
+      this.data.people
+        .filter(p => p.competitionId === competitionId && p.bib !== undefined)
+        .map(p => p.bib!)
+    );
+
+    for (let candidate = startNumber; ; candidate++) {
+      if (endNumber !== undefined && candidate > endNumber) {
+        throw new Error(`No available bibs in range ${startNumber}-${endNumber} for status ${personStatus}`);
+      }
+      if (!usedBibs.has(candidate)) return candidate;
+    }
+  }
+
+  async reassignPersonBib(personId: number, newBib: number): Promise<boolean> {
+    const person = this.data.people.find(p => p.id === personId);
+    if (!person) return false;
+    const oldBib = person.bib;
+    if (oldBib === undefined || oldBib === null) return false;
+
+    // Check availability
+    const conflict = this.data.people.find(
+      p => p.competitionId === person.competitionId && p.bib === newBib && p.id !== personId
+    );
+    if (conflict) throw new Error(`Bib ${newBib} is already taken in this competition`);
+
+    // Update person
+    person.bib = newBib;
+
+    // Update couples
+    for (const couple of this.data.couples) {
+      if (couple.leaderId === personId) {
+        couple.bib = newBib;
+      }
+    }
+
+    // Update event heats, scores, etc.
+    for (const event of Object.values(this.data.events)) {
+      if (event.competitionId !== person.competitionId) continue;
+      for (const heat of event.heats) {
+        const idx = heat.bibs.indexOf(oldBib);
+        if (idx >= 0) heat.bibs[idx] = newBib;
+      }
+      if (event.scratchedBibs) {
+        const idx = event.scratchedBibs.indexOf(oldBib);
+        if (idx >= 0) event.scratchedBibs[idx] = newBib;
+      }
+    }
+
+    // Update scores
+    const newScores: Record<string, number[]> = {};
+    for (const [key, value] of Object.entries(this.data.scores)) {
+      const newKey = key.replace(`:${oldBib}:`, `:${newBib}:`).replace(`:${oldBib}`, `:${newBib}`);
+      newScores[newKey] = value;
+    }
+    this.data.scores = newScores;
+
+    const newJudgeScores: Record<string, Record<number, number>> = {};
+    for (const [key, value] of Object.entries(this.data.judgeScores)) {
+      const newKey = key.replace(`:${oldBib}:`, `:${newBib}:`).replace(`:${oldBib}`, `:${newBib}`);
+      newJudgeScores[newKey] = value;
+    }
+    this.data.judgeScores = newJudgeScores;
+
+    this.savePeople();
+    this.saveCouples();
+    this.saveEvents();
+    return true;
+  }
+
+  async bulkReassignBibs(competitionId: number): Promise<void> {
+    const leaders = new Set<number>();
+    for (const couple of this.data.couples) {
+      if (couple.competitionId === competitionId) {
+        leaders.add(couple.leaderId);
+      }
+    }
+
+    for (const leaderId of leaders) {
+      const person = this.data.people.find(p => p.id === leaderId);
+      if (!person) continue;
+      const newBib = await this.assignBib(competitionId, person.status);
+      if (person.bib !== newBib) {
+        if (person.bib !== undefined) {
+          await this.reassignPersonBib(leaderId, newBib);
+        } else {
+          person.bib = newBib;
+          for (const couple of this.data.couples) {
+            if (couple.leaderId === leaderId) couple.bib = newBib;
+          }
+          this.savePeople();
+          this.saveCouples();
+        }
+      }
+    }
   }
 
   // Judges methods
@@ -1274,6 +1429,7 @@ export class JsonDataService implements IDataService {
       nextOrganizationId: 1,
       nextPersonId: 1,
       nextBib: 1,
+      nextCoupleId: 1,
       nextJudgeId: 1,
       nextEventId: 1,
       judgeProfiles: [],

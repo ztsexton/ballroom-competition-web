@@ -3,12 +3,15 @@ import app from '../../server';
 import { dataService } from '../../services/dataService';
 
 describe('Scrutineer API', () => {
+  let competitionId: number;
+
   beforeEach(async () => {
     await dataService.resetAllData();
+    const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+    competitionId = comp.id;
   });
 
   async function setupEventWithJudges() {
-    const competitionId = 1;
     const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
     const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'A', role: 'follower', status: 'student', competitionId });
     const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -49,7 +52,6 @@ describe('Scrutineer API', () => {
     });
 
     it('should return danceScoresByBib for multi-dance event', async () => {
-      const competitionId = 1;
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'A', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);

@@ -166,8 +166,8 @@ export class CachingDataService implements IDataService {
     return this.inner.getEntriesForBib(competitionId, bib);
   }
 
-  async addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void> {
-    return this.inner.addEventEntry(eventId, bib, competitionId);
+  async addEventEntry(eventId: number, bib: number, competitionId: number, coupleId?: number): Promise<void> {
+    return this.inner.addEventEntry(eventId, bib, competitionId, coupleId);
   }
 
   async removeEventEntry(eventId: number, bib: number): Promise<void> {
@@ -341,6 +341,49 @@ export class CachingDataService implements IDataService {
     this.couplesByBib.invalidate(`${bib}`);
     this.couplesByCompetition.invalidateAll();
     return result;
+  }
+
+  // -- Couples by ID --
+
+  async getCoupleById(id: number): Promise<Couple | undefined> {
+    return this.inner.getCoupleById(id);
+  }
+
+  async updateCoupleById(id: number, updates: Partial<Pick<Couple, 'billTo'>>): Promise<Couple | null> {
+    const result = await this.inner.updateCoupleById(id, updates);
+    this.couplesByBib.invalidateAll();
+    this.couplesByCompetition.invalidateAll();
+    return result;
+  }
+
+  async deleteCoupleById(id: number): Promise<boolean> {
+    const result = await this.inner.deleteCoupleById(id);
+    this.couplesByBib.invalidateAll();
+    this.couplesByCompetition.invalidateAll();
+    return result;
+  }
+
+  // -- Bib assignment --
+
+  async assignBib(competitionId: number, personStatus: 'student' | 'professional'): Promise<number> {
+    return this.inner.assignBib(competitionId, personStatus);
+  }
+
+  async reassignPersonBib(personId: number, newBib: number): Promise<boolean> {
+    const result = await this.inner.reassignPersonBib(personId, newBib);
+    this.couplesByBib.invalidateAll();
+    this.couplesByCompetition.invalidateAll();
+    this.eventsById.invalidateAll();
+    this.eventsByCompetition.invalidateAll();
+    return result;
+  }
+
+  async bulkReassignBibs(competitionId: number): Promise<void> {
+    await this.inner.bulkReassignBibs(competitionId);
+    this.couplesByBib.invalidateAll();
+    this.couplesByCompetition.invalidateAll();
+    this.eventsById.invalidateAll();
+    this.eventsByCompetition.invalidateAll();
   }
 
   // -- Judges --

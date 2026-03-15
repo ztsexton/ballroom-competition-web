@@ -135,7 +135,7 @@ const InvoicesPage = () => {
 
       // Auto-assign billing for couples that don't have it set yet
       const personMap = new Map(loadedPeople.map(p => [p.id, p]));
-      const toUpdate: Array<{ bib: number; billTo: 'leader' | 'follower' }> = [];
+      const toUpdate: Array<{ id: number; billTo: 'leader' | 'follower' }> = [];
       for (const couple of loadedCouples) {
         if (couple.billTo) continue; // already configured
         const leader = personMap.get(couple.leaderId);
@@ -143,13 +143,13 @@ const InvoicesPage = () => {
         if (!leader || !follower) continue;
         // Pro-Am: bill the student
         if (leader.status === 'professional' && follower.status === 'student') {
-          toUpdate.push({ bib: couple.bib, billTo: 'follower' });
+          toUpdate.push({ id: couple.id, billTo: 'follower' });
         } else if (leader.status === 'student' && follower.status === 'professional') {
-          toUpdate.push({ bib: couple.bib, billTo: 'leader' });
+          toUpdate.push({ id: couple.id, billTo: 'leader' });
         }
       }
       if (toUpdate.length > 0) {
-        await Promise.all(toUpdate.map(u => couplesApi.update(u.bib, { billTo: u.billTo })));
+        await Promise.all(toUpdate.map(u => couplesApi.update(u.id, { billTo: u.billTo })));
         const refreshed = await couplesApi.getAll(competitionId);
         setCouples(refreshed.data);
         loadInvoices();
@@ -157,9 +157,9 @@ const InvoicesPage = () => {
     } catch { /* ignore */ }
   };
 
-  const updateBillTo = async (bib: number, billTo: 'split' | 'leader' | 'follower') => {
+  const updateBillTo = async (id: number, billTo: 'split' | 'leader' | 'follower') => {
     try {
-      await couplesApi.update(bib, { billTo });
+      await couplesApi.update(id, { billTo });
       const res = await couplesApi.getAll(competitionId);
       setCouples(res.data);
       await loadInvoices();
@@ -397,13 +397,13 @@ const InvoicesPage = () => {
                         </td>
                         <td className="px-3 py-2.5">
                           <div className="flex gap-1.5 items-center">
-                            <button className={btnCls('split')} onClick={() => updateBillTo(couple.bib, 'split')}>
+                            <button className={btnCls('split')} onClick={() => updateBillTo(couple.id, 'split')}>
                               Split
                             </button>
-                            <button className={btnCls('leader')} onClick={() => updateBillTo(couple.bib, 'leader')}>
+                            <button className={btnCls('leader')} onClick={() => updateBillTo(couple.id, 'leader')}>
                               {couple.leaderName.split(' ')[0]}
                             </button>
-                            <button className={btnCls('follower')} onClick={() => updateBillTo(couple.bib, 'follower')}>
+                            <button className={btnCls('follower')} onClick={() => updateBillTo(couple.id, 'follower')}>
                               {couple.followerName.split(' ')[0]}
                             </button>
                             {isProAm && (

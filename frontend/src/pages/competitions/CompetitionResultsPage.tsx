@@ -234,7 +234,7 @@ interface PersonWithPartnerships {
   id: number;
   firstName: string;
   lastName: string;
-  partnerships: Array<{ bib: number; partnerName: string }>;
+  partnerships: Array<{ bib: number; coupleId: number; partnerName: string }>;
 }
 
 /* ── By-Person tab: people with expandable partnerships/events ── */
@@ -251,14 +251,14 @@ function ByPersonTab({ competitionId }: { competitionId: number }) {
       .then(([peopleRes, couplesRes]) => {
         const couples = couplesRes.data;
         // Build person → partnerships map
-        const personPartnerships = new Map<number, Array<{ bib: number; partnerName: string }>>();
+        const personPartnerships = new Map<number, Array<{ bib: number; coupleId: number; partnerName: string }>>();
         for (const c of couples) {
           let leaderList = personPartnerships.get(c.leaderId);
           if (!leaderList) { leaderList = []; personPartnerships.set(c.leaderId, leaderList); }
-          leaderList.push({ bib: c.bib, partnerName: c.followerName });
+          leaderList.push({ bib: c.bib, coupleId: c.id, partnerName: c.followerName });
           let followerList = personPartnerships.get(c.followerId);
           if (!followerList) { followerList = []; personPartnerships.set(c.followerId, followerList); }
-          followerList.push({ bib: c.bib, partnerName: c.leaderName });
+          followerList.push({ bib: c.bib, coupleId: c.id, partnerName: c.leaderName });
         }
         setPeople(peopleRes.data.map(p => ({
           id: p.id,
@@ -318,7 +318,7 @@ function ByPersonTab({ competitionId }: { competitionId: number }) {
                 // Load events for each of this person's bibs
                 const results: PartnershipEvents[] = [];
                 for (const pt of person.partnerships) {
-                  const res = await couplesApi.getEvents(pt.bib);
+                  const res = await couplesApi.getEvents(pt.coupleId);
                   const events = res.data.map(e => ({
                     id: e.id,
                     name: e.name,

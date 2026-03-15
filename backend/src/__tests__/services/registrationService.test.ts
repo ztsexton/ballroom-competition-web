@@ -198,20 +198,19 @@ describe('Registration Service', () => {
         name: 'Studio Comp', type: 'STUDIO', date: '2026-06-01',
         allowDuplicateEntries: true,
       });
-      // Pro dancer (leader for both couples)
-      const pro = await dataService.addPerson({
-        firstName: 'Pro', lastName: 'Dancer', role: 'leader', status: 'professional', competitionId: comp.id,
-      });
-      // Student 1
+      // Student leaders (different leaders = different bibs)
       const student1 = await dataService.addPerson({
-        firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id,
+        firstName: 'Student', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id,
       });
-      // Student 2
       const student2 = await dataService.addPerson({
-        firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id,
+        firstName: 'Student', lastName: 'Two', role: 'leader', status: 'student', competitionId: comp.id,
       });
-      const couple1 = await dataService.addCouple(pro.id, student1.id, comp.id);
-      const couple2 = await dataService.addCouple(pro.id, student2.id, comp.id);
+      // Pro dancer (follower for both couples)
+      const pro = await dataService.addPerson({
+        firstName: 'Pro', lastName: 'Dancer', role: 'follower', status: 'professional', competitionId: comp.id,
+      });
+      const couple1 = await dataService.addCouple(student1.id, pro.id, comp.id);
+      const couple2 = await dataService.addCouple(student2.id, pro.id, comp.id);
       return { comp, pro, student1, student2, couple1: couple1!, couple2: couple2! };
     }
 
@@ -263,17 +262,17 @@ describe('Registration Service', () => {
       const comp = await dataService.addCompetition({
         name: 'Normal Comp', type: 'UNAFFILIATED', date: '2026-06-01',
       });
-      const pro = await dataService.addPerson({
-        firstName: 'Pro', lastName: 'Dancer', role: 'leader', status: 'professional', competitionId: comp.id,
-      });
       const student1 = await dataService.addPerson({
-        firstName: 'S', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id,
+        firstName: 'S', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id,
       });
       const student2 = await dataService.addPerson({
-        firstName: 'S', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id,
+        firstName: 'S', lastName: 'Two', role: 'leader', status: 'student', competitionId: comp.id,
       });
-      const couple1 = await dataService.addCouple(pro.id, student1.id, comp.id);
-      const couple2 = await dataService.addCouple(pro.id, student2.id, comp.id);
+      const pro = await dataService.addPerson({
+        firstName: 'Pro', lastName: 'Dancer', role: 'follower', status: 'professional', competitionId: comp.id,
+      });
+      const couple1 = await dataService.addCouple(student1.id, pro.id, comp.id);
+      const couple2 = await dataService.addCouple(student2.id, pro.id, comp.id);
 
       await registerCoupleForEvent(comp.id, couple1!.bib, combination);
       // With allowDuplicateEntries OFF, second couple goes into same event (no person conflict check)
@@ -284,11 +283,11 @@ describe('Registration Service', () => {
 
     it('should handle three sections (A, B, C) correctly', async () => {
       const { comp, pro, couple1, couple2 } = await setupDuplicateEntryCompetition();
-      // Create a third student
+      // Create a third student leader
       const student3 = await dataService.addPerson({
-        firstName: 'Student', lastName: 'Three', role: 'follower', status: 'student', competitionId: comp.id,
+        firstName: 'Student', lastName: 'Three', role: 'leader', status: 'student', competitionId: comp.id,
       });
-      const couple3 = await dataService.addCouple(pro.id, student3.id, comp.id);
+      const couple3 = await dataService.addCouple(student3.id, pro.id, comp.id);
 
       await registerCoupleForEvent(comp.id, couple1.bib, combination);
       await registerCoupleForEvent(comp.id, couple2.bib, combination);
@@ -344,13 +343,13 @@ describe('Registration Service', () => {
   });
 
   describe('checkPersonConflict', () => {
-    it('should detect conflict when leader is shared', async () => {
+    it('should detect conflict when follower is shared', async () => {
       const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
-      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'D', role: 'leader', status: 'professional', competitionId: comp.id });
-      const s1 = await dataService.addPerson({ firstName: 'S', lastName: '1', role: 'follower', status: 'student', competitionId: comp.id });
-      const s2 = await dataService.addPerson({ firstName: 'S', lastName: '2', role: 'follower', status: 'student', competitionId: comp.id });
-      const c1 = await dataService.addCouple(pro.id, s1.id, comp.id);
-      const c2 = await dataService.addCouple(pro.id, s2.id, comp.id);
+      const l1 = await dataService.addPerson({ firstName: 'L', lastName: '1', role: 'leader', status: 'student', competitionId: comp.id });
+      const l2 = await dataService.addPerson({ firstName: 'L', lastName: '2', role: 'leader', status: 'student', competitionId: comp.id });
+      const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'D', role: 'follower', status: 'professional', competitionId: comp.id });
+      const c1 = await dataService.addCouple(l1.id, pro.id, comp.id);
+      const c2 = await dataService.addCouple(l2.id, pro.id, comp.id);
 
       const hasConflict = await checkPersonConflict(c2!.bib, [c1!.bib], comp.id);
       expect(hasConflict).toBe(true);

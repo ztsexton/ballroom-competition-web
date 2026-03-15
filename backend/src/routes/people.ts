@@ -76,6 +76,32 @@ router.patch('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) =>
   res.json(updatedPerson);
 });
 
+// Reassign a person's bib number (cascades to couples, entries, scores)
+router.patch('/:id/bib', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+  const person = await dataService.getPersonById(id);
+  if (!person) {
+    return res.status(404).json({ error: 'Person not found' });
+  }
+  if (!(await assertCompetitionAccess(req, res, person.competitionId))) return;
+
+  const { bib } = req.body;
+  if (typeof bib !== 'number' || bib < 1) {
+    return res.status(400).json({ error: 'Valid bib number is required' });
+  }
+
+  try {
+    const success = await dataService.reassignPersonBib(id, bib);
+    if (!success) {
+      return res.status(400).json({ error: 'Could not reassign bib' });
+    }
+    const updated = await dataService.getPersonById(id);
+    res.json(updated);
+  } catch (err: any) {
+    res.status(409).json({ error: err.message });
+  }
+});
+
 // Delete person
 router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);

@@ -2,15 +2,18 @@ import { scoringService } from '../../services/scoringService';
 import { dataService } from '../../services/dataService';
 
 describe('ScoringService', () => {
+  let competitionId: number;
+
   beforeEach(async () => {
     // Reset data before each test
     await dataService.resetAllData();
+    const comp = await dataService.addCompetition({ name: 'Test', type: 'UNAFFILIATED', date: '2026-06-01' });
+    competitionId = comp.id;
   });
 
   describe('calculateResults', () => {
     it('should calculate results for a final round correctly', async () => {
       // Setup: Create people, couples, judges, and event
-      const competitionId = 1;
       const leader1 = await dataService.addPerson({ firstName: 'Leader', lastName: '1', role: 'leader', status: 'student', competitionId });
       const follower1 = await dataService.addPerson({ firstName: 'Follower', lastName: '1', role: 'follower', status: 'student', competitionId });
       const leader2 = await dataService.addPerson({ firstName: 'Leader', lastName: '2', role: 'leader', status: 'student', competitionId });
@@ -40,7 +43,6 @@ describe('ScoringService', () => {
 
     it('should calculate results for a recall round correctly', async () => {
       // Setup
-      const competitionId = 1;
       const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -78,7 +80,6 @@ describe('ScoringService', () => {
   describe('getTopCouples', () => {
     it('should return top N couples based on scores', async () => {
       // Setup: Create 4 couples with different scores
-      const competitionId = 1;
       const couples = [];
       for (let i = 0; i < 4; i++) {
         const leader = await dataService.addPerson({ firstName: 'Leader', lastName: `${i}`, role: 'leader', status: 'student', competitionId });
@@ -106,7 +107,6 @@ describe('ScoringService', () => {
     it('should successfully score an event and advance to next round', async () => {
       // Setup: Create event with 10 couples (should have semi-final and final)
       const couples = [];
-      const competitionId = 1;
       for (let i = 0; i < 10; i++) {
         const leader = await dataService.addPerson({ firstName: 'Leader', lastName: `${i}`, role: 'leader', status: 'student', competitionId });
         const follower = await dataService.addPerson({ firstName: 'Follower', lastName: `${i}`, role: 'follower', status: 'student', competitionId });
@@ -146,7 +146,7 @@ describe('ScoringService', () => {
     });
 
     it('should return false for non-existent round', async () => {
-      const event = await dataService.addEvent('Test', [], [], 1);
+      const event = await dataService.addEvent('Test', [], [], competitionId);
       const success = await scoringService.scoreEvent(event.id, 'nonexistent', []);
       expect(success).toBe(false);
     });
@@ -154,7 +154,7 @@ describe('ScoringService', () => {
 
   describe('submitJudgeScores', () => {
     it('should submit judge scores', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -175,13 +175,13 @@ describe('ScoringService', () => {
     });
 
     it('should return false for non-existent round', async () => {
-      const event = await dataService.addEvent('Test', [], [], 1);
+      const event = await dataService.addEvent('Test', [], [], competitionId);
       const result = await scoringService.submitJudgeScores(event.id, 'nonexistent', 1, []);
       expect(result.success).toBe(false);
     });
 
     it('should return false for judge not assigned to event', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -197,7 +197,7 @@ describe('ScoringService', () => {
     });
 
     it('should report allSubmitted when all judges have submitted', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -216,7 +216,7 @@ describe('ScoringService', () => {
 
   describe('compileJudgeScores', () => {
     it('should compile judge scores into final format', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -239,13 +239,13 @@ describe('ScoringService', () => {
     });
 
     it('should return false for non-existent round', async () => {
-      const event = await dataService.addEvent('Test', [], [], 1);
+      const event = await dataService.addEvent('Test', [], [], competitionId);
       const result = await scoringService.compileJudgeScores(event.id, 'nonexistent');
       expect(result).toBe(false);
     });
 
     it('should skip auto-advancement when bibSubset is provided', async () => {
-      const competitionId = 1;
+
       const couples = [];
       for (let i = 0; i < 10; i++) {
         const l = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId });
@@ -279,7 +279,7 @@ describe('ScoringService', () => {
 
   describe('enrichRecallStatus', () => {
     it('should mark recalled bibs', async () => {
-      const competitionId = 1;
+
       const couples = [];
       for (let i = 0; i < 10; i++) {
         const l = await dataService.addPerson({ firstName: `L${i}`, lastName: 'X', role: 'leader', status: 'student', competitionId });
@@ -309,14 +309,14 @@ describe('ScoringService', () => {
     });
 
     it('should not fail for final round (no next round)', async () => {
-      const event = await dataService.addEvent('Test', [], [], 1);
+      const event = await dataService.addEvent('Test', [], [], competitionId);
       await scoringService.enrichRecallStatus([], event.id, 'final');
     });
   });
 
   describe('calculateResults - proficiency scoring', () => {
     it('should calculate proficiency scores as averages', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -338,7 +338,7 @@ describe('ScoringService', () => {
 
   describe('calculateResults - multi-dance', () => {
     it('should calculate multi-dance final results', async () => {
-      const competitionId = 1;
+
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
       const couple = await dataService.addCouple(leader.id, follower.id, competitionId);

@@ -120,6 +120,7 @@ export interface EntryValidation {
 export interface PendingEntry {
   id: string;
   bib: number;
+  coupleId?: number;
   competitionId: number;
   combination: {
     designation?: string;
@@ -151,6 +152,20 @@ export interface ResultsVisibility {
   scholarship: boolean;
 }
 
+export interface BibRange {
+  status: 'professional' | 'student';
+  label?: string;
+  startNumber: number;
+  endNumber?: number;
+  color?: string;
+}
+
+export interface BibSettings {
+  mode: 'auto' | 'manual';
+  ranges: BibRange[];
+  defaultStartNumber?: number;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -160,6 +175,7 @@ export interface Competition {
   studioId?: number;
   organizationId?: number;
   description?: string;
+  bibSettings?: BibSettings;
   judgeSettings?: JudgeSettings;
   timingSettings?: TimingSettings;
   defaultScoringType?: 'standard' | 'proficiency';
@@ -233,12 +249,14 @@ export interface Person {
   dateOfBirth?: string;
   ageCategory?: string;
   level?: string;  // Declared skill level for entry validation
+  bib?: number;
   competitionId: number;
   studioId?: number;
   userId?: string;
 }
 
 export interface Couple {
+  id: number;
   bib: number;
   leaderId: number;
   followerId: number;

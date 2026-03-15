@@ -20,6 +20,7 @@ const CouplesPage = () => {
   const [followerId, setFollowerId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteBib, setDeleteBib] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -121,9 +122,9 @@ const CouplesPage = () => {
     }
   };
 
-  const handleDelete = async (bib: number) => {
+  const handleDelete = async (id: number) => {
     try {
-      await couplesApi.delete(bib);
+      await couplesApi.delete(id);
       setError('');
       loadData();
     } catch (error: any) {
@@ -299,13 +300,13 @@ const CouplesPage = () => {
             </thead>
             <tbody>
               {filteredCouples.map(couple => (
-                <tr key={couple.bib}>
+                <tr key={couple.id}>
                   <td className="px-3 py-2 border-t border-gray-100"><strong>#{couple.bib}</strong></td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.leaderName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.followerName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">
                     <button
-                      onClick={() => setDeleteBib(couple.bib)}
+                      onClick={() => { setDeleteId(couple.id); setDeleteBib(couple.bib); }}
                       className="px-2 py-1 bg-danger-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-danger-600"
                       aria-label={`Delete couple #${couple.bib}`}
                     >
@@ -328,13 +329,13 @@ const CouplesPage = () => {
         </div>
       )}
       <ConfirmDialog
-        open={deleteBib !== null}
+        open={deleteId !== null}
         title="Delete Couple"
         message={`Are you sure you want to delete couple #${deleteBib}?`}
         confirmLabel="Delete"
         variant="danger"
-        onConfirm={() => { if (deleteBib !== null) handleDelete(deleteBib); setDeleteBib(null); }}
-        onCancel={() => setDeleteBib(null)}
+        onConfirm={() => { if (deleteId !== null) handleDelete(deleteId); setDeleteId(null); setDeleteBib(null); }}
+        onCancel={() => { setDeleteId(null); setDeleteBib(null); }}
       />
     </div>
   );

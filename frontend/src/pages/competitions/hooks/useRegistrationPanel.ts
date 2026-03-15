@@ -87,6 +87,7 @@ export function useRegistrationPanel(
   couples?: Couple[],
 ): RegistrationState {
   const [registerBib, setRegisterBib] = useState<number | null>(null);
+  const [registerCoupleId, setRegisterCoupleId] = useState<number | null>(null);
   const [regDesignation, setRegDesignation] = useState('');
   const [regSyllabusType, setRegSyllabusType] = useState('');
   const [regLevel, setRegLevel] = useState('');
@@ -123,20 +124,24 @@ export function useRegistrationPanel(
   const openRegisterPanel = async (bib: number) => {
     if (registerBib === bib) {
       setRegisterBib(null);
+      setRegisterCoupleId(null);
       return;
     }
     setRegisterBib(bib);
 
     // Infer designation from leader/follower statuses
     let defaultDesignation = '';
+    let coupleId: number | null = null;
     if (couples && people) {
       const couple = couples.find(c => c.bib === bib);
       if (couple) {
+        coupleId = couple.id;
         const leader = people.find(p => p.id === couple.leaderId);
         const follower = people.find(p => p.id === couple.followerId);
         defaultDesignation = inferDesignation(leader?.status, follower?.status);
       }
     }
+    setRegisterCoupleId(coupleId);
     setRegDesignation(defaultDesignation);
     setRegSyllabusType('');
     setRegLevel('');
@@ -157,8 +162,12 @@ export function useRegistrationPanel(
     setScholTemplateIds([]);
     setCoupleEventsLoading(true);
     try {
-      const res = await couplesApi.getEvents(bib);
-      setCoupleEvents(res.data);
+      if (coupleId) {
+        const res = await couplesApi.getEvents(coupleId);
+        setCoupleEvents(res.data);
+      } else {
+        setCoupleEvents([]);
+      }
     } catch {
       setCoupleEvents([]);
     } finally {
@@ -188,7 +197,7 @@ export function useRegistrationPanel(
       const action = res.data.created ? 'Created & registered for' : 'Registered for';
       setRegMessage(`${action} ${res.data.event.name}`);
       // Refresh couple events
-      const evRes = await couplesApi.getEvents(registerBib);
+      const evRes = await couplesApi.getEvents(registerCoupleId!);
       setCoupleEvents(evRes.data);
     } catch (err: unknown) {
       setRegError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to register' : 'Failed to register');
@@ -302,7 +311,7 @@ export function useRegistrationPanel(
 
     // Refresh couple events
     try {
-      const evRes = await couplesApi.getEvents(registerBib);
+      const evRes = await couplesApi.getEvents(registerCoupleId!);
       setCoupleEvents(evRes.data);
     } catch { /* ignore */ }
 
@@ -377,7 +386,7 @@ export function useRegistrationPanel(
     }
 
     try {
-      const evRes = await couplesApi.getEvents(registerBib);
+      const evRes = await couplesApi.getEvents(registerCoupleId!);
       setCoupleEvents(evRes.data);
     } catch { /* ignore */ }
 
@@ -388,7 +397,7 @@ export function useRegistrationPanel(
     if (!registerBib) return;
     try {
       await eventsApi.removeEntry(eventId, registerBib);
-      const evRes = await couplesApi.getEvents(registerBib);
+      const evRes = await couplesApi.getEvents(registerCoupleId!);
       setCoupleEvents(evRes.data);
     } catch (err: unknown) {
       setRegError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to remove entry' : 'Failed to remove entry');

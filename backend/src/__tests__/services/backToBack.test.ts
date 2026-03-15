@@ -75,16 +75,16 @@ describe('Person-Level Back-to-Back Detection', () => {
   });
 
   it('should detect person-level conflicts across different couples', async () => {
-    // Pro dancer (leader) dances with two different students (followers)
+    // Pro follower dances with two different student leaders (different bibs)
     const comp = await dataService.addCompetition({
       name: 'Test', type: 'NDCA', date: '2026-06-01',
     });
-    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
-    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
-    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+    const studentLeader1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id });
+    const studentLeader2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'leader', status: 'student', competitionId: comp.id });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Follower', role: 'follower', status: 'professional', competitionId: comp.id });
 
-    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
-    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+    const c1 = (await dataService.addCouple(studentLeader1.id, pro.id, comp.id))!;
+    const c2 = (await dataService.addCouple(studentLeader2.id, pro.id, comp.id))!;
 
     const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
     const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);
@@ -94,7 +94,7 @@ describe('Person-Level Back-to-Back Detection', () => {
       { id: 'h2', entries: [{ eventId: e2.id, round: 'final' }] },
     ];
 
-    // Couple-level detection should NOT detect this (different bibs)
+    // Couple-level detection should NOT detect this (different bibs since different leaders)
     const coupleConflicts = await detectBackToBack(heatOrder, comp.id);
     expect(coupleConflicts).toHaveLength(0);
 
@@ -108,12 +108,12 @@ describe('Person-Level Back-to-Back Detection', () => {
     const comp = await dataService.addCompetition({
       name: 'Test', type: 'NDCA', date: '2026-06-01',
     });
-    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
-    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
-    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+    const studentLeader1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id });
+    const studentLeader2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'leader', status: 'student', competitionId: comp.id });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Follower', role: 'follower', status: 'professional', competitionId: comp.id });
 
-    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
-    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+    const c1 = (await dataService.addCouple(studentLeader1.id, pro.id, comp.id))!;
+    const c2 = (await dataService.addCouple(studentLeader2.id, pro.id, comp.id))!;
 
     const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
     const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);
@@ -162,12 +162,12 @@ describe('Person-Level Back-to-Back Detection', () => {
     const comp = await dataService.addCompetition({
       name: 'Test', type: 'NDCA', date: '2026-06-01',
     });
-    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Leader', role: 'leader', status: 'professional', competitionId: comp.id });
-    const student1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'follower', status: 'student', competitionId: comp.id });
-    const student2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'follower', status: 'student', competitionId: comp.id });
+    const studentLeader1 = await dataService.addPerson({ firstName: 'Student', lastName: 'One', role: 'leader', status: 'student', competitionId: comp.id });
+    const studentLeader2 = await dataService.addPerson({ firstName: 'Student', lastName: 'Two', role: 'leader', status: 'student', competitionId: comp.id });
+    const pro = await dataService.addPerson({ firstName: 'Pro', lastName: 'Follower', role: 'follower', status: 'professional', competitionId: comp.id });
 
-    const c1 = (await dataService.addCouple(pro.id, student1.id, comp.id))!;
-    const c2 = (await dataService.addCouple(pro.id, student2.id, comp.id))!;
+    const c1 = (await dataService.addCouple(studentLeader1.id, pro.id, comp.id))!;
+    const c2 = (await dataService.addCouple(studentLeader2.id, pro.id, comp.id))!;
 
     const e1 = await dataService.addEvent('Event 1', [c1.bib], [], comp.id);
     const e2 = await dataService.addEvent('Event 2', [c2.bib], [], comp.id);

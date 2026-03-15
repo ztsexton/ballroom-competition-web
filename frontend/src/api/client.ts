@@ -124,6 +124,8 @@ export const competitionsApi = {
     api.post<{ results: Array<{ eventId: number; action: string; success: boolean; error?: string }>; allSuccess: boolean }>(
       `/competitions/${id}/apply-resolution`, { actions }
     ),
+  reassignBibs: (id: number) =>
+    api.post<{ success: boolean }>(`/competitions/${id}/reassign-bibs`),
 };
 
 // Studios API
@@ -155,22 +157,25 @@ export const peopleApi = {
   create: (person: Omit<Person, 'id'>) => api.post<Person>('/people', person),
   update: (id: number, updates: Partial<Omit<Person, 'id'>>) =>
     api.patch<Person>(`/people/${id}`, updates),
+  reassignBib: (id: number, bib: number) =>
+    api.patch<Person>(`/people/${id}/bib`, { bib }),
   delete: (id: number) => api.delete(`/people/${id}`),
 };
 
 // Couples API
 export const couplesApi = {
-  getAll: (competitionId?: number) => 
+  getAll: (competitionId?: number) =>
     api.get<Couple[]>('/couples', { params: { competitionId } }),
+  getById: (id: number) => api.get<Couple>(`/couples/${id}`),
   getByBib: (bib: number) => api.get<Couple>(`/couples/${bib}`),
-  getEligibleCategories: (bib: number, competitionId: number) =>
-    api.get<{ categories: string[]; leaderAge?: number; followerAge?: number }>(`/couples/${bib}/eligible-categories`, { params: { competitionId } }),
-  getEvents: (bib: number) => api.get<Event[]>(`/couples/${bib}/events`),
+  getEligibleCategories: (id: number, competitionId: number) =>
+    api.get<{ categories: string[]; leaderAge?: number; followerAge?: number }>(`/couples/${id}/eligible-categories`, { params: { competitionId } }),
+  getEvents: (id: number) => api.get<Event[]>(`/couples/${id}/events`),
   create: (leaderId: number, followerId: number, competitionId: number) =>
     api.post<Couple>('/couples', { leaderId, followerId, competitionId }),
-  update: (bib: number, updates: Partial<Pick<Couple, 'billTo'>>) =>
-    api.patch<Couple>(`/couples/${bib}`, updates),
-  delete: (bib: number) => api.delete(`/couples/${bib}`),
+  update: (id: number, updates: Partial<Pick<Couple, 'billTo'>>) =>
+    api.patch<Couple>(`/couples/${id}`, updates),
+  delete: (id: number) => api.delete(`/couples/${id}`),
 };
 
 // Judges API

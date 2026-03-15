@@ -7,7 +7,11 @@ describe('Couples API', () => {
     await dataService.resetAllData();
   });
 
-  async function createCouple(competitionId = 1) {
+  async function createCouple(competitionId?: number) {
+    if (competitionId === undefined) {
+      const comp = await dataService.addCompetition({ name: 'Default Comp', type: 'UNAFFILIATED', date: '2025-01-01' });
+      competitionId = comp.id;
+    }
     const leader = await dataService.addPerson({ firstName: 'Leader', lastName: 'A', role: 'leader', status: 'student', competitionId });
     const follower = await dataService.addPerson({ firstName: 'Follower', lastName: 'B', role: 'follower', status: 'student', competitionId });
     const couple = await dataService.addCouple(leader.id, follower.id, competitionId);
@@ -52,15 +56,15 @@ describe('Couples API', () => {
     });
   });
 
-  describe('GET /api/couples/:bib', () => {
-    it('should return couple by bib', async () => {
+  describe('GET /api/couples/:id', () => {
+    it('should return couple by id', async () => {
       const { couple } = await createCouple();
 
       const response = await request(app)
-        .get(`/api/couples/${couple.bib}`)
+        .get(`/api/couples/${couple.id}`)
         .expect(200);
 
-      expect(response.body.bib).toBe(couple.bib);
+      expect(response.body.id).toBe(couple.id);
     });
 
     it('should return 404 for missing couple', async () => {
@@ -72,7 +76,8 @@ describe('Couples API', () => {
 
   describe('POST /api/couples', () => {
     it('should create couple with auto-assigned bib', async () => {
-      const competitionId = 1;
+      const comp = await dataService.addCompetition({ name: 'Test Comp', type: 'UNAFFILIATED', date: '2025-01-01' });
+      const competitionId = comp.id;
       const leader = await dataService.addPerson({ firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId });
       const follower = await dataService.addPerson({ firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId });
 
@@ -94,13 +99,13 @@ describe('Couples API', () => {
     });
   });
 
-  describe('GET /api/couples/:bib/events', () => {
+  describe('GET /api/couples/:id/events', () => {
     it('should return events for a couple', async () => {
       const { couple } = await createCouple();
       await dataService.addEvent('Waltz', [couple.bib], [], couple.competitionId);
 
       const response = await request(app)
-        .get(`/api/couples/${couple.bib}/events`)
+        .get(`/api/couples/${couple.id}/events`)
         .expect(200);
 
       expect(response.body).toHaveLength(1);
@@ -125,12 +130,12 @@ describe('Couples API', () => {
     });
   });
 
-  describe('GET /api/couples/:bib/eligible-categories', () => {
+  describe('GET /api/couples/:id/eligible-categories', () => {
     it('should return 400 when competitionId is missing', async () => {
       const { couple } = await createCouple();
 
       const response = await request(app)
-        .get(`/api/couples/${couple.bib}/eligible-categories`)
+        .get(`/api/couples/${couple.id}/eligible-categories`)
         .expect(400);
 
       expect(response.body.error).toContain('competitionId');
@@ -166,7 +171,7 @@ describe('Couples API', () => {
       const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
 
       const response = await request(app)
-        .get(`/api/couples/${couple!.bib}/eligible-categories?competitionId=${comp.id}`)
+        .get(`/api/couples/${couple!.id}/eligible-categories?competitionId=${comp.id}`)
         .expect(200);
 
       expect(response.body.categories).toBeDefined();
@@ -187,24 +192,24 @@ describe('Couples API', () => {
       const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
 
       const response = await request(app)
-        .get(`/api/couples/${couple!.bib}/eligible-categories?competitionId=${comp.id}`)
+        .get(`/api/couples/${couple!.id}/eligible-categories?competitionId=${comp.id}`)
         .expect(200);
 
       expect(response.body.categories).toBeDefined();
     });
   });
 
-  describe('DELETE /api/couples/:bib', () => {
+  describe('DELETE /api/couples/:id', () => {
     it('should delete couple', async () => {
       const { couple } = await createCouple();
 
       await request(app)
-        .delete(`/api/couples/${couple.bib}`)
+        .delete(`/api/couples/${couple.id}`)
         .expect(204);
 
       // Verify deleted
       await request(app)
-        .get(`/api/couples/${couple.bib}`)
+        .get(`/api/couples/${couple.id}`)
         .expect(404);
     });
 
@@ -213,7 +218,7 @@ describe('Couples API', () => {
       await dataService.addEvent('Waltz', [couple.bib], [], couple.competitionId);
 
       await request(app)
-        .delete(`/api/couples/${couple.bib}`)
+        .delete(`/api/couples/${couple.id}`)
         .expect(400);
     });
 

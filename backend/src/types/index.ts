@@ -120,6 +120,7 @@ export interface EntryValidation {
 export interface PendingEntry {
   id: string;           // Unique ID for this pending entry
   bib: number;
+  coupleId?: number;
   competitionId: number;
   combination: {
     designation?: string;
@@ -151,6 +152,20 @@ export interface ResultsVisibility {
   scholarship: boolean;
 }
 
+export interface BibRange {
+  status: 'professional' | 'student';
+  label?: string;
+  startNumber: number;
+  endNumber?: number;
+  color?: string;
+}
+
+export interface BibSettings {
+  mode: 'auto' | 'manual';
+  ranges: BibRange[];
+  defaultStartNumber?: number;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -160,6 +175,7 @@ export interface Competition {
   studioId?: number; // Only for STUDIO type competitions
   organizationId?: number;
   description?: string;
+  bibSettings?: BibSettings;
   judgeSettings?: JudgeSettings;
   timingSettings?: TimingSettings;
   defaultScoringType?: 'standard' | 'proficiency';
@@ -233,12 +249,14 @@ export interface Person {
   dateOfBirth?: string;
   ageCategory?: string;
   level?: string;  // Declared skill level for entry validation
+  bib?: number;
   competitionId: number;
   studioId?: number; // For studio competitions
   userId?: string; // Firebase UID linking person to logged-in user
 }
 
 export interface Couple {
+  id: number;
   bib: number;
   leaderId: number;
   followerId: number;
@@ -618,6 +636,7 @@ export interface AppData {
   nextOrganizationId: number;
   nextPersonId: number;
   nextBib: number;
+  nextCoupleId: number;
   nextJudgeId: number;
   nextEventId: number;
   judgeProfiles: JudgeProfile[];
