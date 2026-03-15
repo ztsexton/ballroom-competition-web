@@ -820,30 +820,83 @@ export class JsonDataService implements IDataService {
   }
 
   async bulkReassignBibs(competitionId: number): Promise<void> {
-    const leaders = new Set<number>();
+    // Collect leaders sorted by current bib to preserve relative order
+    const leaderIds = new Set<number>();
     for (const couple of this.data.couples) {
       if (couple.competitionId === competitionId) {
-        leaders.add(couple.leaderId);
+        leaderIds.add(couple.leaderId);
       }
     }
 
-    for (const leaderId of leaders) {
-      const person = this.data.people.find(p => p.id === leaderId);
-      if (!person) continue;
-      const newBib = await this.assignBib(competitionId, person.status);
-      if (person.bib !== newBib) {
-        if (person.bib !== undefined) {
-          await this.reassignPersonBib(leaderId, newBib);
-        } else {
-          person.bib = newBib;
-          for (const couple of this.data.couples) {
-            if (couple.leaderId === leaderId) couple.bib = newBib;
-          }
-          this.savePeople();
-          this.saveCouples();
-        }
+    const leaderPeople = this.data.people
+      .filter(p => leaderIds.has(p.id))
+      .sort((a, b) => (a.bib ?? Infinity) - (b.bib ?? Infinity));
+
+    if (leaderPeople.length === 0) return;
+
+    // Save old bibs before clearing
+    const oldBibs = new Map<number, number>(); // leaderId → oldBib
+    for (const person of leaderPeople) {
+      if (person.bib !== undefined) {
+        oldBibs.set(person.id, person.bib);
       }
     }
+
+    // Clear all leader bibs so assignBib sees a clean slate
+    for (const person of leaderPeople) {
+      person.bib = undefined;
+    }
+
+    // Assign fresh bibs sequentially
+    const newBibMap = new Map<number, number>();
+    for (const person of leaderPeople) {
+      const newBib = await this.assignBib(competitionId, person.status);
+      person.bib = newBib;
+      newBibMap.set(person.id, newBib);
+      // Update couples
+      for (const couple of this.data.couples) {
+        if (couple.leaderId === person.id) couple.bib = newBib;
+      }
+    }
+
+    // Cascade bib changes to events and scores for leaders whose bib changed
+    for (const person of leaderPeople) {
+      const oldBib = oldBibs.get(person.id);
+      const newBib = newBibMap.get(person.id)!;
+      if (oldBib === undefined || oldBib === newBib) continue;
+
+      // Update event heats and scratched bibs
+      for (const event of Object.values(this.data.events)) {
+        if (event.competitionId !== competitionId) continue;
+        for (const heat of event.heats) {
+          const idx = heat.bibs.indexOf(oldBib);
+          if (idx >= 0) heat.bibs[idx] = newBib;
+        }
+        if (event.scratchedBibs) {
+          const idx = event.scratchedBibs.indexOf(oldBib);
+          if (idx >= 0) event.scratchedBibs[idx] = newBib;
+        }
+      }
+
+      // Update scores keys
+      const newScores: Record<string, number[]> = {};
+      for (const [key, value] of Object.entries(this.data.scores)) {
+        const newKey = key.replace(`:${oldBib}:`, `:${newBib}:`).replace(`:${oldBib}`, `:${newBib}`);
+        newScores[newKey] = value;
+      }
+      this.data.scores = newScores;
+
+      const newJudgeScores: Record<string, Record<number, number>> = {};
+      for (const [key, value] of Object.entries(this.data.judgeScores)) {
+        const newKey = key.replace(`:${oldBib}:`, `:${newBib}:`).replace(`:${oldBib}`, `:${newBib}`);
+        newJudgeScores[newKey] = value;
+      }
+      this.data.judgeScores = newJudgeScores;
+    }
+
+    this.savePeople();
+    this.saveCouples();
+    this.saveEvents();
   }
 
   // Judges methods

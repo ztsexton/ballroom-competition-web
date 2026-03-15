@@ -24,6 +24,9 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteBib, setDeleteBib] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingBibCoupleId, setEditingBibCoupleId] = useState<number | null>(null);
+  const [editBibValue, setEditBibValue] = useState('');
+  const [savingBib, setSavingBib] = useState(false);
 
   // Inline person creation state
   const [leaderMode, setLeaderMode] = useState<'select' | 'new'>('select');
@@ -110,6 +113,29 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
       onDataChange();
     } catch (err: unknown) {
       showToast(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to delete couple' : 'Failed to delete couple', 'error');
+    }
+  };
+
+  const handleReassignBib = async (couple: Couple) => {
+    const newBib = parseInt(editBibValue);
+    if (!newBib || newBib < 1) {
+      showToast('Bib must be a positive number', 'error');
+      return;
+    }
+    if (newBib === couple.bib) {
+      setEditingBibCoupleId(null);
+      return;
+    }
+    setSavingBib(true);
+    try {
+      await peopleApi.reassignBib(couple.leaderId, newBib);
+      showToast(`Bib reassigned from #${couple.bib} to #${newBib}`, 'success');
+      setEditingBibCoupleId(null);
+      onDataChange();
+    } catch (err: unknown) {
+      showToast(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to reassign bib' : 'Failed to reassign bib', 'error');
+    } finally {
+      setSavingBib(false);
     }
   };
 
@@ -219,9 +245,46 @@ const CouplesTab = ({ couples, people, competitionId, activeCompetition, onDataC
               const isOpen = registration.registerBib === couple.bib;
 
               return (
-                <div key={couple.bib} className="border-b border-gray-200">
+                <div key={couple.id} className="border-b border-gray-200">
                   <div className="flex items-center py-2.5 gap-4">
-                    <strong className="min-w-[3rem]">#{couple.bib}</strong>
+                    <div className="flex flex-col min-w-[5rem]">
+                      {editingBibCoupleId === couple.id ? (
+                        <form
+                          onSubmit={e => { e.preventDefault(); handleReassignBib(couple); }}
+                          className="flex items-center gap-1"
+                        >
+                          <span className="text-xs text-gray-400 mr-1">Bib</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editBibValue}
+                            onChange={e => setEditBibValue(e.target.value)}
+                            className="w-16 px-1.5 py-0.5 border border-primary-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            autoFocus
+                            disabled={savingBib}
+                          />
+                          <button type="submit" disabled={savingBib}
+                            className="px-1.5 py-0.5 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium hover:bg-primary-600 disabled:opacity-50">
+                            {savingBib ? '...' : 'Save'}
+                          </button>
+                          <button type="button" onClick={() => setEditingBibCoupleId(null)} disabled={savingBib}
+                            className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded border-none cursor-pointer text-xs font-medium hover:bg-gray-300 disabled:opacity-50">
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setEditingBibCoupleId(couple.id); setEditBibValue(String(couple.bib)); }}
+                            className="font-bold text-left text-primary-600 bg-transparent border-none cursor-pointer hover:underline text-sm p-0"
+                            title="Click to reassign bib number"
+                          >
+                            Bib #{couple.bib}
+                          </button>
+                          <span className="text-[11px] text-gray-400 leading-tight">Couple ID: {couple.id}</span>
+                        </>
+                      )}
+                    </div>
                     <span className="flex-1">{couple.leaderName} & {couple.followerName}</span>
                     <div className="flex gap-2">
                       <button

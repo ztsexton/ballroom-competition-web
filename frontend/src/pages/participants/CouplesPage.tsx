@@ -23,6 +23,9 @@ const CouplesPage = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteBib, setDeleteBib] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingBibCoupleId, setEditingBibCoupleId] = useState<number | null>(null);
+  const [editBibValue, setEditBibValue] = useState('');
+  const [savingBib, setSavingBib] = useState(false);
 
   // Inline person creation state
   const [leaderMode, setLeaderMode] = useState<'select' | 'new'>('select');
@@ -129,6 +132,29 @@ const CouplesPage = () => {
       loadData();
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to delete couple', 'error');
+    }
+  };
+
+  const handleReassignBib = async (couple: Couple) => {
+    const newBib = parseInt(editBibValue);
+    if (!newBib || newBib < 1) {
+      showToast('Bib must be a positive number', 'error');
+      return;
+    }
+    if (newBib === couple.bib) {
+      setEditingBibCoupleId(null);
+      return;
+    }
+    setSavingBib(true);
+    try {
+      await peopleApi.reassignBib(couple.leaderId, newBib);
+      showToast(`Bib reassigned from #${couple.bib} to #${newBib}`, 'success');
+      setEditingBibCoupleId(null);
+      loadData();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'Failed to reassign bib', 'error');
+    } finally {
+      setSavingBib(false);
     }
   };
 
@@ -264,7 +290,7 @@ const CouplesPage = () => {
         <div className="mt-4 mb-2">
           <input
             type="text"
-            placeholder="Search by bib, leader, or follower..."
+            placeholder="Search by ID, bib, leader, or follower..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
@@ -275,7 +301,7 @@ const CouplesPage = () => {
         {(() => {
           const filteredCouples = couples.filter(c => {
             const term = searchTerm.toLowerCase();
-            return !term || c.bib.toString().includes(term) || (c.leaderName || '').toLowerCase().includes(term) || (c.followerName || '').toLowerCase().includes(term);
+            return !term || c.id.toString().includes(term) || c.bib.toString().includes(term) || (c.leaderName || '').toLowerCase().includes(term) || (c.followerName || '').toLowerCase().includes(term);
           });
 
           if (filteredCouples.length === 0) {
@@ -292,6 +318,7 @@ const CouplesPage = () => {
           <table className="w-full text-sm mt-4">
             <thead>
               <tr>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">ID</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Bib #</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Leader</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium border-b border-gray-200">Follower</th>
@@ -301,7 +328,48 @@ const CouplesPage = () => {
             <tbody>
               {filteredCouples.map(couple => (
                 <tr key={couple.id}>
-                  <td className="px-3 py-2 border-t border-gray-100"><strong>#{couple.bib}</strong></td>
+                  <td className="px-3 py-2 border-t border-gray-100 text-gray-400">{couple.id}</td>
+                  <td className="px-3 py-2 border-t border-gray-100">
+                    {editingBibCoupleId === couple.id ? (
+                      <form
+                        onSubmit={e => { e.preventDefault(); handleReassignBib(couple); }}
+                        className="flex items-center gap-1"
+                      >
+                        <input
+                          type="number"
+                          min="1"
+                          value={editBibValue}
+                          onChange={e => setEditBibValue(e.target.value)}
+                          className="w-20 px-2 py-1 border border-primary-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          autoFocus
+                          disabled={savingBib}
+                        />
+                        <button
+                          type="submit"
+                          disabled={savingBib}
+                          className="px-2 py-1 bg-primary-500 text-white rounded border-none cursor-pointer text-xs font-medium hover:bg-primary-600 disabled:opacity-50"
+                        >
+                          {savingBib ? '...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingBibCoupleId(null)}
+                          disabled={savingBib}
+                          className="px-2 py-1 bg-gray-200 text-gray-700 rounded border-none cursor-pointer text-xs font-medium hover:bg-gray-300 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => { setEditingBibCoupleId(couple.id); setEditBibValue(String(couple.bib)); }}
+                        className="font-bold text-primary-600 bg-transparent border-none cursor-pointer hover:underline text-sm"
+                        title="Click to reassign bib number"
+                      >
+                        #{couple.bib}
+                      </button>
+                    )}
+                  </td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.leaderName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">{couple.followerName}</td>
                   <td className="px-3 py-2 border-t border-gray-100">

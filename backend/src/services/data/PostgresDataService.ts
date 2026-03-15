@@ -940,27 +940,105 @@ export class PostgresDataService implements IDataService {
     const competition = await this.getCompetitionById(competitionId);
     if (!competition) throw new Error(`Competition ${competitionId} not found`);
 
-    // Get all leaders (people who are in couples as leaders)
+    // Get all leaders (people who are in couples as leaders), ordered by current bib to preserve relative order
     const { rows: leaderRows } = await this.pool.query(
       `SELECT DISTINCT p.id, p.status, p.bib
        FROM people p
        JOIN couples c ON c.leader_id = p.id
        WHERE p.competition_id = $1
-       ORDER BY p.id`,
+       ORDER BY p.bib NULLS LAST, p.id`,
       [competitionId]
     );
 
+    if (leaderRows.length === 0) return;
+
+    // Build old bib → leader mapping before clearing
+    const oldBibs = new Map<number, number>(); // leaderId → oldBib
+    for (const leader of leaderRows) {
+      if (leader.bib != null) {
+        oldBibs.set(leader.id, leader.bib);
+      }
+    }
+
+    // Clear all leader bibs so assignBib sees a clean slate
+    const leaderIds = leaderRows.map(l => l.id);
+    await this.pool.query(
+      'UPDATE people SET bib = NULL WHERE id = ANY($1)',
+      [leaderIds]
+    );
+
+    // Assign fresh bibs sequentially
+    const newBibMap = new Map<number, number>(); // leaderId → newBib
     for (const leader of leaderRows) {
       const newBib = await this.assignBib(competitionId, leader.status);
-      if (leader.bib !== newBib) {
-        if (leader.bib) {
-          await this.reassignPersonBib(leader.id, newBib);
-        } else {
-          // Person has no bib yet — just set it and update couples
-          await this.pool.query('UPDATE people SET bib = $1 WHERE id = $2', [newBib, leader.id]);
-          await this.pool.query('UPDATE couples SET bib = $1 WHERE leader_id = $2', [newBib, leader.id]);
+      await this.pool.query('UPDATE people SET bib = $1 WHERE id = $2', [newBib, leader.id]);
+      await this.pool.query('UPDATE couples SET bib = $1 WHERE leader_id = $2', [newBib, leader.id]);
+      newBibMap.set(leader.id, newBib);
+    }
+
+    // Cascade bib changes to events, scores, entries for leaders whose bib actually changed
+    for (const leader of leaderRows) {
+      const oldBib = oldBibs.get(leader.id);
+      const newBib = newBibMap.get(leader.id)!;
+      if (oldBib === undefined || oldBib === newBib) continue;
+
+      // Update event_entries
+      await this.pool.query(
+        'UPDATE event_entries SET bib = $1 WHERE competition_id = $2 AND bib = $3',
+        [newBib, competitionId, oldBib]
+      );
+
+      // Update entry_payments
+      await this.pool.query(
+        'UPDATE entry_payments SET bib = $1 WHERE competition_id = $2 AND bib = $3',
+        [newBib, competitionId, oldBib]
+      );
+
+      // Update events heats JSONB
+      const { rows: eventRows } = await this.pool.query(
+        'SELECT id, heats, scratched_bibs FROM events WHERE competition_id = $1',
+        [competitionId]
+      );
+      for (const eventRow of eventRows) {
+        let heatsChanged = false;
+        const heats = eventRow.heats || [];
+        for (const heat of heats) {
+          const idx = heat.bibs?.indexOf(oldBib);
+          if (idx !== undefined && idx >= 0) {
+            heat.bibs[idx] = newBib;
+            heatsChanged = true;
+          }
+        }
+        let scratchedChanged = false;
+        const scratched = eventRow.scratched_bibs || [];
+        const scrIdx = scratched.indexOf(oldBib);
+        if (scrIdx >= 0) {
+          scratched[scrIdx] = newBib;
+          scratchedChanged = true;
+        }
+        if (heatsChanged || scratchedChanged) {
+          await this.pool.query(
+            'UPDATE events SET heats = $1, scratched_bibs = $2 WHERE id = $3',
+            [JSON.stringify(heats), JSON.stringify(scratched), eventRow.id]
+          );
         }
       }
+
+      // Update scores
+      await this.pool.query(
+        `UPDATE scores SET bib = $1 WHERE bib = $2 AND event_id IN (
+          SELECT id FROM events WHERE competition_id = $3
+        )`,
+        [newBib, oldBib, competitionId]
+      );
+
+      // Update judge_scores
+      await this.pool.query(
+        `UPDATE judge_scores SET bib = $1 WHERE bib = $2 AND event_id IN (
+          SELECT id FROM events WHERE competition_id = $3
+        )`,
+        [newBib, oldBib, competitionId]
+      );
     }
   }
 
