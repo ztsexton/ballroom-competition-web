@@ -191,6 +191,8 @@ export interface Competition {
   hardStopTime?: string;  // "HH:MM" — absolute latest the competition can run (venue/regulatory deadline)
   allowDuplicateEntries?: boolean;
   eventTemplates?: EventTemplate[];
+  scholarshipLevels?: string[];
+  scholarshipTemplates?: EventTemplate[];
   pendingEntries?: PendingEntry[];
   invoiceBranding?: InvoiceBranding;
   createdBy?: string;

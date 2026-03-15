@@ -35,6 +35,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
     regScoringType, setRegScoringType,
     regIsScholarship, setRegIsScholarship,
     regAgeCategory, setRegAgeCategory,
+    regAgeCategories, setRegAgeCategories,
     availableAgeCategories,
     regLoading, regMessage, regError,
     coupleEvents, coupleEventsLoading,
@@ -44,22 +45,39 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
     selectedSingleDances, setSelectedSingleDances,
     selectedTemplateIds, setSelectedTemplateIds,
     handleBulkRegister, bulkResults, hasScoringDefaults,
+    // Scholarship batch
+    scholLevels, setScholLevels,
+    scholAgeCategories, setScholAgeCategories,
+    scholTemplateIds, setScholTemplateIds,
+    handleBulkScholarshipRegister,
   } = registration;
 
   const templates = activeCompetition?.eventTemplates || [];
   const hasBatchMode = templates.length > 0;
   const levels = activeCompetition?.levels?.length ? activeCompetition.levels : DEFAULT_LEVELS;
+  const scholLevelOptions = activeCompetition?.scholarshipLevels?.length
+    ? activeCompetition.scholarshipLevels
+    : levels;
+  const scholTemplateOptions = activeCompetition?.scholarshipTemplates || [];
   const styles = getAvailableStyles(activeCompetition?.danceOrder);
   const isIntegrated = (activeCompetition?.levelMode || 'combined') === 'integrated';
 
   // In batch mode, compute total entries that will be created
+  const ageCatCount = regAgeCategories.length > 0 ? regAgeCategories.length : 1;
   const batchEntryCount = hasBatchMode
-    ? regLevels.length * (selectedSingleDances.length + selectedTemplateIds.length)
+    ? regLevels.length * (selectedSingleDances.length + selectedTemplateIds.length) * ageCatCount
     : 0;
+
+  // Scholarship batch count
+  const scholAgeCatCount = scholAgeCategories.length > 0 ? scholAgeCategories.length : 1;
+  const scholBatchCount = scholLevels.length * scholTemplateIds.length * scholAgeCatCount;
 
   // Get templates for currently selected style
   const styleTemplates = regStyle
     ? templates.filter((t: EventTemplate) => t.style === regStyle)
+    : [];
+  const styleScholTemplates = regStyle
+    ? scholTemplateOptions.filter((t: EventTemplate) => t.style === regStyle)
     : [];
   const styleDances = regStyle ? getDanceOptions(regStyle) : [];
 
@@ -121,11 +139,15 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
 
           {availableAgeCategories.length > 0 && (
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Age Category</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Age Category(s) {regAgeCategories.length > 0 && <span className="text-primary-500">({regAgeCategories.length})</span>}
+              </label>
               <div className="flex gap-1.5 flex-wrap">
                 {availableAgeCategories.map(cat => (
-                  <button key={cat.name} type="button" className={toggleBtnClass(regAgeCategory === cat.name)}
-                    onClick={() => setRegAgeCategory(regAgeCategory === cat.name ? '' : cat.name)}>
+                  <button key={cat.name} type="button" className={toggleBtnClass(regAgeCategories.includes(cat.name))}
+                    onClick={() => setRegAgeCategories(prev =>
+                      prev.includes(cat.name) ? prev.filter(c => c !== cat.name) : [...prev, cat.name]
+                    )}>
                     {cat.name}
                   </button>
                 ))}
@@ -178,6 +200,7 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
                     }
                     setSelectedSingleDances([]);
                     setSelectedTemplateIds([]);
+                    setScholTemplateIds([]);
                   }}>
                   {opt}
                 </button>
@@ -257,32 +280,82 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
             </button>
             {batchEntryCount > 0 && !regLoading && (
               <span className="text-xs text-gray-500">
-                {regLevels.length} level{regLevels.length !== 1 ? 's' : ''} × {selectedSingleDances.length + selectedTemplateIds.length} event{(selectedSingleDances.length + selectedTemplateIds.length) !== 1 ? 's' : ''}
+                {ageCatCount > 1 ? `${ageCatCount} age cat × ` : ''}{regLevels.length} level{regLevels.length !== 1 ? 's' : ''} × {selectedSingleDances.length + selectedTemplateIds.length} event{(selectedSingleDances.length + selectedTemplateIds.length) !== 1 ? 's' : ''}
               </span>
             )}
           </div>
 
-          {/* Scholarship — separate single-event flow */}
+          {/* ─── Scholarship Section ─── */}
           <div className="mt-3 pt-3 border-t border-gray-200">
             <h5 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Scholarship Entry</h5>
-            <p className="text-gray-400 text-xs mb-2">Uses the same designation, syllabus type, age category, and scoring from above.</p>
+            <p className="text-gray-400 text-xs mb-2">Uses the same designation, syllabus type, and scoring from above. Select a style above first.</p>
             <div className="flex flex-col gap-2.5">
+              {/* Scholarship Age Categories — multi-select */}
+              {availableAgeCategories.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Age Category(s) {scholAgeCategories.length > 0 && <span className="text-primary-500">({scholAgeCategories.length})</span>}
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {availableAgeCategories.map(cat => (
+                      <button key={cat.name} type="button" className={toggleBtnClass(scholAgeCategories.includes(cat.name))}
+                        onClick={() => setScholAgeCategories(prev =>
+                          prev.includes(cat.name) ? prev.filter(c => c !== cat.name) : [...prev, cat.name]
+                        )}>
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scholarship Levels — multi-select */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Level</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  Level(s) {scholLevels.length > 0 && <span className="text-primary-500">({scholLevels.length})</span>}
+                </label>
                 <div className="flex gap-1.5 flex-wrap">
-                  {levels.map(opt => (
-                    <button key={opt} type="button" className={toggleBtnClass(regLevel === opt)}
-                      onClick={() => setRegLevel(regLevel === opt ? '' : opt)}>
+                  {scholLevelOptions.map(opt => (
+                    <button key={opt} type="button" className={toggleBtnClass(scholLevels.includes(opt))}
+                      onClick={() => setScholLevels(prev =>
+                        prev.includes(opt) ? prev.filter(l => l !== opt) : [...prev, opt]
+                      )}>
                       {opt}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Dances</label>
-                {regStyle && getDanceOptions(regStyle).length > 0 ? (
+              {/* Scholarship Templates */}
+              {regStyle && styleScholTemplates.length > 0 ? (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Scholarship Events {scholTemplateIds.length > 0 && <span className="text-primary-500">({scholTemplateIds.length})</span>}
+                  </label>
                   <div className="flex gap-1.5 flex-wrap">
+                    {styleScholTemplates.map((tpl: EventTemplate) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        className={scholTemplateIds.includes(tpl.id)
+                          ? 'px-3 py-1.5 rounded border-2 border-amber-500 bg-amber-50 text-amber-700 cursor-pointer font-semibold text-sm transition-all'
+                          : 'px-3 py-1.5 rounded border-2 border-dashed border-amber-300 bg-white text-amber-600 cursor-pointer font-medium text-sm transition-all hover:bg-amber-50'
+                        }
+                        onClick={() => setScholTemplateIds(prev =>
+                          prev.includes(tpl.id) ? prev.filter(x => x !== tpl.id) : [...prev, tpl.id]
+                        )}
+                      >
+                        {tpl.name}
+                        <span className="text-xs ml-1 opacity-70">({tpl.dances.length})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : regStyle ? (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Dances</label>
+                  <p className="text-gray-400 text-xs">No scholarship templates for {regStyle}. Configure them in Competition Settings, or use the manual flow below.</p>
+                  <div className="flex gap-1.5 flex-wrap mt-1">
                     {getDanceOptions(regStyle).map(d => (
                       <button key={d} type="button" className={toggleBtnClass(regDances.includes(d))}
                         onClick={() => setRegDances(prev =>
@@ -292,18 +365,36 @@ const CoupleRegistrationPanel = ({ bib, activeCompetition, registration }: Coupl
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-gray-400 text-xs">Select a style above first</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-xs">Select a style above first</p>
+              )}
 
-              <button
-                className="px-4 py-2 bg-primary-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-primary-600 self-start disabled:opacity-50 disabled:cursor-default"
-                onClick={() => handleRegister({ isScholarship: true })}
-                disabled={regLoading}
-              >
-                {regLoading ? 'Registering...' : 'Register Scholarship'}
-              </button>
+              {/* Scholarship register button */}
+              {styleScholTemplates.length > 0 ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    className="px-4 py-2 bg-amber-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-amber-600 disabled:opacity-50 disabled:cursor-default"
+                    onClick={handleBulkScholarshipRegister}
+                    disabled={regLoading || scholBatchCount === 0}
+                  >
+                    {regLoading ? 'Registering...' : `Register ${scholBatchCount} Scholarship${scholBatchCount !== 1 ? 's' : ''}`}
+                  </button>
+                  {scholBatchCount > 0 && !regLoading && (
+                    <span className="text-xs text-gray-500">
+                      {scholAgeCatCount > 1 ? `${scholAgeCatCount} age cat × ` : ''}{scholLevels.length} level{scholLevels.length !== 1 ? 's' : ''} × {scholTemplateIds.length} template{scholTemplateIds.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className="px-4 py-2 bg-amber-500 text-white rounded border-none cursor-pointer text-sm font-medium transition-colors hover:bg-amber-600 self-start disabled:opacity-50 disabled:cursor-default"
+                  onClick={() => handleRegister({ isScholarship: true })}
+                  disabled={regLoading}
+                >
+                  {regLoading ? 'Registering...' : 'Register Scholarship'}
+                </button>
+              )}
             </div>
           </div>
         </div>

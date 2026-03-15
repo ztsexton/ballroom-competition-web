@@ -14,6 +14,7 @@ export interface RegistrationState {
   regScoringType: 'standard' | 'proficiency';
   regIsScholarship: boolean;
   regAgeCategory: string;
+  regAgeCategories: string[];
   availableAgeCategories: AgeCategory[];
   regLoading: boolean;
   regMessage: string;
@@ -28,6 +29,7 @@ export interface RegistrationState {
   setRegScoringType: (v: 'standard' | 'proficiency') => void;
   setRegIsScholarship: (v: boolean) => void;
   setRegAgeCategory: (v: string) => void;
+  setRegAgeCategories: React.Dispatch<React.SetStateAction<string[]>>;
   getDanceOptions: (style: string) => string[];
   openRegisterPanel: (bib: number) => void;
   handleRegister: (overrides?: { isScholarship?: boolean }) => void;
@@ -42,6 +44,14 @@ export interface RegistrationState {
   handleBulkRegister: () => void;
   bulkResults: BulkResult[];
   hasScoringDefaults: boolean;
+  // Scholarship batch
+  scholLevels: string[];
+  setScholLevels: React.Dispatch<React.SetStateAction<string[]>>;
+  scholAgeCategories: string[];
+  setScholAgeCategories: React.Dispatch<React.SetStateAction<string[]>>;
+  scholTemplateIds: string[];
+  setScholTemplateIds: React.Dispatch<React.SetStateAction<string[]>>;
+  handleBulkScholarshipRegister: () => void;
 }
 
 export interface BulkResult {
@@ -87,6 +97,7 @@ export function useRegistrationPanel(
   );
   const [regIsScholarship, setRegIsScholarship] = useState(false);
   const [regAgeCategory, setRegAgeCategory] = useState('');
+  const [regAgeCategories, setRegAgeCategories] = useState<string[]>([]);
   const [availableAgeCategories] = useState<AgeCategory[]>(
     activeCompetition?.ageCategories?.length ? activeCompetition.ageCategories : []
   );
@@ -101,6 +112,11 @@ export function useRegistrationPanel(
   const [selectedSingleDances, setSelectedSingleDances] = useState<string[]>([]);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [bulkResults, setBulkResults] = useState<BulkResult[]>([]);
+
+  // Scholarship batch state
+  const [scholLevels, setScholLevels] = useState<string[]>([]);
+  const [scholAgeCategories, setScholAgeCategories] = useState<string[]>([]);
+  const [scholTemplateIds, setScholTemplateIds] = useState<string[]>([]);
 
   const getDanceOptions = (s: string) => getDancesForStyle(s, activeCompetition?.danceOrder);
 
@@ -132,9 +148,13 @@ export function useRegistrationPanel(
     setRegMessage('');
     setRegError('');
     setRegLevels([]);
+    setRegAgeCategories([]);
     setSelectedSingleDances([]);
     setSelectedTemplateIds([]);
     setBulkResults([]);
+    setScholLevels([]);
+    setScholAgeCategories([]);
+    setScholTemplateIds([]);
     setCoupleEventsLoading(true);
     try {
       const res = await couplesApi.getEvents(bib);
@@ -195,6 +215,11 @@ export function useRegistrationPanel(
 
     if (entries.length === 0) return;
 
+    // If age categories multi-select is used, loop over them; otherwise use single ageCategory
+    const ageCategoriesToUse = regAgeCategories.length > 0
+      ? regAgeCategories
+      : regAgeCategory ? [regAgeCategory] : [''];
+
     setRegLoading(true);
     setRegMessage('');
     setRegError('');
@@ -202,29 +227,31 @@ export function useRegistrationPanel(
 
     const results: BulkResult[] = [];
 
-    for (const level of regLevels) {
-      for (const entry of entries) {
-        const label = `${level} ${entry.label}`;
-        try {
-          const res = await eventsApi.register({
-            competitionId,
-            bib: registerBib,
-            designation: regDesignation || undefined,
-            syllabusType: regSyllabusType || undefined,
-            level,
-            style: regStyle,
-            dances: entry.dances,
-            scoringType: regScoringType,
-            ageCategory: regAgeCategory || undefined,
-          });
-          results.push({
-            label: res.data.event.name,
-            success: true,
-            created: res.data.created,
-          });
-        } catch (err: unknown) {
-          const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
-          results.push({ label, success: false, error: msg });
+    for (const ageCat of ageCategoriesToUse) {
+      for (const level of regLevels) {
+        for (const entry of entries) {
+          const label = `${ageCat ? ageCat + ' ' : ''}${level} ${entry.label}`;
+          try {
+            const res = await eventsApi.register({
+              competitionId,
+              bib: registerBib,
+              designation: regDesignation || undefined,
+              syllabusType: regSyllabusType || undefined,
+              level,
+              style: regStyle,
+              dances: entry.dances,
+              scoringType: regScoringType,
+              ageCategory: ageCat || undefined,
+            });
+            results.push({
+              label: res.data.event.name,
+              success: true,
+              created: res.data.created,
+            });
+          } catch (err: unknown) {
+            const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
+            results.push({ label, success: false, error: msg });
+          }
         }
       }
     }
@@ -241,6 +268,81 @@ export function useRegistrationPanel(
     }
 
     // Refresh couple events
+    try {
+      const evRes = await couplesApi.getEvents(registerBib);
+      setCoupleEvents(evRes.data);
+    } catch { /* ignore */ }
+
+    setRegLoading(false);
+  };
+
+  const handleBulkScholarshipRegister = async () => {
+    if (!registerBib || !competitionId || scholLevels.length === 0 || !regStyle) return;
+    const templates = activeCompetition?.scholarshipTemplates || [];
+
+    // Build entries from scholarship templates
+    const entries: Array<{ dances: string[]; label: string }> = [];
+    for (const tplId of scholTemplateIds) {
+      const tpl = templates.find((t: EventTemplate) => t.id === tplId);
+      if (tpl) {
+        entries.push({ dances: tpl.dances, label: tpl.name });
+      }
+    }
+
+    if (entries.length === 0) return;
+
+    const ageCategoriesToUse = scholAgeCategories.length > 0
+      ? scholAgeCategories
+      : regAgeCategory ? [regAgeCategory] : [''];
+
+    setRegLoading(true);
+    setRegMessage('');
+    setRegError('');
+    setBulkResults([]);
+
+    const results: BulkResult[] = [];
+
+    for (const ageCat of ageCategoriesToUse) {
+      for (const level of scholLevels) {
+        for (const entry of entries) {
+          const label = `${ageCat ? ageCat + ' ' : ''}${level} ${entry.label} (Scholarship)`;
+          try {
+            const res = await eventsApi.register({
+              competitionId,
+              bib: registerBib,
+              designation: regDesignation || undefined,
+              syllabusType: regSyllabusType || undefined,
+              level,
+              style: regStyle,
+              dances: entry.dances,
+              scoringType: regScoringType,
+              isScholarship: true,
+              ageCategory: ageCat || undefined,
+            });
+            results.push({
+              label: res.data.event.name,
+              success: true,
+              created: res.data.created,
+            });
+          } catch (err: unknown) {
+            const msg = axios.isAxiosError(err) ? err.response?.data?.error || 'Failed' : 'Failed';
+            results.push({ label, success: false, error: msg });
+          }
+        }
+      }
+    }
+
+    setBulkResults(results);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    if (failCount === 0) {
+      setRegMessage(`Registered for ${successCount} scholarship event${successCount !== 1 ? 's' : ''}`);
+    } else if (successCount === 0) {
+      setRegError(`All ${failCount} scholarship registrations failed`);
+    } else {
+      setRegMessage(`${successCount} registered, ${failCount} failed`);
+    }
+
     try {
       const evRes = await couplesApi.getEvents(registerBib);
       setCoupleEvents(evRes.data);
@@ -270,6 +372,7 @@ export function useRegistrationPanel(
     regScoringType,
     regIsScholarship,
     regAgeCategory,
+    regAgeCategories,
     availableAgeCategories,
     regLoading,
     regMessage,
@@ -284,6 +387,7 @@ export function useRegistrationPanel(
     setRegScoringType,
     setRegIsScholarship,
     setRegAgeCategory,
+    setRegAgeCategories,
     getDanceOptions,
     openRegisterPanel,
     handleRegister,
@@ -299,5 +403,13 @@ export function useRegistrationPanel(
     bulkResults,
     hasScoringDefaults: !!(activeCompetition?.scoringTypeDefaults &&
       Object.values(activeCompetition.scoringTypeDefaults).some(Boolean)),
+    // Scholarship batch
+    scholLevels,
+    setScholLevels,
+    scholAgeCategories,
+    setScholAgeCategories,
+    scholTemplateIds,
+    setScholTemplateIds,
+    handleBulkScholarshipRegister,
   };
 }

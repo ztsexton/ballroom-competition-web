@@ -373,6 +373,12 @@ const CompetitionSettingsPage = () => {
             saveField={saveField}
           />
 
+          <ScholarshipSection
+            comp={comp}
+            savedMap={savedMap}
+            saveField={saveField}
+          />
+
           <DanceOrderSettingsSection
             comp={comp}
             competitionId={competitionId}
@@ -809,6 +815,213 @@ function EventTemplatesSection({
           </div>
         </div>
       )}
+    </Section>
+  );
+}
+
+function ScholarshipSection({
+  comp,
+  savedMap,
+  saveField,
+}: {
+  comp: { danceOrder?: Record<string, string[]>; scholarshipLevels?: string[]; scholarshipTemplates?: EventTemplate[] };
+  savedMap: Record<string, boolean>;
+  saveField: (field: string, value: unknown, section: string) => void;
+}) {
+  const danceOrder = comp.danceOrder || DEFAULT_DANCE_ORDER;
+  const styles = Object.keys(danceOrder).length > 0 ? Object.keys(danceOrder) : Object.keys(DEFAULT_DANCE_ORDER);
+
+  // ─── Scholarship Levels ───
+  const scholarshipLevels = comp.scholarshipLevels || [];
+  const [newLevel, setNewLevel] = useState('');
+
+  const addLevel = () => {
+    const trimmed = newLevel.trim();
+    if (!trimmed || scholarshipLevels.includes(trimmed)) return;
+    saveField('scholarshipLevels', [...scholarshipLevels, trimmed], 'scholarship');
+    setNewLevel('');
+  };
+
+  const removeLevel = (level: string) => {
+    saveField('scholarshipLevels', scholarshipLevels.filter(l => l !== level), 'scholarship');
+  };
+
+  // ─── Scholarship Templates ───
+  const templates = comp.scholarshipTemplates || [];
+  const [addingStyle, setAddingStyle] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [selectedDances, setSelectedDances] = useState<string[]>([]);
+
+  const toggleBtnClass = (active: boolean) =>
+    active
+      ? 'px-2.5 py-1 rounded border-2 border-primary-500 bg-primary-500 text-white cursor-pointer font-semibold text-xs transition-all'
+      : 'px-2.5 py-1 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer font-normal text-xs transition-all';
+
+  const startAdding = (style: string) => {
+    const dances = getDancesForStyle(style, danceOrder);
+    setAddingStyle(style);
+    setSelectedDances([...dances]);
+    setNewName(`${style} ${dances.length}-Dance`);
+  };
+
+  const saveTemplate = () => {
+    if (!addingStyle || !newName.trim() || selectedDances.length < 2) return;
+    const id = `tpl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newTemplate: EventTemplate = {
+      id,
+      name: newName.trim(),
+      style: addingStyle,
+      dances: selectedDances,
+    };
+    saveField('scholarshipTemplates', [...templates, newTemplate], 'scholarship');
+    setAddingStyle(null);
+    setNewName('');
+    setSelectedDances([]);
+  };
+
+  const removeTemplate = (id: string) => {
+    saveField('scholarshipTemplates', templates.filter(t => t.id !== id), 'scholarship');
+  };
+
+  return (
+    <Section title="Scholarship" savedKey="scholarship" savedMap={savedMap}>
+      {/* ─── Scholarship Levels ─── */}
+      <div className="mb-6">
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Scholarship Levels</h4>
+        <p className="text-gray-500 text-sm mb-3">
+          Define the proficiency levels available for scholarship events.
+        </p>
+
+        {scholarshipLevels.length > 0 && (
+          <div className="flex flex-col gap-1.5 mb-3 max-w-md">
+            {scholarshipLevels.map(level => (
+              <div key={level} className="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-100 rounded text-sm">
+                <span className="font-medium">{level}</span>
+                <button
+                  type="button"
+                  onClick={() => removeLevel(level)}
+                  className="text-xs text-red-400 hover:text-red-600 cursor-pointer ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 max-w-md">
+          <input
+            type="text"
+            value={newLevel}
+            onChange={(e) => setNewLevel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLevel(); } }}
+            placeholder="e.g. Newcomer, Bronze, Silver..."
+            className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500"
+          />
+          <button
+            type="button"
+            onClick={addLevel}
+            disabled={!newLevel.trim()}
+            className="px-3 py-1.5 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600 disabled:opacity-50 disabled:cursor-default"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Scholarship Templates ─── */}
+      <div>
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Scholarship Templates</h4>
+        <p className="text-gray-500 text-sm mb-3">
+          Preconfigure multi-dance groupings for scholarship events.
+        </p>
+
+        {templates.length > 0 && (
+          <div className="flex flex-col gap-1.5 mb-4 max-w-md">
+            {templates.map(tpl => (
+              <div key={tpl.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-100 rounded text-sm">
+                <div>
+                  <span className="font-semibold">{tpl.name}</span>
+                  <span className="text-gray-500 ml-2">{tpl.style} — {tpl.dances.join(', ')}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeTemplate(tpl.id)}
+                  className="text-xs text-red-400 hover:text-red-600 cursor-pointer ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addingStyle ? (
+          <div className="max-w-md bg-white border border-gray-200 rounded-md p-3">
+            <div className="mb-2">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Template Name</label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary-500"
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Style: {addingStyle} — Dances ({selectedDances.length})
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
+                {getDancesForStyle(addingStyle, danceOrder).map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={toggleBtnClass(selectedDances.includes(d))}
+                    onClick={() => setSelectedDances(prev =>
+                      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={saveTemplate}
+                disabled={selectedDances.length < 2 || !newName.trim()}
+                className="px-3 py-1.5 bg-primary-500 text-white rounded text-sm font-medium cursor-pointer hover:bg-primary-600 disabled:opacity-50 disabled:cursor-default"
+              >
+                Add Template
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingStyle(null)}
+                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm cursor-pointer hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Add template for style</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {styles.map(style => (
+                <button
+                  key={style}
+                  type="button"
+                  onClick={() => startAdding(style)}
+                  className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 cursor-pointer text-sm hover:bg-gray-50"
+                >
+                  {style}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </Section>
   );
 }

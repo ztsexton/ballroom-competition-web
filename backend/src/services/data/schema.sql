@@ -263,3 +263,7 @@ ALTER TABLE competitions ADD COLUMN IF NOT EXISTS scoring_type_defaults JSONB;
 
 -- Migration: add bill_to to couples (billing assignment: split, leader, follower)
 ALTER TABLE couples ADD COLUMN IF NOT EXISTS bill_to TEXT DEFAULT NULL;
+
+-- Migration: add scholarship levels and templates
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS scholarship_levels JSONB;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS scholarship_templates JSONB;
