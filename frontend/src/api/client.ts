@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, LevelCombiningConfig, SiteSettings, JudgeScheduleEntry, ScheduleVariant, PersonResultsResponse, PersonHeatListResponse } from '../types';
+import { Person, Couple, Judge, JudgeProfile, Event, EventResult, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, JudgeSettings, TimingSettings, ActiveHeatInfo, ScoringProgress, HeatEntry, InvoiceSummary, EntryPayment, PendingEntry, MindbodyClient, PublicCompetition, PublicEvent, PublicEventSearchResult, PublicEventWithHeats, AgeCategory, DetailedResultsResponse, AutoBreaksConfig, LevelCombiningConfig, SiteSettings, JudgeScheduleEntry, ScheduleVariant, PersonResultsResponse, PersonHeatListResponse } from '../types';
 import { auth } from '../config/firebase';
 
 // Derive API URL from base path (handles subpath deployments like /ballroomcomp)
@@ -473,6 +473,8 @@ export const participantApi = {
     }>(`/participant/competitions/${competitionId}/allowed-levels/${bib}`),
   getPersonHeatlists: (competitionId: number, personId: number) =>
     api.get<PersonHeatListResponse>(`/participant/competitions/${competitionId}/people/${personId}/heatlists`),
+  getPendingEntries: (competitionId: number, bib: number) =>
+    api.get<{ pendingEntries: PendingEntry[] }>(`/participant/competitions/${competitionId}/pending-entries/${bib}`),
 };
 
 // Scrutineer API (admin-only, schedule-free scoring for paper judging)

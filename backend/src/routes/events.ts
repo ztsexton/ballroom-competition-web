@@ -176,6 +176,7 @@ router.post('/:id/entries', requireAnyAdmin, async (req: AuthRequest, res: Respo
     const st = event.scoringType || 'standard';
     const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
     const updated = await dataService.updateEvent(id, { heats: newHeats });
+    await dataService.addEventEntry(id, bib, event.competitionId);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add entry' });
@@ -210,6 +211,7 @@ router.delete('/:id/entries/:bib', requireAnyAdmin, async (req: AuthRequest, res
     const st = event.scoringType || 'standard';
     const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
     const updated = await dataService.updateEvent(id, { heats: newHeats });
+    await dataService.removeEventEntry(id, bib);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to remove entry' });
@@ -243,6 +245,7 @@ router.post('/:id/scratch', requireAnyAdmin, async (req: AuthRequest, res: Respo
     const updated = await dataService.updateEvent(id, {
       scratchedBibs: [...scratchedBibs, bib],
     });
+    await dataService.scratchEntry(id, bib);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to scratch couple' });
@@ -270,6 +273,7 @@ router.delete('/:id/scratch/:bib', requireAnyAdmin, async (req: AuthRequest, res
     const updated = await dataService.updateEvent(id, {
       scratchedBibs: scratchedBibs.filter(b => b !== bib),
     });
+    await dataService.unscratchEntry(id, bib);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to unscratch couple' });
@@ -340,6 +344,7 @@ router.post('/:id/late-entry', requireAnyAdmin, async (req: AuthRequest, res: Re
     }
 
     await dataService.updateEvent(id, { heats: updatedHeats });
+    await dataService.addEventEntry(id, bib, event.competitionId);
 
     // Update schedule floor heats if they exist
     const schedule = await dataService.getSchedule(event.competitionId);

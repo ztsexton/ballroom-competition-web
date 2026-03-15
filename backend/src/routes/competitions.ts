@@ -716,10 +716,7 @@ router.get('/:id/pending-entries', requireAnyAdmin, async (req: AuthRequest, res
     const competitionId = parseInt(req.params.id);
     if (!(await assertCompetitionAccess(req, res, competitionId))) return;
 
-    const competition = await dataService.getCompetitionById(competitionId);
-    if (!competition) return res.status(404).json({ error: 'Competition not found' });
-
-    const pending = competition.pendingEntries || [];
+    const pending = await dataService.getPendingEntries(competitionId);
 
     // Enrich with couple names
     const enriched = await Promise.all(pending.map(async (entry) => {
@@ -750,10 +747,7 @@ router.post('/:id/pending-entries/:entryId/approve', requireAnyAdmin, async (req
     const entryId = req.params.entryId;
     if (!(await assertCompetitionAccess(req, res, competitionId))) return;
 
-    const competition = await dataService.getCompetitionById(competitionId);
-    if (!competition) return res.status(404).json({ error: 'Competition not found' });
-
-    const pending = competition.pendingEntries || [];
+    const pending = await dataService.getPendingEntries(competitionId);
     const entry = pending.find(p => p.id === entryId);
     if (!entry) return res.status(404).json({ error: 'Pending entry not found' });
 
@@ -764,9 +758,7 @@ router.post('/:id/pending-entries/:entryId/approve', requireAnyAdmin, async (req
     }
 
     // Remove from pending
-    await dataService.updateCompetition(competitionId, {
-      pendingEntries: pending.filter(p => p.id !== entryId),
-    });
+    await dataService.removePendingEntry(entryId);
 
     logger.info({ competitionId, entryId, bib: entry.bib }, 'Approved pending entry');
     res.json({ event: result.event, created: result.created });
@@ -782,17 +774,12 @@ router.delete('/:id/pending-entries/:entryId', requireAnyAdmin, async (req: Auth
     const entryId = req.params.entryId;
     if (!(await assertCompetitionAccess(req, res, competitionId))) return;
 
-    const competition = await dataService.getCompetitionById(competitionId);
-    if (!competition) return res.status(404).json({ error: 'Competition not found' });
-
-    const pending = competition.pendingEntries || [];
+    const pending = await dataService.getPendingEntries(competitionId);
     if (!pending.some(p => p.id === entryId)) {
       return res.status(404).json({ error: 'Pending entry not found' });
     }
 
-    await dataService.updateCompetition(competitionId, {
-      pendingEntries: pending.filter(p => p.id !== entryId),
-    });
+    await dataService.removePendingEntry(entryId);
 
     logger.info({ competitionId, entryId }, 'Rejected pending entry');
     res.status(204).send();

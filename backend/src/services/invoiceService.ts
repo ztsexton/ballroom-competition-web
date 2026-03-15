@@ -27,7 +27,7 @@ export async function calculateInvoices(competitionId: number): Promise<InvoiceS
   }
 
   const pricing = competition.pricing;
-  const entryPayments = competition.entryPayments || {};
+  const entryPayments = await dataService.getEntryPayments(competitionId);
   const people = await dataService.getPeople(competitionId);
   const couples = await dataService.getCouples(competitionId);
   const eventsMap = await dataService.getEvents(competitionId);

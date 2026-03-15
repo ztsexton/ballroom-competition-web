@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import {
   Competition, CompetitionAdmin, Studio, Organization, Person, Couple, Judge, JudgeProfile, Event, Heat, User, UserProfileUpdate,
-  CompetitionSchedule, EntryPayment, SiteSettings,
+  CompetitionSchedule, EntryPayment, PendingEntry, SiteSettings,
 } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
@@ -30,7 +30,6 @@ export class PostgresDataService implements IDataService {
       levelMode: row.level_mode || undefined,
       pricing: row.pricing || undefined,
       currency: row.currency || undefined,
-      entryPayments: row.entry_payments || undefined,
       maxCouplesPerHeat: row.max_couples_per_heat ?? undefined,
       maxCouplesOnFloor: row.max_couples_on_floor ?? undefined,
       maxCouplesOnFloorByLevel: row.max_couples_on_floor_by_level || undefined,
@@ -209,7 +208,7 @@ export class PostgresDataService implements IDataService {
     const now = new Date().toISOString();
     const query = `INSERT INTO competitions (name, type, date, location, studio_id, organization_id, description,
         judge_settings, timing_settings, default_scoring_type, levels, level_mode, pricing, currency,
-        entry_payments, max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
+        max_couples_per_heat, max_couples_on_floor, max_couples_on_floor_by_level,
         recall_rules, entry_validation, age_categories, dance_order,
         registration_open, registration_open_at,
         publicly_visible, publicly_visible_at, results_public, results_visibility,
@@ -218,9 +217,9 @@ export class PostgresDataService implements IDataService {
         number_of_days, schedule_day_configs, hard_stop_time, event_templates, scholarship_levels, scholarship_templates, invoice_branding,
         scoring_type_defaults, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
-        $34, $35, $36, $37, $38, $39, $40, $41,
-        $42)
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29,
+        $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+        $41)
        RETURNING *`;
     const params = [
       competition.name, competition.type, competition.date,
@@ -234,7 +233,6 @@ export class PostgresDataService implements IDataService {
       competition.levelMode || null,
       competition.pricing ? JSON.stringify(competition.pricing) : null,
       competition.currency || null,
-      JSON.stringify(competition.entryPayments || {}),
       competition.maxCouplesPerHeat ?? null,
       competition.maxCouplesOnFloor ?? null,
       competition.maxCouplesOnFloorByLevel ? JSON.stringify(competition.maxCouplesOnFloorByLevel) : null,
@@ -310,7 +308,7 @@ export class PostgresDataService implements IDataService {
     };
     const jsonFields: Record<string, string> = {
       judgeSettings: 'judge_settings', timingSettings: 'timing_settings',
-      levels: 'levels', pricing: 'pricing', entryPayments: 'entry_payments',
+      levels: 'levels', pricing: 'pricing',
       maxCouplesOnFloorByLevel: 'max_couples_on_floor_by_level',
       recallRules: 'recall_rules', entryValidation: 'entry_validation',
       ageCategories: 'age_categories', danceOrder: 'dance_order',
@@ -347,8 +345,21 @@ export class PostgresDataService implements IDataService {
   }
 
   async getEntryPayments(competitionId: number): Promise<Record<string, EntryPayment>> {
-    const comp = await this.getCompetitionById(competitionId);
-    return comp?.entryPayments || {};
+    const { rows } = await this.pool.query(
+      'SELECT event_id, bib, paid, paid_by, paid_at, notes FROM entry_payments WHERE competition_id = $1',
+      [competitionId]
+    );
+    const result: Record<string, EntryPayment> = {};
+    for (const row of rows) {
+      const key = `${row.event_id}:${row.bib}`;
+      result[key] = {
+        paid: row.paid,
+        paidBy: row.paid_by ?? undefined,
+        paidAt: row.paid_at ? new Date(row.paid_at).toISOString() : undefined,
+        notes: row.notes || undefined,
+      };
+    }
+    return result;
   }
 
   async updateEntryPayments(
@@ -359,35 +370,117 @@ export class PostgresDataService implements IDataService {
     const comp = await this.getCompetitionById(competitionId);
     if (!comp) return null;
 
-    const payments = comp.entryPayments || {};
     const result: Record<string, EntryPayment> = {};
+    const now = new Date().toISOString();
 
     for (const { eventId, bib } of entries) {
       const key = `${eventId}:${bib}`;
-      const existing: EntryPayment = payments[key] || { paid: false };
-      existing.paid = updates.paid;
-      if (updates.paidBy !== undefined) existing.paidBy = updates.paidBy;
-      if (updates.notes !== undefined) existing.notes = updates.notes;
-      if (existing.paid && !existing.paidAt) {
-        existing.paidAt = new Date().toISOString();
-      }
-      if (!existing.paid) {
-        delete existing.paidAt;
-        delete existing.paidBy;
-      }
-      payments[key] = existing;
-      result[key] = existing;
+      const paidAt = updates.paid ? now : null;
+      const paidBy = updates.paid ? (updates.paidBy ?? null) : null;
+
+      await this.pool.query(
+        `INSERT INTO entry_payments (competition_id, event_id, bib, paid, paid_by, paid_at, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (competition_id, event_id, bib) DO UPDATE SET
+           paid = $4, paid_by = $5, paid_at = CASE WHEN $4 THEN COALESCE(entry_payments.paid_at, $6) ELSE NULL END,
+           notes = COALESCE($7, entry_payments.notes)`,
+        [competitionId, eventId, bib, updates.paid, paidBy, paidAt, updates.notes ?? null]
+      );
+
+      result[key] = {
+        paid: updates.paid,
+        paidBy: paidBy ?? undefined,
+        paidAt: updates.paid ? now : undefined,
+        notes: updates.notes,
+      };
     }
 
-    await this.pool.query(
-      'UPDATE competitions SET entry_payments = $1 WHERE id = $2',
-      [JSON.stringify(payments), competitionId]
-    );
     return result;
   }
 
   async deleteCompetition(id: number): Promise<boolean> {
     const { rowCount } = await this.pool.query('DELETE FROM competitions WHERE id = $1', [id]);
+    return (rowCount ?? 0) > 0;
+  }
+
+  // ─── Event Entries ─────────────────────────────────────────────
+
+  async getEventEntries(eventId: number): Promise<Array<{ bib: number; scratched: boolean }>> {
+    const { rows } = await this.pool.query(
+      'SELECT bib, scratched FROM event_entries WHERE event_id = $1 ORDER BY bib',
+      [eventId]
+    );
+    return rows.map(r => ({ bib: r.bib, scratched: r.scratched }));
+  }
+
+  async getEntriesForBib(competitionId: number, bib: number): Promise<Array<{ eventId: number; scratched: boolean }>> {
+    const { rows } = await this.pool.query(
+      'SELECT event_id, scratched FROM event_entries WHERE competition_id = $1 AND bib = $2 ORDER BY event_id',
+      [competitionId, bib]
+    );
+    return rows.map(r => ({ eventId: r.event_id, scratched: r.scratched }));
+  }
+
+  async addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO event_entries (event_id, bib, competition_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      [eventId, bib, competitionId]
+    );
+  }
+
+  async removeEventEntry(eventId: number, bib: number): Promise<void> {
+    await this.pool.query(
+      'DELETE FROM event_entries WHERE event_id = $1 AND bib = $2',
+      [eventId, bib]
+    );
+  }
+
+  async scratchEntry(eventId: number, bib: number): Promise<void> {
+    await this.pool.query(
+      'UPDATE event_entries SET scratched = true WHERE event_id = $1 AND bib = $2',
+      [eventId, bib]
+    );
+  }
+
+  async unscratchEntry(eventId: number, bib: number): Promise<void> {
+    await this.pool.query(
+      'UPDATE event_entries SET scratched = false WHERE event_id = $1 AND bib = $2',
+      [eventId, bib]
+    );
+  }
+
+  // ─── Pending Entries ──────────────────────────────────────────
+
+  async getPendingEntries(competitionId: number): Promise<PendingEntry[]> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM pending_entries WHERE competition_id = $1 ORDER BY requested_at',
+      [competitionId]
+    );
+    return rows.map(r => ({
+      id: r.id,
+      bib: r.bib,
+      competitionId: r.competition_id,
+      combination: r.combination,
+      reason: r.reason,
+      requestedAt: new Date(r.requested_at).toISOString(),
+      requestedBy: r.requested_by || undefined,
+    }));
+  }
+
+  async addPendingEntry(entry: PendingEntry): Promise<PendingEntry> {
+    await this.pool.query(
+      `INSERT INTO pending_entries (id, competition_id, bib, combination, reason, requested_at, requested_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [entry.id, entry.competitionId, entry.bib, JSON.stringify(entry.combination),
+       entry.reason, entry.requestedAt, entry.requestedBy || null]
+    );
+    return entry;
+  }
+
+  async removePendingEntry(id: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      'DELETE FROM pending_entries WHERE id = $1', [id]
+    );
     return (rowCount ?? 0) > 0;
   }
 
@@ -899,17 +992,36 @@ export class PostgresDataService implements IDataService {
       JSON.stringify(heats), competitionId, scoringType || null,
       isScholarship || false, ageCategory || null,
     ];
+    let event: Event;
     try {
       const { rows } = await this.pool.query(query, params);
-      return this.eventFromRow(rows[0]);
+      event = this.eventFromRow(rows[0]);
     } catch (err: any) {
       if (err.code === '23505' && err.constraint === 'events_pkey') {
         await this.pool.query(`SELECT setval('events_id_seq', COALESCE((SELECT MAX(id) FROM events), 0))`);
         const { rows } = await this.pool.query(query, params);
-        return this.eventFromRow(rows[0]);
+        event = this.eventFromRow(rows[0]);
+      } else {
+        throw err;
       }
-      throw err;
     }
+
+    // Dual-write: insert into event_entries
+    if (bibs.length > 0) {
+      const eeValues: any[] = [];
+      const eePlaceholders: string[] = [];
+      let eeIdx = 1;
+      for (const bib of bibs) {
+        eePlaceholders.push(`($${eeIdx++}, $${eeIdx++}, $${eeIdx++})`);
+        eeValues.push(event.id, bib, competitionId);
+      }
+      await this.pool.query(
+        `INSERT INTO event_entries (event_id, bib, competition_id) VALUES ${eePlaceholders.join(', ')} ON CONFLICT DO NOTHING`,
+        eeValues
+      );
+    }
+
+    return event;
   }
 
   async updateEvent(id: number, updates: Partial<Omit<Event, 'id'>>): Promise<Event | null> {
@@ -951,9 +1063,10 @@ export class PostgresDataService implements IDataService {
   }
 
   async deleteEvent(id: number): Promise<boolean> {
-    // Clean up scores first
+    // Clean up scores and event_entries first
     await this.pool.query('DELETE FROM scores WHERE event_id = $1', [id]);
     await this.pool.query('DELETE FROM judge_scores WHERE event_id = $1', [id]);
+    await this.pool.query('DELETE FROM event_entries WHERE event_id = $1', [id]);
     const { rowCount } = await this.pool.query('DELETE FROM events WHERE id = $1', [id]);
     return (rowCount ?? 0) > 0;
   }

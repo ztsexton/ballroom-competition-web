@@ -13,6 +13,7 @@ import {
   UserProfileUpdate,
   CompetitionSchedule,
   EntryPayment,
+  PendingEntry,
   SiteSettings,
 } from '../../types';
 
@@ -29,6 +30,19 @@ export interface IDataService {
     entries: Array<{ eventId: number; bib: number }>,
     updates: { paid: boolean; paidBy?: number; notes?: string }
   ): Promise<Record<string, EntryPayment> | null>;
+
+  // Event Entries (junction table)
+  getEventEntries(eventId: number): Promise<Array<{ bib: number; scratched: boolean }>>;
+  getEntriesForBib(competitionId: number, bib: number): Promise<Array<{ eventId: number; scratched: boolean }>>;
+  addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void>;
+  removeEventEntry(eventId: number, bib: number): Promise<void>;
+  scratchEntry(eventId: number, bib: number): Promise<void>;
+  unscratchEntry(eventId: number, bib: number): Promise<void>;
+
+  // Pending Entries
+  getPendingEntries(competitionId: number): Promise<PendingEntry[]>;
+  addPendingEntry(entry: PendingEntry): Promise<PendingEntry>;
+  removePendingEntry(id: string): Promise<boolean>;
 
   // Studios
   getStudios(): Promise<Studio[]>;

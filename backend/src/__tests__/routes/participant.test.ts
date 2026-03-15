@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../../server';
 import { dataService } from '../../services/dataService';
+import { PendingEntry } from '../../types';
 
 describe('Participant API', () => {
   beforeEach(async () => {
@@ -587,6 +588,60 @@ describe('Participant API', () => {
       await request(app)
         .get(`/api/participant/competitions/${comp.id}/age-categories`)
         .expect(404);
+    });
+  });
+
+  describe('GET /api/participant/competitions/:id/pending-entries/:bib', () => {
+    it('should return pending entries for a specific couple', async () => {
+      const comp = await setupOpenCompetition();
+
+      // Create a couple
+      const leader = await dataService.addPerson({
+        firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId: comp.id,
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+
+      // Add a pending entry for this couple
+      const pe: PendingEntry = {
+        id: 'pe-test-1',
+        bib: couple!.bib,
+        competitionId: comp.id,
+        combination: { level: 'Gold', style: 'Smooth' },
+        reason: 'Level too high',
+        requestedAt: new Date().toISOString(),
+      };
+      await dataService.addPendingEntry(pe);
+
+      // Add a pending entry for a different bib
+      await dataService.addPendingEntry({
+        id: 'pe-test-2',
+        bib: 999,
+        competitionId: comp.id,
+        combination: { level: 'Silver', style: 'Rhythm' },
+        reason: 'Other reason',
+        requestedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .get(`/api/participant/competitions/${comp.id}/pending-entries/${couple!.bib}`)
+        .expect(200);
+
+      expect(res.body.pendingEntries).toHaveLength(1);
+      expect(res.body.pendingEntries[0].id).toBe('pe-test-1');
+      expect(res.body.pendingEntries[0].combination.level).toBe('Gold');
+    });
+
+    it('should return empty array when no pending entries exist', async () => {
+      const comp = await setupOpenCompetition();
+
+      const res = await request(app)
+        .get(`/api/participant/competitions/${comp.id}/pending-entries/999`)
+        .expect(200);
+
+      expect(res.body.pendingEntries).toEqual([]);
     });
   });
 });

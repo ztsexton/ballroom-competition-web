@@ -168,7 +168,6 @@ export interface Competition {
   levelMode?: 'combined' | 'integrated'; // combined: separate Open/Syllabus toggle; integrated: Open levels in the list
   pricing?: CompetitionPricing;
   currency?: string;
-  entryPayments?: Record<string, EntryPayment>;
   maxCouplesPerHeat?: number;
   maxCouplesOnFloor?: number;
   maxCouplesOnFloorByLevel?: Record<string, number>;
@@ -194,7 +193,6 @@ export interface Competition {
   eventTemplates?: EventTemplate[];
   scholarshipLevels?: string[];
   scholarshipTemplates?: EventTemplate[];
-  pendingEntries?: PendingEntry[];
   invoiceBranding?: InvoiceBranding;
   createdBy?: string;
   createdAt: string;

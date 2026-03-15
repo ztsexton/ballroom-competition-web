@@ -98,10 +98,13 @@ router.get('/:bib/events', requireAnyAdmin, async (req: AuthRequest, res: Respon
 
     if (!(await assertCompetitionAccess(req, res, couple.competitionId))) return;
 
-    const allEvents = await dataService.getEvents(couple.competitionId);
-    const coupleEvents = Object.values(allEvents).filter(event =>
-      event.heats[0]?.bibs.includes(bib)
-    );
+    const entries = await dataService.getEntriesForBib(couple.competitionId, bib);
+    const eventIds = entries.map(e => e.eventId);
+    if (eventIds.length === 0) {
+      return res.json([]);
+    }
+    const eventsMap = await dataService.getEventsByIds(eventIds);
+    const coupleEvents = eventIds.map(id => eventsMap.get(id)).filter(Boolean);
     res.json(coupleEvents);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get couple events' });

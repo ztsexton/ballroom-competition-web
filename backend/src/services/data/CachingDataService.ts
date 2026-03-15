@@ -14,6 +14,7 @@ import {
   UserProfileUpdate,
   CompetitionSchedule,
   EntryPayment,
+  PendingEntry,
   SiteSettings,
 } from '../../types';
 
@@ -153,6 +154,46 @@ export class CachingDataService implements IDataService {
     this.competitionsById.invalidate(`${competitionId}`);
     this.competitionsList.invalidateAll();
     return result;
+  }
+
+  // -- Event Entries (pass-through) --
+
+  async getEventEntries(eventId: number): Promise<Array<{ bib: number; scratched: boolean }>> {
+    return this.inner.getEventEntries(eventId);
+  }
+
+  async getEntriesForBib(competitionId: number, bib: number): Promise<Array<{ eventId: number; scratched: boolean }>> {
+    return this.inner.getEntriesForBib(competitionId, bib);
+  }
+
+  async addEventEntry(eventId: number, bib: number, competitionId: number): Promise<void> {
+    return this.inner.addEventEntry(eventId, bib, competitionId);
+  }
+
+  async removeEventEntry(eventId: number, bib: number): Promise<void> {
+    return this.inner.removeEventEntry(eventId, bib);
+  }
+
+  async scratchEntry(eventId: number, bib: number): Promise<void> {
+    return this.inner.scratchEntry(eventId, bib);
+  }
+
+  async unscratchEntry(eventId: number, bib: number): Promise<void> {
+    return this.inner.unscratchEntry(eventId, bib);
+  }
+
+  // -- Pending Entries (pass-through) --
+
+  async getPendingEntries(competitionId: number): Promise<PendingEntry[]> {
+    return this.inner.getPendingEntries(competitionId);
+  }
+
+  async addPendingEntry(entry: PendingEntry): Promise<PendingEntry> {
+    return this.inner.addPendingEntry(entry);
+  }
+
+  async removePendingEntry(id: string): Promise<boolean> {
+    return this.inner.removePendingEntry(id);
   }
 
   // -- Studios --

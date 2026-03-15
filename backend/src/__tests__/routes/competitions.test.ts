@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../../server';
 import { dataService } from '../../services/dataService';
+import { PendingEntry } from '../../types';
 
 describe('Competitions API', () => {
   beforeEach(async () => {
@@ -222,6 +223,114 @@ describe('Competitions API', () => {
 
     it('should return 404 for non-existent competition', async () => {
       await request(app).delete('/api/competitions/999').expect(404);
+    });
+  });
+
+  describe('GET /api/competitions/:id/pending-entries', () => {
+    it('should return pending entries for a competition', async () => {
+      const comp = await dataService.addCompetition({ name: 'PE Comp', type: 'NDCA', date: '2025-06-01' });
+
+      await dataService.addPendingEntry({
+        id: 'pe-1', bib: 10, competitionId: comp.id,
+        combination: { level: 'Gold', style: 'Smooth' },
+        reason: 'Level too high',
+        requestedAt: new Date().toISOString(),
+      });
+      await dataService.addPendingEntry({
+        id: 'pe-2', bib: 20, competitionId: comp.id,
+        combination: { level: 'Silver', style: 'Rhythm' },
+        reason: 'Needs approval',
+        requestedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .get(`/api/competitions/${comp.id}/pending-entries`)
+        .expect(200);
+
+      expect(res.body.pendingEntries).toHaveLength(2);
+      expect(res.body.count).toBe(2);
+    });
+
+    it('should return empty array when no pending entries', async () => {
+      const comp = await dataService.addCompetition({ name: 'Clean', type: 'NDCA', date: '2025-06-01' });
+
+      const res = await request(app)
+        .get(`/api/competitions/${comp.id}/pending-entries`)
+        .expect(200);
+
+      expect(res.body.pendingEntries).toEqual([]);
+      expect(res.body.count).toBe(0);
+    });
+  });
+
+  describe('POST /api/competitions/:id/pending-entries/:entryId/approve', () => {
+    it('should approve pending entry, create event, and remove from queue', async () => {
+      const comp = await dataService.addCompetition({
+        name: 'Approve Test', type: 'NDCA', date: '2025-06-01',
+        registrationOpen: true,
+      });
+
+      const leader = await dataService.addPerson({
+        firstName: 'L', lastName: 'A', role: 'leader', status: 'student', competitionId: comp.id,
+      });
+      const follower = await dataService.addPerson({
+        firstName: 'F', lastName: 'B', role: 'follower', status: 'student', competitionId: comp.id,
+      });
+      const couple = await dataService.addCouple(leader.id, follower.id, comp.id);
+      const judge = await dataService.addJudge('Judge', comp.id);
+
+      await dataService.addPendingEntry({
+        id: 'approve-pe-1', bib: couple!.bib, competitionId: comp.id,
+        combination: { level: 'Gold', style: 'Smooth', designation: 'Pro-Am' },
+        reason: 'Needs approval',
+        requestedAt: new Date().toISOString(),
+      });
+
+      const res = await request(app)
+        .post(`/api/competitions/${comp.id}/pending-entries/approve-pe-1/approve`)
+        .expect(200);
+
+      expect(res.body.event).toBeDefined();
+
+      // Verify pending entry was removed
+      const remaining = await dataService.getPendingEntries(comp.id);
+      expect(remaining).toEqual([]);
+    });
+
+    it('should return 404 for non-existent pending entry', async () => {
+      const comp = await dataService.addCompetition({ name: 'C', type: 'NDCA', date: '2025-06-01' });
+
+      await request(app)
+        .post(`/api/competitions/${comp.id}/pending-entries/nonexistent/approve`)
+        .expect(404);
+    });
+  });
+
+  describe('DELETE /api/competitions/:id/pending-entries/:entryId', () => {
+    it('should reject (remove) a pending entry', async () => {
+      const comp = await dataService.addCompetition({ name: 'Reject Test', type: 'NDCA', date: '2025-06-01' });
+
+      await dataService.addPendingEntry({
+        id: 'reject-pe-1', bib: 10, competitionId: comp.id,
+        combination: { level: 'Gold', style: 'Smooth' },
+        reason: 'Test',
+        requestedAt: new Date().toISOString(),
+      });
+
+      await request(app)
+        .delete(`/api/competitions/${comp.id}/pending-entries/reject-pe-1`)
+        .expect(204);
+
+      const remaining = await dataService.getPendingEntries(comp.id);
+      expect(remaining).toEqual([]);
+    });
+
+    it('should return 404 for non-existent pending entry', async () => {
+      const comp = await dataService.addCompetition({ name: 'C', type: 'NDCA', date: '2025-06-01' });
+
+      await request(app)
+        .delete(`/api/competitions/${comp.id}/pending-entries/nonexistent`)
+        .expect(404);
     });
   });
 });

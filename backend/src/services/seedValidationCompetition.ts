@@ -199,7 +199,9 @@ export async function seedValidationCompetition(
     },
   ];
 
-  await ds.updateCompetition(compId, { pendingEntries });
+  for (const pe of pendingEntries) {
+    await ds.addPendingEntry(pe);
+  }
 
   logger.info({ competitionId: compId, events: eventDefs.length, couples: couples.length, pending: pendingEntries.length }, 'Validation seed competition created');
 

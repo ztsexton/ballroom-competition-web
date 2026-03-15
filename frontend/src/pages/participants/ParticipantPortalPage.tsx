@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { participantApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { Competition, Person, Couple, Event, AgeCategory, EventTemplate } from '../../types';
+import { Competition, Person, Couple, Event, AgeCategory, EventTemplate, PendingEntry } from '../../types';
 import { DEFAULT_LEVELS } from '../../constants/levels';
 import { getDancesForStyle, getAvailableStyles } from '../../constants/dances';
 import { Skeleton } from '../../components/Skeleton';
@@ -44,6 +44,7 @@ const ParticipantPortalPage = () => {
 
   // Entries
   const [myEntries, setMyEntries] = useState<Event[]>([]);
+  const [myPendingEntries, setMyPendingEntries] = useState<PendingEntry[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
 
   // Registration panel state (per couple)
@@ -151,11 +152,21 @@ const ParticipantPortalPage = () => {
       setMyCouples(res.data.couples);
       setMyEntries(res.data.entries);
       setSchedule(res.data.schedule);
+      // Load pending entries for all couples
+      const allPending: PendingEntry[] = [];
+      for (const couple of res.data.couples) {
+        try {
+          const pendingRes = await participantApi.getPendingEntries(competitionId, couple.bib);
+          allPending.push(...pendingRes.data.pendingEntries);
+        } catch { /* ignore */ }
+      }
+      setMyPendingEntries(allPending);
     } catch {
       // Not registered yet — that's fine
       setMyPerson(null);
       setMyCouples([]);
       setMyEntries([]);
+      setMyPendingEntries([]);
       setSchedule([]);
     }
   };
@@ -638,7 +649,7 @@ const ParticipantPortalPage = () => {
                 const coupleEntries = myEntries.filter(event =>
                   event.heats.some(h => h.bibs.includes(regBib!))
                 );
-                const couplePending = (selectedComp?.pendingEntries || []).filter(p => p.bib === regBib);
+                const couplePending = myPendingEntries.filter(p => p.bib === regBib);
                 if (coupleEntries.length === 0 && couplePending.length === 0) return (
                   <p className="text-gray-500 italic">No entries yet for this couple.</p>
                 );

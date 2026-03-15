@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppData, Person, Couple, Judge, JudgeProfile, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment, SiteSettings } from '../../types';
+import { AppData, Person, Couple, Judge, JudgeProfile, Event, Heat, Competition, CompetitionAdmin, Studio, Organization, User, UserProfileUpdate, CompetitionSchedule, EntryPayment, PendingEntry, SiteSettings } from '../../types';
 import { IDataService } from './IDataService';
 import { determineRounds, getScoreKey } from './helpers';
 import logger from '../../utils/logger';
@@ -355,9 +355,10 @@ export class JsonDataService implements IDataService {
     return competition;
   }
 
+  private entryPaymentsMap: Map<number, Record<string, EntryPayment>> = new Map();
+
   async getEntryPayments(competitionId: number): Promise<Record<string, EntryPayment>> {
-    const competition = await this.getCompetitionById(competitionId);
-    return competition?.entryPayments || {};
+    return this.entryPaymentsMap.get(competitionId) || {};
   }
 
   async updateEntryPayments(
@@ -367,13 +368,11 @@ export class JsonDataService implements IDataService {
   ): Promise<Record<string, EntryPayment> | null> {
     const competition = this.data.competitions.find(c => c.id === competitionId);
     if (!competition) return null;
-    if (!competition.entryPayments) {
-      competition.entryPayments = {};
-    }
+    const payments = this.entryPaymentsMap.get(competitionId) || {};
     const result: Record<string, EntryPayment> = {};
     for (const { eventId, bib } of entries) {
       const key = `${eventId}:${bib}`;
-      const existing = competition.entryPayments[key] || { paid: false };
+      const existing = payments[key] || { paid: false };
       existing.paid = updates.paid;
       if (updates.paidBy !== undefined) existing.paidBy = updates.paidBy;
       if (updates.notes !== undefined) existing.notes = updates.notes;
@@ -384,10 +383,10 @@ export class JsonDataService implements IDataService {
         delete existing.paidAt;
         delete existing.paidBy;
       }
-      competition.entryPayments[key] = existing;
+      payments[key] = existing;
       result[key] = existing;
     }
-    this.saveCompetitions();
+    this.entryPaymentsMap.set(competitionId, payments);
     return result;
   }
 
@@ -412,6 +411,89 @@ export class JsonDataService implements IDataService {
       this.saveEvents();
       this.saveSchedules();
       return true;
+    }
+    return false;
+  }
+
+  // Event Entries methods (backed by heats JSONB in JSON backend)
+  async getEventEntries(eventId: number): Promise<Array<{ bib: number; scratched: boolean }>> {
+    const event = this.data.events[eventId];
+    if (!event) return [];
+    const bibs = event.heats[0]?.bibs || [];
+    const scratchedSet = new Set(event.scratchedBibs || []);
+    return bibs.map(bib => ({ bib, scratched: scratchedSet.has(bib) }));
+  }
+
+  async getEntriesForBib(competitionId: number, bib: number): Promise<Array<{ eventId: number; scratched: boolean }>> {
+    const result: Array<{ eventId: number; scratched: boolean }> = [];
+    for (const event of Object.values(this.data.events)) {
+      if (event.competitionId !== competitionId) continue;
+      if (event.heats[0]?.bibs.includes(bib)) {
+        const scratched = (event.scratchedBibs || []).includes(bib);
+        result.push({ eventId: event.id, scratched });
+      }
+    }
+    return result;
+  }
+
+  async addEventEntry(eventId: number, bib: number, _competitionId: number): Promise<void> {
+    const event = this.data.events[eventId];
+    if (!event || event.heats.length === 0) return;
+    const firstHeat = event.heats[0];
+    if (!firstHeat.bibs.includes(bib)) {
+      firstHeat.bibs.push(bib);
+      this.saveEvents();
+    }
+  }
+
+  async removeEventEntry(eventId: number, bib: number): Promise<void> {
+    const event = this.data.events[eventId];
+    if (!event || event.heats.length === 0) return;
+    const firstHeat = event.heats[0];
+    firstHeat.bibs = firstHeat.bibs.filter(b => b !== bib);
+    this.saveEvents();
+  }
+
+  async scratchEntry(eventId: number, bib: number): Promise<void> {
+    const event = this.data.events[eventId];
+    if (!event) return;
+    if (!event.scratchedBibs) event.scratchedBibs = [];
+    if (!event.scratchedBibs.includes(bib)) {
+      event.scratchedBibs.push(bib);
+      this.saveEvents();
+    }
+  }
+
+  async unscratchEntry(eventId: number, bib: number): Promise<void> {
+    const event = this.data.events[eventId];
+    if (!event) return;
+    if (event.scratchedBibs) {
+      event.scratchedBibs = event.scratchedBibs.filter(b => b !== bib);
+      this.saveEvents();
+    }
+  }
+
+  // Pending Entries methods (backed by in-memory pendingEntries array per competition)
+  private pendingEntries: Map<number, PendingEntry[]> = new Map();
+
+  async getPendingEntries(competitionId: number): Promise<PendingEntry[]> {
+    return this.pendingEntries.get(competitionId) || [];
+  }
+
+  async addPendingEntry(entry: PendingEntry): Promise<PendingEntry> {
+    const entries = this.pendingEntries.get(entry.competitionId) || [];
+    entries.push(entry);
+    this.pendingEntries.set(entry.competitionId, entries);
+    return entry;
+  }
+
+  async removePendingEntry(id: string): Promise<boolean> {
+    for (const [compId, entries] of this.pendingEntries) {
+      const idx = entries.findIndex(e => e.id === id);
+      if (idx !== -1) {
+        entries.splice(idx, 1);
+        return true;
+      }
     }
     return false;
   }
@@ -1199,6 +1281,8 @@ export class JsonDataService implements IDataService {
     };
     this.competitionAdmins = [];
     this.siteSettings = {};
+    this.entryPaymentsMap = new Map();
+    this.pendingEntries = new Map();
     this.saveCompetitions();
     this.saveStudios();
     this.saveOrganizations();

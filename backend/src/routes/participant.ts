@@ -257,6 +257,20 @@ router.get('/competitions/:id/my-entries', async (req: AuthRequest, res: Respons
   }
 });
 
+// GET /participant/competitions/:id/pending-entries/:bib — pending entries for a couple
+router.get('/competitions/:id/pending-entries/:bib', async (req: AuthRequest, res: Response) => {
+  try {
+    const competitionId = parseInt(req.params.id);
+    const bib = parseInt(req.params.bib);
+    const allPending = await dataService.getPendingEntries(competitionId);
+    const couplePending = allPending.filter(p => p.bib === bib);
+    res.json({ pendingEntries: couplePending });
+  } catch (err) {
+    logger.error(err, 'Failed to load pending entries');
+    res.status(500).json({ error: 'Failed to load pending entries' });
+  }
+});
+
 // POST /participant/competitions/:id/entries — register couple for event combination
 router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response) => {
   try {
@@ -300,7 +314,7 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
         requestedBy: req.user!.uid,
       };
 
-      const existingPending = comp.pendingEntries || [];
+      const existingPending = await dataService.getPendingEntries(competitionId);
       // Check for duplicate pending entry
       const isDuplicate = existingPending.some(p =>
         p.bib === bib &&
@@ -313,9 +327,7 @@ router.post('/competitions/:id/entries', async (req: AuthRequest, res: Response)
         return res.status(409).json({ error: 'This entry is already pending approval' });
       }
 
-      await dataService.updateCompetition(competitionId, {
-        pendingEntries: [...existingPending, pendingEntry],
-      });
+      await dataService.addPendingEntry(pendingEntry);
 
       return res.status(202).json({
         pending: true,

@@ -1,4 +1,5 @@
 import { IDataService } from '../../../services/data/IDataService';
+import { PendingEntry } from '../../../types';
 
 export function dataServiceContractTests(
   createService: () => IDataService | Promise<IDataService>,
@@ -895,6 +896,197 @@ export function dataServiceContractTests(
       const j1 = await ds.addJudge('J1', comp.id);
       const status = await ds.getJudgeSubmissionStatusBatch([], [j1.id]);
       expect(status[j1.id]).toBe(true);
+    });
+  });
+
+  // ─── Event Entries (junction table) ────────────────────────────
+
+  describe('Event Entries', () => {
+    let compId: number;
+    let bib1: number;
+    let bib2: number;
+
+    beforeEach(async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      compId = comp.id;
+      const leader1 = await ds.addPerson({ firstName: 'L1', lastName: 'A', role: 'leader', status: 'student', competitionId: compId });
+      const follower1 = await ds.addPerson({ firstName: 'F1', lastName: 'B', role: 'follower', status: 'student', competitionId: compId });
+      const leader2 = await ds.addPerson({ firstName: 'L2', lastName: 'C', role: 'leader', status: 'student', competitionId: compId });
+      const follower2 = await ds.addPerson({ firstName: 'F2', lastName: 'D', role: 'follower', status: 'student', competitionId: compId });
+      const c1 = await ds.addCouple(leader1.id, follower1.id, compId);
+      const c2 = await ds.addCouple(leader2.id, follower2.id, compId);
+      bib1 = c1!.bib;
+      bib2 = c2!.bib;
+    });
+
+    it('should populate event_entries when creating an event via addEvent', async () => {
+      const event = await ds.addEvent('Waltz', [bib1, bib2], [], compId);
+      const entries = await ds.getEventEntries(event.id);
+      const bibs = entries.map(e => e.bib).sort();
+      expect(bibs).toEqual([bib1, bib2].sort());
+      expect(entries.every(e => e.scratched === false)).toBe(true);
+    });
+
+    it('should return entries for a bib across events', async () => {
+      const e1 = await ds.addEvent('Event 1', [bib1, bib2], [], compId);
+      const e2 = await ds.addEvent('Event 2', [bib1], [], compId);
+
+      const entries = await ds.getEntriesForBib(compId, bib1);
+      const eventIds = entries.map(e => e.eventId).sort();
+      expect(eventIds).toEqual([e1.id, e2.id].sort());
+    });
+
+    it('should return empty array for bib with no entries', async () => {
+      const entries = await ds.getEntriesForBib(compId, 999);
+      expect(entries).toEqual([]);
+    });
+
+    it('should add and remove individual event entries', async () => {
+      const event = await ds.addEvent('Waltz', [bib1], [], compId);
+      await ds.addEventEntry(event.id, bib2, compId);
+
+      let entries = await ds.getEventEntries(event.id);
+      expect(entries).toHaveLength(2);
+
+      await ds.removeEventEntry(event.id, bib2);
+      entries = await ds.getEventEntries(event.id);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].bib).toBe(bib1);
+    });
+
+    it('should scratch and unscratch entries', async () => {
+      const event = await ds.addEvent('Waltz', [bib1], [], compId);
+
+      await ds.scratchEntry(event.id, bib1);
+      let entries = await ds.getEventEntries(event.id);
+      expect(entries[0].scratched).toBe(true);
+
+      await ds.unscratchEntry(event.id, bib1);
+      entries = await ds.getEventEntries(event.id);
+      expect(entries[0].scratched).toBe(false);
+    });
+
+    it('should clean up event_entries when event is deleted', async () => {
+      const event = await ds.addEvent('Waltz', [bib1, bib2], [], compId);
+      await ds.deleteEvent(event.id);
+
+      const entries = await ds.getEntriesForBib(compId, bib1);
+      const remaining = entries.filter(e => e.eventId === event.id);
+      expect(remaining).toHaveLength(0);
+    });
+  });
+
+  // ─── Pending Entries ──────────────────────────────────────────
+
+  describe('Pending Entries', () => {
+    let compId: number;
+
+    beforeEach(async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      compId = comp.id;
+    });
+
+    it('should start empty', async () => {
+      const pending = await ds.getPendingEntries(compId);
+      expect(pending).toEqual([]);
+    });
+
+    it('should add and retrieve pending entries', async () => {
+      const entry: PendingEntry = {
+        id: 'test-pending-1',
+        bib: 1,
+        competitionId: compId,
+        combination: { level: 'Gold', style: 'Smooth' },
+        reason: 'Level too high',
+        requestedAt: new Date().toISOString(),
+      };
+      const added = await ds.addPendingEntry(entry);
+      expect(added.id).toBe('test-pending-1');
+
+      const all = await ds.getPendingEntries(compId);
+      expect(all).toHaveLength(1);
+      expect(all[0].bib).toBe(1);
+      expect(all[0].combination.level).toBe('Gold');
+      expect(all[0].reason).toBe('Level too high');
+    });
+
+    it('should remove a pending entry', async () => {
+      const entry: PendingEntry = {
+        id: 'test-pending-2',
+        bib: 2,
+        competitionId: compId,
+        combination: { level: 'Silver', style: 'Rhythm' },
+        reason: 'Test reason',
+        requestedAt: new Date().toISOString(),
+      };
+      await ds.addPendingEntry(entry);
+      const removed = await ds.removePendingEntry('test-pending-2');
+      expect(removed).toBe(true);
+
+      const all = await ds.getPendingEntries(compId);
+      expect(all).toEqual([]);
+    });
+
+    it('should return false when removing non-existent pending entry', async () => {
+      const removed = await ds.removePendingEntry('nonexistent');
+      expect(removed).toBe(false);
+    });
+
+    it('should isolate pending entries by competition', async () => {
+      const comp2 = await ds.addCompetition({ name: 'C2', type: 'NDCA', date: '2026-02-01' });
+
+      await ds.addPendingEntry({
+        id: 'pe-comp1', bib: 1, competitionId: compId,
+        combination: { level: 'Gold' }, reason: 'R1',
+        requestedAt: new Date().toISOString(),
+      });
+      await ds.addPendingEntry({
+        id: 'pe-comp2', bib: 2, competitionId: comp2.id,
+        combination: { level: 'Silver' }, reason: 'R2',
+        requestedAt: new Date().toISOString(),
+      });
+
+      const c1Entries = await ds.getPendingEntries(compId);
+      expect(c1Entries).toHaveLength(1);
+      expect(c1Entries[0].id).toBe('pe-comp1');
+
+      const c2Entries = await ds.getPendingEntries(comp2.id);
+      expect(c2Entries).toHaveLength(1);
+      expect(c2Entries[0].id).toBe('pe-comp2');
+    });
+  });
+
+  // ─── getEventsByIds ───────────────────────────────────────────
+
+  describe('getEventsByIds', () => {
+    let compId: number;
+
+    beforeEach(async () => {
+      const comp = await ds.addCompetition({ name: 'C', type: 'STUDIO', date: '2026-01-01' });
+      compId = comp.id;
+    });
+
+    it('should return events by their IDs', async () => {
+      const e1 = await ds.addEvent('Event A', [1], [], compId);
+      const e2 = await ds.addEvent('Event B', [2], [], compId);
+      await ds.addEvent('Event C', [3], [], compId);
+
+      const map = await ds.getEventsByIds([e1.id, e2.id]);
+      expect(map.size).toBe(2);
+      expect(map.get(e1.id)?.name).toBe('Event A');
+      expect(map.get(e2.id)?.name).toBe('Event B');
+    });
+
+    it('should return empty map for empty array', async () => {
+      const map = await ds.getEventsByIds([]);
+      expect(map.size).toBe(0);
+    });
+
+    it('should skip non-existent IDs', async () => {
+      const e1 = await ds.addEvent('Event A', [1], [], compId);
+      const map = await ds.getEventsByIds([e1.id, 99999]);
+      expect(map.size).toBe(1);
+      expect(map.get(e1.id)?.name).toBe('Event A');
     });
   });
 

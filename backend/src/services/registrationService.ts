@@ -284,10 +284,11 @@ async function registerStandard(
     const st = matchedEvent.scoringType || 'standard';
     const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
     const updated = await dataService.updateEvent(matchedEvent.id, { heats: newHeats });
+    await dataService.addEventEntry(matchedEvent.id, bib, competitionId);
     return { event: updated, created: false };
   }
 
-  // No match — auto-create event
+  // No match — auto-create event (addEvent handles dual-write internally)
   const name = buildEventName(combination, displayDances);
 
   const judges = await dataService.getJudges(competitionId);
@@ -377,6 +378,7 @@ async function registerWithDuplicateEntries(
       const st = event.scoringType || 'standard';
       const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
       const updated = await dataService.updateEvent(event.id, { heats: newHeats });
+      await dataService.addEventEntry(event.id, bib, competitionId);
       return { event: updated, created: false };
     }
   }
@@ -417,5 +419,6 @@ export async function removeEntryFromEvent(
   const st = event.scoringType || 'standard';
   const newHeats = dataService.rebuildHeats(newBibs, judgeIds, st);
   const updated = await dataService.updateEvent(eventId, { heats: newHeats });
+  await dataService.removeEventEntry(eventId, bib);
   return { event: updated };
 }
