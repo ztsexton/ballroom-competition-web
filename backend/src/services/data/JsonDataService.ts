@@ -899,6 +899,51 @@ export class JsonDataService implements IDataService {
     this.saveEvents();
   }
 
+  async mergePeople(keepId: number, mergeId: number): Promise<void> {
+    const keepPerson = this.data.people.find(p => p.id === keepId);
+    const mergePerson = this.data.people.find(p => p.id === mergeId);
+    if (!keepPerson || !mergePerson) throw new Error('Person not found');
+    if (keepPerson.competitionId !== mergePerson.competitionId) {
+      throw new Error('Both people must be in the same competition');
+    }
+
+    const keepName = `${keepPerson.firstName} ${keepPerson.lastName}`;
+
+    // Re-point couples
+    for (const couple of this.data.couples) {
+      if (couple.leaderId === mergeId) {
+        couple.leaderId = keepId;
+        couple.leaderName = keepName;
+      }
+      if (couple.followerId === mergeId) {
+        couple.followerId = keepId;
+        couple.followerName = keepName;
+      }
+    }
+
+    // Set role to 'both'
+    keepPerson.role = 'both';
+
+    // Transfer bib if keep person doesn't have one
+    if (!keepPerson.bib && mergePerson.bib) {
+      keepPerson.bib = mergePerson.bib;
+    }
+
+    // Transfer userId/email if keep person doesn't have one
+    if (!keepPerson.userId && mergePerson.userId) {
+      keepPerson.userId = mergePerson.userId;
+    }
+    if (!keepPerson.email && mergePerson.email) {
+      keepPerson.email = mergePerson.email;
+    }
+
+    // Delete merged person
+    this.data.people = this.data.people.filter(p => p.id !== mergeId);
+
+    this.savePeople();
+    this.saveCouples();
+  }
+
   // Judges methods
   async getJudges(competitionId?: number): Promise<Judge[]> {
     if (competitionId !== undefined) {

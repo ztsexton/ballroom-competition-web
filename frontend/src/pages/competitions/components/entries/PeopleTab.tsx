@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { peopleApi } from '../../../../api/client';
 import { Person, Studio } from '../../../../types';
@@ -27,6 +27,7 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<Person>>({});
+  const [merging, setMerging] = useState(false);
 
   const connectedStudios = studios.filter(s => !!s.mindbodySiteId);
 
@@ -86,6 +87,44 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
     }
   };
 
+  const handleMerge = async (group: Person[]) => {
+    // Auto-pick: prefer person with bib, then with email, then lower ID
+    const sorted = [...group].sort((a, b) => {
+      if (a.bib && !b.bib) return -1;
+      if (!a.bib && b.bib) return 1;
+      if (a.email && !b.email) return -1;
+      if (!a.email && b.email) return 1;
+      return a.id - b.id;
+    });
+    const keep = sorted[0];
+    const mergeIds = sorted.slice(1).map(p => p.id);
+
+    setMerging(true);
+    try {
+      for (const mergeId of mergeIds) {
+        await peopleApi.merge(keep.id, mergeId);
+      }
+      showToast(`Merged into ${keep.firstName} ${keep.lastName} (ID:${keep.id}) with role "Both"`, 'success');
+      onDataChange();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'Failed to merge', 'error');
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  // Detect potential duplicates: same first+last name (case-insensitive), different IDs
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, Person[]>();
+    for (const person of people) {
+      const key = `${person.firstName.toLowerCase().trim()} ${person.lastName.toLowerCase().trim()}`;
+      const list = groups.get(key) || [];
+      list.push(person);
+      groups.set(key, list);
+    }
+    return Array.from(groups.values()).filter(g => g.length > 1);
+  }, [people]);
+
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
       <div className="flex justify-between items-center mb-3">
@@ -109,6 +148,37 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
             onDataChange();
           }}
         />
+      )}
+
+      {duplicateGroups.length > 0 && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+          <h4 className="text-amber-800 font-semibold text-sm mb-2">
+            Potential Duplicates Detected ({duplicateGroups.length} {duplicateGroups.length === 1 ? 'group' : 'groups'})
+          </h4>
+          <p className="text-amber-700 text-xs mb-3">
+            The following people share the same name. If they are the same person acting as both leader and follower, merge them into one record with role "Both".
+          </p>
+          {duplicateGroups.map((group, gi) => (
+            <div key={gi} className="flex items-center gap-2 flex-wrap mb-2 pb-2 border-b border-amber-200 last:border-b-0 last:mb-0 last:pb-0">
+              {group.map((person, pi) => (
+                <span key={person.id} className="text-sm">
+                  {pi > 0 && <span className="text-amber-400 mx-1">&amp;</span>}
+                  <span className="font-medium">{person.firstName} {person.lastName}</span>
+                  <span className="text-xs text-amber-600 ml-1">
+                    (ID:{person.id}, {person.role}, {person.status}{person.bib ? `, bib #${person.bib}` : ''})
+                  </span>
+                </span>
+              ))}
+              <button
+                onClick={() => handleMerge(group)}
+                disabled={merging}
+                className="ml-auto px-3 py-1 bg-amber-500 text-white rounded border-none cursor-pointer text-xs font-medium hover:bg-amber-600 disabled:opacity-50"
+              >
+                {merging ? 'Merging...' : 'Merge'}
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       <form onSubmit={handleAddPerson} className="mb-4">
@@ -233,6 +303,7 @@ const PeopleTab = ({ people, studios, competitionId, defaultStudioId, onDataChan
         onConfirm={() => { if (deleteTarget) handleDeletePerson(deleteTarget.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
+
     </div>
   );
 };

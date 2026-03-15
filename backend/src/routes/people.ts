@@ -102,6 +102,36 @@ router.patch('/:id/bib', requireAnyAdmin, async (req: AuthRequest, res: Response
   }
 });
 
+// Merge another person into this one (this person is kept, the other is deleted)
+router.post('/:id/merge', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
+  const keepId = parseInt(req.params.id);
+  const { mergeId } = req.body;
+  if (!mergeId || typeof mergeId !== 'number') {
+    return res.status(400).json({ error: 'mergeId is required' });
+  }
+  if (keepId === mergeId) {
+    return res.status(400).json({ error: 'Cannot merge a person with themselves' });
+  }
+
+  const keepPerson = await dataService.getPersonById(keepId);
+  if (!keepPerson) return res.status(404).json({ error: 'Target person not found' });
+  if (!(await assertCompetitionAccess(req, res, keepPerson.competitionId))) return;
+
+  const mergePerson = await dataService.getPersonById(mergeId);
+  if (!mergePerson) return res.status(404).json({ error: 'Source person not found' });
+  if (keepPerson.competitionId !== mergePerson.competitionId) {
+    return res.status(400).json({ error: 'Both people must be in the same competition' });
+  }
+
+  try {
+    await dataService.mergePeople(keepId, mergeId);
+    const updated = await dataService.getPersonById(keepId);
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to merge people' });
+  }
+});
+
 // Delete person
 router.delete('/:id', requireAnyAdmin, async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id);

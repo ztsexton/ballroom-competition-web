@@ -1042,6 +1042,60 @@ export class PostgresDataService implements IDataService {
     }
   }
 
+  async mergePeople(keepId: number, mergeId: number): Promise<void> {
+    const keepPerson = await this.getPersonById(keepId);
+    const mergePerson = await this.getPersonById(mergeId);
+    if (!keepPerson || !mergePerson) throw new Error('Person not found');
+    if (keepPerson.competitionId !== mergePerson.competitionId) {
+      throw new Error('Both people must be in the same competition');
+    }
+
+    const keepName = `${keepPerson.firstName} ${keepPerson.lastName}`;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Re-point couples where mergePerson is leader
+      await client.query(
+        'UPDATE couples SET leader_id = $1, leader_name = $2 WHERE leader_id = $3',
+        [keepId, keepName, mergeId]
+      );
+      // Re-point couples where mergePerson is follower
+      await client.query(
+        'UPDATE couples SET follower_id = $1, follower_name = $2 WHERE follower_id = $3',
+        [keepId, keepName, mergeId]
+      );
+
+      // Set role to 'both' since they're now acting as leader and follower
+      await client.query('UPDATE people SET role = $1 WHERE id = $2', ['both', keepId]);
+
+      // Transfer bib from merge person if keep person doesn't have one
+      if (!keepPerson.bib && mergePerson.bib) {
+        await client.query('UPDATE people SET bib = $1 WHERE id = $2', [mergePerson.bib, keepId]);
+      }
+
+      // Transfer userId if keep person doesn't have one
+      if (!keepPerson.userId && mergePerson.userId) {
+        await client.query('UPDATE people SET user_id = $1 WHERE id = $2', [mergePerson.userId, keepId]);
+      }
+
+      // Transfer email if keep person doesn't have one
+      if (!keepPerson.email && mergePerson.email) {
+        await client.query('UPDATE people SET email = $1 WHERE id = $2', [mergePerson.email, keepId]);
+      }
+
+      // Delete the merged person (CASCADE will not fire since we already moved couples)
+      await client.query('DELETE FROM people WHERE id = $1', [mergeId]);
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   // ─── Judges ─────────────────────────────────────────────────────
 
   async getJudges(competitionId?: number): Promise<Judge[]> {

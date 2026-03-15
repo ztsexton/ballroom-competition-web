@@ -159,6 +159,8 @@ export const peopleApi = {
     api.patch<Person>(`/people/${id}`, updates),
   reassignBib: (id: number, bib: number) =>
     api.patch<Person>(`/people/${id}/bib`, { bib }),
+  merge: (keepId: number, mergeId: number) =>
+    api.post<Person>(`/people/${keepId}/merge`, { mergeId }),
   delete: (id: number) => api.delete(`/people/${id}`),
 };
 

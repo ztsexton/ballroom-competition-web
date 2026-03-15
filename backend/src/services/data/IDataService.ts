@@ -84,6 +84,7 @@ export interface IDataService {
   assignBib(competitionId: number, personStatus: 'student' | 'professional'): Promise<number>;
   reassignPersonBib(personId: number, newBib: number): Promise<boolean>;
   bulkReassignBibs(competitionId: number): Promise<void>;
+  mergePeople(keepId: number, mergeId: number): Promise<void>;
 
   // Judges
   getJudges(competitionId?: number): Promise<Judge[]>;

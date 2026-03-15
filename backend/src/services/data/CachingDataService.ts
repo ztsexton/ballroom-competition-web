@@ -386,6 +386,12 @@ export class CachingDataService implements IDataService {
     this.eventsByCompetition.invalidateAll();
   }
 
+  async mergePeople(keepId: number, mergeId: number): Promise<void> {
+    await this.inner.mergePeople(keepId, mergeId);
+    this.couplesByBib.invalidateAll();
+    this.couplesByCompetition.invalidateAll();
+  }
+
   // -- Judges --
 
   async getJudges(competitionId?: number): Promise<Judge[]> {
