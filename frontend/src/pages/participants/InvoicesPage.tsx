@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { invoicesApi, competitionsApi, couplesApi, peopleApi } from '../../api/client';
 import { useCompetition } from '../../context/CompetitionContext';
 import { useToast } from '../../context/ToastContext';
 import { PricingTier, CompetitionPricing, MultiDancePricing, InvoiceSummary, PersonInvoice, PartnershipGroup, Couple, Person } from '../../types';
 import { Skeleton } from '../../components/Skeleton';
+
+type SortField = 'name' | 'entries' | 'total' | 'paid' | 'outstanding';
+type SortDir = 'asc' | 'desc';
 
 const DANCE_COUNTS = ['2', '3', '4', '5'];
 
@@ -107,6 +110,8 @@ const InvoicesPage = () => {
   const [billingOpen, setBillingOpen] = useState(false);
   const [expandedPerson, setExpandedPerson] = useState<number | null>(null);
   const [savingPricing, setSavingPricing] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Pricing state
   const [singleTiers, setSingleTiers] = useState<PricingTier[]>([]);
@@ -250,6 +255,37 @@ const InvoicesPage = () => {
       showToast(msg, 'error');
     }
   };
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir(field === 'name' ? 'asc' : 'desc');
+    }
+  };
+
+  const { proInvoices, studentInvoices } = useMemo(() => {
+    if (!summary) return { proInvoices: [], studentInvoices: [] };
+    const getEntryCount = (inv: PersonInvoice) =>
+      inv.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
+    const sort = (invoices: PersonInvoice[]) =>
+      [...invoices].sort((a, b) => {
+        let cmp = 0;
+        switch (sortField) {
+          case 'name': cmp = a.personName.localeCompare(b.personName); break;
+          case 'entries': cmp = getEntryCount(a) - getEntryCount(b); break;
+          case 'total': cmp = a.totalAmount - b.totalAmount; break;
+          case 'paid': cmp = a.paidAmount - b.paidAmount; break;
+          case 'outstanding': cmp = a.outstandingAmount - b.outstandingAmount; break;
+        }
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    return {
+      proInvoices: sort(summary.invoices.filter(i => i.personStatus === 'professional')),
+      studentInvoices: sort(summary.invoices.filter(i => i.personStatus === 'student')),
+    };
+  }, [summary, sortField, sortDir]);
 
   if (loading) return (
     <div className="max-w-7xl mx-auto p-8">
@@ -460,33 +496,65 @@ const InvoicesPage = () => {
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className="text-left px-3 py-2 text-gray-500 font-medium">Name</th>
-                <th className="text-left px-3 py-2 text-gray-500 font-medium">Status</th>
-                <th className="text-right px-3 py-2 text-gray-500 font-medium">Entries</th>
-                <th className="text-right px-3 py-2 text-gray-500 font-medium">Total</th>
-                <th className="text-right px-3 py-2 text-gray-500 font-medium">Paid</th>
-                <th className="text-right px-3 py-2 text-gray-500 font-medium">Outstanding</th>
+                <SortHeader field="name" label="Name" align="left" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader field="entries" label="Entries" align="right" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader field="total" label="Total" align="right" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader field="paid" label="Paid" align="right" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                <SortHeader field="outstanding" label="Outstanding" align="right" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
                 <th className="text-center px-3 py-2 text-gray-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {summary.invoices.map(inv => (
-                <InvoiceRow
-                  key={inv.personId}
-                  invoice={inv}
-                  expanded={expandedPerson === inv.personId}
-                  onToggle={() => setExpandedPerson(expandedPerson === inv.personId ? null : inv.personId)}
-                  onPayEntries={payEntries}
-                  onDownloadPDF={downloadPDF}
-                  onEmailInvoice={emailInvoice}
-                  fmt={fmt}
-                />
-              ))}
+              {proInvoices.length > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={6} className="px-2 pt-4 pb-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-primary-500">
+                        Professional ({proInvoices.length})
+                      </span>
+                    </td>
+                  </tr>
+                  {proInvoices.map(inv => (
+                    <InvoiceRow
+                      key={inv.personId}
+                      invoice={inv}
+                      expanded={expandedPerson === inv.personId}
+                      onToggle={() => setExpandedPerson(expandedPerson === inv.personId ? null : inv.personId)}
+                      onPayEntries={payEntries}
+                      onDownloadPDF={downloadPDF}
+                      onEmailInvoice={emailInvoice}
+                      fmt={fmt}
+                    />
+                  ))}
+                </>
+              )}
+              {studentInvoices.length > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={6} className="px-2 pt-4 pb-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                        Student ({studentInvoices.length})
+                      </span>
+                    </td>
+                  </tr>
+                  {studentInvoices.map(inv => (
+                    <InvoiceRow
+                      key={inv.personId}
+                      invoice={inv}
+                      expanded={expandedPerson === inv.personId}
+                      onToggle={() => setExpandedPerson(expandedPerson === inv.personId ? null : inv.personId)}
+                      onPayEntries={payEntries}
+                      onDownloadPDF={downloadPDF}
+                      onEmailInvoice={emailInvoice}
+                      fmt={fmt}
+                    />
+                  ))}
+                </>
+              )}
             </tbody>
             <tfoot>
               <tr className="font-bold border-t-2 border-gray-200">
                 <td className="px-2 py-3">Total ({summary.invoices.length} people)</td>
-                <td></td>
                 <td className="text-right px-2 py-3">
                   {(() => {
                     const seen = new Set<string>();
@@ -515,6 +583,35 @@ const InvoicesPage = () => {
   );
 };
 
+// ─── Sortable Column Header ───
+
+const SortHeader = ({
+  field,
+  label,
+  align,
+  sortField,
+  sortDir,
+  onSort,
+}: {
+  field: SortField;
+  label: string;
+  align: 'left' | 'right';
+  sortField: SortField;
+  sortDir: SortDir;
+  onSort: (field: SortField) => void;
+}) => {
+  const active = sortField === field;
+  const arrow = active ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+  return (
+    <th
+      className={`text-${align} px-3 py-2 font-medium cursor-pointer select-none hover:text-gray-800 ${active ? 'text-gray-800' : 'text-gray-500'}`}
+      onClick={() => onSort(field)}
+    >
+      {label}{arrow}
+    </th>
+  );
+};
+
 // ─── Invoice Row (with expand/collapse) ───
 
 const InvoiceRow = ({
@@ -537,8 +634,6 @@ const InvoiceRow = ({
   const totalEntries = invoice.partnerships.reduce((s, p) => s + p.lineItems.length, 0);
   const allPaid = invoice.outstandingAmount === 0 && invoice.totalAmount > 0;
   const isReferenceOnly = invoice.totalAmount === 0 && invoice.partnerships.some(p => !p.billable);
-  const statusLabel = invoice.personStatus === 'professional' ? 'Pro' : 'Student';
-  const statusColor = invoice.personStatus === 'professional' ? 'text-primary-500' : 'text-gray-700';
 
   const billablePartnerships = invoice.partnerships.filter(p => p.billable);
   const unpaidEntries = billablePartnerships.flatMap(p =>
@@ -562,9 +657,6 @@ const InvoiceRow = ({
               Reference
             </span>
           )}
-        </td>
-        <td className="px-2 py-2">
-          <span className={`text-xs font-semibold ${statusColor}`}>{statusLabel}</span>
         </td>
         <td className="text-right px-2 py-2">{totalEntries}</td>
         <td className="text-right px-2 py-2 font-semibold">{fmt(invoice.totalAmount)}</td>
@@ -611,7 +703,7 @@ const InvoiceRow = ({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} className="px-2 pb-3 pl-6 bg-gray-50">
+          <td colSpan={6} className="px-2 pb-3 pl-6 bg-gray-50">
             {invoice.partnerships.map(partnership => (
               <PartnershipSection
                 key={partnership.bib}
